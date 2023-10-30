@@ -1,0 +1,28 @@
+{
+  "name": "bribes",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "fork": "npx hardhat node --fork https://eth-mainnet.alchemyapi.io/v2/C9kzXL-6HwtqvidRZrFS51UX-XC_Nxho",
+    "localhostTest": "npx hardhat test --network localhost"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {},
+  "dependencies": {
+    "axios": "^0.27.2",
+    "csv-parse": "^5.5.0",
+    "ethers": "^5.6.8",
+    "graphql": "^16.5.0",
+    "graphql-request": "^4.3.0",
+    "keccak256": "^1.0.6",
+    "lodash": "^4.17.21",
+    "merkletreejs": "^0.2.31",
+    "moment": "^2.29.4",
+    "redaxios": "^0.5.0",
+    "viem": "^1.16.6",
+    "web3": "^1.7.3"
+  }
+}
