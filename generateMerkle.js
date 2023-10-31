@@ -124,6 +124,8 @@ const main = async () => {
       }
     }
 
+    //fs.writeFileSync(`./tmp/parse-${space}-delegationScoresWithoutVote.json`, JSON.stringify(delegatorsVotingPower));
+
     const delegatorSumVotingPower = Object.values(delegatorsVotingPower).reduce((acc, vp) => acc + vp, 0.0);
     let delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
     //const delegatorSumVotingPower = delegationVote;
@@ -345,8 +347,14 @@ const main = async () => {
     abi,
     functionName: 'multiSet',
     args: [toFreeze, toSet],
-  })
+  });
 
+  console.log("Token addresses to freeze : ");
+  console.log(toFreeze);
+  console.log("------");
+  console.log("New merkle roots : ");
+  console.log(toSet);
+  console.log("------");
   console.log("To freeze :");
   console.log("Contract : " + STASH_CONTROLLER_ADDRESS);
   console.log("Data : ");
