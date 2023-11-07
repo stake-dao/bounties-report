@@ -1,6 +1,7 @@
 const { MerkleTree } = require("merkletreejs");
 const keccak256 = require("keccak256");
 const fs = require('fs');
+const path = require('path');
 const orderBy = require("lodash/orderBy");
 const { gql, request } = require("graphql-request");
 const axios = require('axios').default;
@@ -385,29 +386,28 @@ const main = async () => {
 }
 
 const extractCSV = async () => {
-  const reportDir = 'https://raw.githubusercontent.com/stake-dao/bounties-report/main/';
+  const reportDir = path.join(__dirname, 'bribes-reports/');
 
-  // Get the list of files in the repository
-  const { data: files } = await axios.get('https://api.github.com/repos/stake-dao/bounties-report/contents');
+  // Read the directory and filter out the CSV files
+  const files = fs.readdirSync(reportDir);
+  const csvFiles = files.filter(file => file.endsWith('.csv'));
 
-  // Filter out the CSV files
-  const csvFiles = files.filter(file => file.name.endsWith('.csv'));
-
-  // Sort the CSV files based on the date in the filename
+  // Sort the CSV files based on the date in the filename in descending order (latest date first)
   const sortedCsvFiles = csvFiles.sort((a, b) => {
-    const dateA = a.name.split('_')[1].split('-').reverse().join('-');
-    const dateB = b.name.split('_')[1].split('-').reverse().join('-');
+    const dateA = a.split('_')[0];
+    const dateB = b.split('_')[0];
     return new Date(dateB) - new Date(dateA);
-  });
+  }).reverse();
 
-  console.log("Using : " + sortedCsvFiles[0].name);
+  console.log("Using : " + sortedCsvFiles[0]);
 
   // Get the most recent CSV file
-  const mostRecentCsvFile = sortedCsvFiles[0].name;
+  const mostRecentCsvFile = sortedCsvFiles[0];
 
-  // Fetch the CSV file from the GitHub repository
-  const { data: csvFile } = await axios.get(reportDir + mostRecentCsvFile);
+  // Read the CSV file from the file system
+  const csvFile = fs.readFileSync(path.join(reportDir, mostRecentCsvFile), 'utf8');
 
+  
   let records = parse(csvFile, {
     columns: true,
     skip_empty_lines: true,
