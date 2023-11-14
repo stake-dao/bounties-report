@@ -109,10 +109,6 @@ const main = async () => {
     let voters = await getVoters(id);
 
     voters = await getVoterVotingPower(proposal, voters);
-    if (space === SDPENDLE_SPACE) {
-      // Remove YK from voters because he did OTC
-      voters = voters.filter((voter) => voter.voter.toLowerCase() !== "0xb0e83C2D71A991017e0116d58c5765Abc57384af".toLowerCase());
-    }
 
     // Get all delegator addresses
     const delegators = await getAllDelegators(proposal.created, space);
