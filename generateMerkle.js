@@ -131,7 +131,7 @@ const main = async () => {
       }
     }
 
-    //fs.writeFileSync(`./tmp/parse-${space}-delegationScoresWithoutVote.json`, JSON.stringify(delegatorsVotingPower));
+    // fs.writeFileSync(`./tmp/parse-${space}-delegationScoresWithoutVote.json`, Object.keys(delegatorsVotingPower).map((key) => key + ";" + delegatorsVotingPower[key]).join("\n"));
 
     const delegatorSumVotingPower = Object.values(delegatorsVotingPower).reduce((acc, vp) => acc + vp, 0.0);
     let delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
