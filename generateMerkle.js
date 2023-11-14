@@ -24,42 +24,48 @@ const SDCRV_SPACE = "sdcrv.eth";
 const SDBAL_SPACE = "sdbal.eth";
 const SDFXS_SPACE = "sdfxs.eth";
 const SDANGLE_SPACE = "sdangle.eth";
+const SDPENDLE_SPACE = "sdpendle.eth";
 
-const SPACES = [SDCRV_SPACE, SDBAL_SPACE, SDFXS_SPACE, SDANGLE_SPACE];
+const SPACES = [SDCRV_SPACE, SDBAL_SPACE, SDFXS_SPACE, SDANGLE_SPACE, SDPENDLE_SPACE];
 
 const LABELS_TO_SPACE = {
   "frax": SDFXS_SPACE,
   "curve": SDCRV_SPACE,
   "balancer": SDBAL_SPACE,
-  "angle": SDANGLE_SPACE
+  "angle": SDANGLE_SPACE,
+  "pendle": SDPENDLE_SPACE,
 };
 
 const SPACES_TOKENS = {
   [SDCRV_SPACE]: "0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5",
   [SDBAL_SPACE]: "0xF24d8651578a55b0C119B9910759a351A3458895",
   [SDFXS_SPACE]: "0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36",
-  [SDANGLE_SPACE]: "0x752B4c6e92d96467fE9b9a2522EF07228E00F87c"
+  [SDANGLE_SPACE]: "0x752B4c6e92d96467fE9b9a2522EF07228E00F87c",
+  [SDPENDLE_SPACE]: "0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9"
 };
 
 const SPACES_SYMBOL = {
   [SDCRV_SPACE]: "sdCRV",
   [SDBAL_SPACE]: "sdBAL",
   [SDFXS_SPACE]: "sdFXS",
-  [SDANGLE_SPACE]: "sdANGLE"
+  [SDANGLE_SPACE]: "sdANGLE",
+  [SDPENDLE_SPACE]: "sdPENDLE"
 };
 
 const SPACES_IMAGE = {
   [SDCRV_SPACE]: "https://assets.coingecko.com/coins/images/27756/small/scCRV-2.png?1665654580",
   [SDBAL_SPACE]: "https://assets.coingecko.com/coins/images/11683/small/Balancer.png?1592792958",
   [SDFXS_SPACE]: "https://assets.coingecko.com/coins/images/13423/small/Frax_Shares_icon.png?1679886947",
-  [SDANGLE_SPACE]: "https://assets.coingecko.com/coins/images/19060/small/ANGLE_Token-light.png?1666774221"
+  [SDANGLE_SPACE]: "https://assets.coingecko.com/coins/images/19060/small/ANGLE_Token-light.png?1666774221",
+  [SDPENDLE_SPACE]: "https://beta.stakedao.org/assets/pendle.svg"
 };
 
 const SPACES_UNDERLYING_TOKEN = {
   [SDCRV_SPACE]: "0xd533a949740bb3306d119cc777fa900ba034cd52",
   [SDBAL_SPACE]: "0x5c6ee304399dbdb9c8ef030ab642b10820db8f56", //80BAL instead of bal
   [SDFXS_SPACE]: "0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0",
-  [SDANGLE_SPACE]: "0x31429d1856ad1377a8a0079410b297e1a9e214c2"
+  [SDANGLE_SPACE]: "0x31429d1856ad1377a8a0079410b297e1a9e214c2",
+  [SDPENDLE_SPACE]: "0x808507121b80c02388fad14726482e061b8da827",
 };
 
 const abi = parseAbi([
@@ -103,6 +109,10 @@ const main = async () => {
     let voters = await getVoters(id);
 
     voters = await getVoterVotingPower(proposal, voters);
+    if (space === SDPENDLE_SPACE) {
+      // Remove YK from voters because he did OTC
+      voters = voters.filter((voter) => voter.voter.toLowerCase() !== "0xb0e83C2D71A991017e0116d58c5765Abc57384af".toLowerCase());
+    }
 
     // Get all delegator addresses
     const delegators = await getAllDelegators(proposal.created, space);
@@ -698,26 +708,51 @@ const getDelegationVotingPower = async (proposal, delegatorAddresses) => {
  * For each proposal choice, extract his gauge address with his index
  */
 const extractProposalChoices = (proposal) => {
-  const SEP = " - 0x";
-
   const addressesPerChoice = {};
-  for (let i = 0; i < proposal.choices.length; i++) {
-    const choice = proposal.choices[i];
-    if (choice.indexOf("Current Weights") > -1 || choice.indexOf("Paste") > -1 || choice.indexOf("Total Percentage") > -1) {
-      continue;
-    }
-    const start = choice.indexOf(" - 0x");
-    if (start === -1) {
-      throw new Error("Impossible to parse choice : " + choice);
-    }
 
-    const end = choice.indexOf("…", start);
-    if (end === -1) {
-      throw new Error("Impossible to parse choice : " + choice);
-    }
+  if (proposal.space.id.toLowerCase() === SDPENDLE_SPACE.toLowerCase()) {
+    const SEP = " - ";
+    const SEP2 = "-";
 
-    const address = choice.substring(start + SEP.length - 2, end);
-    addressesPerChoice[address] = i + 1;
+    for (let i = 0; i < proposal.choices.length; i++) {
+      const choice = proposal.choices[i];
+      if (choice.indexOf("Current Weights") > -1 || choice.indexOf("Paste") > -1 || choice.indexOf("Total Percentage") > -1) {
+        continue;
+      }
+      const start = choice.indexOf(SEP);
+      if (start === -1) {
+        throw new Error("Impossible to parse choice : " + choice);
+      }
+
+      const end = choice.indexOf(SEP2, start + SEP.length);
+      if (end === -1) {
+        throw new Error("Impossible to parse choice : " + choice);
+      }
+
+      const address = choice.substring(end + SEP2.length);
+      addressesPerChoice[address] = i + 1;
+    }
+  } else {
+    const SEP = " - 0x";
+
+    for (let i = 0; i < proposal.choices.length; i++) {
+      const choice = proposal.choices[i];
+      if (choice.indexOf("Current Weights") > -1 || choice.indexOf("Paste") > -1 || choice.indexOf("Total Percentage") > -1) {
+        continue;
+      }
+      const start = choice.indexOf(" - 0x");
+      if (start === -1) {
+        throw new Error("Impossible to parse choice : " + choice);
+      }
+
+      const end = choice.indexOf("…", start);
+      if (end === -1) {
+        throw new Error("Impossible to parse choice : " + choice);
+      }
+
+      const address = choice.substring(start + SEP.length - 2, end);
+      addressesPerChoice[address] = i + 1;
+    }
   }
 
   return addressesPerChoice;
