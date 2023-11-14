@@ -495,7 +495,8 @@ const fetchLastProposalsIds = async () => {
         continue;
       }
 
-      if (firstFound) {
+      // Always the last proposal for sdPendle
+      if (firstFound || proposal.space.id.toLowerCase() === SDPENDLE_SPACE.toLowerCase()) {
         proposalIdPerSpace[space] = proposal.id;
         break;
       }
