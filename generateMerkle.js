@@ -84,7 +84,7 @@ const main = async () => {
   const proposalIdPerSpace = await fetchLastProposalsIds();
 
   const newMerkles = [];
-  const delegationAPRs = {};
+  const { data: delegationAPRs } = await axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json");
 
   const toFreeze = [];
   const toSet = [];
@@ -496,7 +496,7 @@ const fetchLastProposalsIds = async () => {
       }
 
       // Always the last proposal for sdPendle
-      if (firstFound || proposal.space.id.toLowerCase() === SDPENDLE_SPACE.toLowerCase()) {
+      if (firstFound) {
         proposalIdPerSpace[space] = proposal.id;
         break;
       }
