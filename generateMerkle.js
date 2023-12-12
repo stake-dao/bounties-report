@@ -6,11 +6,12 @@ const orderBy = require("lodash/orderBy");
 const { gql, request } = require("graphql-request");
 const axios = require('axios').default;
 const { utils, BigNumber } = require("ethers");
-const { formatUnits, parseEther } = require("viem");
 const { parse } = require("csv-parse/sync");
-const { parseAbi, encodeFunctionData } = require("viem");
+const { parseAbi, encodeFunctionData, formatUnits, parseEther, createPublicClient, http } = require("viem");
+const { bsc } = require('viem/chains');
 
 const MERKLE_ADDRESS = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
+const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
 const STASH_CONTROLLER_ADDRESS = "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
@@ -20,13 +21,20 @@ const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 const AGNOSTIC_ENDPOINT = "https://proxy.eu-02.agnostic.engineering/query";
 const AGNOSTIC_API_KEY = "Fr2LXSVvKCfmXse8JQJiJBLHY9ujU3YZf8Kr6TDDh4Sw";
 
+// Networks
+const ETHEREUM = "ethereum";
+const ETH_CHAIN_ID = "1";
+const BSC = "bsc";
+const BSC_CHAIN_ID = "56";
+
 const SDCRV_SPACE = "sdcrv.eth";
 const SDBAL_SPACE = "sdbal.eth";
 const SDFXS_SPACE = "sdfxs.eth";
 const SDANGLE_SPACE = "sdangle.eth";
 const SDPENDLE_SPACE = "sdpendle.eth";
+const SDCAKE_SPACE = "sdcake.eth";
 
-const SPACES = [SDCRV_SPACE, SDBAL_SPACE, SDFXS_SPACE, SDANGLE_SPACE, SDPENDLE_SPACE];
+const SPACES = [SDCRV_SPACE, SDBAL_SPACE, SDFXS_SPACE, SDANGLE_SPACE, SDPENDLE_SPACE, SDCAKE_SPACE];
 
 const LABELS_TO_SPACE = {
   "frax": SDFXS_SPACE,
@@ -34,14 +42,44 @@ const LABELS_TO_SPACE = {
   "balancer": SDBAL_SPACE,
   "angle": SDANGLE_SPACE,
   "pendle": SDPENDLE_SPACE,
+  "cake": SDCAKE_SPACE,
 };
+
+const SPACE_TO_NETWORK = {
+  [SDFXS_SPACE]: ETHEREUM,
+  [SDCRV_SPACE]: ETHEREUM,
+  [SDBAL_SPACE]: ETHEREUM,
+  [SDANGLE_SPACE]: ETHEREUM,
+  [SDPENDLE_SPACE]: ETHEREUM,
+  [SDCAKE_SPACE]: BSC,
+}
+
+const SPACE_TO_CHAIN_ID = {
+  [SDFXS_SPACE]: ETH_CHAIN_ID,
+  [SDCRV_SPACE]: ETH_CHAIN_ID,
+  [SDBAL_SPACE]: ETH_CHAIN_ID,
+  [SDANGLE_SPACE]: ETH_CHAIN_ID,
+  [SDPENDLE_SPACE]: ETH_CHAIN_ID,
+  [SDCAKE_SPACE]: BSC_CHAIN_ID,
+}
+
+const NETWORK_TO_STASH = {
+  [ETHEREUM]: STASH_CONTROLLER_ADDRESS,
+  [BSC]: MERKLE_BSC_ADDRESS,
+}
+
+const NETWORK_TO_MERKLE = {
+  [ETHEREUM]: MERKLE_ADDRESS,
+  [BSC]: MERKLE_BSC_ADDRESS,
+}
 
 const SPACES_TOKENS = {
   [SDCRV_SPACE]: "0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5",
   [SDBAL_SPACE]: "0xF24d8651578a55b0C119B9910759a351A3458895",
   [SDFXS_SPACE]: "0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36",
   [SDANGLE_SPACE]: "0x752B4c6e92d96467fE9b9a2522EF07228E00F87c",
-  [SDPENDLE_SPACE]: "0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9"
+  [SDPENDLE_SPACE]: "0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9",
+  [SDCAKE_SPACE]: "0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A"
 };
 
 const SPACES_SYMBOL = {
@@ -49,7 +87,8 @@ const SPACES_SYMBOL = {
   [SDBAL_SPACE]: "sdBAL",
   [SDFXS_SPACE]: "sdFXS",
   [SDANGLE_SPACE]: "sdANGLE",
-  [SDPENDLE_SPACE]: "sdPENDLE"
+  [SDPENDLE_SPACE]: "sdPENDLE",
+  [SDCAKE_SPACE]: "sdCAKE",
 };
 
 const SPACES_IMAGE = {
@@ -57,7 +96,8 @@ const SPACES_IMAGE = {
   [SDBAL_SPACE]: "https://assets.coingecko.com/coins/images/11683/small/Balancer.png?1592792958",
   [SDFXS_SPACE]: "https://assets.coingecko.com/coins/images/13423/small/Frax_Shares_icon.png?1679886947",
   [SDANGLE_SPACE]: "https://assets.coingecko.com/coins/images/19060/small/ANGLE_Token-light.png?1666774221",
-  [SDPENDLE_SPACE]: "https://beta.stakedao.org/assets/pendle.svg"
+  [SDPENDLE_SPACE]: "https://beta.stakedao.org/assets/pendle.svg",
+  [SDCAKE_SPACE]: "https://cdn.stamp.fyi/space/sdcake.eth?s=96&cb=cd2ea5c12296e731",
 };
 
 const SPACES_UNDERLYING_TOKEN = {
@@ -66,11 +106,14 @@ const SPACES_UNDERLYING_TOKEN = {
   [SDFXS_SPACE]: "0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0",
   [SDANGLE_SPACE]: "0x31429d1856ad1377a8a0079410b297e1a9e214c2",
   [SDPENDLE_SPACE]: "0x808507121b80c02388fad14726482e061b8da827",
+  [SDCAKE_SPACE]: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82",
 };
 
 const abi = parseAbi([
   'function multiFreeze(address[] tokens) public',
   'function multiSet(address[] tokens, bytes32[] roots) public',
+  'function multiUpdateMerkleRoot(address[] tokens, bytes32[] roots) public',
+  'function isClaimed(address token, uint256 index) public view returns (bool)',
 ]);
 
 const main = async () => {
@@ -86,8 +129,8 @@ const main = async () => {
   const newMerkles = [];
   const { data: delegationAPRs } = await axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json");
 
-  const toFreeze = [];
-  const toSet = [];
+  const toFreeze = {};
+  const toSet = {};
 
   for (const space of Object.keys(proposalIdPerSpace)) {
     checkSpace(space);
@@ -104,18 +147,22 @@ const main = async () => {
     // Get the proposal to find the create timestamp
     const proposal = await getProposal(id);
 
+    if (id.toLowerCase() === "0xc6048d4cc3419085a41c11bd9f2d2fd7f3be73f3d8f6d4a3f29971c3bb64acff".toLowerCase()) {
+      proposal.snapshot = 33959756;
+    }
+
     // Here, we should have delegation voter + all other voters
     // Object with vp property
     let voters = await getVoters(id);
 
-    voters = await getVoterVotingPower(proposal, voters);
+    voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID[space]);
 
     // Get all delegator addresses
     const delegators = await getAllDelegators(proposal.created, space);
 
     // Get voting power for all delegator
     // Map of address => VotingPower
-    const delegatorsVotingPower = await getDelegationVotingPower(proposal, delegators.concat([DELEGATION_ADDRESS]));
+    const delegatorsVotingPower = await getDelegationVotingPower(proposal, delegators.concat([DELEGATION_ADDRESS]), SPACE_TO_CHAIN_ID[space]);
 
     // Reduce delegator voting power if some guys voted directly
     for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
@@ -137,7 +184,11 @@ const main = async () => {
     let delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
     //const delegatorSumVotingPower = delegationVote;
     if (!delegationVote) {
-      throw new Error("No delegation vote for " + space + " - " + id);
+      delegationVote = {
+        totalRewards: 0,
+        vp: 0,
+      }
+      //throw new Error("No delegation vote for " + space + " - " + id);
     }
     /*if(delegationVote.vp !== delegatorSumVotingPower) {
       throw new Error("Voting power delegation !== voting power sum all delegators - " + delegationVote.vp + " vs " + delegatorSumVotingPower + " - " + space + " - " + id);
@@ -217,37 +268,41 @@ const main = async () => {
     // Now we have all rewards across all voters
     // But one voter is the delegation, we have to split his rewards across the delegation
     delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
-    delegationVote.delegation = {};
+    if (delegationVote) {
+      delegationVote.delegation = {};
 
-    for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
-      const vp = delegatorsVotingPower[delegatorAddress];
-      const ratioVp = vp * 100 / delegatorSumVotingPower;
+      for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
+        const vp = delegatorsVotingPower[delegatorAddress];
+        const ratioVp = vp * 100 / delegatorSumVotingPower;
 
-      // This user should receive ratioVp% of all rewards
-      if (space === SDCRV_SPACE && delegatorAddress.toLowerCase() === "0x1c0d72a330f2768daf718def8a19bab019eead09".toLowerCase()) {
-        console.log("Concentrator vp : ", vp);
-        console.log("Delegation vp : ", delegatorSumVotingPower)
-        console.log("Total rewards : ", delegationVote.totalRewards);
-        console.log("Ratio % : ", ratioVp)
-        console.log("Ratio rewards : ", ratioVp * delegationVote.totalRewards / 100)
-        console.log("Ratio rewards new : ", vp * delegationVote.totalRewards / delegatorSumVotingPower)
+        // This user should receive ratioVp% of all rewards
+        if (space === SDCRV_SPACE && delegatorAddress.toLowerCase() === "0x1c0d72a330f2768daf718def8a19bab019eead09".toLowerCase()) {
+          console.log("Concentrator vp : ", vp);
+          console.log("Delegation vp : ", delegatorSumVotingPower)
+          console.log("Total rewards : ", delegationVote.totalRewards);
+          console.log("Ratio % : ", ratioVp)
+          console.log("Ratio rewards : ", ratioVp * delegationVote.totalRewards / 100)
+          console.log("Ratio rewards new : ", vp * delegationVote.totalRewards / delegatorSumVotingPower)
 
+        }
+        delegationVote.delegation[delegatorAddress.toLowerCase()] = ratioVp * delegationVote.totalRewards / 100;
       }
-      delegationVote.delegation[delegatorAddress.toLowerCase()] = ratioVp * delegationVote.totalRewards / 100;
-    }
 
-    // Check split
-    /*const totalSplitDelegationRewards = Object.values(delegationVote.delegation).reduce((acc, d) => acc + d, 0.0) || 0;
-    if (parseInt(delegationVote.totalRewards) !== parseInt(totalSplitDelegationRewards)) {
-      throw new Error("Delegation " + space + " - " + id + " split rewards wrong " + delegationVote.totalRewards + " - " + totalSplitDelegationRewards);
-    }*/
+      // Check split
+      /*const totalSplitDelegationRewards = Object.values(delegationVote.delegation).reduce((acc, d) => acc + d, 0.0) || 0;
+      if (parseInt(delegationVote.totalRewards) !== parseInt(totalSplitDelegationRewards)) {
+        throw new Error("Delegation " + space + " - " + id + " split rewards wrong " + delegationVote.totalRewards + " - " + totalSplitDelegationRewards);
+      }*/
 
-    // Calculate delegation apr
-    let delegationAPR = ((Number(delegationVote.totalRewards) * 26 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
-    if (space === SDFXS_SPACE) {
-      delegationAPR *= 4;
+      // Calculate delegation apr
+      if (delegationVote.vp > 0) {
+        let delegationAPR = ((Number(delegationVote.totalRewards) * 26 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
+        if (space === SDFXS_SPACE) {
+          delegationAPR *= 4;
+        }
+        delegationAPRs[space] = delegationAPR;
+      }
     }
-    delegationAPRs[space] = delegationAPR;
 
     // Create a map with userAddress => reward amount
     const userRewards = {};
@@ -279,9 +334,21 @@ const main = async () => {
     const tokenToDistribute = SPACES_TOKENS[space];
 
     const lastMerkle = lastMerkles.find((m) => m.address.toLowerCase() === tokenToDistribute.toLowerCase());
-    if (lastMerkle) {
+    const network = SPACE_TO_NETWORK[space];
 
-      const usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute);
+    if (lastMerkle) {
+      
+      let usersClaimedAddress = {};
+      switch(network) {
+        case ETHEREUM:
+          usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute);
+          break;
+        case BSC:
+          usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeOnBSC(lastMerkle, NETWORK_TO_STASH[network]);
+          break;
+        default:
+          throw new Error("network unknow");
+      }
 
       const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
 
@@ -337,40 +404,59 @@ const main = async () => {
       "image": SPACES_IMAGE[space],
       "merkle": merkle,
       root: merkleTree.getHexRoot(),
-      "total": totalAmount
+      "total": totalAmount,
+      "chainId": parseInt(SPACE_TO_CHAIN_ID[space]),
+      "merkleContract": NETWORK_TO_MERKLE[network]
     });
 
-    toFreeze.push(tokenToDistribute);
-    toSet.push(merkleTree.getHexRoot());
+    if (!toFreeze[network]) {
+      toFreeze[network] = [];
+    }
+    if (!toSet[network]) {
+      toSet[network] = [];
+    }
+    toFreeze[network].push(tokenToDistribute);
+    toSet[network].push(merkleTree.getHexRoot());
   }
 
-  const freezeData = encodeFunctionData({
-    abi,
-    functionName: 'multiFreeze',
-    args: [toFreeze],
-  });
+  for (const network of Object.keys(toFreeze)) {
+    let multiSetName = null;
+    if (network === "ethereum") {
+      multiSetName = 'multiSet';
+    } else {
+      multiSetName = 'multiUpdateMerkleRoot';
+    }
 
-  const multiSetData = encodeFunctionData({
-    abi,
-    functionName: 'multiSet',
-    args: [toFreeze, toSet],
-  });
+    const freezeData = encodeFunctionData({
+      abi,
+      functionName: 'multiFreeze',
+      args: [toFreeze[network]],
+    });
 
-  console.log("Token addresses to freeze : ");
-  console.log(toFreeze);
-  console.log("------");
-  console.log("New merkle roots : ");
-  console.log(toSet);
-  console.log("------");
-  console.log("To freeze :");
-  console.log("Contract : " + STASH_CONTROLLER_ADDRESS);
-  console.log("Data : ");
-  console.log(freezeData);
-  console.log("----------");
-  console.log("New roots :");
-  console.log("Contract : " + STASH_CONTROLLER_ADDRESS);
-  console.log("Data : ");
-  console.log(multiSetData);
+    const multiSetData = encodeFunctionData({
+      abi,
+      functionName: multiSetName,
+      args: [toFreeze[network], toSet[network]],
+    });
+
+    console.log("Network : " + network);
+    console.log("Token addresses to freeze : ");
+    console.log(toFreeze[network]);
+    console.log("------");
+    console.log("New merkle roots : ");
+    console.log(toSet[network]);
+    console.log("------");
+    console.log("To freeze :");
+    console.log("Contract : " + NETWORK_TO_STASH[network]);
+    console.log("Data : ");
+    console.log(freezeData);
+    console.log("----------");
+    console.log("New roots : ", multiSetName);
+    console.log("Contract : " + NETWORK_TO_STASH[network]);
+    console.log("Data : ");
+    console.log(multiSetData);
+    console.log("\n------------------------\n");
+  }
 
   for (const lastMerkle of lastMerkles) {
 
@@ -489,19 +575,25 @@ const fetchLastProposalsIds = async () => {
   const proposalIdPerSpace = {};
   for (const space of SPACES) {
 
-    let firstFound = false;
+    let firstGaugeProposal = null;
+    let added = false;
     for (const proposal of proposals) {
       if (proposal.space.id !== space) {
         continue;
       }
 
       // Always the last proposal for sdPendle
-      if (firstFound) {
+      if (firstGaugeProposal) {
         proposalIdPerSpace[space] = proposal.id;
+        added = true;
         break;
       }
 
-      firstFound = true;
+      firstGaugeProposal = proposal;
+    }
+
+    if(!added && firstGaugeProposal) {
+      proposalIdPerSpace[space] = firstGaugeProposal.id;
     }
   }
 
@@ -567,34 +659,39 @@ const getVoters = async (proposalId) => {
   return votes;
 }
 
-const getVoterVotingPower = async (proposal, votes) => {
+const getVoterVotingPower = async (proposal, votes, network) => {
+  try {
+    const votersAddresses = votes.map((v) => v.voter);
 
-  const votersAddresses = votes.map((v) => v.voter);
-
-  const { data } = await axios.post(
-    "https://score.snapshot.org/api/scores",
-    {
-      params: {
-        network: "1",
-        snapshot: parseInt(proposal.snapshot),
-        strategies: proposal.strategies,
-        space: proposal.space.id,
-        addresses: votersAddresses
+    const { data } = await axios.post(
+      "https://score.snapshot.org/api/scores",
+      {
+        params: {
+          network,
+          snapshot: parseInt(proposal.snapshot),
+          strategies: proposal.strategies,
+          space: proposal.space.id,
+          addresses: votersAddresses
+        },
       },
-    },
-  );
+    );
 
-  const scores = votes.map((vote) => {
-    let vp = 0;
-    if (vote.vp > 0) {
-      vp = vote.vp;
-    } else {
-      vp = data?.result?.scores?.[0]?.[vote.voter] || data?.result?.scores?.[1]?.[vote.voter];
-    }
-    return { ...vote, vp };
-  });
+    const scores = votes.map((vote) => {
+      let vp = 0;
+      if (vote.vp > 0) {
+        vp = vote.vp;
+      } else {
+        vp = data?.result?.scores?.[0]?.[vote.voter] || data?.result?.scores?.[1]?.[vote.voter];
+      }
+      return { ...vote, vp };
+    });
 
-  return orderBy(scores, "vp", "desc");
+    return orderBy(scores, "vp", "desc");
+  }
+  catch (e) {
+    console.log("Error getVoterVotingPower");
+    throw e;
+  }
 }
 
 /**
@@ -684,21 +781,27 @@ const getAllDelegators = async (proposalCreatedTimestamp, space) => {
   return delegatorAddresses;
 };
 
-const getDelegationVotingPower = async (proposal, delegatorAddresses) => {
-  const { data } = await axios.post(
-    "https://score.snapshot.org/api/scores",
-    {
-      params: {
-        network: "1",
-        snapshot: parseInt(proposal.snapshot),
-        strategies: proposal.strategies,
-        space: proposal.space.id,
-        addresses: delegatorAddresses
+const getDelegationVotingPower = async (proposal, delegatorAddresses, network) => {
+  try {
+    const { data } = await axios.post(
+      "https://score.snapshot.org/api/scores",
+      {
+        params: {
+          network,
+          snapshot: parseInt(proposal.snapshot),
+          strategies: proposal.strategies,
+          space: proposal.space.id,
+          addresses: delegatorAddresses
+        },
       },
-    },
-  );
+    );
 
-  return { ...data?.result?.scores[0], ...data?.result?.scores[1] };
+    return { ...data?.result?.scores[0], ...data?.result?.scores[1] };
+  }
+  catch (e) {
+    console.log(e);
+    throw e;
+  }
 }
 
 /**
@@ -865,11 +968,53 @@ const agnosticFetch = async (query) => {
   }
 }
 
-const getTokenPrice = async (space) => {
-  const key = `ethereum:${SPACES_UNDERLYING_TOKEN[space]}`;
-  const resp = await axios.get(`https://coins.llama.fi/prices/current/${key}`);
+const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContract) => {
+  const resp = {};
 
-  return resp.data.coins[key].price;
+  const wagmiContract = {
+    address: merkleContract,
+    abi: abi
+  };
+
+  const publicClient = createPublicClient({
+    chain: bsc,
+    transport: http()
+  });
+
+  const calls = [];
+  for (const userAddress of Object.keys(lastMerkle.merkle)) {
+    const index = lastMerkle.merkle[userAddress].index;
+    calls.push({
+      ...wagmiContract,
+      functionName: 'isClaimed',
+      args: [lastMerkle.address, index]
+    });
+  }
+
+  const results = await publicClient.multicall({
+    contracts: calls
+  });
+
+  for (const userAddress of Object.keys(lastMerkle.merkle)) {
+    if (results.shift().result === true) {
+      resp[userAddress.toLowerCase()] = true;
+    }
+  }
+
+  return resp
+}
+
+const getTokenPrice = async (space) => {
+  try {
+    const key = `${SPACE_TO_NETWORK[space]}:${SPACES_UNDERLYING_TOKEN[space]}`;
+    const resp = await axios.get(`https://coins.llama.fi/prices/current/${key}`);
+
+    return resp.data.coins[key].price;
+  }
+  catch (e) {
+    console.log("Error getTokenPrice ", space);
+    throw e;
+  }
 }
 
 const checkSpace = (space) => {
@@ -884,6 +1029,18 @@ const checkSpace = (space) => {
   }
   if (!SPACES_TOKENS[space]) {
     throw new Error("No sdToken defined for space " + space);
+  }
+
+  if (!SPACE_TO_NETWORK[space]) {
+    throw new Error("No network defined for space " + space);
+  }
+
+  if(!NETWORK_TO_STASH[SPACE_TO_NETWORK[space]]) {
+    throw new Error("No stash contract defined for space " + space);
+  }
+
+  if(!NETWORK_TO_MERKLE[SPACE_TO_NETWORK[space]]) {
+    throw new Error("No merkle contract defined for space " + space);
   }
 }
 
