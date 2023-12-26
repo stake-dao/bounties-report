@@ -16,6 +16,8 @@ const STASH_CONTROLLER_ADDRESS = "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 const ENDPOINT_DELEGATORS = "https://api.thegraph.com/subgraphs/name/snapshot-labs/snapshot";
+const ENDPOINT_DELEGATORS_BSC = "https://api.thegraph.com/subgraphs/name/snapshot-labs/snapshot-binance-smart-chain";
+
 const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 
 const AGNOSTIC_ENDPOINT = "https://proxy.eu-02.agnostic.engineering/query";
@@ -43,6 +45,11 @@ const LABELS_TO_SPACE = {
   "angle": SDANGLE_SPACE,
   "pendle": SDPENDLE_SPACE,
   "cake": SDCAKE_SPACE,
+};
+
+const SUBGRAP_BY_CHAIN = {
+  [BSC]: ENDPOINT_DELEGATORS_BSC,
+  [ETHEREUM]: ENDPOINT_DELEGATORS
 };
 
 const SPACE_TO_NETWORK = {
@@ -147,8 +154,10 @@ const main = async () => {
     // Get the proposal to find the create timestamp
     const proposal = await getProposal(id);
 
-    if (id.toLowerCase() === "0xc6048d4cc3419085a41c11bd9f2d2fd7f3be73f3d8f6d4a3f29971c3bb64acff".toLowerCase()) {
-      proposal.snapshot = 33959756;
+    // For cake
+    const isCake = id.toLowerCase() === "0x2e639e1898cc8e9a1d46b4d676c49bda90e815a654b061437ab94417c37922f1".toLowerCase();
+    if (isCake) {
+      proposal.snapshot = 34360821;
     }
 
     // Here, we should have delegation voter + all other voters
@@ -583,7 +592,7 @@ const fetchLastProposalsIds = async () => {
       }
 
       // Always the last proposal for sdPendle
-      if (firstGaugeProposal) {
+      if (firstGaugeProposal || space === SDCAKE_SPACE) {
         proposalIdPerSpace[space] = proposal.id;
         added = true;
         break;
@@ -741,6 +750,9 @@ const getProposal = async (idProposal) => {
   return result.proposal;
 }
 
+/**
+ * All endpoints here : https://raw.githubusercontent.com/snapshot-labs/snapshot.js/master/src/delegationSubgraphs.json
+ */
 const getAllDelegators = async (proposalCreatedTimestamp, space) => {
   let delegatorAddresses = [];
   let run = true;
@@ -766,7 +778,7 @@ const getAllDelegators = async (proposalCreatedTimestamp, space) => {
 
   // Fetch all data
   do {
-    const result = await request(ENDPOINT_DELEGATORS, DELEGATIONS_QUERY, { space, skip, timestamp: proposalCreatedTimestamp });
+    const result = await request(SUBGRAP_BY_CHAIN[SPACE_TO_NETWORK[space]], DELEGATIONS_QUERY, { space, skip, timestamp: proposalCreatedTimestamp });
 
     if (result.delegations?.length > 0) {
       delegatorAddresses = delegatorAddresses.concat(result.delegations.map((d) => d.delegator));
@@ -847,7 +859,8 @@ const extractProposalChoices = (proposal) => {
 
       const end = choice.indexOf("…", start);
       if (end === -1) {
-        throw new Error("Impossible to parse choice : " + choice);
+        //throw new Error("Impossible to parse choice : " + choice);
+        continue;
       }
 
       const address = choice.substring(start + SEP.length - 2, end);
