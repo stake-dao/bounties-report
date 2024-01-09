@@ -154,12 +154,6 @@ const main = async () => {
     // Get the proposal to find the create timestamp
     const proposal = await getProposal(id);
 
-    // For cake
-    const isCake = id.toLowerCase() === "0x2e639e1898cc8e9a1d46b4d676c49bda90e815a654b061437ab94417c37922f1".toLowerCase();
-    if (isCake) {
-      proposal.snapshot = 34360821;
-    }
-
     // Here, we should have delegation voter + all other voters
     // Object with vp property
     let voters = await getVoters(id);
