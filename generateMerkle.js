@@ -299,6 +299,9 @@ const main = async () => {
 
       // Calculate delegation apr
       if (delegationVote.vp > 0) {
+        if(space === "sdcake.eth") {
+          console.log("sdCAKE delegation total rewards : ", delegationVote.totalRewards);
+        }
         let delegationAPR = ((Number(delegationVote.totalRewards) * 26 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
         if (space === SDFXS_SPACE) {
           delegationAPR *= 4;
@@ -683,8 +686,17 @@ const getVoterVotingPower = async (proposal, votes, network) => {
       let vp = 0;
       if (vote.vp > 0) {
         vp = vote.vp;
-      } else {
-        vp = data?.result?.scores?.[0]?.[vote.voter] || data?.result?.scores?.[1]?.[vote.voter];
+      } else if (data?.result?.scores) {
+        for(const score of data.result.scores) {
+          const keys = Object.keys(score);
+          for(const key of keys) {
+            if(key.toLowerCase() === vote.voter.toLowerCase()) {
+              vp += score[key];
+              break;
+            }
+          }
+        }
+        //vp = data?.result?.scores?.[0]?.[vote.voter] || data?.result?.scores?.[1]?.[vote.voter];
       }
       return { ...vote, vp };
     });
