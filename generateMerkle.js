@@ -604,9 +604,6 @@ const fetchLastProposalsIds = async () => {
       }
 
       firstGaugeProposal = proposal;
-      proposalIdPerSpace[space] = proposal.id;
-        added = true;
-        break;
     }
 
     if(!added && firstGaugeProposal) {
