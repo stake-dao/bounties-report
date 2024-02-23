@@ -8,7 +8,8 @@ const axios = require('axios').default;
 const { utils, BigNumber } = require("ethers");
 const { parse } = require("csv-parse/sync");
 const { parseAbi, encodeFunctionData, formatUnits, parseEther, createPublicClient, http } = require("viem");
-const { bsc } = require('viem/chains');
+const { bsc, mainnet } = require('viem/chains');
+const VOTER_ABI = require("./abis/AutoVoter.json");
 
 const MERKLE_ADDRESS = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
 const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
@@ -18,8 +19,14 @@ const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 const ENDPOINT_DELEGATORS = "https://api.thegraph.com/subgraphs/name/snapshot-labs/snapshot";
 const ENDPOINT_DELEGATORS_BSC = "https://api.thegraph.com/subgraphs/name/snapshot-labs/snapshot-binance-smart-chain";
 
+// Auto Voter
+const AUTO_VOTER_DELEGATION_ADDRESS = "0x0657C6bEe67Bb96fae96733D083DAADE0cb5a179";
+const AUTO_VOTER_CONTRACT = "0x619eDEF2d18Ec9758E96D8FF2c7DcbFb58DD5A5C";
+
+// Delegation
 const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 
+// Agnostic
 const AGNOSTIC_ENDPOINT = "https://proxy.eu-02.agnostic.engineering/query";
 const AGNOSTIC_API_KEY = "Fr2LXSVvKCfmXse8JQJiJBLHY9ujU3YZf8Kr6TDDh4Sw";
 
@@ -154,14 +161,24 @@ const main = async () => {
     // Get the proposal to find the create timestamp
     const proposal = await getProposal(id);
 
+    // Extract address per choice
+    // The address will be only the strat of the address
+    const allAddressesPerChoice = extractProposalChoices(proposal);
+
+    // Get only choices where we have a bribe reward
+    // Now, the address is the complete address
+    // Map -> gauge address => {index : choice index, amount: sdTKN }
+    const addressesPerChoice = getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult[space]);
+
     // Here, we should have delegation voter + all other voters
     // Object with vp property
     let voters = await getVoters(id);
 
     voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID[space]);
+    voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice);
 
     // Get all delegator addresses
-    const delegators = await getAllDelegators(proposal.created, space);
+    const delegators = await getAllDelegators(DELEGATION_ADDRESS, proposal.created, space);
 
     // Get voting power for all delegator
     // Map of address => VotingPower
@@ -200,15 +217,6 @@ const main = async () => {
     // We can have sum delegation lower than delegation vp
     //delegationVote.vp = delegatorSumVotingPower;
     delegationVote.totalRewards = 0;
-
-    // Extract address per choice
-    // The address will be only the strat of the address
-    let addressesPerChoice = extractProposalChoices(proposal);
-
-    // Get only choices where we have a bribe reward
-    // Now, the address is the complete address
-    // Map -> gauge address => {index : choice index, amount: sdTKN }
-    addressesPerChoice = getChoiceWhereExistsBribe(addressesPerChoice, csvResult[space]);
 
     for (const gaugeAddress of Object.keys(addressesPerChoice)) {
       const index = addressesPerChoice[gaugeAddress].index;
@@ -596,6 +604,9 @@ const fetchLastProposalsIds = async () => {
       }
 
       firstGaugeProposal = proposal;
+      proposalIdPerSpace[space] = proposal.id;
+        added = true;
+        break;
     }
 
     if(!added && firstGaugeProposal) {
@@ -710,6 +721,135 @@ const getVoterVotingPower = async (proposal, votes, network) => {
 }
 
 /**
+ * Will fetch auto voter delegators at the snapshot block number and add them as voters
+ */
+const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoice) => {
+  const autoVoter = voters.find((v) => v.voter.toLowerCase() === AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase());
+  if (!autoVoter) {
+    return voters;
+  }
+
+  const delegators = await getAllDelegators(AUTO_VOTER_DELEGATION_ADDRESS, proposal.created, space);
+  if (delegators.length === 0) {
+    return voters;
+  }
+
+  const { data } = await axios.post(
+    "https://score.snapshot.org/api/scores",
+    {
+      params: {
+        network: '1',
+        snapshot: parseInt(proposal.snapshot),
+        strategies: proposal.strategies,
+        space: proposal.space.id,
+        addresses: delegators
+      },
+    },
+  );
+
+  // Compute delegators voting power at the proposal timestamp
+  const votersVp = {};
+
+  for (const score of data.result.scores) {
+    const keys = Object.keys(score);
+    for (const key of keys) {
+      const vp = score[key];
+      if (vp === 0) {
+        continue;
+      }
+
+      const user = key.toLowerCase();
+      if (!votersVp[user]) {
+        votersVp[user] = 0;
+      }
+
+      votersVp[user] += vp;
+    }
+  }
+
+  const delegatorAddresses = Object.keys(votersVp);
+  if (delegatorAddresses.length === 0) {
+    return voters;
+  }
+
+  // Fetch delegators weight registered in the auto voter contract
+  const publicClient = createPublicClient({
+    chain: mainnet,
+    transport: http(),
+    batch: {
+      multicall: true,
+    }
+  });
+
+  const results = await publicClient.multicall({
+    contracts: delegatorAddresses.map((delegatorAddress) => {
+      return {
+        address: AUTO_VOTER_CONTRACT,
+        abi: VOTER_ABI,
+        functionName: 'get',
+        args: [delegatorAddress, space]
+      }
+    }),
+    blockNumber: parseInt(proposal.snapshot)
+  });
+
+  if (results.some((r) => r.status === "failure")) {
+    throw new Error("Error when fetching auto voter weights");
+  }
+
+  const gaugeAddressesFromProposal = Object.keys(addressesPerChoice);
+
+  for(const delegatorAddress of delegatorAddresses) {
+    const data = results.shift().result;
+    if (data.killed) {
+      continue;
+    }
+
+    if (data.user.toLowerCase() !== delegatorAddress.toLowerCase()) {
+      continue;
+    }
+
+    // Shouldn't be undefined or 0 here
+    const vp = votersVp[delegatorAddress.toLowerCase()];
+    if (!vp) {
+      throw new Error("Error when getting user voting power");
+    }
+
+    const gauges = data.gauges;
+    const weights = data.weights;
+
+    if (gauges.length !== weights.length) {
+      throw new Error("gauges length != weights length");
+    }
+
+    const choices = {};
+
+    for (let i = 0; i < gauges.length; i++) {
+      const gauge = gauges[i];
+      const weight = weights[i];
+
+      // Need to find the choice index from the gauge address
+      const gaugeAddressFromProposal = gaugeAddressesFromProposal.find((g) => gauge.toLowerCase().indexOf(g.toLowerCase()) > -1);
+      if (!gaugeAddressFromProposal) {
+        throw new Error("Can't find gauge address");
+      }
+
+      choices[addressesPerChoice[gaugeAddressFromProposal].toString()] = Number(weight);
+    }
+
+    voters.push({
+      "voter": delegatorAddress.toLowerCase(),
+      "choice": choices,
+      "vp": vp,
+    });
+  }
+
+  // Remove auto voter to not receive bounty rewards
+  return voters
+    .filter((voter) => voter.voter.toLowerCase() !== AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase());
+}
+
+/**
  * Fetch the proposal
  */
 const getProposal = async (idProposal) => {
@@ -759,7 +899,7 @@ const getProposal = async (idProposal) => {
 /**
  * All endpoints here : https://raw.githubusercontent.com/snapshot-labs/snapshot.js/master/src/delegationSubgraphs.json
  */
-const getAllDelegators = async (proposalCreatedTimestamp, space) => {
+const getAllDelegators = async (delegationAddress, proposalCreatedTimestamp, space) => {
   let delegatorAddresses = [];
   let run = true;
   let skip = 0;
@@ -772,7 +912,7 @@ const getAllDelegators = async (proposalCreatedTimestamp, space) => {
       ) {
       delegations(first: 1000 skip: $skip where: { 
         space: $space 
-        delegate:"${DELEGATION_ADDRESS}"
+        delegate:"${delegationAddress}"
         timestamp_lte: $timestamp
       }) {
         delegator
@@ -814,7 +954,18 @@ const getDelegationVotingPower = async (proposal, delegatorAddresses, network) =
       },
     );
 
-    return { ...data?.result?.scores[0], ...data?.result?.scores[1] };
+    if (!data?.result?.scores) {
+      throw new Error("No score");
+    }
+
+    let result = {};
+    for (const score of data.result.scores) {
+      result = {
+        ...result,
+        ...score
+      };
+    }
+    return result;
   }
   catch (e) {
     console.log(e);
