@@ -1011,10 +1011,13 @@ const extractProposalChoices = (proposal) => {
         throw new Error("Impossible to parse choice : " + choice);
       }
 
-      const end = choice.indexOf("…", start);
+      let end = choice.indexOf("…", start);
       if (end === -1) {
-        //throw new Error("Impossible to parse choice : " + choice);
-        continue;
+        end = choice.indexOf("...", start);
+        if (end === -1) {
+          //throw new Error("Impossible to parse choice : " + choice);
+          continue;
+        }
       }
 
       const address = choice.substring(start + SEP.length - 2, end);
@@ -1053,7 +1056,7 @@ const getChoiceWhereExistsBribe = (addressesPerChoice, cvsResult) => {
       break;
     }
   }
-
+  
   if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
     throw new Error("Error when get complete gauge address");
   }
