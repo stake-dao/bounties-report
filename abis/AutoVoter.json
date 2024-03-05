@@ -1,0 +1,216 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "user",
+                "type": "address",
+                "indexed": false
+            },
+            {
+                "internalType": "string",
+                "name": "space",
+                "type": "string",
+                "indexed": false
+            }
+        ],
+        "type": "event",
+        "name": "Removed",
+        "anonymous": false
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "user",
+                "type": "address",
+                "indexed": false
+            },
+            {
+                "internalType": "string",
+                "name": "space",
+                "type": "string",
+                "indexed": false
+            },
+            {
+                "internalType": "uint256",
+                "name": "voteIndex",
+                "type": "uint256",
+                "indexed": false
+            },
+            {
+                "internalType": "uint256",
+                "name": "spaceIndex",
+                "type": "uint256",
+                "indexed": false
+            }
+        ],
+        "type": "event",
+        "name": "Set",
+        "anonymous": false
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "space",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function",
+        "name": "get",
+        "outputs": [
+            {
+                "internalType": "struct Vote",
+                "name": "",
+                "type": "tuple",
+                "components": [
+                    {
+                        "internalType": "address",
+                        "name": "user",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "gauges",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "weights",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "killed",
+                        "type": "bool"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "space",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "name": "remove"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string[]",
+                "name": "spaces",
+                "type": "string[]"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "name": "removeAll"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "space",
+                "type": "string"
+            },
+            {
+                "internalType": "address[]",
+                "name": "_gauges",
+                "type": "address[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "_weights",
+                "type": "uint256[]"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "name": "set"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function",
+        "name": "space_votes_index",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ]
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function",
+        "name": "user_vote_index",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ]
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function",
+        "name": "votes",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
+            },
+            {
+                "internalType": "bool",
+                "name": "killed",
+                "type": "bool"
+            }
+        ]
+    }
+]
