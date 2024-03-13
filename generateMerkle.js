@@ -807,7 +807,6 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
   });
 
   if (results.some((r) => r.status === "failure")) {
-    console.log(results);
     throw new Error("Error when fetching auto voter weights");
   }
 
