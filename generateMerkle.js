@@ -773,7 +773,6 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
   }
 
   // Fetch delegators weight registered in the auto voter contract
-  console.log(process.env.RPC_URL)
   const publicClient = createPublicClient({
     chain: mainnet,
     transport: http(process.env.RPC_URL || undefined),
