@@ -811,7 +811,7 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
   });
 
   if (results.some((r) => r.status === "failure")) {
-    throw new Error("Error when fetching auto voter weights", JSON.stringify(results));
+    throw new Error("Error when fetching auto voter weights : " + JSON.stringify(results));
   }
 
   const gaugeAddressesFromProposal = Object.keys(addressesPerChoice);
