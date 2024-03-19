@@ -10,6 +10,9 @@ const { parse } = require("csv-parse/sync");
 const { parseAbi, encodeFunctionData, formatUnits, parseEther, createPublicClient, http } = require("viem");
 const { bsc, mainnet } = require('viem/chains');
 const VOTER_ABI = require("./abis/AutoVoter.json");
+const dotenv = require("dotenv");
+
+dotenv.config();
 
 const MERKLE_ADDRESS = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
 const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
@@ -770,9 +773,10 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
   }
 
   // Fetch delegators weight registered in the auto voter contract
+  console.log(process.env.RPC_URL)
   const publicClient = createPublicClient({
     chain: mainnet,
-    transport: http(),
+    transport: http(process.env.RPC_URL || undefined),
     batch: {
       multicall: true,
     }
