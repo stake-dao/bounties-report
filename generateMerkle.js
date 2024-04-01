@@ -514,8 +514,6 @@ const main = async () => {
 
   const logPath = path.join(__dirname, 'log.json');
   fs.writeFileSync(logPath, JSON.stringify(logData));
-  console.log(logPath);
-
 }
 
 const extractCSV = async () => {
@@ -797,7 +795,6 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
   }
 
   // Fetch delegators weight registered in the auto voter contract
-  console.log(process.env.RPC_URL)
   const publicClient = createPublicClient({
     chain: mainnet,
     transport: http(process.env.RPC_URL || undefined),
