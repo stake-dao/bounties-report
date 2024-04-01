@@ -100,8 +100,8 @@ const SPACES_TOKENS = {
   [SDFXS_SPACE]: "0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36",
   [SDANGLE_SPACE]: "0x752B4c6e92d96467fE9b9a2522EF07228E00F87c",
   [SDPENDLE_SPACE]: "0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9",
-  [SDCAKE_SPACE]: "0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A",
-  [SDFXN_SPACE]: "0xe19d1c837B8A1C83A56cD9165b2c0256D39653aD"
+  [SDFXN_SPACE]: "0xe19d1c837B8A1C83A56cD9165b2c0256D39653aD",
+  [SDCAKE_SPACE]: "0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A"
 };
 
 const SPACES_SYMBOL = {
@@ -141,10 +141,12 @@ const abi = parseAbi([
   'function isClaimed(address token, uint256 index) public view returns (bool)',
 ]);
 
-const main = async () => {
+const logData = {}; // Use to store and write logs in a JSON 
 
+
+const main = async () => {
   const csvResult = await extractCSV();
-  
+
   // Fetch last merkle
   const { data: lastMerkles } = await axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json");
 
@@ -299,13 +301,14 @@ const main = async () => {
 
         // This user should receive ratioVp% of all rewards
         if (space === SDCRV_SPACE && delegatorAddress.toLowerCase() === "0x1c0d72a330f2768daf718def8a19bab019eead09".toLowerCase()) {
-          console.log("Concentrator vp : ", vp);
-          console.log("Delegation vp : ", delegatorSumVotingPower)
-          console.log("Total rewards : ", delegationVote.totalRewards);
-          console.log("Ratio % : ", ratioVp)
-          console.log("Ratio rewards : ", ratioVp * delegationVote.totalRewards / 100)
-          console.log("Ratio rewards new : ", vp * delegationVote.totalRewards / delegatorSumVotingPower)
-
+          logData["Concentrator"] = {
+            "votingPower": vp,
+            "delegationVotingPower": delegatorSumVotingPower,
+            "totalRewards": delegationVote.totalRewards,
+            "ratioVp": ratioVp,
+            "ratioRewards": ratioVp * delegationVote.totalRewards / 100,
+            "ratioRewardsNew": vp * delegationVote.totalRewards / delegatorSumVotingPower,
+          }
         }
         delegationVote.delegation[delegatorAddress.toLowerCase()] = ratioVp * delegationVote.totalRewards / 100;
       }
@@ -318,8 +321,11 @@ const main = async () => {
 
       // Calculate delegation apr
       if (delegationVote.vp > 0) {
-        if(space === "sdcake.eth") {
-          console.log("sdCAKE delegation total rewards : ", delegationVote.totalRewards);
+        if (space === "sdcake.eth") {
+          logData["sdCAKE"] = {
+            "votingPower": delegationVote.vp,
+            "totalRewards": delegationVote.totalRewards,
+          }
         }
         let delegationAPR = ((Number(delegationVote.totalRewards) * 26 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
         if (space === SDFXS_SPACE) {
@@ -362,9 +368,9 @@ const main = async () => {
     const network = SPACE_TO_NETWORK[space];
 
     if (lastMerkle) {
-      
+
       let usersClaimedAddress = {};
-      switch(network) {
+      switch (network) {
         case ETHEREUM:
           usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute);
           break;
@@ -444,6 +450,8 @@ const main = async () => {
     toSet[network].push(merkleTree.getHexRoot());
   }
 
+  logData["Transactions"] = [];
+
   for (const network of Object.keys(toFreeze)) {
     let multiSetName = null;
     if (network === "ethereum") {
@@ -464,23 +472,20 @@ const main = async () => {
       args: [toFreeze[network], toSet[network]],
     });
 
-    console.log("Network : " + network);
-    console.log("Token addresses to freeze : ");
-    console.log(toFreeze[network]);
-    console.log("------");
-    console.log("New merkle roots : ");
-    console.log(toSet[network]);
-    console.log("------");
-    console.log("To freeze :");
-    console.log("Contract : " + NETWORK_TO_STASH[network]);
-    console.log("Data : ");
-    console.log(freezeData);
-    console.log("----------");
-    console.log("New roots : ", multiSetName);
-    console.log("Contract : " + NETWORK_TO_STASH[network]);
-    console.log("Data : ");
-    console.log(multiSetData);
-    console.log("\n------------------------\n");
+    logData["Transactions"].push({
+      "network": network,
+      "tokenAddressesToFreeze": toFreeze[network],
+      "newMerkleRoots": toSet[network],
+      "toFreeze": {
+        "contract": NETWORK_TO_STASH[network],
+        "data": freezeData,
+      },
+      "toSet": {
+        "contract": NETWORK_TO_STASH[network],
+        "function": multiSetName,
+        "data": multiSetData,
+      },
+    });
   }
 
   for (const lastMerkle of lastMerkles) {
@@ -500,6 +505,17 @@ const main = async () => {
 
   fs.writeFileSync(`./merkle.json`, JSON.stringify(newMerkles));
   fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+
+  // Add full path to the written files in the log
+  logData["Merkle"] = path.join(__dirname, 'merkle.json');
+  logData["DelegationsAPRs"] = path.join(__dirname, 'delegationsAPRs.json');
+
+  fs.writeFileSync(path.join(__dirname, 'log.json'), JSON.stringify(logData));
+
+  const logPath = path.join(__dirname, 'log.json');
+  fs.writeFileSync(logPath, JSON.stringify(logData));
+
+  console.log(logPath);
 }
 
 const extractCSV = async () => {
@@ -516,7 +532,7 @@ const extractCSV = async () => {
     return new Date(dateB) - new Date(dateA);
   }).reverse();
 
-  console.log("Using : " + sortedCsvFiles[0]);
+  logData["Latest report"] = sortedCsvFiles[0];
 
   // Get the most recent CSV file
   const mostRecentCsvFile = sortedCsvFiles[0];
@@ -524,7 +540,7 @@ const extractCSV = async () => {
   // Read the CSV file from the file system
   const csvFile = fs.readFileSync(path.join(reportDir, mostRecentCsvFile), 'utf8');
 
-  
+
   let records = parse(csvFile, {
     columns: true,
     skip_empty_lines: true,
@@ -617,7 +633,7 @@ const fetchLastProposalsIds = async () => {
       firstGaugeProposal = proposal;
     }
 
-    if(!added && firstGaugeProposal) {
+    if (!added && firstGaugeProposal) {
       proposalIdPerSpace[space] = firstGaugeProposal.id;
     }
   }
@@ -706,10 +722,10 @@ const getVoterVotingPower = async (proposal, votes, network) => {
       if (vote.vp > 0) {
         vp = vote.vp;
       } else if (data?.result?.scores) {
-        for(const score of data.result.scores) {
+        for (const score of data.result.scores) {
           const keys = Object.keys(score);
-          for(const key of keys) {
-            if(key.toLowerCase() === vote.voter.toLowerCase()) {
+          for (const key of keys) {
+            if (key.toLowerCase() === vote.voter.toLowerCase()) {
               vp += score[key];
               break;
             }
@@ -802,12 +818,12 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
   });
 
   if (results.some((r) => r.status === "failure")) {
-    throw new Error("Error when fetching auto voter weights");
+    throw new Error("Error when fetching auto voter weights : " + JSON.stringify(results));
   }
 
   const gaugeAddressesFromProposal = Object.keys(addressesPerChoice);
 
-  for(const delegatorAddress of delegatorAddresses) {
+  for (const delegatorAddress of delegatorAddresses) {
     const data = results.shift().result;
     if (data.killed) {
       continue;
@@ -1067,7 +1083,7 @@ const getChoiceWhereExistsBribe = (addressesPerChoice, cvsResult) => {
       break;
     }
   }
-  
+
   if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
     throw new Error("Error when get complete gauge address");
   }
@@ -1216,11 +1232,11 @@ const checkSpace = (space) => {
     throw new Error("No network defined for space " + space);
   }
 
-  if(!NETWORK_TO_STASH[SPACE_TO_NETWORK[space]]) {
+  if (!NETWORK_TO_STASH[SPACE_TO_NETWORK[space]]) {
     throw new Error("No stash contract defined for space " + space);
   }
 
-  if(!NETWORK_TO_MERKLE[SPACE_TO_NETWORK[space]]) {
+  if (!NETWORK_TO_MERKLE[SPACE_TO_NETWORK[space]]) {
     throw new Error("No merkle contract defined for space " + space);
   }
 }
