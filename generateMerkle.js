@@ -406,10 +406,24 @@ const main = async () => {
     // We have to generate the merkle
     const userRewardAddresses = Object.keys(userRewards);
 
+
+    // Define a threshold below which numbers are considered too small and should be set to 0
+    const threshold = 1e-8;
+
+    const adjustedUserRewards = Object.fromEntries(
+      Object.entries(userRewards).map(([address, reward]) => {
+        // If the reward is smaller than the threshold, set it to 0
+        const adjustedReward = reward < threshold ? 0 : reward;
+        return [address, adjustedReward];
+      })
+    );
+
     const elements = [];
     for (let i = 0; i < userRewardAddresses.length; i++) {
       const userAddress = userRewardAddresses[i];
-      const amount = parseEther(userRewards[userAddress.toLowerCase()].toString());
+
+      const amount = parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString());
+
       elements.push(utils.solidityKeccak256(["uint256", "address", "uint256"], [i, userAddress.toLowerCase(), BigNumber.from(amount)]));
     }
 
@@ -419,7 +433,7 @@ const main = async () => {
     let totalAmount = BigNumber.from(0);
     for (let i = 0; i < userRewardAddresses.length; i++) {
       const userAddress = userRewardAddresses[i];
-      const amount = BigNumber.from(parseEther(userRewards[userAddress.toLowerCase()].toString()));
+      const amount = BigNumber.from(parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString()));
       totalAmount = totalAmount.add(amount);
 
       merkle[userAddress.toLowerCase()] = {
