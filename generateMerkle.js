@@ -414,7 +414,7 @@ const main = async () => {
       Object.entries(userRewards).map(([address, reward]) => {
         // If the reward is smaller than the threshold, set it to 0
         const adjustedReward = reward < threshold ? 0 : reward;
-        return [address, adjustedReward];
+        return [address.toLowerCase(), adjustedReward];
       })
     );
 
