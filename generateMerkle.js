@@ -1255,4 +1255,98 @@ const checkSpace = (space) => {
   }
 }
 
-main();
+const computeExtraRewards = async () => {
+
+  const GAUGES = [
+    "0xb251c0885c7c1975d773b57e67c138fbceaa6db4", // alWETH
+    "0x9582c4adacb3bce56fea3e590f05c3ca2fb9c477", // al3CRV
+  ];
+  const NB_ROUND = 10;
+  const START_GAUGE_ADDRESS = " - 0x";
+  const MIDDLE_GAUGE_ADDRESS = "…"
+
+  const query = gql`
+    query Proposals {
+      proposals(
+        first: ${NB_ROUND}
+        skip: 0
+        orderBy: "created",
+        orderDirection: desc,
+        where: {
+          space_in: ["sdcrv.eth"]
+          type: "weighted"
+        }
+      ) {
+        id
+        title
+        choices
+      }
+    }
+  `;
+
+  const result = await request(SNAPSHOT_ENDPOINT, query);
+  const proposals = result.proposals.filter((proposal) => proposal.title.indexOf("Gauge vote") > -1);
+
+  const responses = [];
+  const mapUsers = {};
+
+  for (const proposal of proposals) {
+    console.log(proposal.id)
+    const voters = await getVoters(proposal.id);
+    
+    const votes = [];
+    // Loop choices to find gauge index
+    for (let i = 0; i < proposal.choices.length; i++) {
+      const choice = proposal.choices[i];
+
+      const startIndex = choice.indexOf(START_GAUGE_ADDRESS);
+      if (startIndex === -1) {
+        continue;
+      }
+
+      const middleIndex = choice.indexOf(MIDDLE_GAUGE_ADDRESS, startIndex);
+      if (middleIndex === -1) {
+        continue;
+      }
+
+      const startGaugeAddress = choice.substring(startIndex + START_GAUGE_ADDRESS.length - 2, middleIndex);
+      const gauge = GAUGES.find((gauge) => gauge.toLowerCase().indexOf(startGaugeAddress.toLowerCase()) > -1);
+      if(!gauge) {
+        continue;
+      }
+
+      console.log(gauge, i,)
+      // The current index is a targeted gauge, will get voters
+      const choiceIndex = i + 1;
+      for(const voter of voters) {
+        if(!voter.choice[choiceIndex.toString()]) {
+          continue;
+        }
+
+        // We found a voter
+        // Calculating his voting power used 
+        const totalWeight = Object.values(voter.choice).reduce((acc, weight) => acc + weight, 0);
+        const gaugeVpUsed = voter.choice[choiceIndex.toString()] * voter.vp / totalWeight;
+
+        mapUsers[voter.voter] = true;
+        votes.push({
+          user: voter.voter,
+          gauge,
+          gaugeVpUsed
+        });
+      }
+    }
+
+    responses.push({
+      proposalId: proposal.id,
+      votes
+    });
+
+    console.log("-----")
+  }
+
+  console.log(Object.keys(mapUsers))
+  fs.writeFileSync(`./tmp/extra-incentives.json`, JSON.stringify(responses));
+}
+
+computeExtraRewards();
