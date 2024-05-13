@@ -1260,7 +1260,12 @@ const computeExtraRewards = async () => {
   const GAUGES = [
     "0xb251c0885c7c1975d773b57e67c138fbceaa6db4", // alWETH
     "0x9582c4adacb3bce56fea3e590f05c3ca2fb9c477", // al3CRV
+    
   ];
+
+  const SILO_GAUGE = "0xb901a92f2c385afa0a019e8a307a59a570239ca4";
+  const SILO_SNAPSHOT_ID = "0x2443a171744c10fb878cb1e13fd3c2024d8e071905c2d4c96f0d56b20a0f0f15";
+
   const NB_ROUND = 10;
   const START_GAUGE_ADDRESS = " - 0x";
   const MIDDLE_GAUGE_ADDRESS = "…"
@@ -1291,9 +1296,13 @@ const computeExtraRewards = async () => {
   const mapUsers = {};
 
   for (const proposal of proposals) {
-    console.log(proposal.id)
     const voters = await getVoters(proposal.id);
     
+    const gauges = GAUGES;
+    if(proposal.id.toLowerCase() === SILO_SNAPSHOT_ID) {
+      gauges.push(SILO_GAUGE)
+    }
+
     const votes = [];
     // Loop choices to find gauge index
     for (let i = 0; i < proposal.choices.length; i++) {
@@ -1315,7 +1324,6 @@ const computeExtraRewards = async () => {
         continue;
       }
 
-      console.log(gauge, i,)
       // The current index is a targeted gauge, will get voters
       const choiceIndex = i + 1;
       for(const voter of voters) {
@@ -1341,8 +1349,6 @@ const computeExtraRewards = async () => {
       proposalId: proposal.id,
       votes
     });
-
-    console.log("-----")
   }
 
   console.log(Object.keys(mapUsers))
