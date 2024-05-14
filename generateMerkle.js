@@ -1260,7 +1260,8 @@ const computeExtraRewards = async () => {
   const GAUGES = [
     "0xb251c0885c7c1975d773b57e67c138fbceaa6db4", // alWETH
     "0x9582c4adacb3bce56fea3e590f05c3ca2fb9c477", // al3CRV
-    
+    "0x740BA8aa0052E07b925908B380248cb03f3DE5cB", // alUSD+FRAXBP
+    "0x415F30505368fa1dB82Feea02EB778be04e75907", // allETH+FRAXETH
   ];
 
   const SILO_GAUGE = "0xb901a92f2c385afa0a019e8a307a59a570239ca4";
@@ -1351,8 +1352,12 @@ const computeExtraRewards = async () => {
     });
   }
 
-  console.log(Object.keys(mapUsers))
-  fs.writeFileSync(`./tmp/extra-incentives.json`, JSON.stringify(responses));
+  console.log(Object.keys(mapUsers));
+  const dir = './tmp';
+  if (!fs.existsSync(dir)){
+    fs.mkdirSync(dir);
+  }
+  fs.writeFileSync(`${dir}/extra-incentives.json`, JSON.stringify(responses));
 }
 
 computeExtraRewards();
