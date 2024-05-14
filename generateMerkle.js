@@ -156,6 +156,10 @@ const main = async () => {
   const newMerkles = [];
   const { data: delegationAPRs } = await axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json");
 
+  for (const key of Object.keys(delegationAPRs)) {
+    delegationAPRs[key] = 0;
+  }
+
   const toFreeze = {};
   const toSet = {};
 
