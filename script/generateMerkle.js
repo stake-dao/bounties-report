@@ -152,7 +152,7 @@ const main = async () => {
 
     // We can have sum delegation lower than delegation vp
     //delegationVote.vp = delegatorSumVotingPower;
-    if(id.toLowerCase() === "0x9b01f87c204e11d5f36d61606cbfaa35ae37859e2549158ea8e3415a5564396d".toLowerCase()) {
+    if (id.toLowerCase() === "0x9b01f87c204e11d5f36d61606cbfaa35ae37859e2549158ea8e3415a5564396d".toLowerCase()) {
       delegationVote.totalRewards = 1520 + 763 + 1563
     } else {
       delegationVote.totalRewards = 0;
@@ -451,9 +451,9 @@ const main = async () => {
       voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID["sdpendle.eth"]);
       voters = await addVotersFromAutoVoter("sdpendle.eth", proposal, voters, allAddressesPerChoice);
 
-      if(proposalId.toLowerCase() === "0x7d741fb408de334dbebc9d90c0d798677e8792c37e542f35ecc036048ead1c6c".toLowerCase()) {
+      if (proposalId.toLowerCase() === "0x7d741fb408de334dbebc9d90c0d798677e8792c37e542f35ecc036048ead1c6c".toLowerCase()) {
         let delegationVoter = voters.find(v => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
-        if(!delegationVoter) {
+        if (!delegationVoter) {
           delegationVoter = {
             totalRewards: 0,
             choice: {
@@ -467,7 +467,7 @@ const main = async () => {
           voters.push(delegationVoter)
         }
       }
-      
+
       //console.log("voters", voters);
 
       // Get all delegator addresses
@@ -518,7 +518,7 @@ const main = async () => {
         console.log("index", index);
         console.log("sdTknRewardAmount", sdTknRewardAmount);
         */
-       
+
         // Calculate the total VP used to vote for this gauge across all voters
         let totalVP = 0;
         let foundVotersForGauge = false;
@@ -774,7 +774,7 @@ const main = async () => {
 
 
   // Add pendle aprs
-  if(!delegationAPRs[space]) {
+  if (!delegationAPRs[space]) {
     delegationAPRs[space] = 0;
   }
 
@@ -837,14 +837,13 @@ const main = async () => {
   fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
 
   // Add full path to the written files in the log
-  logData["Merkle"] = path.join(__dirname, 'merkle.json');
-  logData["DelegationsAPRs"] = path.join(__dirname, 'delegationsAPRs.json');
+  logData["Merkle"] = path.join(__dirname, '..', 'merkle.json');
+  logData["DelegationsAPRs"] = path.join(__dirname, '..', 'delegationsAPRs.json');
 
-  fs.writeFileSync(path.join(__dirname, 'log.json'), JSON.stringify(logData));
+  fs.writeFileSync(path.join(__dirname, '..', 'log.json'), JSON.stringify(logData));
 
-  const logPath = path.join(__dirname, 'log.json');
+  const logPath = path.join(__dirname, '..', 'log.json');
   fs.writeFileSync(logPath, JSON.stringify(logData));
-
   console.log(logPath);
 }
 
