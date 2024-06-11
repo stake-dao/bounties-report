@@ -47,7 +47,7 @@ const {
   abi
 } = require("./utils/constants");
 const { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods, getProposal, getVoters, getVoterVotingPower } = require("./utils/snapshot");
-const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimedSinceLastFreezeOnBSC, addVotersFromAutoVoter, getChoicesBasedOnReport } = require("./utils/utils");
+const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimedSinceLastFreezeOnBSC, getAllAccountClaimedSinceLastFreezeOnMainnet, addVotersFromAutoVoter, getChoicesBasedOnReport } = require("./utils/utils");
 const { getAllAccountClaimedSinceLastFreezeWithAgnostic } = require("./utils/agnostic");
 
 dotenv.config();
@@ -78,7 +78,6 @@ const main = async () => {
   const toFreeze = {};
   const toSet = {};
 
-  /*
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
     if (space === "sdpendle.eth") { // Special case sdPendle : Monthly report
@@ -153,7 +152,11 @@ const main = async () => {
 
     // We can have sum delegation lower than delegation vp
     //delegationVote.vp = delegatorSumVotingPower;
-    delegationVote.totalRewards = 0;
+    if(id.toLowerCase() === "0x9b01f87c204e11d5f36d61606cbfaa35ae37859e2549158ea8e3415a5564396d".toLowerCase()) {
+      delegationVote.totalRewards = 1520 + 763 + 1563
+    } else {
+      delegationVote.totalRewards = 0;
+    }
 
     for (const gaugeAddress of Object.keys(addressesPerChoice)) {
       const index = addressesPerChoice[gaugeAddress].index;
@@ -382,9 +385,8 @@ const main = async () => {
     toSet[network].push(merkleTree.getHexRoot());
   }
 
-  */
-
   // Generate pendle 
+  let pendleAprs = [];
   const space = SDPENDLE_SPACE;
 
   checkSpace(space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN, SPACES_TOKENS, SPACE_TO_NETWORK, NETWORK_TO_STASH, NETWORK_TO_MERKLE);
@@ -449,6 +451,23 @@ const main = async () => {
       voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID["sdpendle.eth"]);
       voters = await addVotersFromAutoVoter("sdpendle.eth", proposal, voters, allAddressesPerChoice);
 
+      if(proposalId.toLowerCase() === "0x7d741fb408de334dbebc9d90c0d798677e8792c37e542f35ecc036048ead1c6c".toLowerCase()) {
+        let delegationVoter = voters.find(v => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
+        if(!delegationVoter) {
+          delegationVoter = {
+            totalRewards: 0,
+            choice: {
+              "-1": 50,
+              "-2": 50
+            },
+            voter: DELEGATION_ADDRESS,
+            vp: 672290
+          }
+
+          voters.push(delegationVoter)
+        }
+      }
+      
       console.log("voters", voters);
 
       // Get all delegator addresses
@@ -612,7 +631,7 @@ const main = async () => {
         // Calculate delegation apr
         if (delegationVote.vp > 0) {
           let delegationAPR = ((Number(delegationVote.totalRewards) * 26 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
-          delegationAPRs[space] = delegationAPR;
+          pendleAprs.push(delegationAPR);
         }
       }
 
@@ -665,7 +684,7 @@ const main = async () => {
 
     if (lastMerkle) {
 
-      let usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute);
+      let usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeOnMainnet(lastMerkle, MERKLE_ADDRESS);
 
       const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
 
@@ -753,6 +772,13 @@ const main = async () => {
 
   } // end if csvResult[space] (Pendle distribution)
 
+
+  // Add pendle aprs
+  if(!delegationAPRs[space]) {
+    delegationAPRs[space] = 0;
+  }
+
+  delegationAPRs[space] = pendleAprs.reduce((acc, apr) => acc + apr, 0) / pendleAprs.length;
 
   logData["Transactions"] = [];
 

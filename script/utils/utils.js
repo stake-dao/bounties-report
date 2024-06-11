@@ -1,7 +1,7 @@
 const { gql, request } = require("graphql-request");
 const fs = require('fs');
 const path = require('path');
-const { parseAbi, encodeFunctionData, formatUnits, parseEther, createPublicClient, http } = require("viem");
+const { createPublicClient, http } = require("viem");
 const { bsc, mainnet } = require('viem/chains');
 const { parse } = require("csv-parse/sync");
 const axios = require('axios').default;
@@ -99,17 +99,20 @@ const extractCSV = async (LABELS_TO_SPACE) => {
 
 const getTokenPrice = async (space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN) => {
     try {
-        const key = `${SPACE_TO_NETWORK[space]}:${SPACES_UNDERLYING_TOKEN[space]}`;
-        const resp = await axios.get(`https://coins.llama.fi/prices/current/${key}`);
-
-        return resp.data.coins[key].price;
+        if (space === 'sdbal.eth') {
+            const resp = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=balancer-80-bal-20-weth&vs_currencies=usd');
+            return resp.data['balancer-80-bal-20-weth'].usd;
+        } else {
+            const key = `${SPACE_TO_NETWORK[space]}:${SPACES_UNDERLYING_TOKEN[space]}`;
+            const resp = await axios.get(`https://coins.llama.fi/prices/current/${key}`);
+            return resp.data.coins[key].price;
+        }
     }
     catch (e) {
         console.log("Error getTokenPrice ", space);
         throw e;
     }
 }
-
 const checkSpace = (space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN, SPACES_TOKENS, SPACE_TO_NETWORK, NETWORK_TO_STASH, NETWORK_TO_MERKLE) => {
     if (!SPACES_SYMBOL[space]) {
         throw new Error("No symbol defined for space " + space);
@@ -226,11 +229,11 @@ const getChoiceWhereExistsBribe = (addressesPerChoice, cvsResult) => {
         }
     }
 
-    if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
+    /*if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
         console.log("newAddressesPerChoice", newAddressesPerChoice);
         console.log("addresses", addresses);
         throw new Error("Error when get complete gauge address");
-    }
+    }*/
 
     return newAddressesPerChoice;
 };
@@ -238,6 +241,7 @@ const getChoiceWhereExistsBribe = (addressesPerChoice, cvsResult) => {
 
 const getChoicesBasedOnReport = (addressesPerChoice, csvResult) => {
     const gaugeToChoice = {};
+    let notFoundIndex = 0;
 
     for (const gauge in csvResult) {
         const gaugeLower = gauge.toLowerCase();
@@ -258,8 +262,9 @@ const getChoicesBasedOnReport = (addressesPerChoice, csvResult) => {
             }
         }
         if (!found) {
+            notFoundIndex -= 1;
             const data = {
-                "index": -1,
+                "index": notFoundIndex,
                 "amount": csvResult[gauge]
             };
             gaugeToChoice[gaugeLower] = data;  // Use full gauge address as key when not found
@@ -511,6 +516,41 @@ const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContra
 }
 
 
+const getAllAccountClaimedSinceLastFreezeOnMainnet = async (lastMerkle, merkleContract) => {
+    const resp = {};
+
+    const wagmiContract = {
+        address: merkleContract,
+        abi: abi
+    };
+
+    const publicClient = createPublicClient({
+        chain: mainnet,
+        transport: http()
+    });
+
+    const calls = [];
+    for (const userAddress of Object.keys(lastMerkle.merkle)) {
+        const index = lastMerkle.merkle[userAddress].index;
+        calls.push({
+            ...wagmiContract,
+            functionName: 'isClaimed',
+            args: [lastMerkle.address, index]
+        });
+    }
+
+    const results = await publicClient.multicall({
+        contracts: calls
+    });
+
+    for (const userAddress of Object.keys(lastMerkle.merkle)) {
+        if (results.shift().result === true) {
+            resp[userAddress.toLowerCase()] = true;
+        }
+    }
+
+    return resp
+}
 
 module.exports = {
     extractCSV,
@@ -522,5 +562,6 @@ module.exports = {
     addVotersFromAutoVoter,
     getAllDelegators,
     getDelegationVotingPower,
-    getAllAccountClaimedSinceLastFreezeOnBSC
+    getAllAccountClaimedSinceLastFreezeOnBSC,
+    getAllAccountClaimedSinceLastFreezeOnMainnet
 };
