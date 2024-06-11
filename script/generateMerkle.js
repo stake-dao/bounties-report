@@ -387,6 +387,7 @@ const main = async () => {
 
   // Generate pendle 
   let pendleAprs = [];
+  const multiplicatorPerPeriod = {};
   const space = SDPENDLE_SPACE;
 
   checkSpace(space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN, SPACES_TOKENS, SPACE_TO_NETWORK, NETWORK_TO_STASH, NETWORK_TO_MERKLE);
@@ -395,7 +396,6 @@ const main = async () => {
   if (csvResult[space]) {
     allPeriods = Object.keys(csvResult[space]);
     const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, allPeriods);
-
 
     const tokenPrice = await getTokenPrice(space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN);
 
@@ -418,6 +418,14 @@ const main = async () => {
         } else {
           pendleRewards[proposalId][address] = rewards[address];
         }
+      }
+    }
+
+    for(const timestamp of Object.keys(proposalsPeriods)) {
+      if(!multiplicatorPerPeriod[proposalsPeriods[timestamp]]) {
+        multiplicatorPerPeriod[proposalsPeriods[timestamp]] = 1;
+      } else {
+        multiplicatorPerPeriod[proposalsPeriods[timestamp]] = multiplicatorPerPeriod[proposalsPeriods[timestamp]] + 1;
       }
     }
 
@@ -630,8 +638,15 @@ const main = async () => {
 
         // Calculate delegation apr
         if (delegationVote.vp > 0) {
-          let delegationAPR = ((Number(delegationVote.totalRewards) * 26 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
-          pendleAprs.push(delegationAPR);
+          const vp = delegationVote.vp * multiplicatorPerPeriod[proposalId]
+          const apr = delegationVote.totalRewards * 52 / vp * 100;
+
+          pendleAprs.push({
+            apr,
+            vp,
+            amount: delegationVote.totalRewards,
+            id: proposalId
+          });
         }
       }
 
@@ -774,11 +789,7 @@ const main = async () => {
 
 
   // Add pendle aprs
-  if (!delegationAPRs[space]) {
-    delegationAPRs[space] = 0;
-  }
-
-  delegationAPRs[space] = pendleAprs.reduce((acc, apr) => acc + apr, 0) / pendleAprs.length;
+  delegationAPRs[space] = pendleAprs.reduce((acc, pendleApr) => acc + (pendleApr.apr * pendleApr.vp), 0) /  pendleAprs.reduce((acc, pendleApr) => acc + pendleApr.vp, 0);
 
   logData["Transactions"] = [];
 
