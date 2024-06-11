@@ -227,14 +227,16 @@ const getChoiceWhereExistsBribe = (addressesPerChoice, cvsResult) => {
     }
 
     if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
+        console.log("newAddressesPerChoice", newAddressesPerChoice);
+        console.log("addresses", addresses);
         throw new Error("Error when get complete gauge address");
     }
 
     return newAddressesPerChoice;
 };
 
-const getChoicesBasedOnReport = (addressesPerChoice, csvResult) => {
 
+const getChoicesBasedOnReport = (addressesPerChoice, csvResult) => {
     const gaugeToChoice = {};
 
     for (const gauge in csvResult) {
@@ -243,12 +245,14 @@ const getChoicesBasedOnReport = (addressesPerChoice, csvResult) => {
         let found = false;
         for (const gaugeBis in addressesPerChoice) {
             const gaugeBisLower = gaugeBis.toLowerCase();
-            if (gaugeBisLower.indexOf(gaugeLower) > -1) {
+
+            // Check if the full gauge address starts with the truncated gauge address
+            if (gaugeLower.startsWith(gaugeBisLower)) {
                 const data = {
                     "index": addressesPerChoice[gaugeBis],
                     "amount": csvResult[gauge]
                 };
-                gaugeToChoice[gaugeBis] = data;
+                gaugeToChoice[gaugeLower] = data;  // Use full gauge address as key
                 found = true;
                 break;
             }
@@ -258,15 +262,12 @@ const getChoicesBasedOnReport = (addressesPerChoice, csvResult) => {
                 "index": -1,
                 "amount": csvResult[gauge]
             };
-            gaugeToChoice[gauge] = data;
+            gaugeToChoice[gaugeLower] = data;  // Use full gauge address as key when not found
         }
     }
 
-    // Merge and return
     return gaugeToChoice;
-
 }
-
 /**
  * Will fetch auto voter delegators at the snapshot block number and add them as voters
  */

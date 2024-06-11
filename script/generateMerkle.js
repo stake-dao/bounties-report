@@ -78,6 +78,7 @@ const main = async () => {
   const toFreeze = {};
   const toSet = {};
 
+  /*
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
     if (space === "sdpendle.eth") { // Special case sdPendle : Monthly report
@@ -106,6 +107,8 @@ const main = async () => {
     // Now, the address is the complete address
     // Map -> gauge address => {index : choice index, amount: sdTKN }
     const addressesPerChoice = getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult[space]);
+
+    //const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, csvResult[space]);
 
     // Here, we should have delegation voter + all other voters
     // Object with vp property
@@ -379,6 +382,8 @@ const main = async () => {
     toSet[network].push(merkleTree.getHexRoot());
   }
 
+  */
+
   // Generate pendle 
   const space = SDPENDLE_SPACE;
 
@@ -388,6 +393,7 @@ const main = async () => {
   if (csvResult[space]) {
     allPeriods = Object.keys(csvResult[space]);
     const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, allPeriods);
+
 
     const tokenPrice = await getTokenPrice(space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN);
 
@@ -433,12 +439,17 @@ const main = async () => {
       // If index = -1, no data on snapshot BUT gauge on report
       const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, pendleRewards[proposalId]);
 
+
+      console.log("addressesPerChoice", addressesPerChoice);
+
       // Here, we should have delegation voter + all other voters
       // Object with vp property
       let voters = await getVoters(proposalId);
 
       voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID["sdpendle.eth"]);
       voters = await addVotersFromAutoVoter("sdpendle.eth", proposal, voters, allAddressesPerChoice);
+
+      console.log("voters", voters);
 
       // Get all delegator addresses
       const delegators = await getAllDelegators(DELEGATION_ADDRESS, proposal.created, space);
@@ -554,8 +565,6 @@ const main = async () => {
           voter.totalRewards += amountEarned;
         }
       }
-
-      // console.log("voters", voters);
 
       // Add all rewards from non-found gauges to the DELEGATION_ADDRESS
       let delegationVoter = voters.find(v => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
@@ -678,6 +687,8 @@ const main = async () => {
         }
       }
     }
+
+    console.log("pendleUserRewards", pendleUserRewards);
 
     // Since this point, pendleUserRewards map contains the new reward amount for each user
     // We have to generate the merkle
