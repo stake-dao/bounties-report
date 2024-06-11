@@ -442,7 +442,7 @@ const main = async () => {
       const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, pendleRewards[proposalId]);
 
 
-      console.log("addressesPerChoice", addressesPerChoice);
+      //console.log("addressesPerChoice", addressesPerChoice);
 
       // Here, we should have delegation voter + all other voters
       // Object with vp property
@@ -468,7 +468,7 @@ const main = async () => {
         }
       }
       
-      console.log("voters", voters);
+      //console.log("voters", voters);
 
       // Get all delegator addresses
       const delegators = await getAllDelegators(DELEGATION_ADDRESS, proposal.created, space);
@@ -707,7 +707,7 @@ const main = async () => {
       }
     }
 
-    console.log("pendleUserRewards", pendleUserRewards);
+    //console.log("pendleUserRewards", pendleUserRewards);
 
     // Since this point, pendleUserRewards map contains the new reward amount for each user
     // We have to generate the merkle
