@@ -229,11 +229,11 @@ const getChoiceWhereExistsBribe = (addressesPerChoice, cvsResult) => {
         }
     }
 
-    /*if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
+    if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
         console.log("newAddressesPerChoice", newAddressesPerChoice);
         console.log("addresses", addresses);
         throw new Error("Error when get complete gauge address");
-    }*/
+    }
 
     return newAddressesPerChoice;
 };
