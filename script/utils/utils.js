@@ -415,7 +415,7 @@ function wait(ms) {
 
 const getAllDelegators = async (delegationAddress, proposalCreatedTimestamp, space) => {
     // Rate limite subgraph
-    await wait(1000)
+    await wait(5000)
 
     let delegatorAddresses = [];
     let run = true;
