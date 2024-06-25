@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "report": "npx ts-node script/generateWeeklyReport.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "fork": "npx hardhat node --fork https://eth-mainnet.alchemyapi.io/v2/C9kzXL-6HwtqvidRZrFS51UX-XC_Nxho",
     "localhostTest": "npx hardhat test --network localhost"
@@ -12,6 +13,7 @@
   "license": "ISC",
   "devDependencies": {},
   "dependencies": {
+    "@covalenthq/client-sdk": "^1.0.2",
     "axios": "^0.27.2",
     "csv-parse": "^5.5.0",
     "dotenv": "^16.3.1",
@@ -23,7 +25,7 @@
     "merkletreejs": "^0.2.31",
     "moment": "^2.29.4",
     "redaxios": "^0.5.0",
-    "viem": "^1.16.6",
+    "viem": "^2.15.1",
     "web3": "^1.7.3"
   }
 }

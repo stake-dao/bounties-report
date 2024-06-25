@@ -1,4 +1,4 @@
-const { parseAbi } = require("viem");
+const { parseAbi, getAddress } = require("viem");
 
 const MERKLE_ADDRESS = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
 const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
