@@ -408,7 +408,6 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
 function wait(ms) {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        console.log("Done waiting");
         resolve(ms)
       }, ms )
     })
@@ -417,7 +416,7 @@ function wait(ms) {
 const getAllDelegators = async (delegationAddress, proposalCreatedTimestamp, space) => {
     // Rate limite subgraph
     await wait(1000)
-    
+
     let delegatorAddresses = [];
     let run = true;
     let skip = 0;
