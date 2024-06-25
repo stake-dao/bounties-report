@@ -405,7 +405,19 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
 /**
  * All endpoints here : https://raw.githubusercontent.com/snapshot-labs/snapshot.js/master/src/delegationSubgraphs.json
  */
+function wait(ms) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        console.log("Done waiting");
+        resolve(ms)
+      }, ms )
+    })
+  }  
+
 const getAllDelegators = async (delegationAddress, proposalCreatedTimestamp, space) => {
+    // Rate limite subgraph
+    await wait(1000)
+    
     let delegatorAddresses = [];
     let run = true;
     let skip = 0;
