@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getAddress } from 'viem';
+import { gql, request } from "graphql-request";
 
 const getClosestBlockTimestamp = async (chain: string, timestamp: number): Promise<number> => {
     const response = await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`);
@@ -28,5 +29,95 @@ const WARDEN_PATHS: { [key: string]: string } = {
     "fxn": "fxn"
 }
 
+const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 
-export { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS };
+interface Proposal {
+    id: string;
+    title: string;
+    body: string;
+    choices: string[];
+    start: number;
+    end: number;
+    snapshot: string;
+    state: string;
+    scores: string[];
+    scores_by_strategy: string[];
+    scores_total: number;
+    scores_updated: number;
+    author: string;
+    space: {
+        id: string;
+        name: string;
+    };
+}
+
+interface Timestamps {
+    [key: number]: Proposal;
+}
+
+const fetchProposalsIdsBasedOnPeriods = async (space: string, period: number): Promise<Timestamps> => {
+    const query = gql`
+    query Proposals {
+      proposals(
+        first: 1000
+        skip: 0
+        orderBy: "created",
+        orderDirection: desc,
+        where: {
+          space_in: ["${space}"]
+          type: "weighted"
+        }
+      ) {
+        id
+        title
+        body
+        choices
+        start
+        end
+        snapshot
+        state
+        scores
+        scores_by_strategy
+        scores_total
+        scores_updated
+        author
+        space {
+          id
+          name
+        }
+      }
+    }`;
+    const result = await request(SNAPSHOT_ENDPOINT, query);
+    const proposals = result.proposals.filter((proposal: Proposal) => proposal.title.indexOf("Gauge vote") > -1);
+
+    let associated_timestamps: Timestamps = {};
+
+    for (const proposal of proposals) {
+        const title = proposal.title;
+        const dateStrings = title.match(/\d{1,2}\/\d{1,2}\/\d{4}/g);
+
+        if (dateStrings && dateStrings.length >= 2) {
+            const [date_a, date_b] = dateStrings;
+
+            const parts_a = date_a.split('/');
+            const parts_b = date_b.split('/');
+
+            // Convert dd/mm/yyyy to mm/dd/yyyy by swapping the first two elements
+            const correctFormat_a = `${parts_a[1]}/${parts_a[0]}/${parts_a[2]}`;
+            const correctFormat_b = `${parts_b[1]}/${parts_b[0]}/${parts_b[2]}`;
+
+            const timestamp_a = new Date(correctFormat_a).getTime() / 1000;
+            const timestamp_b = new Date(correctFormat_b).getTime() / 1000;
+
+            // Associate if the period is between a and b
+            if (period >= timestamp_a && period <= timestamp_b) {
+                associated_timestamps[period] = proposal;
+            }
+        }
+    }
+    return associated_timestamps;
+}
+
+
+
+export { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods };

@@ -2,7 +2,7 @@ import axios from "axios";
 import { createPublicClient, erc20Abi, formatUnits, http, parseAbi, zeroAddress, getContract } from "viem";
 import { mainnet } from 'viem/chains'
 import { encodePacked, keccak256, getAddress, decodeEventLog } from 'viem'
-import { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS } from './utils/reportUtils';
+import { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods } from './utils/reportUtils';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -28,10 +28,17 @@ interface WardenBounty extends Bounty {
     period: BigInt
 }
 
+interface HiddenHandBounty extends Bounty {
+    identifier: string,
+}
+
 const publicClient = createPublicClient({
     chain: mainnet,
     transport: http("https://rpc.flashbots.net")
 });
+
+const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
+const HH_BALANCER_MARKET = getAddress("0x45Bc37b18E73A42A4a826357a8348cDC042cCBBc");
 
 /**
  * Fetches logs by address and topic from Etherscan API.
@@ -112,15 +119,13 @@ const fetchVotemarketClaimedBounties = async (block_min: number, block_max: numb
  * @returns {Promise<{[protocol: string]: WardenBounty[]}>} A mapping of protocol names to their respective claimed bounties.
  */
 const fetchWardenClaimedBounties = async (block_min: number, block_max: number) => {
-
     // Fetch all bounties data from Warden API
     const wardenApiBase = "https://api.paladin.vote/quest/v2/copilot/claims/"
     let distributorAddresses: string[] = [];
 
-    let questsByProtocol: { [path: string]: {questId: BigInt, period: BigInt}[] } = {};
+    let questsByProtocol: { [path: string]: { questId: BigInt, period: BigInt }[] } = {};
 
-    const botMarketAddress = "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF";
-    const botMarketApi = wardenApiBase + getAddress(botMarketAddress);
+    const botMarketApi = wardenApiBase + BOTMARKET;
     const apiResponse = await axios.get(botMarketApi);
 
     // Process each to compare with what we claimed
@@ -168,7 +173,7 @@ const fetchWardenClaimedBounties = async (block_min: number, block_max: number) 
                         strict: false
                     });
 
-                    if (decodedLog.args.account && getAddress(decodedLog.args.account) != botMarketAddress) {
+                    if (decodedLog.args.account && getAddress(decodedLog.args.account) != BOTMARKET) {
                         continue;
                     }
                     const wardenBounty: WardenBounty = {
@@ -208,9 +213,180 @@ const fetchWardenClaimedBounties = async (block_min: number, block_max: number) 
  * Fetches claimed bounties from the Hidden Hand platform.
  * @returns {Promise<{[protocol: string]: HiddenHandBounty[]}>} A mapping of protocol names to their respective claimed bounties.
  */
-const fetchHiddenHandClaimedBounties = async () => {
+const fetchHiddenHandClaimedBounties = async (block_min: number, block_max: number) => {
+    const rewardClaimedSig = "RewardClaimed(bytes32,address,address,uint256)"
+    const rewardClaimedHash = keccak256(encodePacked(['string'], [rewardClaimedSig]));
 
-}
+    let allClaimedBounties: HiddenHandBounty[] = []
+
+    const claimedAbi = parseAbi(['event RewardClaimed(bytes32 indexed identifier,address indexed token,address indexed account,uint256 amount)']);
+
+    const claimedResponse = await getLogsByAddress(getAddress("0xa9b08B4CeEC1EF29EdEC7F9C94583270337D6416"), rewardClaimedHash, block_min, block_max);
+
+    if (!claimedResponse || !claimedResponse.result || claimedResponse.result.length === 0) {
+        throw new Error("No logs found");
+    }
+
+    for (const log of claimedResponse.result) {
+        const decodedLog = decodeEventLog({
+            abi: claimedAbi,
+            data: log.data,
+            topics: log.topics,
+            strict: true
+        });
+
+        if (getAddress(decodedLog.args.account) == BOTMARKET) {
+            const hiddenHandBounty: HiddenHandBounty = {
+                identifier: decodedLog.args.identifier,
+                amount: decodedLog.args.amount,
+                rewardToken: getAddress(decodedLog.args.token)
+            }
+            allClaimedBounties.push(hiddenHandBounty);
+        }
+    }
+
+    // Get all bribes that has been deposited on Hidden Hand since inception
+    const depositBribeSig = "DepositBribe(address,bytes32,uint256,address,address,uint256,uint256,uint256,uint256)"
+    const depositBribeHash = keccak256(encodePacked(['string'], [depositBribeSig]));
+
+    let allDepositedBribes: any[] = []
+
+    const depositBribeAbi = parseAbi(['event DepositBribe(address indexed market,bytes32 indexed proposal,uint256 indexed deadline,address token,address briber,uint256 amount,uint256 totalAmount,uint256 maxTokensPerVote,uint256 periodIndex)']);
+
+    // Long range, batch blocks 500 000 per 500 000 from 17621913 to block_min
+    const chunk = 500000;
+    const startBlock = 17621913;
+    const endBlock = block_min;
+    const numChunks = Math.ceil((endBlock - startBlock) / chunk);
+
+    for (let i = 0; i < numChunks; i++) {
+        const block_min = startBlock + i * chunk;
+        const block_max = Math.min(block_min + chunk, endBlock);
+        const depositedBribeResponse = await getLogsByAddress(getAddress("0xE00fe722e5bE7ad45b1A16066E431E47Df476CeC"), depositBribeHash, block_min, block_max);
+
+        if (!depositedBribeResponse || !depositedBribeResponse.result || depositedBribeResponse.result.length === 0) {
+            continue
+        }
+
+
+        for (const log of depositedBribeResponse.result) {
+            const decodedLog = decodeEventLog({
+                abi: depositBribeAbi,
+                data: log.data,
+                topics: log.topics,
+                strict: true
+            });
+
+            // Filter out old ones
+            if (Number(decodedLog.args.deadline) < currentPeriod || getAddress(decodedLog.args.market) != HH_BALANCER_MARKET) {
+                continue;
+            }
+
+            // End of  Selection
+            allDepositedBribes.push(decodedLog);
+        }
+    }
+    
+
+    // Match all deposited bribes with Hidden API to get the correct gauge (proposal)
+    const hiddenHandApiUrl = "https://api.hiddenhand.finance/proposal/balancer";
+    let hiddenHandProposals: any[] = [];
+    try {
+        const response = await axios.get(hiddenHandApiUrl);
+        hiddenHandProposals = response.data.data;
+    } catch (error) {
+        console.error("Failed to fetch proposals from Hidden Hand:", error);
+    }
+
+    allDepositedBribes.map((bribe) => {
+        for (const proposal of hiddenHandProposals) {
+            if (proposal.proposalHash.toLowerCase() === bribe.args.proposal.toLowerCase()) {
+                bribe.title = proposal.title;
+                bribe.gauge = proposal.proposal;
+            }
+        }
+    })
+
+    /**
+     *  'bb-WETH-wstETH - 0xf8c85bd74fee268…ba': { voted: 5028.899934070942, share: 0.04446803491326094 },
+        'B-baoUSD-LUSD-BPT - 0x5af3b93fb82ab86…11': { voted: 13590.850083561125, share: 0.12017705739622019 },
+        '80D2D-20USDC - 0x1249c510e066731…9e': { voted: 8523.559210289735, share: 0.0753695507004423 },
+        '50WETH-50AURA - 0x275df57d2b23d53…00': { voted: 17217.589604785262, share: 0.1522464924148934 },
+        'RDNT-WETH - 0x8135d6abfd42707…ad': { voted: 6136.962631408609, share: 0.05426607650431845 },
+        'B-sdBAL-STABLE - 0xdc2df969ee5e662…f2': { voted: 5250.622565485046, share: 0.04642861671923079 },
+        'B-auraBAL-STABLE - 0x0312aa8d0ba4a19…42': { voted: 17217.589604785262, share: 0.1522464924148934 },
+        'D2D-rETH - 0x2d02bf5ea195dc0…63': { voted: 22161.25394675331, share: 0.19596083182114996 },
+        'wstETH-WETH-BPT - 0x5c0f23a5c1be65f…1c': { voted: 5455.07789458543, share: 0.048236512448283066 },
+        'B-baoETH-ETH-BPT - 0xd449efa0a587f2c…10': { voted: 1435.394019349455, share: 0.012692467975803848 },
+        'svETH/wstETH - 0xd98ed0426d18b11…f8': { voted: 3494.65927621879, share: 0.03090151578718133 },
+        'sDOLA-DOLA BSP - 0xcd19892916929f0…0e': { voted: 7577.763089877254, share: 0.0670063509043225 }
+     */
+
+
+    // Fetch proposals for Balancer bribes on snapshot (take the one with my week in the period)
+    const proposals = await fetchProposalsIdsBasedOnPeriods("sdbal.eth", currentPeriod);
+
+    // Current period -> Proposal
+    const proposal = proposals[currentPeriod];
+
+    if (!proposal) return {};
+
+
+    const scoresTotal = proposal.scores_total;
+    const choices = proposal.choices;
+    const scores = proposal.scores;
+
+
+    // Compute the voting shares per gauge on that snapshot
+    const gaugeShares = scores.reduce<{ [key: string]: { voted: number; share: number } }>((acc, score, index) => {
+        if (typeof score === 'number' && score !== 0) {
+            acc[choices[index]] = {
+                voted: score,
+                share: score / scoresTotal
+            };
+        }
+        return acc;
+    }, {});
+
+
+    // Drop those who are not bribed from allDepositedBribes
+    for (let i = allDepositedBribes.length - 1; i >= 0; i--) {
+        const bribe = allDepositedBribes[i];
+        let found = false;
+
+        for (const gauge in gaugeShares) {
+            if (bribe.gauge) {
+                const match = gauge.match(/0x[a-fA-F0-9]+/); // Match hexadecimal characters that start with '0x'
+
+                if (!match) continue;
+
+                const bribeAddress = bribe.gauge.toLowerCase(); // Prepare bribe gauge address for comparison
+
+                if (bribeAddress.startsWith(match[0].toLowerCase())) {
+                    console.log("Match found:", bribe.gauge, "matches with", match[0]);
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found) {
+            allDepositedBribes.splice(i, 1); // Remove from array if no match found
+        }
+    }
+
+    console.log(allDepositedBribes);
+
+
+    return;
+
+    // Getting the total sdBAL VP on each gauge 
+
+};
+
+
+
+
 
 /**
  * Main function to execute the weekly report generation.
@@ -228,7 +404,7 @@ const main = async () => {
     //const wardenClaimedBounties = await fetchWardenClaimedBounties(blockCurrentPeriod, blockCurrentTimestamp);
 
     // Hidden Hand (need an additional computation to estimate bribes because just have the total / reward)
-
+    const hiddenHandClaimedBounties = await fetchHiddenHandClaimedBounties(blockCurrentPeriod, blockCurrentTimestamp);
 }
 
 main()
