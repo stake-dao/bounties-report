@@ -1,12 +1,15 @@
 const { parseAbi, getAddress } = require("viem");
+const dotenv = require("dotenv");
+
+dotenv.config();
 
 const MERKLE_ADDRESS = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
 const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
 const STASH_CONTROLLER_ADDRESS = "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
-const ENDPOINT_DELEGATORS = "https://api.thegraph.com/subgraphs/name/snapshot-labs/snapshot";
-const ENDPOINT_DELEGATORS_BSC = "https://api.thegraph.com/subgraphs/name/snapshot-labs/snapshot-binance-smart-chain";
+const ENDPOINT_DELEGATORS = "https://subgraph.satsuma-prod.com/c27342af4445/pierres-team--102159/snapshot/api";
+const ENDPOINT_DELEGATORS_BSC = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.SUBGRAPH_API_KEY}/subgraphs/id/GuTMtMnx7zukaA1hiHB1uz6FR45gpZX3GtiEN7Cyitjd`;
 
 // Auto Voter
 const AUTO_VOTER_DELEGATION_ADDRESS = "0x0657C6bEe67Bb96fae96733D083DAADE0cb5a179";

@@ -785,12 +785,15 @@ const main = async () => {
     toFreeze[network].push(tokenToDistribute);
     toSet[network].push(merkleTree.getHexRoot());
 
+    // Add pendle aprs
+    if (pendleAprs.length > 0) {
+      delegationAPRs[space] = pendleAprs.reduce((acc, pendleApr) => acc + (pendleApr.apr * pendleApr.vp), 0) / pendleAprs.reduce((acc, pendleApr) => acc + pendleApr.vp, 0);
+    }
+
   } // end if csvResult[space] (Pendle distribution)
 
 
-  // Add pendle aprs
-  delegationAPRs[space] = pendleAprs.reduce((acc, pendleApr) => acc + (pendleApr.apr * pendleApr.vp), 0) /  pendleAprs.reduce((acc, pendleApr) => acc + pendleApr.vp, 0);
-
+  
   logData["Transactions"] = [];
 
   for (const network of Object.keys(toFreeze)) {
