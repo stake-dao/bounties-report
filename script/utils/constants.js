@@ -1,4 +1,4 @@
-const { parseAbi, getAddress } = require("viem");
+const { parseAbi } = require("viem");
 const dotenv = require("dotenv");
 
 dotenv.config();
