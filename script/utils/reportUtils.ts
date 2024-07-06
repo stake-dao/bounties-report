@@ -1,6 +1,14 @@
 import axios from 'axios';
 import { getAddress } from 'viem';
 import { gql, request } from "graphql-request";
+import { getContract, formatUnits, PublicClient, Address } from 'viem';
+import { erc20Abi } from 'viem';
+
+
+function isValidAddress(address: string): address is `0x${string}` {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+}
+
 
 const getClosestBlockTimestamp = async (chain: string, timestamp: number): Promise<number> => {
     const response = await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`);
@@ -118,6 +126,55 @@ const fetchProposalsIdsBasedOnPeriods = async (space: string, period: number): P
     return associated_timestamps;
 }
 
+async function getTokenBalance(
+    publicClient: PublicClient,
+    tokenAddress: Address,
+    contractAddress: Address,
+    decimals: number = 18
+): Promise<number> {
+    const balance = await publicClient.readContract({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [contractAddress],
+    });
+
+    return Number(formatUnits(balance, decimals));
+}
+
+// Define the ABI for the gauge controller contract
+const gaugeControllerAbi = [
+    {
+        name: 'get_gauge_weight',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: 'gauge', type: 'address' }],
+        outputs: [{ name: '', type: 'uint256' }],
+    },
+] as const;
+
+async function getGaugeWeight(
+    publicClient: PublicClient,
+    gaugeControllerAddress: Address,
+    gaugeAddress: Address
+): Promise<number> {
+    try {
+        const weight = await publicClient.readContract({
+            address: gaugeControllerAddress,
+            abi: gaugeControllerAbi,
+            functionName: 'get_gauge_weight',
+            args: [gaugeAddress],
+        });
+
+        // weight is returned in 1e18 scale
+        return Number(formatUnits(weight, 18));
+    } catch (error) {
+        console.error(`Error fetching gauge weight for ${gaugeAddress}:`, error);
+        return 0;
+    }
+}
 
 
-export { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods };
+
+
+export { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods, getTokenBalance, getGaugeWeight, isValidAddress };
