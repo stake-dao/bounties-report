@@ -116,6 +116,29 @@ const main = async () => {
     voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID[space]);
     voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice);
 
+    if(space === "sdcrv.eth" && proposal.id.toLowerCase() === "0x53ee1ea7c4e2e0fb68c880c80d5f4f307d2b1153c74abab5261e71d6356f4e28".toLowerCase()) {
+      for(const voter of voters) {
+        if(voter.voter.toLowerCase() !== "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC".toLowerCase()) {
+          continue;
+        }
+        voter.choice = {
+          '29': 52,
+          '65': 10,
+          '87': 13,
+          '135': 64,
+          '142': 24,
+          '143': 26,
+          '173': 59,
+          '189': 22,
+          '284': 45,
+          '366': 114,
+          '376': 571
+        };
+        break;
+      }
+    }
+
+
     // Get all delegator addresses
     const delegators = await getAllDelegators(DELEGATION_ADDRESS, proposal.created, space);
 
