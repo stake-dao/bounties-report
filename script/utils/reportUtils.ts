@@ -4,6 +4,43 @@ import { gql, request } from "graphql-request";
 import { getContract, formatUnits, PublicClient, Address } from 'viem';
 import { erc20Abi } from 'viem';
 
+const WEEK = 604800; // One week in seconds
+
+
+/**
+ * Retrieves timestamps and block numbers for a specified week.
+ * @param {number | undefined} pastWeek - Number of weeks in the past (0 for current week).
+ * @returns {Promise<{timestamp1: number, timestamp2: number, timestampEnd: number, blockNumber1: number, blockNumber2: number, blockNumberEnd: number}>}
+ */
+async function getTimestampsBlocks(publicClient: PublicClient, pastWeek?: number) {
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    let timestamp2: number;
+    let timestamp1: number;
+
+    if (pastWeek === undefined || pastWeek === 0) {
+        console.log("No past week specified, using current week");
+        timestamp2 = currentTimestamp;
+        timestamp1 = Math.floor(currentTimestamp / WEEK) * WEEK; // Rounded down to the start of the current week
+    } else {
+        console.log(`Past week specified: ${pastWeek}`);
+
+        timestamp2 = Math.floor(currentTimestamp / WEEK) * WEEK;
+        timestamp1 = timestamp2 - pastWeek * WEEK;
+    }
+
+    const blockNumber1 = await getClosestBlockTimestamp("ethereum", timestamp1);
+    const blockNumber2 = pastWeek === undefined || pastWeek === 0
+        ? Number(await publicClient.getBlockNumber())
+        : await getClosestBlockTimestamp("ethereum", timestamp2);
+
+    return {
+        timestamp1,
+        timestamp2,
+        blockNumber1,
+        blockNumber2,
+    };
+}
+
 
 function isValidAddress(address: string): address is `0x${string}` {
     return /^0x[a-fA-F0-9]{40}$/.test(address);
@@ -177,4 +214,4 @@ async function getGaugeWeight(
 
 
 
-export { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods, getTokenBalance, getGaugeWeight, isValidAddress };
+export { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods, getTokenBalance, getGaugeWeight, isValidAddress, getTimestampsBlocks };

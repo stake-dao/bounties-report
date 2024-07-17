@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "bounties": "npx ts-node script/generateWeeklyBounties.ts",
     "report": "npx ts-node script/generateWeeklyReport.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "fork": "npx hardhat node --fork https://eth-mainnet.alchemyapi.io/v2/C9kzXL-6HwtqvidRZrFS51UX-XC_Nxho",
@@ -24,6 +25,7 @@
     "lodash": "^4.17.21",
     "merkletreejs": "^0.2.31",
     "moment": "^2.29.4",
+    "p-limit": "^6.1.0",
     "redaxios": "^0.5.0",
     "viem": "^2.15.1",
     "web3": "^1.7.3"
