@@ -7,12 +7,7 @@ import path from 'path';
 import { createPublicClient, http } from 'viem';
 import { mainnet } from 'viem/chains';
 
-const currentDate = new Date();
-
 const WEEK = 604800; // One week in seconds
-
-const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
-const currentPeriod = Math.floor(currentTimestamp / WEEK) * WEEK;
 
 const publicClient = createPublicClient({
     chain: mainnet,
@@ -40,6 +35,11 @@ function customReplacer(key: string, value: any) {
 }
 
 async function generateWeeklyBounties(pastWeek: number = 0) {
+    const currentDate = new Date();
+    const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
+    const adjustedTimestamp = currentTimestamp - (pastWeek * WEEK);
+    const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
+
     const { timestamp1, timestamp2, blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, pastWeek);
 
     const votemarket = await fetchVotemarketClaimedBounties(publicClient, blockNumber1, blockNumber2);
@@ -65,7 +65,7 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
         fs.mkdirSync(weeklyBountiesDir, { recursive: true });
     }
 
-    // Create folder for the current period inside 'weekly-bounties' if it doesn't exist
+    // Create folder for the adjusted period inside 'weekly-bounties' if it doesn't exist
     const periodFolder = path.join(weeklyBountiesDir, currentPeriod.toString());
     if (!fs.existsSync(periodFolder)) {
         fs.mkdirSync(periodFolder, { recursive: true });
@@ -76,7 +76,6 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     fs.writeFileSync(fileName, jsonString);
     console.log(`Weekly bounties saved to ${fileName}`);
 }
-
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
 generateWeeklyBounties(pastWeek);
