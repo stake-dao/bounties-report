@@ -1,5 +1,6 @@
 interface Bounty {
     rewardToken: string,
+    gauge: string,
     amount: BigInt
 }
 
@@ -11,10 +12,6 @@ interface WardenBounty extends Bounty {
     questID: BigInt,
     period: BigInt,
     distributor: string
-}
-
-interface HiddenHandBounty extends Bounty {
-    gauge: string,
 }
 
 interface GaugeShare {
@@ -32,4 +29,4 @@ interface SwapEvent {
 }
 
 
-export { Bounty, VotemarketBounty, WardenBounty, HiddenHandBounty, GaugeShare, SwapEvent };
+export { Bounty, VotemarketBounty, WardenBounty, GaugeShare, SwapEvent };

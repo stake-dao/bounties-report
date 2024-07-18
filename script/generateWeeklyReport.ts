@@ -157,7 +157,7 @@ const main = async () => {
 
 
     // Hidden Hand (need an additional computation to estimate bribes because just have the total / reward)
-    const hiddenHandClaimedBounties = await fetchHiddenHandClaimedBounties(blockNumber1, blockNumber2);
+    const hiddenHandClaimedBounties = await fetchHiddenHandClaimedBounties(publicClient, currentPeriod, blockNumber1, blockNumber2);
 
 
     /*

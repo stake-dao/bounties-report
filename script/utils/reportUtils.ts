@@ -213,5 +213,4 @@ async function getGaugeWeight(
 
 
 
-
 export { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods, getTokenBalance, getGaugeWeight, isValidAddress, getTimestampsBlocks };

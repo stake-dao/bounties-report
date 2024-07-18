@@ -42,7 +42,7 @@ function customReplacer(key: string, value: any) {
 async function generateWeeklyBounties(pastWeek: number = 0) {
     const { timestamp1, timestamp2, blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, pastWeek);
 
-    const votemarket = await fetchVotemarketClaimedBounties(blockNumber1, blockNumber2);
+    const votemarket = await fetchVotemarketClaimedBounties(publicClient, blockNumber1, blockNumber2);
     const warden = await fetchWardenClaimedBounties(blockNumber1, blockNumber2);
     const hiddenhand = await fetchHiddenHandClaimedBounties(publicClient, currentPeriod, blockNumber1, blockNumber2);
     

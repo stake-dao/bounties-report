@@ -1,14 +1,78 @@
 import { getLogsByAddressAndTopics } from './etherscanUtils';
-import { decodeEventLog, getAddress, keccak256, encodePacked, parseAbi, createPublicClient, http, PublicClient, pad } from 'viem';
-import { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods, getTokenBalance, getGaugeWeight, isValidAddress } from './reportUtils';
+import { decodeEventLog, getAddress, keccak256, encodePacked, parseAbi, PublicClient, pad } from 'viem';
+import { MAINNET_VM_PLATFORMS, fetchProposalsIdsBasedOnPeriods, getTokenBalance, getGaugeWeight, isValidAddress } from './reportUtils';
 import axios from 'axios';
-import { VotemarketBounty, WardenBounty, HiddenHandBounty, GaugeShare } from './types';
-import { mainnet } from 'viem/chains';
+import { Bounty, VotemarketBounty, WardenBounty, GaugeShare } from './types';
 
 
 const ALL_MIGHT = getAddress("0x0000000a3Fc396B89e4c11841B39D9dff85a5D05");
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
 const HH_BALANCER_MARKET = getAddress("0x45Bc37b18E73A42A4a826357a8348cDC042cCBBc");
+
+
+const platformAbi = [
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "bountyId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getBounty",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "address",
+                        "name": "gauge",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "manager",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "rewardToken",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "numberOfPeriods",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "endTimestamp",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxRewardPerVote",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "totalRewardAmount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "blacklist",
+                        "type": "address[]"
+                    }
+                ],
+                "internalType": "struct Platform.Bounty",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+] as const;
 
 
 /**
@@ -17,7 +81,7 @@ const HH_BALANCER_MARKET = getAddress("0x45Bc37b18E73A42A4a826357a8348cDC042cCBB
  * @param {number} block_max - The maximum block number to fetch to.
  * @returns {Promise<{[protocol: string]: VotemarketBounty[]}>} A mapping of protocol names to their respective claimed bounties.
  */
-const fetchVotemarketClaimedBounties = async (block_min: number, block_max: number) => {
+const fetchVotemarketClaimedBounties = async (publicClient: PublicClient, block_min: number, block_max: number) => {
     const eventSignature = "Claimed(address,address,uint256,uint256,uint256,uint256)"
     const claimedEventHash = keccak256(encodePacked(['string'], [eventSignature]));
 
@@ -45,8 +109,17 @@ const fetchVotemarketClaimedBounties = async (block_min: number, block_max: numb
             });
 
             if (getAddress(decodedLog.args.user) == MAINNET_VM_PLATFORMS[protocol].locker) {
+                // Fetch info from platform contract to get gauge address
+                const bountyInfo = await publicClient.readContract({
+                    address: getAddress(MAINNET_VM_PLATFORMS[protocol].platform),
+                    abi: platformAbi,
+                    functionName: 'getBounty',
+                    args: [decodedLog.args.bountyId]
+                });
+            
                 const votemarketBounty: VotemarketBounty = {
                     bountyId: decodedLog.args.bountyId,
+                    gauge: bountyInfo.gauge,
                     amount: decodedLog.args.amount,
                     rewardToken: getAddress(decodedLog.args.rewardToken)
                 }
@@ -76,7 +149,7 @@ const fetchWardenClaimedBounties = async (block_min: number, block_max: number) 
     const wardenApiBase = "https://api.paladin.vote/quest/v2/copilot/claims/"
     let distributorAddresses: string[] = [];
 
-    let questsByProtocol: { [path: string]: { questId: BigInt, period: BigInt, distributor: string }[] } = {};
+    let questsByProtocol: { [path: string]: { questId: BigInt, period: BigInt, distributor: string, gauge: string }[] } = {};
 
     const botMarketApi = wardenApiBase + BOTMARKET;
     const apiResponse = await axios.get(botMarketApi);
@@ -97,7 +170,8 @@ const fetchWardenClaimedBounties = async (block_min: number, block_max: number) 
         const questInfo = {
             questId: BigInt(claim.questId),
             period: BigInt(claim.period),
-            distributor: getAddress(claim.distributor)
+            distributor: getAddress(claim.distributor),
+            gauge: getAddress(claim.gauge)
         }
         questsByProtocol[claim.path].push(questInfo);
     }
@@ -139,6 +213,7 @@ const fetchWardenClaimedBounties = async (block_min: number, block_max: number) 
                     const wardenBounty: WardenBounty = {
                         amount: decodedLog.args.amount as BigInt,
                         rewardToken: getAddress(decodedLog.args.rewardToken as string),
+                        gauge: "0x",
                         questID: decodedLog.args.questID as BigInt,
                         period: decodedLog.args.period as BigInt,
                         distributor: getAddress(log.address)
@@ -158,14 +233,17 @@ const fetchWardenClaimedBounties = async (block_min: number, block_max: number) 
     allClaimedBounties.forEach((bounty) => {
         for (const protocol in questsByProtocol) {
             const quests = questsByProtocol[protocol];
-            if (quests.some((quest) => quest.questId === bounty.questID && quest.period === bounty.period && quest.distributor == bounty.distributor)) {
-                if (!protocolBounties[protocol]) {
-                    protocolBounties[protocol] = [];
+            quests.forEach((quest) => {
+                if (quest.questId === bounty.questID && quest.period === bounty.period && quest.distributor == bounty.distributor) {
+                    if (!protocolBounties[protocol]) {
+                        protocolBounties[protocol] = [];
+                    }
+                    bounty.gauge = quest.gauge;
+                    protocolBounties[protocol].push(bounty);
                 }
-                protocolBounties[protocol].push(bounty);
-            }
+            });
         }
-    })
+    });
 
     return protocolBounties;
 }
@@ -178,7 +256,7 @@ const fetchHiddenHandClaimedBounties = async (publicClient: PublicClient, period
     const rewardClaimedSig = "RewardClaimed(bytes32,address,address,uint256)"
     const rewardClaimedHash = keccak256(encodePacked(['string'], [rewardClaimedSig]));
 
-    let allClaimedBounties: HiddenHandBounty[] = []
+    let allClaimedBounties: Bounty[] = []
 
     const claimedAbi = parseAbi(['event RewardClaimed(bytes32 indexed identifier,address indexed token,address indexed account,uint256 amount)']);
 
@@ -197,7 +275,7 @@ const fetchHiddenHandClaimedBounties = async (publicClient: PublicClient, period
         });
 
         if (getAddress(decodedLog.args.account) == BOTMARKET) {
-            const hiddenHandBounty: HiddenHandBounty = {
+            const hiddenHandBounty: Bounty = {
                 gauge: decodedLog.args.identifier,
                 amount: decodedLog.args.amount,
                 rewardToken: getAddress(decodedLog.args.token)
@@ -373,12 +451,12 @@ const fetchHiddenHandClaimedBounties = async (publicClient: PublicClient, period
     }
 
 
-    let protocolBounties: { [protocol: string]: HiddenHandBounty[] } = {}
+    let protocolBounties: { [protocol: string]: Bounty[] } = {}
 
     protocolBounties["balancer"] = [];
 
     for (const bribe of allDepositedBribes) {
-        const hiddenHandBounty: HiddenHandBounty = {
+        const hiddenHandBounty: Bounty = {
             gauge: bribe.gauge,
             amount: bribe.realAmount,
             rewardToken: bribe.token,
@@ -389,6 +467,7 @@ const fetchHiddenHandClaimedBounties = async (publicClient: PublicClient, period
 
     return protocolBounties;
 }
+
 
 
 export { fetchVotemarketClaimedBounties, fetchWardenClaimedBounties, fetchHiddenHandClaimedBounties };
