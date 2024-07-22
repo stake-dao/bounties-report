@@ -14,6 +14,13 @@ const publicClient = createPublicClient({
     transport: http("https://rpc.flashbots.net")
 });
 
+const path_to_protocols: { [key: string]: string } = {
+    "crv": "curve",
+    "bal": "balancer",
+    "fxn": "fxn"
+};
+
+
 function customReplacer(key: string, value: any) {
     if (typeof value === 'bigint') {
         return value.toString();
@@ -45,7 +52,17 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     const votemarket = await fetchVotemarketClaimedBounties(publicClient, blockNumber1, blockNumber2);
     const warden = await fetchWardenClaimedBounties(blockNumber1, blockNumber2);
     const hiddenhand = await fetchHiddenHandClaimedBounties(publicClient, currentPeriod, blockNumber1, blockNumber2);
-    
+
+    // Replace keys in warden bounties by protocol
+
+    for (const path of Object.keys(warden)) {
+        const protocol = path_to_protocols[path];
+        if (protocol) {
+            warden[protocol] = warden[path];
+            delete warden[path];
+        }
+    }
+
     const weeklyBounties = {
         timestamp1,
         timestamp2,

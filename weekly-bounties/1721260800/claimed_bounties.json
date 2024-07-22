@@ -158,7 +158,7 @@
     }
   },
   "warden": {
-    "bal": {
+    "balancer": {
       "0": {
         "amount": "7821535789404091944000",
         "rewardToken": "0xCdF7028ceAB81fA0C6971208e83fa7872994beE5",
@@ -192,7 +192,7 @@
         "distributor": "0x1F7b4Bf0CD21c1FBC4F1d995BA0608fDfC992aF4"
       }
     },
-    "crv": {
+    "curve": {
       "0": {
         "amount": "71582593292563737308",
         "rewardToken": "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF",
