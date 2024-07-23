@@ -407,11 +407,11 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
  */
 function wait(ms) {
     return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        resolve(ms)
-      }, ms )
+        setTimeout(() => {
+            resolve(ms)
+        }, ms)
     })
-  }  
+}
 
 const getAllDelegators = async (delegationAddress, proposalCreatedTimestamp, space) => {
     // Rate limite subgraph
@@ -477,11 +477,25 @@ const getDelegationVotingPower = async (proposal, delegatorAddresses, network) =
 
         let result = {};
         for (const score of data.result.scores) {
+            const parsedScore = {}
+            for (const addressScore of Object.keys(score)) {
+                parsedScore[addressScore.toLowerCase()] = score[addressScore]
+            }
+
+            let newResult = { ...result }
+            for (const address of Object.keys(newResult)) {
+                if (typeof parsedScore[address.toLowerCase()] !== "undefined") {
+                    newResult[address] += parsedScore[address.toLowerCase()]
+                    delete parsedScore[address.toLowerCase()]
+                }
+            }
+
             result = {
-                ...result,
-                ...score
+                ...newResult,
+                ...parsedScore
             };
         }
+
         return result;
     }
     catch (e) {
