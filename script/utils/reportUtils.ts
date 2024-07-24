@@ -1,10 +1,48 @@
 import axios from 'axios';
-import { getAddress } from 'viem';
+import { decodeAbiParameters, encodePacked, getAddress, keccak256, pad } from 'viem';
 import { gql, request } from "graphql-request";
 import { getContract, formatUnits, PublicClient, Address } from 'viem';
 import { erc20Abi } from 'viem';
+import { getLogsByAddressAndTopics, getLogsByAddressesAndTopics } from './etherscanUtils';
 
 const WEEK = 604800; // One week in seconds
+
+
+interface SwapEvent {
+    blockNumber: number;
+    logIndex: number;
+    from: string;
+    to: string;
+    token: string;
+    amount: bigint;
+}
+
+interface MatchedReward {
+    address: string;
+    symbol: string;
+    amount: number;
+    weth: number;
+}
+
+export async function getTokenInfo(publicClient: PublicClient, tokenAddress: string) {
+    const contract = getContract({
+        address: tokenAddress as Address,
+        abi: erc20Abi,
+        client: { public: publicClient },
+    });
+
+    try {
+        const [symbol, decimals] = await Promise.all([
+            contract.read.symbol(),
+            contract.read.decimals(),
+        ]);
+
+        return { symbol, decimals };
+    } catch (error) {
+        console.error(`Error fetching info for token ${tokenAddress}:`, error);
+        return { symbol: 'Unknown', decimals: 18 }; // Default values
+    }
+}
 
 
 /**
@@ -12,7 +50,7 @@ const WEEK = 604800; // One week in seconds
  * @param {number | undefined} pastWeek - Number of weeks in the past (0 for current week).
  * @returns {Promise<{timestamp1: number, timestamp2: number, timestampEnd: number, blockNumber1: number, blockNumber2: number, blockNumberEnd: number}>}
  */
-async function getTimestampsBlocks(publicClient: PublicClient, pastWeek?: number) {
+export async function getTimestampsBlocks(publicClient: PublicClient, pastWeek?: number) {
     const currentTimestamp = Math.floor(Date.now() / 1000);
     let timestamp2: number;
     let timestamp1: number;
@@ -42,12 +80,12 @@ async function getTimestampsBlocks(publicClient: PublicClient, pastWeek?: number
 }
 
 
-function isValidAddress(address: string): address is `0x${string}` {
+export function isValidAddress(address: string): address is `0x${string}` {
     return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
 
 
-const getClosestBlockTimestamp = async (chain: string, timestamp: number): Promise<number> => {
+export async function getClosestBlockTimestamp(chain: string, timestamp: number): Promise<number> {
     const response = await axios.get(`https://coins.llama.fi/block/${chain}/${timestamp}`);
 
     if (response.status !== 200) {
@@ -60,18 +98,25 @@ const getClosestBlockTimestamp = async (chain: string, timestamp: number): Promi
 }
 
 
-const MAINNET_VM_PLATFORMS: { [key: string]: { platform: string, locker: string } } = {
+export const MAINNET_VM_PLATFORMS: { [key: string]: { platform: string, locker: string } } = {
     "curve": { platform: getAddress("0x0000000895cB182E6f983eb4D8b4E0Aa0B31Ae4c"), locker: getAddress("0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6") },
     "balancer": { platform: getAddress("0x0000000446b28e4c90DbF08Ead10F3904EB27606"), locker: getAddress("0xea79d1A83Da6DB43a85942767C389fE0ACf336A5") },
     "frax": { platform: getAddress("0x000000060e56DEfD94110C1a9497579AD7F5b254"), locker: getAddress("0xCd3a267DE09196C48bbB1d9e842D7D7645cE448f") },
     "fxn": { platform: getAddress("0x00000007D987c2Ea2e02B48be44EC8F92B8B06e8"), locker: getAddress("0x75736518075a01034fa72D675D36a47e9B06B2Fb") },
 }
 
-const WARDEN_PATHS: { [key: string]: string } = {
+export const WARDEN_PATHS: { [key: string]: string } = {
     "curve": "crv",
     "balancer": "bal",
     "frax": "frax",
     "fxn": "fxn"
+}
+
+export const PROTOCOLS_TOKENS: { [key: string]: { "native": string, "sdToken": string } } = {
+    "curve": { native: getAddress("0xD533a949740bb3306d119CC777fa900bA034cd52"), sdToken: getAddress("0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5") },
+    "balancer": { native: getAddress("0xba100000625a3754423978a60c9317c58a424e3D"), sdToken: getAddress("0xF24d8651578a55b0C119B9910759a351A3458895") },
+    "frax": { native: getAddress("0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0"), sdToken: getAddress("0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36") },
+    "fxn": { native: getAddress("0x365accfca291e7d3914637abf1f7635db165bb09"), sdToken: getAddress("0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad") },
 }
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
@@ -100,7 +145,23 @@ interface Timestamps {
     [key: number]: Proposal;
 }
 
-const fetchProposalsIdsBasedOnPeriods = async (space: string, period: number): Promise<Timestamps> => {
+interface BlockSwaps {
+    [blockNumber: number]: bigint[];
+}
+
+
+export function transformSwapEvents(swapEvents: SwapEvent[]): BlockSwaps {
+    return swapEvents.reduce((acc: BlockSwaps, event) => {
+        if (!acc[event.blockNumber]) {
+            acc[event.blockNumber] = [];
+        }
+        acc[event.blockNumber].push(event.amount);
+        return acc;
+    }, {});
+}
+
+
+export async function fetchProposalsIdsBasedOnPeriods(space: string, period: number): Promise<Timestamps> {
     const query = gql`
     query Proposals {
       proposals(
@@ -163,7 +224,7 @@ const fetchProposalsIdsBasedOnPeriods = async (space: string, period: number): P
     return associated_timestamps;
 }
 
-async function getTokenBalance(
+export async function getTokenBalance(
     publicClient: PublicClient,
     tokenAddress: Address,
     contractAddress: Address,
@@ -190,7 +251,7 @@ const gaugeControllerAbi = [
     },
 ] as const;
 
-async function getGaugeWeight(
+export async function getGaugeWeight(
     publicClient: PublicClient,
     gaugeControllerAddress: Address,
     gaugeAddress: Address
@@ -212,5 +273,97 @@ async function getGaugeWeight(
 }
 
 
+export async function fetchSwapInEvents(blockMin: number, blockMax: number, rewardTokens: string[], contractAddress: string): Promise<SwapEvent[]> {
+    const transferSig = "Transfer(address,address,uint256)";
+    const transferHash = keccak256(encodePacked(['string'], [transferSig]));
 
-export { getClosestBlockTimestamp, MAINNET_VM_PLATFORMS, WARDEN_PATHS, fetchProposalsIdsBasedOnPeriods, getTokenBalance, getGaugeWeight, isValidAddress, getTimestampsBlocks };
+    const paddedContractAddress = pad(contractAddress as `0x${string}`, { size: 32 }).toLowerCase();
+
+    const topics = {
+        "0": transferHash,
+        "2": paddedContractAddress
+    };
+
+    const response = await getLogsByAddressesAndTopics(rewardTokens, blockMin, blockMax, topics);
+
+    const swapEvents: SwapEvent[] = response.result.map(log => {
+        const [amount] = decodeAbiParameters(
+            [{ type: 'uint256' }],
+            log.data
+        );
+        return {
+            blockNumber: parseInt(log.blockNumber, 16),
+            logIndex: parseInt(log.logIndex, 16),
+            from: `0x${log.topics[1].slice(26)}`,
+            to: `0x${log.topics[2].slice(26)}`,
+            token: log.address,
+            amount: amount
+        };
+    });
+
+    return swapEvents.sort((a, b) =>
+        a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber - b.blockNumber
+    );
+}
+
+
+
+export async function fetchSwapOutEvents(blockMin: number, blockMax: number, rewardTokens: string[], contractAddress: string): Promise<SwapEvent[]> {
+    const transferSig = "Transfer(address,address,uint256)";
+    const transferHash = keccak256(encodePacked(['string'], [transferSig]));
+
+    const paddedContractAddress = pad(contractAddress as `0x${string}`, { size: 32 }).toLowerCase();
+
+    const topics = {
+        "0": transferHash,
+        "1": paddedContractAddress
+    };
+
+    const response = await getLogsByAddressesAndTopics(rewardTokens, blockMin, blockMax, topics);
+
+    const swapEvents: SwapEvent[] = response.result.map(log => {
+        const [amount] = decodeAbiParameters(
+            [{ type: 'uint256' }],
+            log.data
+        );
+        return {
+            blockNumber: parseInt(log.blockNumber, 16),
+            logIndex: parseInt(log.logIndex, 16),
+            from: `0x${log.topics[1].slice(26)}`,
+            to: `0x${log.topics[2].slice(26)}`,
+            token: log.address,
+            amount: amount
+        };
+    });
+
+    return swapEvents.sort((a, b) =>
+        a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber - b.blockNumber
+    );
+}
+
+export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
+    const wethIn = blockData.wethIn || [];
+    const rewardsOut = blockData.rewardsOut || [];
+
+    if (wethIn.length === 0 || rewardsOut.length === 0) {
+        return []; // Return empty array if either wethIn or rewardsOut is empty
+    }
+
+    if (wethIn.length !== rewardsOut.length) {
+        console.warn(`Mismatch in WETH inputs (${wethIn.length}) and reward outputs (${rewardsOut.length})`);
+    }
+
+    const matchLength = Math.min(wethIn.length, rewardsOut.length);
+
+    return wethIn.slice(0, matchLength).map((wethAmount: number, index: number) => ({
+        address: rewardsOut[index].token,
+        symbol: rewardsOut[index].symbol,
+        amount: rewardsOut[index].amount,
+        weth: wethAmount
+    }));
+}
+
+
+
+
+

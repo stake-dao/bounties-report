@@ -5,9 +5,9 @@ import axios from 'axios';
 import { Bounty, VotemarketBounty, WardenBounty, GaugeShare } from './types';
 
 
-const ALL_MIGHT = getAddress("0x0000000a3Fc396B89e4c11841B39D9dff85a5D05");
-const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
-const HH_BALANCER_MARKET = getAddress("0x45Bc37b18E73A42A4a826357a8348cDC042cCBBc");
+export const ALL_MIGHT = getAddress("0x0000000a3Fc396B89e4c11841B39D9dff85a5D05");
+export const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
+export const HH_BALANCER_MARKET = getAddress("0x45Bc37b18E73A42A4a826357a8348cDC042cCBBc");
 
 
 const platformAbi = [
