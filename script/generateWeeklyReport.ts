@@ -1,31 +1,29 @@
 import fs from 'fs';
+import path from 'path';
 import { createPublicClient, formatUnits, http } from "viem";
 import { mainnet } from 'viem/chains'
 import { getAddress } from 'viem'
-import { getTimestampsBlocks, fetchSwapInEvents, fetchSwapOutEvents, transformSwapEvents, PROTOCOLS_TOKENS, matchWethInWithRewardsOut, getTokenInfo } from './utils/reportUtils';
+import { getTimestampsBlocks, fetchSwapInEvents, fetchSwapOutEvents, PROTOCOLS_TOKENS, matchWethInWithRewardsOut, getTokenInfo, getGaugesInfos } from './utils/reportUtils';
 import dotenv from 'dotenv';
 import { ALL_MIGHT, BOTMARKET } from "./utils/claimedBountiesUtils";
 
 dotenv.config();
 
+const OTC_MANAGER = getAddress("0x9Cc16BDd233A74646e31100b2f13334810d12cB0");
 const WETH_ADDRESS = getAddress("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+const WEEK = 604800;
+const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
 
-const WEEK = 604800; // One week in seconds
-const currentDate = new Date();
+interface TokenInfo {
+    symbol: string;
+    decimals: number;
+}
 
-const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
-const currentPeriod = Math.floor(currentTimestamp / WEEK) * WEEK;
-
-
-interface BountyInfo {
+interface Bounty {
     bountyId: string;
     gauge: string;
     amount: string;
     rewardToken: string;
-}
-
-interface ProtocolBounties {
-    [key: string]: BountyInfo;
 }
 
 interface ClaimedBounties {
@@ -33,46 +31,45 @@ interface ClaimedBounties {
     timestamp2: number;
     blockNumber1: number;
     blockNumber2: number;
-    votemarket: {
-        frax: ProtocolBounties;
-        curve: ProtocolBounties;
-        balancer: ProtocolBounties;
-        fxn: ProtocolBounties;
-    };
-    warden: {
-        frax: ProtocolBounties;
-        balancer: ProtocolBounties;
-        curve: ProtocolBounties;
-        fxn: ProtocolBounties;
-    };
-    hiddenhand: {
-        frax: ProtocolBounties;
-        curve: ProtocolBounties;
-        balancer: ProtocolBounties;
-        fxn: ProtocolBounties;
-    };
+    votemarket: Record<string, Record<string, Bounty>>;
+    warden: Record<string, Record<string, Bounty>>;
+    hiddenhand: Record<string, Record<string, Bounty>>;
 }
 
-
-interface RewardSwap {
+interface SwapEvent {
+    blockNumber: number;
+    logIndex: number;
+    from: string;
+    to: string;
     token: string;
-    symbol: string;
-    amount: number;
+    amount: bigint;
 }
+
 
 interface SwapData {
     sdTokenIn?: number[];
+    sdTokenOut?: number[];
     nativeIn?: number[];
     nativeOut?: number[];
     wethOut?: number[];
     wethIn?: number[];
-    rewardsOut?: RewardSwap[];
+    rewardsOut?: { token: string; symbol: string; amount: number; }[];
 }
 
-interface SwapsData {
-    [protocol: string]: {
-        [blockNumber: number]: SwapData;
-    };
+interface MatchData {
+    address: string;
+    symbol: string;
+    amount: number;
+    weth: number;
+}
+
+interface BlockData {
+    blockNumber: number;
+    matches: MatchData[];
+}
+
+interface ProtocolData {
+    [protocol: string]: BlockData[];
 }
 
 const publicClient = createPublicClient({
@@ -80,240 +77,482 @@ const publicClient = createPublicClient({
     transport: http("https://rpc.flashbots.net")
 });
 
-const tokenInfos: { [token: string]: { symbol: string, decimals: number } } = {};
-
-async function fetchAllTokenInfos(allTokens: string[]) {
+async function fetchAllTokenInfos(allTokens: string[]): Promise<Record<string, TokenInfo>> {
+    const tokenInfos: Record<string, TokenInfo> = {};
     for (const token of allTokens) {
-        tokenInfos[token] = await getTokenInfo(publicClient, token);
+        tokenInfos[token.toLowerCase()] = await getTokenInfo(publicClient, token);
     }
+    return tokenInfos;
+}
+
+interface ProcessedSwapEvent extends SwapEvent {
+    formattedAmount: number;
+    symbol: string;
+}
+
+function processSwaps(swaps: SwapEvent[], tokenInfos: Record<string, TokenInfo>): ProcessedSwapEvent[] {
+    return swaps
+        .filter(swap => swap.from.toLowerCase() !== BOTMARKET.toLowerCase())
+        .filter(swap => swap.from.toLowerCase() !== OTC_MANAGER.toLowerCase())
+        .map(swap => {
+            const tokenInfo = tokenInfos[swap.token.toLowerCase()];
+            let formattedAmount: number;
+            if (!tokenInfo) {
+                console.warn(`No info found for token ${swap.token}. Using 18 decimals as default.`);
+                formattedAmount = Number(formatUnits(swap.amount, 18));
+            } else {
+                formattedAmount = Number(formatUnits(swap.amount, tokenInfo.decimals));
+            }
+            return {
+                ...swap,
+                formattedAmount,
+                symbol: tokenInfo?.symbol || 'UNKNOWN'
+            };
+        });
+}
+
+function aggregateBounties(claimedBounties: ClaimedBounties): Record<string, Bounty[]> {
+    const protocols = ['curve', 'balancer', 'fxn', 'frax'];
+    const aggregated: Record<string, Bounty[]> = {};
+
+    for (const protocol of protocols) {
+        aggregated[protocol] = [
+            ...Object.values(claimedBounties.votemarket[protocol] || {}),
+            ...Object.values(claimedBounties.warden[protocol] || {}),
+            ...Object.values(claimedBounties.hiddenhand[protocol] || {})
+        ];
+    }
+
+    return aggregated;
+}
+
+function collectAllTokens(bounties: Record<string, Bounty[]>, protocols: typeof PROTOCOLS_TOKENS): Set<string> {
+    const allTokens = new Set<string>();
+
+    Object.values(bounties).forEach(protocolBounties =>
+        protocolBounties.forEach(bounty => allTokens.add(bounty.rewardToken))
+    );
+
+    allTokens.add(WETH_ADDRESS);
+
+    Object.values(protocols).forEach(protocolInfo => {
+        allTokens.add(protocolInfo.native);
+        allTokens.add(protocolInfo.sdToken);
+    });
+
+    return allTokens;
+}
+
+interface GaugeInfo {
+    name: string;
+    address: string;
+}
+
+function addGaugeNamesToBounties(bounties: Bounty[], gaugesInfo: GaugeInfo[]): Bounty[] {
+    const gaugeMap = new Map(gaugesInfo.map(g => [g.address.toLowerCase(), g.name]));
+
+    return bounties.map(bounty => ({
+        ...bounty,
+        gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || 'UNKNOWN'
+    }));
 }
 
 
-/**
- * Main function to execute the weekly report generation.
- */
-const main = async () => {
-    const { timestamp1, timestamp2, blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, 0); // Past week
+interface ReportRow {
+    protocol: string;
+    gaugeName: string;
+    gaugeAddress: string;
+    rewardToken: string;
+    rewardAddress: string;
+    rewardAmount: number;
+    rewardSdValue: number;
+    sharePercentage: number;
+}
 
-    // In weekly-bounties/{period}/claimed_bounties.json
+
+interface CSVRow {
+    protocol: string;
+    gaugeName: string;
+    gaugeAddress: string;
+    rewardToken: string;
+    rewardAddress: string;
+    rewardAmount: number;
+    rewardSdValue: number;
+    sharePercentage: number;
+}
+
+function escapeCSV(field: string): string {
+    if (field.includes(';') || field.includes('"') || field.includes('\n')) {
+        return `"${field.replace(/"/g, '""')}"`;
+    }
+    return field;
+}
+
+
+
+
+async function main() {
+    const { timestamp1, timestamp2, blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, 0);
+
+    const currentPeriod = 1721260800;
+
     const claimedBountiesPath = `weekly-bounties/${currentPeriod}/claimed_bounties.json`;
     const claimedBounties: ClaimedBounties = JSON.parse(fs.readFileSync(claimedBountiesPath, 'utf8'));
 
-    const votemarketBounties = claimedBounties.votemarket;
-    const wardenBounties = claimedBounties.warden;
-    const hiddenhandBounties = claimedBounties.hiddenhand;
+    let aggregatedBounties = aggregateBounties(claimedBounties);
+    const allTokens = collectAllTokens(aggregatedBounties, PROTOCOLS_TOKENS);
+    const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens));
+
+    const curveGaugesInfos = await getGaugesInfos("curve");
+    const balancerGaugesInfos = await getGaugesInfos("balancer");
+    const fxnGaugesInfos = await getGaugesInfos("fxn");
+    const fraxGaugesInfos = await getGaugesInfos("frax");
 
 
-    let curveBounties = [
-        ...Object.values(votemarketBounties.curve || {}),
-        ...Object.values(wardenBounties.curve || {}),
-        ...Object.values(hiddenhandBounties.curve || {})
-    ];
-
-    let balancerBounties = [
-        ...Object.values(votemarketBounties.balancer || {}),
-        ...Object.values(wardenBounties.balancer || {}),
-        ...Object.values(hiddenhandBounties.balancer || {})
-    ];
+    // Add gauge names to bounties
+    aggregatedBounties = {
+        curve: addGaugeNamesToBounties(aggregatedBounties.curve, curveGaugesInfos),
+        balancer: addGaugeNamesToBounties(aggregatedBounties.balancer, balancerGaugesInfos),
+        fxn: addGaugeNamesToBounties(aggregatedBounties.fxn, fxnGaugesInfos),
+        frax: addGaugeNamesToBounties(aggregatedBounties.frax, fraxGaugesInfos)
+    };
 
 
-    let fxnBounties = [
-        ...Object.values(votemarketBounties.fxn || {}),
-        ...Object.values(wardenBounties.fxn || {}),
-        ...Object.values(hiddenhandBounties.fxn || {})
-    ];
+    //const swapIn = await fetchSwapInEvents(blockNumber1, blockNumber2, Array.from(allTokens), ALL_MIGHT);
+    //const swapOut = await fetchSwapOutEvents(blockNumber1, blockNumber2, Array.from(allTokens), ALL_MIGHT);
+
+    const swapInFiltered = processSwaps(swapIn, tokenInfos);
+    const swapOutFiltered = processSwaps(swapOut, tokenInfos);
 
 
-    let fraxBounties = [
-        ...Object.values(votemarketBounties.frax || {}),
-        ...Object.values(wardenBounties.frax || {}),
-        ...Object.values(hiddenhandBounties.frax || {})
-    ];
+    const swapsData: Record<string, Record<number, SwapData>> = {};
 
-
-
-
-
-    const allCurveRewardTokens = Object.values(curveBounties).map(bounty => bounty.rewardToken);
-    const allBalancerRewardTokens = Object.values(balancerBounties).map(bounty => bounty.rewardToken);
-    const allFxnRewardTokens = Object.values(fxnBounties).map(bounty => bounty.rewardToken);
-    const allFraxRewardTokens = Object.values(fraxBounties).map(bounty => bounty.rewardToken);
-
-
-    const allTokens = new Set<string>([...allCurveRewardTokens, ...allBalancerRewardTokens, ...allFxnRewardTokens, ...allFraxRewardTokens]);
-    allTokens.add(WETH_ADDRESS);
-
-
-    for (const protocolInfos of Object.values(PROTOCOLS_TOKENS)) {
-        const native = protocolInfos.native;
-        const sdToken = protocolInfos.sdToken;
-
-        // Put everything to fetch data
-        allTokens.add(native);
-        allTokens.add(sdToken);
-    }
-
-
-    await fetchAllTokenInfos(Array.from(allTokens));
-
-    const normalizedTokenInfos = Object.entries(tokenInfos).reduce((acc, [key, value]) => {
-        acc[key.toLowerCase()] = value;
-        return acc;
-    }, {} as typeof tokenInfos);
-
-
-    // Fetch everything; to be able to compute swaps
-    /*
-    const swapIn = await fetchSwapInEvents(blockNumber1, blockNumber2, Array.from(allTokens), ALL_MIGHT);
-
-    const swapOut = await fetchSwapOutEvents(blockNumber1, blockNumber2, Array.from(allTokens), ALL_MIGHT);
-    */
-
-    // Drop out when coming from Botmarket (withdraws)
-    const swapInFiltered = swapIn
-        .filter(swap => swap.from.toLowerCase() !== BOTMARKET.toLowerCase())
-        .map(swap => {
-            const tokenInfo = normalizedTokenInfos[swap.token.toLowerCase()];
-            let formattedAmount: number;
-            if (!tokenInfo) {
-                console.warn(`No info found for token ${swap.token}. Using 18 decimals as default.`);
-                formattedAmount = Number(formatUnits(swap.amount, 18));
-            } else {
-                formattedAmount = Number(formatUnits(swap.amount, tokenInfo.decimals));
-            }
-            return {
-                ...swap,
-                amount: formattedAmount,
-                symbol: tokenInfo ? tokenInfo.symbol : 'UNKNOWN'
-            };
-        });
-
-    const swapOutFiltered = swapOut
-        .filter(swap => swap.from.toLowerCase() !== BOTMARKET.toLowerCase())
-        .map(swap => {
-            const tokenInfo = normalizedTokenInfos[swap.token.toLowerCase()];
-            let formattedAmount: number;
-            if (!tokenInfo) {
-                console.warn(`No info found for token ${swap.token}. Using 18 decimals as default.`);
-                formattedAmount = Number(formatUnits(swap.amount, 18));
-            } else {
-                formattedAmount = Number(formatUnits(swap.amount, tokenInfo.decimals));
-            }
-            return {
-                ...swap,
-                amount: formattedAmount,
-                symbol: tokenInfo ? tokenInfo.symbol : 'UNKNOWN'
-            };
-        });
-
-
-
-    const swapsData: SwapsData = {};
-
-    // First pass: add sdToken swaps
     for (const [key, protocolInfos] of Object.entries(PROTOCOLS_TOKENS)) {
-        const sdToken = protocolInfos.sdToken;
-
         swapsData[key] = {};
 
         for (const swap of swapInFiltered) {
-            if (swap.token.toLowerCase() === sdToken.toLowerCase()) {
+            if (swap.token.toLowerCase() === protocolInfos.sdToken.toLowerCase()) {
                 if (!swapsData[key][swap.blockNumber]) {
                     swapsData[key][swap.blockNumber] = { sdTokenIn: [] };
                 }
-                swapsData[key][swap.blockNumber].sdTokenIn!.push(Number(swap.amount));
+                swapsData[key][swap.blockNumber].sdTokenIn!.push(swap.formattedAmount);
+            }
+        }
+
+        for (const swap of [...swapInFiltered, ...swapOutFiltered]) {
+            if (!swapsData[key][swap.blockNumber]) continue;
+
+            const isNative = swap.token.toLowerCase() === protocolInfos.native.toLowerCase();
+            const isWeth = swap.token.toLowerCase() === WETH_ADDRESS.toLowerCase();
+            const isSdToken = swap.token.toLowerCase() === protocolInfos.sdToken.toLowerCase();
+            const isReward = ![WETH_ADDRESS, protocolInfos.native, protocolInfos.sdToken].includes(swap.token.toLowerCase());
+
+            if (swapInFiltered.includes(swap)) {
+                if (isNative) {
+                    swapsData[key][swap.blockNumber].nativeIn ??= [];
+                    swapsData[key][swap.blockNumber].nativeIn!.push(swap.formattedAmount);
+                } else if (isWeth) {
+                    swapsData[key][swap.blockNumber].wethIn ??= [];
+                    swapsData[key][swap.blockNumber].wethIn!.push(swap.formattedAmount);
+                }
+            } else if (swapOutFiltered.includes(swap)) {
+                if (isNative) {
+                    swapsData[key][swap.blockNumber].nativeOut ??= [];
+                    swapsData[key][swap.blockNumber].nativeOut!.push(swap.formattedAmount);
+                } else if (isWeth) {
+                    swapsData[key][swap.blockNumber].wethOut ??= [];
+                    swapsData[key][swap.blockNumber].wethOut!.push(swap.formattedAmount);
+                } else if (isSdToken) {
+                    swapsData[key][swap.blockNumber].sdTokenOut ??= [];
+                    swapsData[key][swap.blockNumber].sdTokenOut!.push(swap.formattedAmount);
+                } else if (isReward) {
+                    swapsData[key][swap.blockNumber].rewardsOut ??= [];
+                    if (!swapsData[key][swap.blockNumber].rewardsOut!.some(r => r.token === swap.token && r.amount === swap.formattedAmount)) {
+                        swapsData[key][swap.blockNumber].rewardsOut!.push({
+                            token: swap.token,
+                            symbol: swap.symbol!,
+                            amount: swap.formattedAmount
+                        });
+                    }
+                }
             }
         }
     }
 
-    // Second pass: add native token swaps, weth and rewards only for blocks where sdToken was swapped
-    for (const [key, protocolInfos] of Object.entries(PROTOCOLS_TOKENS)) {
-        const native = protocolInfos.native;
-        const sdToken = protocolInfos.sdToken;
+    const allMatches = Object.entries(swapsData).flatMap(([protocol, blocks]) =>
+        Object.entries(blocks).flatMap(([blockNumber, blockData]) => {
+            const matches = matchWethInWithRewardsOut(blockData);
+            return matches.length > 0 ? [{ protocol, blockNumber: parseInt(blockNumber), matches }] : [];
+        })
+    );
 
-        for (const swap of swapInFiltered) {
-            if (swap.token.toLowerCase() === native.toLowerCase() && swapsData[key][swap.blockNumber]) {
-                if (!swapsData[key][swap.blockNumber].nativeIn) {
-                    swapsData[key][swap.blockNumber].nativeIn = [];
-                }
-                swapsData[key][swap.blockNumber].nativeIn!.push(Number(swap.amount));
-            }
-            if (swap.token.toLowerCase() === WETH_ADDRESS.toLowerCase() && swapsData[key][swap.blockNumber]) {
-                if (!swapsData[key][swap.blockNumber].wethIn) {
-                    swapsData[key][swap.blockNumber].wethIn = [];
-                }
-                swapsData[key][swap.blockNumber].wethIn!.push(Number(swap.amount));
-            }
-        }
-        for (const swap of swapOutFiltered) {
-            if (swap.token.toLowerCase() === native.toLowerCase() && swapsData[key][swap.blockNumber]) {
-                if (!swapsData[key][swap.blockNumber].nativeOut) {
-                    swapsData[key][swap.blockNumber].nativeOut = [];
-                }
-                swapsData[key][swap.blockNumber].nativeOut!.push(Number(swap.amount));
-            }
-            if (swap.token.toLowerCase() === WETH_ADDRESS.toLowerCase() && swapsData[key][swap.blockNumber]) {
-                if (!swapsData[key][swap.blockNumber].wethOut) {
-                    swapsData[key][swap.blockNumber].wethOut = [];
-                }
-                swapsData[key][swap.blockNumber].wethOut!.push(Number(swap.amount));
-            }
-
-            if (swapsData[key] && swapsData[key][swap.blockNumber]) {
-                // Handle case when already in WETH or native or sdToken => Not swapped to WETH
-                if (swap.token.toLowerCase() === WETH_ADDRESS.toLowerCase() ||
-                    swap.token.toLowerCase() === native.toLowerCase() ||
-                    swap.token.toLowerCase() === sdToken.toLowerCase()) {
-                    continue;
-                }
-
-                if (!swapsData[key][swap.blockNumber].rewardsOut) {
-                    swapsData[key][swap.blockNumber].rewardsOut = [];
-                }
-
-                const amount = Number(swap.amount);
-
-                // Check if this specific swap has already been added
-                const existingSwapIndex = swapsData[key][swap.blockNumber].rewardsOut!.findIndex(
-                    rewardSwap => rewardSwap.token.toLowerCase() === swap.token.toLowerCase() &&
-                        rewardSwap.amount === amount
-                );
-
-                if (existingSwapIndex === -1) {
-                    // Add a new entry for this reward swap only if it doesn't exist
-                    swapsData[key][swap.blockNumber].rewardsOut!.push({
-                        token: swap.token,
-                        symbol: normalizedTokenInfos[swap.token.toLowerCase()]?.symbol,
-                        amount: amount
-                    });
-                }
-            }
-        }
+    const orderedData = allMatches.reduce((acc: ProtocolData, item) => {
+        const { protocol, blockNumber, matches } = item;
+        if (!acc[protocol]) acc[protocol] = [];
+        acc[protocol].push({ blockNumber, matches });
+        return acc;
+    }, {} as ProtocolData);
 
 
 
-        //console.log(JSON.stringify(swapsData, null, 2));
-
-        const allMatches = Object.entries(swapsData).flatMap(([protocol, blocks]) =>
-            Object.entries(blocks).flatMap(([blockNumber, blockData]) => {
-                const matches = matchWethInWithRewardsOut(blockData);
-                if (matches.length > 0) {
-                    return [{
-                        protocol,
-                        blockNumber: parseInt(blockNumber),
-                        matches
-                    }];
-                }
-                return [];
-            })
-        );
-
-        console.log(JSON.stringify(allMatches, null, 2));
+    interface TokenInfo {
+        address: string;
+        symbol: string;
+        amount: number;
+        weth: number;
     }
+
+    interface ProtocolSummary {
+        protocol: string;
+        totalWethOut: number;
+        totalWethIn: number;
+        totalNativeOut: number;
+        totalNativeIn: number;
+        totalSdTokenOut: number;
+        totalSdTokenIn: number;
+        tokens: TokenInfo[];
+    }
+
+    const protocolSummaries: ProtocolSummary[] = [];
+
+    for (const [protocol, blocks] of Object.entries(swapsData)) {
+        let totalWethOut = 0;
+        let totalWethIn = 0;
+        let totalNativeOut = 0;
+        let totalNativeIn = 0;
+        let totalSdTokenOut = 0;
+        let totalSdTokenIn = 0;
+        const tokenMap: { [address: string]: TokenInfo } = {};
+
+        for (const block of Object.values(blocks)) {
+            // Sum up totals
+            totalWethOut += (block.wethOut || []).reduce((sum, amount) => sum + amount, 0);
+            totalWethIn += (block.wethIn || []).reduce((sum, amount) => sum + amount, 0);
+            totalSdTokenOut += (block.sdTokenOut || []).reduce((sum, amount) => sum + amount, 0);
+            totalSdTokenIn += (block.sdTokenIn || []).reduce((sum, amount) => sum + amount, 0);
+            totalNativeOut += (block.nativeOut || []).reduce((sum, amount) => sum + amount, 0);
+            totalNativeIn += (block.nativeIn || []).reduce((sum, amount) => sum + amount, 0);
+        }
+
+        // Get token info from orderedData
+        const protocolData = orderedData[protocol] || [];
+        for (const blockData of protocolData) {
+            for (const match of blockData.matches) {
+                if (!tokenMap[match.address]) {
+                    tokenMap[match.address] = { ...match, amount: 0, weth: 0 };
+                }
+                tokenMap[match.address].amount += match.amount;
+                tokenMap[match.address].weth += match.weth;
+            }
+        }
+
+        protocolSummaries.push({
+            protocol,
+            totalWethOut,
+            totalWethIn,
+            totalNativeOut,
+            totalNativeIn,
+            totalSdTokenOut,
+            totalSdTokenIn,
+            tokens: Object.values(tokenMap)
+        });
+    }
+
+    /*
+    Object.entries(aggregatedBounties).forEach(([protocol, bounties]) => {
+        const native = PROTOCOLS_TOKENS[protocol].native.toLowerCase();
+        const sdToken = PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase();
+
+        const protocolSummary = protocolSummaries.find(p => p.protocol === protocol);
+        if (!protocolSummary) {
+            console.warn(`No summary found for protocol ${protocol}`);
+            return;
+        }
+
+        const { totalNativeIn, totalNativeOut, totalWethIn, totalWethOut, totalSdTokenIn, totalSdTokenOut } = protocolSummary;
+
+        // Ratios
+        const wethToNativeRatio = totalNativeIn / totalWethOut;
+        const nativeToSdTokenRatio = totalSdTokenOut / totalNativeOut;
+
+        let totalShares = 0;
+        
+        const bountyShares: { bounty: any, share: number }[] = [];
+
+        bounties.forEach(bounty => {
+            const rewardToken = bounty.rewardToken.toLowerCase();
+            const tokenInfo = tokenInfos[rewardToken];
+            const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+
+            let share = 0;
+
+            if (rewardToken === native) {
+                share = formattedAmount / totalNativeOut;
+            } else if (rewardToken === sdToken) {
+                share = formattedAmount / totalSdTokenOut;
+            } else if (rewardToken === WETH_ADDRESS.toLowerCase()) {
+                const nativeAmount = formattedAmount * wethToNativeRatio;
+                share = nativeAmount / totalNativeOut;
+            } else {
+                const tokenSummary = protocolSummary.tokens.find(t => t.address.toLowerCase() === rewardToken);
+                if (tokenSummary) {
+                    const localShare = formattedAmount / tokenSummary.amount;
+                    const wethAmount = tokenSummary.weth * localShare;
+                    const nativeAmount = wethAmount * wethToNativeRatio;
+                    share = nativeAmount / totalNativeOut;
+                }
+            }
+
+            totalShares += share;
+            bountyShares.push({ bounty, share });
+        });
+
+        // Normalize shares and calculate SD token amounts
+        bountyShares.forEach(({ bounty, share }) => {
+            const normalizedShare = share / totalShares;
+            const sdTokenAmount = normalizedShare * totalSdTokenIn;
+
+            const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
+            console.log(`Bounty for ${tokenInfo?.symbol || bounty.rewardToken}`);
+            console.log(`Gauge: ${bounty.gauge}`);
+            console.log(`Gauge name: ${bounty.gaugeName}`);
+            console.log(`Share of total: ${normalizedShare * 100}%`);
+            console.log(`SD Token amount: ${sdTokenAmount}`);
+            console.log('---');
+        });
+
+    });
+    */
+
+    Object.entries(aggregatedBounties).forEach(([protocol, bounties]) => {
+        const native = PROTOCOLS_TOKENS[protocol].native.toLowerCase();
+        const sdToken = PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase();
+
+        const protocolSummary = protocolSummaries.find(p => p.protocol === protocol);
+        if (!protocolSummary) {
+            console.warn(`No summary found for protocol ${protocol}`);
+            return;
+        }
+
+        const { totalNativeIn, totalNativeOut, totalWethIn, totalWethOut, totalSdTokenIn, totalSdTokenOut } = protocolSummary;
+
+        // Ratios
+        const wethToNativeRatio = totalNativeIn / totalWethOut;
+
+        let totalShares = 0;
+
+        // First pass: calculate shares
+        bounties.forEach((bounty: any) => {
+            const rewardToken = bounty.rewardToken.toLowerCase();
+            const tokenInfo = tokenInfos[rewardToken];
+            const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+
+            let share = 0;
+
+            if (rewardToken === native) {
+                share = formattedAmount / totalNativeOut;
+            } else if (rewardToken === sdToken) {
+                share = formattedAmount / totalSdTokenOut;
+            } else if (rewardToken === WETH_ADDRESS.toLowerCase()) {
+                const nativeAmount = formattedAmount * wethToNativeRatio;
+                share = nativeAmount / totalNativeOut;
+            } else {
+                const tokenSummary = protocolSummary.tokens.find(t => t.address.toLowerCase() === rewardToken);
+                if (tokenSummary) {
+                    const localShare = formattedAmount / tokenSummary.amount;
+                    const wethAmount = tokenSummary.weth * localShare;
+                    const nativeAmount = wethAmount * wethToNativeRatio;
+                    share = nativeAmount / totalNativeOut;
+                }
+            }
+
+            bounty.share = share;
+            totalShares += share;
+        });
+
+        // Second pass: normalize shares and calculate SD token amounts
+        bounties.forEach((bounty: any) => {
+            bounty.normalizedShare = bounty.share / totalShares;
+            bounty.sdTokenAmount = bounty.normalizedShare * totalSdTokenIn;
+        });
+    });
+
+
+    const mergedRows: { [key: string]: CSVRow } = {};
+
+    Object.entries(aggregatedBounties).forEach(([protocol, bounties]) => {
+        const protocolSummary = protocolSummaries.find(p => p.protocol === protocol);
+        if (!protocolSummary) return;
+
+        const { totalSdTokenIn } = protocolSummary;
+        let totalShares = 0;
+
+        bounties.forEach((bounty: any) => {
+            totalShares += bounty.share;
+        });
+
+        bounties.forEach((bounty: any) => {
+            bounty.normalizedShare = bounty.share / totalShares;
+            bounty.sdTokenAmount = bounty.normalizedShare * totalSdTokenIn;
+
+            const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
+            const rewardAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+
+            // Create a unique key for each combination of protocol, gauge address, and reward address
+            const key = `${protocol}-${bounty.gauge.toLowerCase()}-${bounty.rewardToken.toLowerCase()}`;
+
+            if (mergedRows[key]) {
+                // If this combination already exists, add to its values
+                mergedRows[key].rewardAmount += rewardAmount;
+                mergedRows[key].rewardSdValue += bounty.sdTokenAmount;
+                mergedRows[key].sharePercentage += bounty.normalizedShare * 100;
+            } else {
+                // If this is a new combination, create a new entry
+                mergedRows[key] = {
+                    protocol,
+                    gaugeName: bounty.gaugeName || 'Unknown',
+                    gaugeAddress: bounty.gauge,
+                    rewardToken: tokenInfo?.symbol || 'Unknown',
+                    rewardAddress: bounty.rewardToken,
+                    rewardAmount,
+                    rewardSdValue: bounty.sdTokenAmount,
+                    sharePercentage: bounty.normalizedShare * 100
+                };
+            }
+        });
+    });
+
+    // Convert the merged rows object to an array
+    const csvRows = Object.values(mergedRows);
+
+    // Generate CSV content
+    const csvContent = [
+        "Protocol;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+        ...csvRows.map(row =>
+            `${escapeCSV(row.protocol)};` +
+            `${escapeCSV(row.gaugeName)};` +
+            `${escapeCSV(row.gaugeAddress)};` +
+            `${escapeCSV(row.rewardToken)};` +
+            `${escapeCSV(row.rewardAddress)};` +
+            `${row.rewardAmount.toFixed(6)};` +
+            `${row.rewardSdValue.toFixed(6)};` +
+            `${row.sharePercentage.toFixed(2)}`
+        )
+    ].join('\n');
+
+    // Write to file
+    const fileName = `bounties_report_${Date.now()}.csv`;
+    fs.writeFileSync(path.join(__dirname, fileName), csvContent);
+    console.log(`Report generated: ${fileName}`);
+
+
+
+    return;
 }
 
-main()
 
+
+main().catch(console.error);
 
 
 const swapIn = [

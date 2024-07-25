@@ -349,6 +349,7 @@ export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
         return []; // Return empty array if either wethIn or rewardsOut is empty
     }
 
+
     if (wethIn.length !== rewardsOut.length) {
         console.warn(`Mismatch in WETH inputs (${wethIn.length}) and reward outputs (${rewardsOut.length})`);
     }
@@ -366,4 +367,113 @@ export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
 
 
 
+interface GaugeInfo {
+    name: string;
+    address: string;
+    price?: string;
+}
 
+export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
+    switch (protocol) {
+        case "curve":
+            return getCurveGaugesInfos();
+        case "balancer":
+            return getBalancerGaugesInfos();
+        case "frax":
+            return getFraxGaugesInfos();
+        case "fxn":
+            return getFxnGaugesInfos();
+        default:
+            return [];
+    }
+}
+
+async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
+    try {
+        const response = await axios.get("https://raw.githubusercontent.com/stake-dao/votemarket-data/main/gauges/curve.json");
+        if (response.status === 200 && response.data.success) {
+            const data = response.data.data;
+            return Object.entries(data)
+                .filter(([_, gauge]: [string, any]) => !(gauge.hasNoCrv || !gauge.gauge_controller))
+                .map(([_, gauge]: [string, any]) => {
+                    let gaugeName = gauge.shortName || "";
+                    const firstIndex = gaugeName.indexOf("(");
+                    if (firstIndex > -1) {
+                        gaugeName = gaugeName.slice(0, firstIndex);
+                    }
+                    return {
+                        name: gaugeName,
+                        address: gauge.gauge.toLowerCase(),
+                        price: gauge.lpTokenPrice
+                    };
+                });
+        }
+        console.error("Failed to fetch Curve gauges: API responded with success: false");
+        return [];
+    } catch (error) {
+        console.error("Error fetching Curve gauges:", error);
+        return [];
+    }
+}
+
+async function getBalancerGaugesInfos(): Promise<GaugeInfo[]> {
+    try {
+        const response = await axios.post("https://api-v3.balancer.fi/", {
+            query: `
+                query {
+                    veBalGetVotingList {
+                        gauge {
+                            address
+                        }
+                        symbol
+                    }
+                }
+            `
+        });
+        if (response.status === 200 && response.data.data?.veBalGetVotingList) {
+            return response.data.data.veBalGetVotingList.map((pool: any) => ({
+                name: pool.symbol,
+                address: pool.gauge.address
+            }));
+        }
+        console.error("Failed to fetch Balancer pools: Invalid response");
+        return [];
+    } catch (error) {
+        console.error("Error fetching Balancer pools:", error);
+        return [];
+    }
+}
+
+async function getFraxGaugesInfos(): Promise<GaugeInfo[]> {
+    try {
+        const response = await axios.get("https://api.frax.finance/v1/gauge/info");
+        if (response.status === 200 && Array.isArray(response.data)) {
+            return response.data.map((gauge: any) => ({
+                name: gauge.name,
+                address: gauge.address
+            }));
+        }
+        console.error("Failed to fetch Frax gauges: Invalid response format");
+        return [];
+    } catch (error) {
+        console.error("Error fetching Frax gauges:", error);
+        return [];
+    }
+}
+
+async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
+    try {
+        const response = await axios.get("https://api.aladdin.club/api1/get_fx_gauge_list");
+        if (response.status === 200 && response.data.data) {
+            return Object.entries(response.data.data).map(([address, gauge]: [string, any]) => ({
+                name: gauge.name || "",
+                address: address
+            }));
+        }
+        console.error("Failed to fetch FXN gauges: Invalid response format");
+        return [];
+    } catch (error) {
+        console.error("Error fetching FXN gauges:", error);
+        return [];
+    }
+}
