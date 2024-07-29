@@ -48,6 +48,7 @@ const {
 } = require("./utils/constants");
 const { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods, getProposal, getVoters, getVoterVotingPower } = require("./utils/snapshot");
 const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimed, addVotersFromAutoVoter, getChoicesBasedOnReport } = require("./utils/utils");
+const moment = require('moment');
 
 dotenv.config();
 
@@ -56,11 +57,6 @@ const logData = {}; // Use to store and write logs in a JSON
 
 
 const main = async () => {
-  const [fileName, csvResult] = await extractCSV(LABELS_TO_SPACE);
-
-  logData["Latest report"] = fileName;
-
-
   // Fetch last merkle
   const { data: lastMerkles } = await axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json");
 
@@ -77,6 +73,8 @@ const main = async () => {
   const toFreeze = {};
   const toSet = {};
 
+  const currentPeriodTimestamp = Math.floor(moment.utc().unix() / 604800) * 604800;
+
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
     if (space === "sdpendle.eth") { // Special case sdPendle : Monthly report
@@ -86,7 +84,9 @@ const main = async () => {
     checkSpace(space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN, SPACES_TOKENS, SPACE_TO_NETWORK, NETWORK_TO_STASH, NETWORK_TO_MERKLE);
 
     // If no bribe to distribute to this space => skip
-    if (!csvResult[space]) {
+    const csvResult = await extractCSV(currentPeriodTimestamp, space);
+
+    if (!csvResult) {
       continue;
     }
 
@@ -104,7 +104,7 @@ const main = async () => {
     // Get only choices where we have a bribe reward
     // Now, the address is the complete address
     // Map -> gauge address => {index : choice index, amount: sdTKN }
-    const addressesPerChoice = getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult[space]);
+    const addressesPerChoice = getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult);
 
     //const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, csvResult[space]);
 
@@ -136,8 +136,6 @@ const main = async () => {
       }
     }
 
-    // fs.writeFileSync(`./tmp/parse-${space}-delegationScoresWithoutVote.json`, Object.keys(delegatorsVotingPower).map((key) => key + ";" + delegatorsVotingPower[key]).join("\n"));
-
     const delegatorSumVotingPower = Object.values(delegatorsVotingPower).reduce((acc, vp) => acc + vp, 0.0);
     let delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
     //const delegatorSumVotingPower = delegationVote;
@@ -146,16 +144,9 @@ const main = async () => {
         totalRewards: 0,
         vp: 0,
       }
-      //throw new Error("No delegation vote for " + space + " - " + id);
     }
 
-    // We can have sum delegation lower than delegation vp
-    //delegationVote.vp = delegatorSumVotingPower;
-    if (id.toLowerCase() === "0x9b01f87c204e11d5f36d61606cbfaa35ae37859e2549158ea8e3415a5564396d".toLowerCase()) {
-      delegationVote.totalRewards = 1520 + 763 + 1563
-    } else {
-      delegationVote.totalRewards = 0;
-    }
+    delegationVote.totalRewards = 0;
 
     for (const gaugeAddress of Object.keys(addressesPerChoice)) {
       const index = addressesPerChoice[gaugeAddress].index;
@@ -392,11 +383,12 @@ const main = async () => {
   checkSpace(space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN, SPACES_TOKENS, SPACE_TO_NETWORK, NETWORK_TO_STASH, NETWORK_TO_MERKLE);
 
   // If there is none on report, do not proceed
-  if (csvResult[space]) {
-    allPeriods = Object.keys(csvResult[space]);
-    const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, allPeriods);
+  // If no bribe to distribute to this space => skip
+  const csvResult = await extractCSV(currentPeriodTimestamp, space);
 
-    const tokenPrice = await getTokenPrice(space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN);
+  if (csvResult) {
+    allPeriods = Object.keys(csvResult);
+    const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, allPeriods);
 
     // Users can have rewards on multiple periods => sum them
     let pendleUserRewards = {};
@@ -404,13 +396,13 @@ const main = async () => {
     // Merge rewards by proposal period
     const pendleRewards = {};
 
-    for (const period in csvResult[space]) {
+    for (const period in csvResult) {
       const proposalId = proposalsPeriods[period];
       if (!pendleRewards[proposalId]) {
         pendleRewards[proposalId] = {};
       }
 
-      const rewards = csvResult['sdpendle.eth'][period];
+      const rewards = csvResult[period];
       for (const address in rewards) {
         if (pendleRewards[proposalId][address]) {
           pendleRewards[proposalId][address] += rewards[address];
