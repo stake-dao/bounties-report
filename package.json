@@ -12,7 +12,6 @@
   },
   "author": "",
   "license": "ISC",
-  "devDependencies": {},
   "dependencies": {
     "@covalenthq/client-sdk": "^1.0.2",
     "axios": "^0.27.2",
@@ -26,6 +25,7 @@
     "merkletreejs": "^0.2.31",
     "moment": "^2.29.4",
     "p-limit": "^6.1.0",
+    "punycode": "^2.3.1",
     "redaxios": "^0.5.0",
     "viem": "^2.15.1",
     "web3": "^1.7.3",
