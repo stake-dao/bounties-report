@@ -236,6 +236,15 @@ const main = async () => {
             "ratioRewardsNew": vp * delegationVote.totalRewards / delegatorSumVotingPower,
           }
         }
+
+        // Log Convergence total rewards on all spaces
+        if (delegatorAddress.toLowerCase() === "0x21777106355Ba506A31FF7984c0aE5C924deB77f".toLowerCase()) {
+          if (!logData["Convergence"]) {
+            logData["Convergence"] = {};
+          }
+          logData["Convergence"][space] = delegationVote.totalRewards;
+        }
+
         delegationVote.delegation[delegatorAddress.toLowerCase()] = ratioVp * delegationVote.totalRewards / 100;
       }
 
