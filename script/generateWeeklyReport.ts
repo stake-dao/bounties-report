@@ -159,18 +159,6 @@ function addGaugeNamesToBounties(bounties: Bounty[], gaugesInfo: GaugeInfo[]): B
 }
 
 
-interface ReportRow {
-    protocol: string;
-    gaugeName: string;
-    gaugeAddress: string;
-    rewardToken: string;
-    rewardAddress: string;
-    rewardAmount: number;
-    rewardSdValue: number;
-    sharePercentage: number;
-}
-
-
 interface CSVRow {
     protocol: string;
     gaugeName: string;
