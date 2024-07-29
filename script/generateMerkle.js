@@ -94,9 +94,9 @@ const main = async () => {
     const totalSDToken = Object.values(csvResult).reduce((acc, amount) => acc + amount, 0);
 
     if (!logData["TotalReported"]) {
-      logData["Total sdTokens"] = {};
+      logData["TotalReported"] = {};
     }
-    logData["Total sdTokens"][space] = totalSDToken;
+    logData["TotalReported"][space] = totalSDToken;
 
 
     const tokenPrice = await getTokenPrice(space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN);
