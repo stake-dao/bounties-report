@@ -849,6 +849,12 @@ const main = async () => {
   fs.writeFileSync(`./merkle.json`, JSON.stringify(newMerkles));
   fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
 
+  // Add totals in the log
+  logData["TotalRewards"] = {};
+  for (const merkle of newMerkles) {
+    logData["TotalRewards"][merkle.symbol] = parseFloat(formatUnits(BigNumber.from(merkle.total), 18));
+  }
+
   // Add full path to the written files in the log
   logData["Merkle"] = path.join(__dirname, '..', 'merkle.json');
   logData["DelegationsAPRs"] = path.join(__dirname, '..', 'delegationsAPRs.json');
