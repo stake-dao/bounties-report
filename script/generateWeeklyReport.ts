@@ -13,7 +13,7 @@ import {
   getGaugesInfos,
 } from "./utils/reportUtils";
 import dotenv from "dotenv";
-import { ALL_MIGHT, BOTMARKET, OTC_REGISTRY, WETH_ADDRESS } from "./utils/constants";
+import { ALL_MIGHT, BOTMARKET, OTC_REGISTRY, WETH_ADDRESS } from "./utils/reportUtils";
 
 dotenv.config();
 

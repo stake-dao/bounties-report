@@ -53,7 +53,7 @@ const moment = require('moment');
 dotenv.config();
 
 
-const logData = {}; // Use to store and write logs in a JSON 
+const logData = {}; // Use to store and write logs in a JSON
 
 
 const main = async () => {
@@ -86,9 +86,18 @@ const main = async () => {
     // If no bribe to distribute to this space => skip
     const csvResult = await extractCSV(currentPeriodTimestamp, space);
 
+    // Log csv totals (total sd token)
     if (!csvResult) {
       continue;
     }
+
+    const totalSDToken = Object.values(csvResult).reduce((acc, amount) => acc + amount, 0);
+
+    if (!logData["TotalReported"]) {
+      logData["Total sdTokens"] = {};
+    }
+    logData["Total sdTokens"][space] = totalSDToken;
+
 
     const tokenPrice = await getTokenPrice(space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN);
 
