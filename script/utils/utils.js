@@ -504,7 +504,7 @@ const getDelegationVotingPower = async (proposal, delegatorAddresses, network) =
     }
 }
 
-const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContract) => {
+const getAllAccountClaimed = async (lastMerkle, merkleContract, chain) => {
     const resp = {};
 
     const wagmiContract = {
@@ -513,7 +513,7 @@ const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContra
     };
 
     const publicClient = createPublicClient({
-        chain: bsc,
+        chain,
         transport: http()
     });
 
@@ -540,42 +540,6 @@ const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContra
     return resp
 }
 
-
-const getAllAccountClaimedSinceLastFreezeOnMainnet = async (lastMerkle, merkleContract) => {
-    const resp = {};
-
-    const wagmiContract = {
-        address: merkleContract,
-        abi: abi
-    };
-
-    const publicClient = createPublicClient({
-        chain: mainnet,
-        transport: http()
-    });
-
-    const calls = [];
-    for (const userAddress of Object.keys(lastMerkle.merkle)) {
-        const index = lastMerkle.merkle[userAddress].index;
-        calls.push({
-            ...wagmiContract,
-            functionName: 'isClaimed',
-            args: [lastMerkle.address, index]
-        });
-    }
-
-    const results = await publicClient.multicall({
-        contracts: calls
-    });
-
-    for (const userAddress of Object.keys(lastMerkle.merkle)) {
-        if (results.shift().result === true) {
-            resp[userAddress.toLowerCase()] = true;
-        }
-    }
-
-    return resp
-}
 
 module.exports = {
     extractCSV,
@@ -587,6 +551,5 @@ module.exports = {
     addVotersFromAutoVoter,
     getAllDelegators,
     getDelegationVotingPower,
-    getAllAccountClaimedSinceLastFreezeOnBSC,
-    getAllAccountClaimedSinceLastFreezeOnMainnet
+    getAllAccountClaimed,
 };
