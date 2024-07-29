@@ -852,7 +852,10 @@ const main = async () => {
   // Add totals in the log
   logData["TotalRewards"] = {};
   for (const merkle of newMerkles) {
-    logData["TotalRewards"][merkle.symbol] = parseFloat(formatUnits(BigNumber.from(merkle.total), 18));
+    const amount = parseFloat(formatUnits(merkle.total, 18));
+    if (amount > 0) {
+      logData["TotalRewards"][merkle.symbol] = amount;
+    }
   }
 
   // Add full path to the written files in the log
