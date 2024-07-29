@@ -96,9 +96,6 @@ async function main() {
       args: [BOTMARKET],
     });
 
-
-    console.log("sdPendle balance:", formatUnits(sdPendleBalance, 18));
-
     if (sdPendleBalance === BigInt(0)) {
       console.error("No sdPendle balance found on Botmarket");
       return;
