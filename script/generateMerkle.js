@@ -397,6 +397,15 @@ const main = async () => {
   const csvResult = await extractCSV(currentPeriodTimestamp, space);
 
   if (csvResult) {
+
+    const totalSDToken = Object.values(csvResult).reduce((acc, amount) => acc + amount, 0);
+
+    if (!logData["TotalReported"]) {
+      logData["TotalReported"] = {};
+    }
+    logData["TotalReported"][space] = totalSDToken;
+
+
     allPeriods = Object.keys(csvResult);
     const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, allPeriods);
 
