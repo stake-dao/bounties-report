@@ -47,8 +47,7 @@ const {
   abi
 } = require("./utils/constants");
 const { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods, getProposal, getVoters, getVoterVotingPower } = require("./utils/snapshot");
-const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimedSinceLastFreezeOnBSC, getAllAccountClaimedSinceLastFreezeOnMainnet, addVotersFromAutoVoter, getChoicesBasedOnReport } = require("./utils/utils");
-const { getAllAccountClaimedSinceLastFreezeWithAgnostic } = require("./utils/agnostic");
+const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimed, addVotersFromAutoVoter, getChoicesBasedOnReport } = require("./utils/utils");
 
 dotenv.config();
 
@@ -293,10 +292,10 @@ const main = async () => {
       let usersClaimedAddress = {};
       switch (network) {
         case ETHEREUM:
-          usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute);
+          usersClaimedAddress = await getAllAccountClaimed(lastMerkle, NETWORK_TO_MERKLE[network], mainnet);
           break;
         case BSC:
-          usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeOnBSC(lastMerkle, NETWORK_TO_STASH[network]);
+          usersClaimedAddress = await getAllAccountClaimed(lastMerkle, NETWORK_TO_MERKLE[network], bsc);
           break;
         default:
           throw new Error("network unknow");
@@ -699,7 +698,7 @@ const main = async () => {
 
     if (lastMerkle) {
 
-      let usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeOnMainnet(lastMerkle, MERKLE_ADDRESS);
+      let usersClaimedAddress = await getAllAccountClaimed(lastMerkle, MERKLE_ADDRESS, mainnet);
 
       const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
 
@@ -849,6 +848,15 @@ const main = async () => {
 
   fs.writeFileSync(`./merkle.json`, JSON.stringify(newMerkles));
   fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+
+  // Add totals in the log
+  logData["TotalRewards"] = {};
+  for (const merkle of newMerkles) {
+    const amount = parseFloat(formatUnits(merkle.total, 18));
+    if (amount > 0) {
+      logData["TotalRewards"][merkle.symbol] = amount;
+    }
+  }
 
   // Add full path to the written files in the log
   logData["Merkle"] = path.join(__dirname, '..', 'merkle.json');
