@@ -398,13 +398,15 @@ const main = async () => {
 
   if (csvResult) {
 
-    const totalSDToken = Object.values(csvResult).reduce((acc, amount) => acc + amount, 0);
+    let totalSDToken = 0;
+    for (const period of Object.keys(csvResult)) {
+      totalSDToken += Object.values(csvResult[period]).reduce((acc, amount) => acc + amount, 0);
+    }
 
     if (!logData["TotalReported"]) {
       logData["TotalReported"] = {};
     }
     logData["TotalReported"][space] = totalSDToken;
-
 
     allPeriods = Object.keys(csvResult);
     const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, allPeriods);
