@@ -2,40 +2,21 @@ const fs = require('fs');
 const path = require('path');
 const { MerkleTree } = require("merkletreejs");
 const keccak256 = require("keccak256");
-const { gql, request } = require("graphql-request");
 const axios = require('axios').default;
 const { utils, BigNumber } = require("ethers");
-const { parseAbi, encodeFunctionData, formatUnits, parseEther, createPublicClient, http } = require("viem");
+const { encodeFunctionData, formatUnits, parseEther } = require("viem");
 const { bsc, mainnet } = require('viem/chains');
-const VOTER_ABI = require("../abis/AutoVoter.json");
 const dotenv = require("dotenv");
 
 const {
   MERKLE_ADDRESS,
-  MERKLE_BSC_ADDRESS,
-  STASH_CONTROLLER_ADDRESS,
-  SNAPSHOT_ENDPOINT,
-  ENDPOINT_DELEGATORS,
-  ENDPOINT_DELEGATORS_BSC,
-  AUTO_VOTER_DELEGATION_ADDRESS,
-  AUTO_VOTER_CONTRACT,
   DELEGATION_ADDRESS,
-  AGNOSTIC_ENDPOINT,
-  AGNOSTIC_API_KEY,
   ETHEREUM,
-  ETH_CHAIN_ID,
   BSC,
-  BSC_CHAIN_ID,
   SDCRV_SPACE,
-  SDBAL_SPACE,
   SDFXS_SPACE,
-  SDANGLE_SPACE,
   SDPENDLE_SPACE,
-  SDCAKE_SPACE,
-  SDFXN_SPACE,
   SPACES,
-  LABELS_TO_SPACE,
-  SUBGRAP_BY_CHAIN,
   SPACE_TO_NETWORK,
   SPACE_TO_CHAIN_ID,
   NETWORK_TO_STASH,
@@ -52,9 +33,7 @@ const moment = require('moment');
 
 dotenv.config();
 
-
 const logData = {}; // Use to store and write logs in a JSON
-
 
 const main = async () => {
   // Fetch last merkle
@@ -98,7 +77,6 @@ const main = async () => {
     }
     logData["TotalReported"][space] = totalSDToken;
 
-
     const tokenPrice = await getTokenPrice(space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN);
 
     const id = proposalIdPerSpace[space];
@@ -114,8 +92,6 @@ const main = async () => {
     // Now, the address is the complete address
     // Map -> gauge address => {index : choice index, amount: sdTKN }
     const addressesPerChoice = getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult);
-
-    //const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, csvResult[space]);
 
     // Here, we should have delegation voter + all other voters
     // Object with vp property
@@ -147,7 +123,7 @@ const main = async () => {
 
     const delegatorSumVotingPower = Object.values(delegatorsVotingPower).reduce((acc, vp) => acc + vp, 0.0);
     let delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
-    //const delegatorSumVotingPower = delegationVote;
+
     if (!delegationVote) {
       delegationVote = {
         totalRewards: 0,
@@ -327,7 +303,6 @@ const main = async () => {
     // We have to generate the merkle
     const userRewardAddresses = Object.keys(userRewards);
 
-
     // Define a threshold below which numbers are considered too small and should be set to 0
     const threshold = 1e-8;
 
@@ -441,12 +416,7 @@ const main = async () => {
       }
     }
 
-    // console.log("pendleRewardsPerProposal", pendleRewards);
-
-
     for (const proposalId in pendleRewards) {
-
-      // console.log("proposalId", proposalId);
 
       // Get the proposal to find the create timestamp
       const proposal = await getProposal(proposalId);
@@ -460,9 +430,6 @@ const main = async () => {
       // Map -> gauge address => {index : choice index, amount: sdTKN }
       // If index = -1, no data on snapshot BUT gauge on report
       const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, pendleRewards[proposalId]);
-
-
-      //console.log("addressesPerChoice", addressesPerChoice);
 
       // Here, we should have delegation voter + all other voters
       // Object with vp property
@@ -488,15 +455,12 @@ const main = async () => {
         }
       }
 
-      //console.log("voters", voters);
-
       // Get all delegator addresses
       const delegators = await getAllDelegators(DELEGATION_ADDRESS, proposal.created, space);
 
       // Get voting power for all delegator
       // Map of address => VotingPower
       const delegatorsVotingPower = await getDelegationVotingPower(proposal, delegators.concat([DELEGATION_ADDRESS]), SPACE_TO_CHAIN_ID[space]);
-
 
       // Reduce delegator voting power if some guys voted directly
       for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
@@ -514,7 +478,7 @@ const main = async () => {
 
       const delegatorSumVotingPower = Object.values(delegatorsVotingPower).reduce((acc, vp) => acc + vp, 0.0);
       let delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
-      //const delegatorSumVotingPower = delegationVote;
+
       if (!delegationVote) {
         delegationVote = {
           totalRewards: 0,
@@ -525,19 +489,12 @@ const main = async () => {
 
       delegationVote.totalRewards = 0;
 
-
       const nonFoundGauges = {};
       let delegationRewardsForNonFoundGauges = 0;
 
       for (const gaugeAddress of Object.keys(addressesPerChoice)) {
         const index = addressesPerChoice[gaugeAddress].index;
         const sdTknRewardAmount = addressesPerChoice[gaugeAddress].amount;
-
-        /*
-        console.log("gaugeAddress", gaugeAddress);
-        console.log("index", index);
-        console.log("sdTknRewardAmount", sdTknRewardAmount);
-        */
 
         // Calculate the total VP used to vote for this gauge across all voters
         let totalVP = 0;
@@ -622,14 +579,6 @@ const main = async () => {
         });
       }
 
-      // console.log("Non-found gauges:", nonFoundGauges);
-
-
-
-
-      // console.log("voters", voters);
-
-
       // Now we have all rewards across all voters
       // But one voter is the delegation, we have to split his rewards across the delegation
       delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
@@ -641,12 +590,6 @@ const main = async () => {
           const ratioVp = vp * 100 / delegatorSumVotingPower;
           delegationVote.delegation[delegatorAddress.toLowerCase()] = ratioVp * delegationVote.totalRewards / 100;
         }
-
-        // Check split
-        /*const totalSplitDelegationRewards = Object.values(delegationVote.delegation).reduce((acc, d) => acc + d, 0.0) || 0;
-        if (parseInt(delegationVote.totalRewards) !== parseInt(totalSplitDelegationRewards)) {
-          throw new Error("Delegation " + space + " - " + id + " split rewards wrong " + delegationVote.totalRewards + " - " + totalSplitDelegationRewards);
-        }*/
 
         // Calculate delegation apr
         if (delegationVote.vp > 0) {
@@ -699,9 +642,6 @@ const main = async () => {
 
     } // end for proposalId in pendleRewards
 
-    // console.log("pendleUserRewards", pendleUserRewards);
-
-
     // New distribution is split here
     // We have to sum with old distribution if users don't claim
     const tokenToDistribute = SPACES_TOKENS[space];
@@ -734,12 +674,9 @@ const main = async () => {
       }
     }
 
-    //console.log("pendleUserRewards", pendleUserRewards);
-
     // Since this point, pendleUserRewards map contains the new reward amount for each user
     // We have to generate the merkle
     const userRewardAddresses = Object.keys(pendleUserRewards);
-
 
     // Define a threshold below which numbers are considered too small and should be set to 0
     const threshold = 1e-8;
@@ -803,8 +740,6 @@ const main = async () => {
     }
 
   } // end if csvResult[space] (Pendle distribution)
-
-
   
   logData["Transactions"] = [];
 
@@ -879,7 +814,6 @@ const main = async () => {
 
   const logPath = path.join(__dirname, '..', 'log.json');
   fs.writeFileSync(logPath, JSON.stringify(logData));
-  console.log(logPath);
 }
 
 
