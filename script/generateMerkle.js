@@ -238,7 +238,7 @@ const main = async () => {
             "totalRewards": delegationVote.totalRewards,
           }
         }
-        let delegationAPR = ((Number(delegationVote.totalRewards) * 26 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
+        let delegationAPR = ((Number(delegationVote.totalRewards) * 52 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
         if (space === SDFXS_SPACE) {
           delegationAPR *= 4;
         }
