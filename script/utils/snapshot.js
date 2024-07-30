@@ -36,25 +36,14 @@ const fetchLastProposalsIds = async (spaces) => {
   const proposalIdPerSpace = {};
   for (const space of spaces) {
 
-    let firstGaugeProposal = null;
-    let added = false;
     for (const proposal of proposals) {
       if (proposal.space.id !== space) {
         continue;
       }
 
-      // Always the last proposal for sdPendle
-      if (firstGaugeProposal || space === "sdcake.eth") {
-        proposalIdPerSpace[space] = proposal.id;
-        added = true;
-        break;
-      }
+      proposalIdPerSpace[space] = proposal.id;
+      break;
 
-      firstGaugeProposal = proposal;
-    }
-
-    if (!added && firstGaugeProposal) {
-      proposalIdPerSpace[space] = firstGaugeProposal.id;
     }
   }
 

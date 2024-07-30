@@ -2,40 +2,21 @@ const fs = require('fs');
 const path = require('path');
 const { MerkleTree } = require("merkletreejs");
 const keccak256 = require("keccak256");
-const { gql, request } = require("graphql-request");
 const axios = require('axios').default;
 const { utils, BigNumber } = require("ethers");
-const { parseAbi, encodeFunctionData, formatUnits, parseEther, createPublicClient, http } = require("viem");
+const { encodeFunctionData, formatUnits, parseEther, createPublicClient, http } = require("viem");
 const { bsc, mainnet } = require('viem/chains');
-const VOTER_ABI = require("../abis/AutoVoter.json");
 const dotenv = require("dotenv");
 
 const {
   MERKLE_ADDRESS,
-  MERKLE_BSC_ADDRESS,
-  STASH_CONTROLLER_ADDRESS,
-  SNAPSHOT_ENDPOINT,
-  ENDPOINT_DELEGATORS,
-  ENDPOINT_DELEGATORS_BSC,
-  AUTO_VOTER_DELEGATION_ADDRESS,
-  AUTO_VOTER_CONTRACT,
   DELEGATION_ADDRESS,
-  AGNOSTIC_ENDPOINT,
-  AGNOSTIC_API_KEY,
   ETHEREUM,
-  ETH_CHAIN_ID,
   BSC,
-  BSC_CHAIN_ID,
   SDCRV_SPACE,
-  SDBAL_SPACE,
   SDFXS_SPACE,
-  SDANGLE_SPACE,
   SDPENDLE_SPACE,
-  SDCAKE_SPACE,
-  SDFXN_SPACE,
   SPACES,
-  LABELS_TO_SPACE,
-  SUBGRAP_BY_CHAIN,
   SPACE_TO_NETWORK,
   SPACE_TO_CHAIN_ID,
   NETWORK_TO_STASH,
@@ -47,21 +28,14 @@ const {
   abi
 } = require("./utils/constants");
 const { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods, getProposal, getVoters, getVoterVotingPower } = require("./utils/snapshot");
-const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimedSinceLastFreezeOnBSC, getAllAccountClaimedSinceLastFreezeOnMainnet, addVotersFromAutoVoter, getChoicesBasedOnReport } = require("./utils/utils");
-const { getAllAccountClaimedSinceLastFreezeWithAgnostic } = require("./utils/agnostic");
+const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimed, addVotersFromAutoVoter, getChoicesBasedOnReport } = require("./utils/utils");
+const moment = require('moment');
 
 dotenv.config();
 
-
-const logData = {}; // Use to store and write logs in a JSON 
-
+const logData = {}; // Use to store and write logs in a JSON
 
 const main = async () => {
-  const [fileName, csvResult] = await extractCSV(LABELS_TO_SPACE);
-
-  logData["Latest report"] = fileName;
-
-
   // Fetch last merkle
   const { data: lastMerkles } = await axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json");
 
@@ -78,18 +52,30 @@ const main = async () => {
   const toFreeze = {};
   const toSet = {};
 
+  const currentPeriodTimestamp = Math.floor(moment.utc().unix() / 604800) * 604800;
+
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
-    if (space === "sdpendle.eth") { // Special case sdPendle : Monthly report
+    if (space === SDPENDLE_SPACE) { // Special case sdPendle : Monthly report
       continue;
     }
 
     checkSpace(space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN, SPACES_TOKENS, SPACE_TO_NETWORK, NETWORK_TO_STASH, NETWORK_TO_MERKLE);
 
     // If no bribe to distribute to this space => skip
-    if (!csvResult[space]) {
+    const csvResult = await extractCSV(currentPeriodTimestamp, space);
+
+    // Log csv totals (total sd token)
+    if (!csvResult) {
       continue;
     }
+
+    const totalSDToken = Object.values(csvResult).reduce((acc, amount) => acc + amount, 0);
+
+    if (!logData["TotalReported"]) {
+      logData["TotalReported"] = {};
+    }
+    logData["TotalReported"][space] = totalSDToken;
 
     const tokenPrice = await getTokenPrice(space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN);
 
@@ -105,9 +91,7 @@ const main = async () => {
     // Get only choices where we have a bribe reward
     // Now, the address is the complete address
     // Map -> gauge address => {index : choice index, amount: sdTKN }
-    const addressesPerChoice = getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult[space]);
-
-    //const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, csvResult[space]);
+    const addressesPerChoice = getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult);
 
     // Here, we should have delegation voter + all other voters
     // Object with vp property
@@ -137,26 +121,17 @@ const main = async () => {
       }
     }
 
-    // fs.writeFileSync(`./tmp/parse-${space}-delegationScoresWithoutVote.json`, Object.keys(delegatorsVotingPower).map((key) => key + ";" + delegatorsVotingPower[key]).join("\n"));
-
     const delegatorSumVotingPower = Object.values(delegatorsVotingPower).reduce((acc, vp) => acc + vp, 0.0);
     let delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
-    //const delegatorSumVotingPower = delegationVote;
+
     if (!delegationVote) {
       delegationVote = {
         totalRewards: 0,
         vp: 0,
       }
-      //throw new Error("No delegation vote for " + space + " - " + id);
     }
 
-    // We can have sum delegation lower than delegation vp
-    //delegationVote.vp = delegatorSumVotingPower;
-    if (id.toLowerCase() === "0x9b01f87c204e11d5f36d61606cbfaa35ae37859e2549158ea8e3415a5564396d".toLowerCase()) {
-      delegationVote.totalRewards = 1520 + 763 + 1563
-    } else {
-      delegationVote.totalRewards = 0;
-    }
+    delegationVote.totalRewards = 0;
 
     for (const gaugeAddress of Object.keys(addressesPerChoice)) {
       const index = addressesPerChoice[gaugeAddress].index;
@@ -237,6 +212,7 @@ const main = async () => {
             "ratioRewardsNew": vp * delegationVote.totalRewards / delegatorSumVotingPower,
           }
         }
+
         delegationVote.delegation[delegatorAddress.toLowerCase()] = ratioVp * delegationVote.totalRewards / 100;
       }
 
@@ -248,7 +224,7 @@ const main = async () => {
             "totalRewards": delegationVote.totalRewards,
           }
         }
-        let delegationAPR = ((Number(delegationVote.totalRewards) * 26 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
+        let delegationAPR = ((Number(delegationVote.totalRewards) * 52 * tokenPrice) / delegationVote.vp) * 100 / tokenPrice;
         if (space === SDFXS_SPACE) {
           delegationAPR *= 4;
         }
@@ -293,10 +269,10 @@ const main = async () => {
       let usersClaimedAddress = {};
       switch (network) {
         case ETHEREUM:
-          usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute);
+          usersClaimedAddress = await getAllAccountClaimed(lastMerkle, NETWORK_TO_MERKLE[network], mainnet);
           break;
         case BSC:
-          usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeOnBSC(lastMerkle, NETWORK_TO_STASH[network]);
+          usersClaimedAddress = await getAllAccountClaimed(lastMerkle, NETWORK_TO_MERKLE[network], bsc);
           break;
         default:
           throw new Error("network unknow");
@@ -326,7 +302,6 @@ const main = async () => {
     // Since this point, userRewards map contains the new reward amount for each user
     // We have to generate the merkle
     const userRewardAddresses = Object.keys(userRewards);
-
 
     // Define a threshold below which numbers are considered too small and should be set to 0
     const threshold = 1e-8;
@@ -393,11 +368,23 @@ const main = async () => {
   checkSpace(space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN, SPACES_TOKENS, SPACE_TO_NETWORK, NETWORK_TO_STASH, NETWORK_TO_MERKLE);
 
   // If there is none on report, do not proceed
-  if (csvResult[space]) {
-    allPeriods = Object.keys(csvResult[space]);
-    const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, allPeriods);
+  // If no bribe to distribute to this space => skip
+  const csvResult = await extractCSV(currentPeriodTimestamp, space);
 
-    const tokenPrice = await getTokenPrice(space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN);
+  if (csvResult) {
+
+    let totalSDToken = 0;
+    for (const period of Object.keys(csvResult)) {
+      totalSDToken += Object.values(csvResult[period]).reduce((acc, amount) => acc + amount, 0);
+    }
+
+    if (!logData["TotalReported"]) {
+      logData["TotalReported"] = {};
+    }
+    logData["TotalReported"][space] = totalSDToken;
+
+    allPeriods = Object.keys(csvResult);
+    const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, allPeriods);
 
     // Users can have rewards on multiple periods => sum them
     let pendleUserRewards = {};
@@ -405,13 +392,13 @@ const main = async () => {
     // Merge rewards by proposal period
     const pendleRewards = {};
 
-    for (const period in csvResult[space]) {
+    for (const period in csvResult) {
       const proposalId = proposalsPeriods[period];
       if (!pendleRewards[proposalId]) {
         pendleRewards[proposalId] = {};
       }
 
-      const rewards = csvResult['sdpendle.eth'][period];
+      const rewards = csvResult[period];
       for (const address in rewards) {
         if (pendleRewards[proposalId][address]) {
           pendleRewards[proposalId][address] += rewards[address];
@@ -429,12 +416,7 @@ const main = async () => {
       }
     }
 
-    // console.log("pendleRewardsPerProposal", pendleRewards);
-
-
     for (const proposalId in pendleRewards) {
-
-      // console.log("proposalId", proposalId);
 
       // Get the proposal to find the create timestamp
       const proposal = await getProposal(proposalId);
@@ -448,9 +430,6 @@ const main = async () => {
       // Map -> gauge address => {index : choice index, amount: sdTKN }
       // If index = -1, no data on snapshot BUT gauge on report
       const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, pendleRewards[proposalId]);
-
-
-      //console.log("addressesPerChoice", addressesPerChoice);
 
       // Here, we should have delegation voter + all other voters
       // Object with vp property
@@ -476,15 +455,12 @@ const main = async () => {
         }
       }
 
-      //console.log("voters", voters);
-
       // Get all delegator addresses
       const delegators = await getAllDelegators(DELEGATION_ADDRESS, proposal.created, space);
 
       // Get voting power for all delegator
       // Map of address => VotingPower
       const delegatorsVotingPower = await getDelegationVotingPower(proposal, delegators.concat([DELEGATION_ADDRESS]), SPACE_TO_CHAIN_ID[space]);
-
 
       // Reduce delegator voting power if some guys voted directly
       for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
@@ -502,7 +478,7 @@ const main = async () => {
 
       const delegatorSumVotingPower = Object.values(delegatorsVotingPower).reduce((acc, vp) => acc + vp, 0.0);
       let delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
-      //const delegatorSumVotingPower = delegationVote;
+
       if (!delegationVote) {
         delegationVote = {
           totalRewards: 0,
@@ -513,19 +489,12 @@ const main = async () => {
 
       delegationVote.totalRewards = 0;
 
-
       const nonFoundGauges = {};
       let delegationRewardsForNonFoundGauges = 0;
 
       for (const gaugeAddress of Object.keys(addressesPerChoice)) {
         const index = addressesPerChoice[gaugeAddress].index;
         const sdTknRewardAmount = addressesPerChoice[gaugeAddress].amount;
-
-        /*
-        console.log("gaugeAddress", gaugeAddress);
-        console.log("index", index);
-        console.log("sdTknRewardAmount", sdTknRewardAmount);
-        */
 
         // Calculate the total VP used to vote for this gauge across all voters
         let totalVP = 0;
@@ -610,14 +579,6 @@ const main = async () => {
         });
       }
 
-      // console.log("Non-found gauges:", nonFoundGauges);
-
-
-
-
-      // console.log("voters", voters);
-
-
       // Now we have all rewards across all voters
       // But one voter is the delegation, we have to split his rewards across the delegation
       delegationVote = voters.find((v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
@@ -629,12 +590,6 @@ const main = async () => {
           const ratioVp = vp * 100 / delegatorSumVotingPower;
           delegationVote.delegation[delegatorAddress.toLowerCase()] = ratioVp * delegationVote.totalRewards / 100;
         }
-
-        // Check split
-        /*const totalSplitDelegationRewards = Object.values(delegationVote.delegation).reduce((acc, d) => acc + d, 0.0) || 0;
-        if (parseInt(delegationVote.totalRewards) !== parseInt(totalSplitDelegationRewards)) {
-          throw new Error("Delegation " + space + " - " + id + " split rewards wrong " + delegationVote.totalRewards + " - " + totalSplitDelegationRewards);
-        }*/
 
         // Calculate delegation apr
         if (delegationVote.vp > 0) {
@@ -687,9 +642,6 @@ const main = async () => {
 
     } // end for proposalId in pendleRewards
 
-    // console.log("pendleUserRewards", pendleUserRewards);
-
-
     // New distribution is split here
     // We have to sum with old distribution if users don't claim
     const tokenToDistribute = SPACES_TOKENS[space];
@@ -699,7 +651,7 @@ const main = async () => {
 
     if (lastMerkle) {
 
-      let usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeOnMainnet(lastMerkle, MERKLE_ADDRESS);
+      let usersClaimedAddress = await getAllAccountClaimed(lastMerkle, MERKLE_ADDRESS, mainnet);
 
       const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
 
@@ -722,12 +674,9 @@ const main = async () => {
       }
     }
 
-    //console.log("pendleUserRewards", pendleUserRewards);
-
     // Since this point, pendleUserRewards map contains the new reward amount for each user
     // We have to generate the merkle
     const userRewardAddresses = Object.keys(pendleUserRewards);
-
 
     // Define a threshold below which numbers are considered too small and should be set to 0
     const threshold = 1e-8;
@@ -791,8 +740,6 @@ const main = async () => {
     }
 
   } // end if csvResult[space] (Pendle distribution)
-
-
   
   logData["Transactions"] = [];
 
@@ -847,8 +794,20 @@ const main = async () => {
     }
   }
 
+  // Check if sdTkn in the merkle contract + sdTkn to distribute >= total in merkle file
+  checkDistribution(newMerkles, logData);
+
   fs.writeFileSync(`./merkle.json`, JSON.stringify(newMerkles));
   fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+
+  // Add totals in the log
+  logData["TotalRewards"] = {};
+  for (const merkle of newMerkles) {
+    const amount = parseFloat(formatUnits(merkle.total, 18));
+    if (amount > 0) {
+      logData["TotalRewards"][merkle.symbol] = amount;
+    }
+  }
 
   // Add full path to the written files in the log
   logData["Merkle"] = path.join(__dirname, '..', 'merkle.json');
@@ -858,9 +817,69 @@ const main = async () => {
 
   const logPath = path.join(__dirname, '..', 'log.json');
   fs.writeFileSync(logPath, JSON.stringify(logData));
-  console.log(logPath);
 }
 
+/**
+ * Check, for each sdTkn, if the new amount in the merkle is higher than remaining sdTkn in the merkle contract + amount to distribute
+ */
+const checkDistribution = async (newMerkles, logData) => {
+  if (!logData || !logData["TotalReported"]) {
+    throw new Error("Total reported not exists in log");
+  }
 
+  for (const space of Object.keys(logData["TotalReported"])) {
+    const amountToDistribute = logData["TotalReported"][space];
+
+    // Find the merkle object
+    const merkle = newMerkles.find((merkle) => SPACES_SYMBOL[space] === merkle.symbol);
+    if (!merkle) {
+      throw new Error("Merkle object not found for " + space);
+    }
+
+    // Get the total amount
+    const totalAmount = parseFloat(formatUnits(BigNumber.from(merkle.total), 18));
+
+    let chain = null;
+    switch (merkle.chainId) {
+      case mainnet.id:
+        chain = mainnet;
+        break;
+      case bsc.id:
+        chain = bsc;
+      default:
+        throw new Error("Chain not found");
+    }
+
+
+    // Fetch remaining amount in the merkle contract
+    const publicClient = createPublicClient({
+      chain,
+      transport: http(),
+    });
+
+    const sdTknBalanceBn = await publicClient.readContract({
+      address: merkle.address,
+      abi: [
+        {
+          name: "balanceOf",
+          type: "function",
+          stateMutability: "view",
+          inputs: [{ name: "account", type: "address" }],
+          outputs: [{ name: "", type: "uint256" }],
+        },
+      ],
+      functionName: "balanceOf",
+      args: [merkle.merkleContract],
+    });
+
+
+    const sdTknBalanceInMerkle = parseFloat(formatUnits(sdTknBalanceBn, 18));
+
+    // - 0.01 for threshold
+    if(sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
+      throw new Error("Amount in the merkle to high for space " + space);
+    }
+  }
+}
 
 main();

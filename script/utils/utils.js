@@ -2,33 +2,57 @@ const { gql, request } = require("graphql-request");
 const fs = require('fs');
 const path = require('path');
 const { createPublicClient, http } = require("viem");
-const { bsc, mainnet } = require('viem/chains');
+const { mainnet } = require('viem/chains');
 const { parse } = require("csv-parse/sync");
 const axios = require('axios').default;
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 
-const { AUTO_VOTER_DELEGATION_ADDRESS, AUTO_VOTER_CONTRACT, SUBGRAP_BY_CHAIN, SPACE_TO_NETWORK, abi } = require('./constants');
+const { AUTO_VOTER_DELEGATION_ADDRESS, AUTO_VOTER_CONTRACT, SUBGRAP_BY_CHAIN, SPACE_TO_NETWORK, abi, LABELS_TO_SPACE, SDPENDLE_SPACE, SDBAL_SPACE } = require('./constants');
 
-const extractCSV = async (LABELS_TO_SPACE) => {
-    const reportDir = path.join(__dirname, '../../bribes-reports/');
+const extractCSV = async (currentPeriodTimestamp, space) => {
+    let csvFilePath = undefined;
 
-    // Read the directory and filter out the CSV files
-    const files = fs.readdirSync(reportDir);
-    const csvFiles = files.filter(file => file.endsWith('.csv'));
+    if (space === SDPENDLE_SPACE) {
+        // Special case here
+        const reportDir = path.join(__dirname, '../../bribes-reports/pendle');
 
-    // Sort the CSV files based on the date in the filename in descending order (latest date first)
-    const sortedCsvFiles = csvFiles.sort((a, b) => {
-        const dateA = a.split('_')[0];
-        const dateB = b.split('_')[0];
-        return new Date(dateB) - new Date(dateA);
-    }).reverse();
+        // Read the directory and filter out the CSV files
+        const files = fs.readdirSync(reportDir);
+        const csvFiles = files.filter(file => file.endsWith('.csv'));
 
-    // Get the most recent CSV file
-    const mostRecentCsvFile = sortedCsvFiles[0];
+        // Sort the CSV files based on the date in the filename in descending order (latest date first)
+        const sortedCsvFiles = csvFiles.sort((a, b) => {
+            const dateA = a.split('_')[0];
+            const dateB = b.split('_')[0];
+            return new Date(dateB) - new Date(dateA);
+        }).reverse();
 
+        // Get the most recent CSV file
+        const mostRecentCsvFile = sortedCsvFiles[0];
+        csvFilePath = path.join(reportDir, mostRecentCsvFile);
+    } else {
+        let nameSpace = undefined;
+
+        for (const name of Object.keys(LABELS_TO_SPACE)) {
+            if (LABELS_TO_SPACE[name] === space) {
+                nameSpace = name;
+                break;
+            }
+        }
+
+        if (!nameSpace) {
+            throw new Error("can't find name space for space " + space);
+        }
+
+        csvFilePath = path.join(__dirname, `../../bribes-reports/${currentPeriodTimestamp}/${nameSpace}.csv`);
+    }
+    
+    if(!csvFilePath || !fs.existsSync(csvFilePath)) {
+        return undefined;
+    }
+    
     // Read the CSV file from the file system
-    const csvFile = fs.readFileSync(path.join(reportDir, mostRecentCsvFile), 'utf8');
-
+    const csvFile = fs.readFileSync(csvFilePath, 'utf8');
 
     let records = parse(csvFile, {
         columns: true,
@@ -48,58 +72,45 @@ const extractCSV = async (LABELS_TO_SPACE) => {
     records = newRecords;
 
     const response = {};
+    let total = 0;
     for (const row of records) {
-
-        if (row["protocol"].startsWith("pendle")) {
-            space = "sdpendle.eth";
-        }
-        else {
-            space = LABELS_TO_SPACE[row["protocol"]];
-        }
-
-        if (!space) {
-            throw new Error("can't find space for " + row["protocol"]);
-        }
-
-        if (!response[space]) {
-            response[space] = {};
-        }
 
         const gaugeAddress = row["Gauge Address".toLowerCase()];
         if (!gaugeAddress) {
-            throw new Error("can't find gauge address for " + row["protocol"]);
+            throw new Error("can't find gauge address for " + space);
         }
 
         // Pendle case : Period passed in protocol 
-        if (space === "sdpendle.eth") {
+        if (space === SDPENDLE_SPACE) {
             const period = row["protocol"].split("-")[1];
-            if (!response[space][period]) {
-                response[space][period] = {};
+            if (!response[period]) {
+                response[period] = {};
             }
 
-            if (!response[space][period][gaugeAddress]) {
-                response[space][period][gaugeAddress] = 0;
+            if (!response[period][gaugeAddress]) {
+                response[period][gaugeAddress] = 0;
             }
 
-            response[space][period][gaugeAddress] += parseFloat(row["Reward sd Value".toLowerCase()]);
-            continue;
-        }
+            total += parseFloat(row["Reward sd Value".toLowerCase()])
+            response[period][gaugeAddress] += parseFloat(row["Reward sd Value".toLowerCase()]);
+        } else {
+            if (!response[gaugeAddress]) {
+                response[gaugeAddress] = 0;
+            }
 
-        if (!response[space][gaugeAddress]) {
-            response[space][gaugeAddress] = 0;
+            total += parseFloat(row["Reward sd Value".toLowerCase()])
+            response[gaugeAddress] += parseFloat(row["Reward sd Value".toLowerCase()])
         }
-
-        response[space][gaugeAddress] += parseFloat(row["Reward sd Value".toLowerCase()])
     }
 
-    return [sortedCsvFiles[0], response];
+    return response;
 };
 
 
 
 const getTokenPrice = async (space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN) => {
     try {
-        if (space === 'sdbal.eth') {
+        if (space === SDBAL_SPACE) {
             const resp = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=balancer-80-bal-20-weth&vs_currencies=usd');
             return resp.data['balancer-80-bal-20-weth'].usd;
         } else {
@@ -148,7 +159,7 @@ const checkSpace = (space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN,
 const extractProposalChoices = (proposal) => {
     const addressesPerChoice = {};
 
-    if (proposal.space.id.toLowerCase() === "sdpendle.eth") {
+    if (proposal.space.id.toLowerCase() === SDPENDLE_SPACE) {
         const SEP = " - ";
         const SEP2 = "-";
 
@@ -229,11 +240,14 @@ const getChoiceWhereExistsBribe = (addressesPerChoice, cvsResult) => {
         }
     }
 
-    /*if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
-        console.log("newAddressesPerChoice", newAddressesPerChoice);
-        console.log("addresses", addresses);
-        throw new Error("Error when get complete gauge address");
-    }*/
+    if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
+        for(const addr of addresses) {
+            if(!newAddressesPerChoice[addr]) {
+                console.log("Gauge ", addr, "not found");
+            }
+        }
+        //throw new Error("Error when get complete gauge address");
+    }
 
     return newAddressesPerChoice;
 };
@@ -384,7 +398,7 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
             // Need to find the choice index from the gauge address
             const gaugeAddressFromProposal = gaugeAddressesFromProposal.find((g) => gauge.toLowerCase().indexOf(g.toLowerCase()) > -1);
             if (!gaugeAddressFromProposal) {
-                throw new Error("Can't find gauge address");
+               continue;
             }
 
             choices[addressesPerChoice[gaugeAddressFromProposal].toString()] = Number(weight);
@@ -504,7 +518,7 @@ const getDelegationVotingPower = async (proposal, delegatorAddresses, network) =
     }
 }
 
-const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContract) => {
+const getAllAccountClaimed = async (lastMerkle, merkleContract, chain) => {
     const resp = {};
 
     const wagmiContract = {
@@ -513,7 +527,7 @@ const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContra
     };
 
     const publicClient = createPublicClient({
-        chain: bsc,
+        chain,
         transport: http()
     });
 
@@ -532,7 +546,8 @@ const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContra
     });
 
     for (const userAddress of Object.keys(lastMerkle.merkle)) {
-        if (results.shift().result === true) {
+        const result = results.shift();
+        if (result.result === true) {
             resp[userAddress.toLowerCase()] = true;
         }
     }
@@ -540,42 +555,6 @@ const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContra
     return resp
 }
 
-
-const getAllAccountClaimedSinceLastFreezeOnMainnet = async (lastMerkle, merkleContract) => {
-    const resp = {};
-
-    const wagmiContract = {
-        address: merkleContract,
-        abi: abi
-    };
-
-    const publicClient = createPublicClient({
-        chain: mainnet,
-        transport: http()
-    });
-
-    const calls = [];
-    for (const userAddress of Object.keys(lastMerkle.merkle)) {
-        const index = lastMerkle.merkle[userAddress].index;
-        calls.push({
-            ...wagmiContract,
-            functionName: 'isClaimed',
-            args: [lastMerkle.address, index]
-        });
-    }
-
-    const results = await publicClient.multicall({
-        contracts: calls
-    });
-
-    for (const userAddress of Object.keys(lastMerkle.merkle)) {
-        if (results.shift().result === true) {
-            resp[userAddress.toLowerCase()] = true;
-        }
-    }
-
-    return resp
-}
 
 module.exports = {
     extractCSV,
@@ -587,6 +566,5 @@ module.exports = {
     addVotersFromAutoVoter,
     getAllDelegators,
     getDelegationVotingPower,
-    getAllAccountClaimedSinceLastFreezeOnBSC,
-    getAllAccountClaimedSinceLastFreezeOnMainnet
+    getAllAccountClaimed,
 };
