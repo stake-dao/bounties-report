@@ -2,12 +2,12 @@ const { gql, request } = require("graphql-request");
 const fs = require('fs');
 const path = require('path');
 const { createPublicClient, http } = require("viem");
-const { bsc, mainnet } = require('viem/chains');
+const { mainnet } = require('viem/chains');
 const { parse } = require("csv-parse/sync");
 const axios = require('axios').default;
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 
-const { AUTO_VOTER_DELEGATION_ADDRESS, AUTO_VOTER_CONTRACT, SUBGRAP_BY_CHAIN, SPACE_TO_NETWORK, abi, LABELS_TO_SPACE, SDPENDLE_SPACE } = require('./constants');
+const { AUTO_VOTER_DELEGATION_ADDRESS, AUTO_VOTER_CONTRACT, SUBGRAP_BY_CHAIN, SPACE_TO_NETWORK, abi, LABELS_TO_SPACE, SDPENDLE_SPACE, SDBAL_SPACE } = require('./constants');
 
 const extractCSV = async (currentPeriodTimestamp, space) => {
     let csvFilePath = undefined;
@@ -81,7 +81,7 @@ const extractCSV = async (currentPeriodTimestamp, space) => {
         }
 
         // Pendle case : Period passed in protocol 
-        if (space === "sdpendle.eth") {
+        if (space === SDPENDLE_SPACE) {
             const period = row["protocol"].split("-")[1];
             if (!response[period]) {
                 response[period] = {};
@@ -103,8 +103,6 @@ const extractCSV = async (currentPeriodTimestamp, space) => {
         }
     }
 
-    //console.log(space, total)
-
     return response;
 };
 
@@ -112,7 +110,7 @@ const extractCSV = async (currentPeriodTimestamp, space) => {
 
 const getTokenPrice = async (space, SPACE_TO_NETWORK, SPACES_UNDERLYING_TOKEN) => {
     try {
-        if (space === 'sdbal.eth') {
+        if (space === SDBAL_SPACE) {
             const resp = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=balancer-80-bal-20-weth&vs_currencies=usd');
             return resp.data['balancer-80-bal-20-weth'].usd;
         } else {
@@ -161,7 +159,7 @@ const checkSpace = (space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN,
 const extractProposalChoices = (proposal) => {
     const addressesPerChoice = {};
 
-    if (proposal.space.id.toLowerCase() === "sdpendle.eth") {
+    if (proposal.space.id.toLowerCase() === SDPENDLE_SPACE) {
         const SEP = " - ";
         const SEP2 = "-";
 

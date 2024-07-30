@@ -56,7 +56,7 @@ const main = async () => {
 
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
-    if (space === "sdpendle.eth") { // Special case sdPendle : Monthly report
+    if (space === SDPENDLE_SPACE) { // Special case sdPendle : Monthly report
       continue;
     }
 
@@ -815,7 +815,5 @@ const main = async () => {
   const logPath = path.join(__dirname, '..', 'log.json');
   fs.writeFileSync(logPath, JSON.stringify(logData));
 }
-
-
 
 main();
