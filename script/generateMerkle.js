@@ -817,6 +817,7 @@ const main = async () => {
 
   const logPath = path.join(__dirname, '..', 'log.json');
   fs.writeFileSync(logPath, JSON.stringify(logData));
+  console.log(logPath);
 }
 
 /**
