@@ -4,7 +4,7 @@ const { MerkleTree } = require("merkletreejs");
 const keccak256 = require("keccak256");
 const axios = require('axios').default;
 const { utils, BigNumber } = require("ethers");
-const { encodeFunctionData, formatUnits, parseEther } = require("viem");
+const { encodeFunctionData, formatUnits, parseEther, createPublicClient, http } = require("viem");
 const { bsc, mainnet } = require('viem/chains');
 const dotenv = require("dotenv");
 
@@ -794,6 +794,9 @@ const main = async () => {
     }
   }
 
+  // Check if sdTkn in the merkle contract + sdTkn to distribute >= total in merkle file
+  checkDistribution(newMerkles, logData);
+
   fs.writeFileSync(`./merkle.json`, JSON.stringify(newMerkles));
   fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
 
@@ -814,6 +817,69 @@ const main = async () => {
 
   const logPath = path.join(__dirname, '..', 'log.json');
   fs.writeFileSync(logPath, JSON.stringify(logData));
+}
+
+/**
+ * Check, for each sdTkn, if the new amount in the merkle is higher than remaining sdTkn in the merkle contract + amount to distribute
+ */
+const checkDistribution = async (newMerkles, logData) => {
+  if (!logData || !logData["TotalReported"]) {
+    throw new Error("Total reported not exists in log");
+  }
+
+  for (const space of Object.keys(logData["TotalReported"])) {
+    const amountToDistribute = logData["TotalReported"][space];
+
+    // Find the merkle object
+    const merkle = newMerkles.find((merkle) => SPACES_SYMBOL[space] === merkle.symbol);
+    if (!merkle) {
+      throw new Error("Merkle object not found for " + space);
+    }
+
+    // Get the total amount
+    const totalAmount = parseFloat(formatUnits(BigNumber.from(merkle.total), 18));
+
+    let chain = null;
+    switch (merkle.chainId) {
+      case mainnet.id:
+        chain = mainnet;
+        break;
+      case bsc.id:
+        chain = bsc;
+      default:
+        throw new Error("Chain not found");
+    }
+
+
+    // Fetch remaining amount in the merkle contract
+    const publicClient = createPublicClient({
+      chain,
+      transport: http(),
+    });
+
+    const sdTknBalanceBn = await publicClient.readContract({
+      address: merkle.address,
+      abi: [
+        {
+          name: "balanceOf",
+          type: "function",
+          stateMutability: "view",
+          inputs: [{ name: "account", type: "address" }],
+          outputs: [{ name: "", type: "uint256" }],
+        },
+      ],
+      functionName: "balanceOf",
+      args: [merkle.merkleContract],
+    });
+
+
+    const sdTknBalanceInMerkle = parseFloat(formatUnits(sdTknBalanceBn, 18));
+
+    // - 0.01 for threshold
+    if(sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
+      throw new Error("Amount in the merkle to high for space " + space);
+    }
+  }
 }
 
 main();
