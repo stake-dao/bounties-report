@@ -342,7 +342,7 @@ const addVotersFromAutoVoter = async (space, proposal, voters, addressesPerChoic
     // Fetch delegators weight registered in the auto voter contract
     const publicClient = createPublicClient({
         chain: mainnet,
-        transport: http(),
+        transport: http("https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9"),
         batch: {
             multicall: true,
         }
