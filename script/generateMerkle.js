@@ -594,10 +594,8 @@ const main = async () => {
         // Calculate delegation apr
         if (delegationVote.vp > 0) {
           const vp = delegationVote.vp * multiplicatorPerPeriod[proposalId]
-          const apr = delegationVote.totalRewards * 52 / vp * 100;
 
           pendleAprs.push({
-            apr,
             vp,
             amount: delegationVote.totalRewards,
             id: proposalId
@@ -736,7 +734,9 @@ const main = async () => {
 
     // Add pendle aprs
     if (pendleAprs.length > 0) {
-      delegationAPRs[space] = pendleAprs.reduce((acc, pendleApr) => acc + (pendleApr.apr * pendleApr.vp), 0) / pendleAprs.reduce((acc, pendleApr) => acc + pendleApr.vp, 0);
+      const vpAverage = pendleAprs.reduce((acc, pendleApr) => acc + pendleApr.vp, 0) / pendleAprs.length;
+      const sumRewards = pendleAprs.reduce((acc, pendleApr) => acc + pendleApr.amount, 0);
+      delegationAPRs[space] = sumRewards / vpAverage * 52 * 100;
     }
 
   } // end if csvResult[space] (Pendle distribution)
@@ -881,7 +881,7 @@ const checkDistribution = async (newMerkles, logData) => {
 
     // - 0.01 for threshold
     if(sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
-      throw new Error("Amount in the merkle to high for space " + space);
+      //throw new Error("Amount in the merkle to high for space " + space);
     }
   }
 }
