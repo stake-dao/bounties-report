@@ -28,8 +28,9 @@ const {
   abi
 } = require("./utils/constants");
 const { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods, getProposal, getVoters, getVoterVotingPower } = require("./utils/snapshot");
-const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimed, addVotersFromAutoVoter, getChoicesBasedOnReport } = require("./utils/utils");
+const { checkSpace, extractCSV, getTokenPrice, extractProposalChoices, getChoiceWhereExistsBribe, getAllDelegators, getDelegationVotingPower, getAllAccountClaimed, addVotersFromAutoVoter, getChoicesBasedOnReport, getAllAccountClaimedSinceLastFreezeOnBSC } = require("./utils/utils");
 const moment = require('moment');
+const { getAllAccountClaimedSinceLastFreezeWithAgnostic } = require('./utils/agnostic');
 
 dotenv.config();
 
@@ -269,10 +270,11 @@ const main = async () => {
       let usersClaimedAddress = {};
       switch (network) {
         case ETHEREUM:
-          usersClaimedAddress = await getAllAccountClaimed(lastMerkle, NETWORK_TO_MERKLE[network], mainnet);
+          usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, "evm_events_ethereum_mainnet", NETWORK_TO_MERKLE[network]);
           break;
         case BSC:
-          usersClaimedAddress = await getAllAccountClaimed(lastMerkle, NETWORK_TO_MERKLE[network], bsc);
+          //usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeOnBSC(lastMerkle, NETWORK_TO_STASH[network]);
+          usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, "evm_events_bsc_mainnet_v1", NETWORK_TO_MERKLE[network]);
           break;
         default:
           throw new Error("network unknow");
@@ -649,7 +651,7 @@ const main = async () => {
 
     if (lastMerkle) {
 
-      let usersClaimedAddress = await getAllAccountClaimed(lastMerkle, MERKLE_ADDRESS, mainnet);
+      let usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, "evm_events_ethereum_mainnet", NETWORK_TO_MERKLE[network]);
 
       const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
 
@@ -854,7 +856,6 @@ const checkDistribution = async (newMerkles, logData) => {
         throw new Error("Chain not found");
     }
 
-
     // Fetch remaining amount in the merkle contract
     const publicClient = createPublicClient({
       chain,
@@ -875,7 +876,6 @@ const checkDistribution = async (newMerkles, logData) => {
       functionName: "balanceOf",
       args: [merkle.merkleContract],
     });
-
 
     const sdTknBalanceInMerkle = parseFloat(formatUnits(sdTknBalanceBn, 18));
 

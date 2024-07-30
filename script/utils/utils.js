@@ -565,6 +565,42 @@ const getAllAccountClaimed = async (lastMerkle, merkleContract, chain) => {
     return resp
 }
 
+const getAllAccountClaimedSinceLastFreezeOnBSC = async (lastMerkle, merkleContract) => {
+    const resp = {};
+
+    const wagmiContract = {
+        address: merkleContract,
+        abi: abi
+    };
+
+    const publicClient = createPublicClient({
+        chain: bsc,
+        transport: http()
+    });
+
+    const calls = [];
+    for (const userAddress of Object.keys(lastMerkle.merkle)) {
+        const index = lastMerkle.merkle[userAddress].index;
+        calls.push({
+            ...wagmiContract,
+            functionName: 'isClaimed',
+            args: [lastMerkle.address, index]
+        });
+    }
+
+    const results = await publicClient.multicall({
+        contracts: calls
+    });
+
+    for (const userAddress of Object.keys(lastMerkle.merkle)) {
+        if (results.shift().result === true) {
+            resp[userAddress.toLowerCase()] = true;
+        }
+    }
+
+    return resp
+}
+
 
 module.exports = {
     extractCSV,
@@ -577,4 +613,5 @@ module.exports = {
     getAllDelegators,
     getDelegationVotingPower,
     getAllAccountClaimed,
+    getAllAccountClaimedSinceLastFreezeOnBSC
 };
