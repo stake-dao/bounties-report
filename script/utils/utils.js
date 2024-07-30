@@ -526,9 +526,19 @@ const getAllAccountClaimed = async (lastMerkle, merkleContract, chain) => {
         abi: abi
     };
 
+    let rpcUrl = "";
+    switch (chain.id) {
+        case mainnet.id:
+            rpcUrl = "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+            break;
+        case bsc.id:
+            rpcUrl = "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+            break;
+    }
+
     const publicClient = createPublicClient({
         chain,
-        transport: http()
+        transport: http(rpcUrl)
     });
 
     const calls = [];

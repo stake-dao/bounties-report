@@ -841,12 +841,15 @@ const checkDistribution = async (newMerkles, logData) => {
     const totalAmount = parseFloat(formatUnits(BigNumber.from(merkle.total), 18));
 
     let chain = null;
+    let rpcUrl = ""
     switch (merkle.chainId) {
       case mainnet.id:
         chain = mainnet;
+        rpcUrl = "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
         break;
       case bsc.id:
         chain = bsc;
+        rpcUrl = "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
       default:
         throw new Error("Chain not found");
     }
@@ -855,7 +858,7 @@ const checkDistribution = async (newMerkles, logData) => {
     // Fetch remaining amount in the merkle contract
     const publicClient = createPublicClient({
       chain,
-      transport: http(),
+      transport: http(rpcUrl),
     });
 
     const sdTknBalanceBn = await publicClient.readContract({
