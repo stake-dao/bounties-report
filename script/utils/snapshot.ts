@@ -1,14 +1,12 @@
-const { gql, request } = require("graphql-request");
-const axios = require('axios').default;
-const orderBy = require("lodash/orderBy");
-
-
-const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
+import request, { gql } from "graphql-request";
+import { SNAPSHOT_ENDPOINT, WEEK } from "./constants";
+import axios from "axios";
+import { orderBy } from 'lodash';
 
 /**
  * Fetch last proposal id for all spaces
  */
-const fetchLastProposalsIds = async (spaces) => {
+export const fetchLastProposalsIds = async (spaces: string[], currentTimestamp: number): Promise<Record<string,string>> => {
   const query = gql`
       query Proposals {
         proposals(
@@ -19,6 +17,7 @@ const fetchLastProposalsIds = async (spaces) => {
           where: {
             space_in: [${spaces.map((space) => '"' + space + '"').join(",")}]
             type: "weighted"
+            start_lt: ${currentTimestamp-WEEK}
           }
         ) {
           id
@@ -31,9 +30,9 @@ const fetchLastProposalsIds = async (spaces) => {
     `;
 
   const result = await request(SNAPSHOT_ENDPOINT, query);
-  const proposals = result.proposals.filter((proposal) => proposal.title.indexOf("Gauge vote") > -1);
+  const proposals = result.proposals.filter((proposal: any) => proposal.title.indexOf("Gauge vote") > -1);
 
-  const proposalIdPerSpace = {};
+  const proposalIdPerSpace: Record<string,string> = {};
   for (const space of spaces) {
 
     for (const proposal of proposals) {
@@ -50,7 +49,7 @@ const fetchLastProposalsIds = async (spaces) => {
   return proposalIdPerSpace;
 }
 
-const fetchProposalsIdsBasedOnPeriods = async (space, periods) => {
+export const fetchProposalsIdsBasedOnPeriods = async (space: string, periods: string[], currentTimestamp: number): Promise<Record<string,string>> => {
   const query = gql`
     query Proposals {
       proposals(
@@ -61,6 +60,7 @@ const fetchProposalsIdsBasedOnPeriods = async (space, periods) => {
         where: {
           space_in: ["${space}"]
           type: "weighted"
+          start_lt: ${currentTimestamp-WEEK}
         }
       ) {
         id
@@ -72,11 +72,11 @@ const fetchProposalsIdsBasedOnPeriods = async (space, periods) => {
     }
   `;
   const result = await request(SNAPSHOT_ENDPOINT, query);
-  const proposals = result.proposals.filter((proposal) => proposal.title.indexOf("Gauge vote") > -1);
+  const proposals = result.proposals.filter((proposal: any) => proposal.title.indexOf("Gauge vote") > -1);
 
   // Extract dates from proposals "title"
 
-  let associated_timestamps = {};
+  let associated_timestamps: Record<string,string> = {};
 
   for (const proposal of proposals) {
     const title = proposal.title;
@@ -97,7 +97,7 @@ const fetchProposalsIdsBasedOnPeriods = async (space, periods) => {
 
     // Associate if the period is between a and b
     for (const period of periods) {
-      if (period >= timestamp_a && period <= timestamp_b) {
+      if (parseInt(period) >= timestamp_a && parseInt(period) <= timestamp_b) {
         associated_timestamps[period] = proposal.id;
       }
     }
@@ -108,7 +108,7 @@ const fetchProposalsIdsBasedOnPeriods = async (space, periods) => {
 /**
  * Fetch the proposal
  */
-const getProposal = async (idProposal) => {
+export const getProposal = async (idProposal: string): Promise<any> => {
 
   const QUERY_PROPOSAL = gql`
       query Proposal(
@@ -155,7 +155,7 @@ const getProposal = async (idProposal) => {
 /**
  * Get all voters for a proposal
  */
-const getVoters = async (proposalId) => {
+export const getVoters = async (proposalId: string): Promise<any[]> => {
   const QUERY_VOTES = gql`
       query Proposal(
         $proposal: String!
@@ -180,13 +180,13 @@ const getVoters = async (proposalId) => {
       }
     `;
 
-  let votes = [];
+  let votes: any[] = [];
   let run = true;
   let created = null
 
   // Fetch all data
   do {
-    let params = {
+    let params: any = {
       proposal: proposalId,
       orderBy: "created",
       orderDirection: "desc",
@@ -211,10 +211,10 @@ const getVoters = async (proposalId) => {
   return votes;
 }
 
-const getVoterVotingPower = async (proposal, votes, network) => {
+export const getVoterVotingPower = async (proposal: any, votes: any[], network: string): Promise<any[]> => {
   try {
     const votersAddresses = votes.map((v) => v.voter);
-    
+
     const { data } = await axios.post(
       "https://score.snapshot.org/api/scores",
       {
@@ -254,12 +254,3 @@ const getVoterVotingPower = async (proposal, votes, network) => {
     throw e;
   }
 }
-
-
-module.exports = {
-  fetchLastProposalsIds,
-  fetchProposalsIdsBasedOnPeriods,
-  getProposal,
-  getVoters,
-  getVoterVotingPower,
-};
