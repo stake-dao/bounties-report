@@ -17,7 +17,7 @@ import {
 } from "./reportUtils";
 import axios from "axios";
 import { Bounty, VotemarketBounty, WardenBounty, GaugeShare } from "./types";
-import { BOTMARKET, HH_BALANCER_MARKET } from "./constants";
+import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
 
 const platformAbi = [
   {
