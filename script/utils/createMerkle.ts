@@ -7,14 +7,17 @@ import { BigNumber, utils } from "ethers";
 import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 
+export type LogId = "TotalReported" | "Concentrator" | "sdCAKE";
+
 export interface Log {
-    space: string;
-    totalReported: number;
+    id: LogId;
+    content: string[];
 }
 
 export interface MerkleStat {
     apr: number;
     merkle: Merkle;
+    logs: Log[];
 }
 
 export interface Merkle {
@@ -32,6 +35,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
+    const logs: Log[] = [];
 
     for (const id of ids) {
 
@@ -49,7 +53,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
         if (pendleRewards) {
             addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, pendleRewards[id]);
-            console.log("addressesPerChoice", addressesPerChoice)
         } else {
             addressesPerChoice = getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult);
         }
@@ -196,14 +199,13 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
                 // This user should receive ratioVp% of all rewards
                 if (space === SDCRV_SPACE && delegatorAddress.toLowerCase() === "0x1c0d72a330f2768daf718def8a19bab019eead09".toLowerCase()) {
-                    /*logData["Concentrator"] = {
-                        "votingPower": vp,
-                        "delegationVotingPower": delegatorSumVotingPower,
-                        "totalRewards": delegationVote.totalRewards,
-                        "ratioVp": ratioVp,
-                        "ratioRewards": ratioVp * delegationVote.totalRewards / 100,
-                        "ratioRewardsNew": vp * delegationVote.totalRewards / delegatorSumVotingPower,
-                    }*/
+                    logs.push({
+                        id:"Concentrator",
+                        content: [
+                            `Voting power : ${vp}`,
+                            `Rewards : ${ratioVp * delegationVote.totalRewards / 100}`,
+                        ]
+                    });
                 }
 
                 delegationVote.delegation[delegatorAddress.toLowerCase()] = ratioVp * delegationVote.totalRewards / 100;
@@ -212,10 +214,13 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             // Calculate delegation apr
             if (delegationVote.vp > 0) {
                 if (space === "sdcake.eth") {
-                    /*logData["sdCAKE"] = {
-                        "votingPower": delegationVote.vp,
-                        "totalRewards": delegationVote.totalRewards,
-                    }*/
+                    logs.push({
+                        id:"sdCAKE",
+                        content: [
+                            `Voting power : ${delegationVote.vp}`,
+                            `Rewards : ${delegationVote.totalRewards}`,
+                        ]
+                    });
                 }
 
                 aprs.push({
@@ -355,5 +360,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             "chainId": parseInt(SPACE_TO_CHAIN_ID[space]),
             "merkleContract": NETWORK_TO_MERKLE[network]
         },
+        logs,
     }
 }

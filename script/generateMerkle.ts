@@ -4,7 +4,7 @@ import { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods } from './utils/
 import { abi, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from './utils/constants';
 import * as moment from 'moment';
 import { checkSpace, extractCSV, PendleCSVType } from './utils/utils';
-import { createMerkle, Merkle } from './utils/createMerkle';
+import { createMerkle, LogId, Merkle } from './utils/createMerkle';
 import { Chain, createPublicClient, encodeFunctionData, formatUnits, http } from 'viem';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,7 +14,8 @@ import { bsc, mainnet } from 'viem/chains';
 dotenv.config();
 
 const logData: Record<string, any> = {
-  "TotalReported": {}
+  "TotalReported": {},
+  "Transactions": []
 }; // Use to store and write logs in a JSON
 
 const main = async () => {
@@ -37,7 +38,7 @@ const main = async () => {
   const newMerkles: Merkle[] = [];
   const toFreeze: Record<string, string[]> = {};
   const toSet: Record<string, string[]> = {};
-  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+  const currentPeriodTimestamp = (Math.floor(now / WEEK) * WEEK) - WEEK;
 
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
@@ -111,9 +112,16 @@ const main = async () => {
     toSet[network].push(merkleStat.merkle.root);
 
     delegationAPRs[space] = merkleStat.apr;
-  }
 
-  logData["Transactions"] = [];
+    // compute log
+    for (const log of merkleStat.logs) {
+      if (!logData[log.id]) {
+        logData[log.id] = [];
+      }
+
+      logData[log.id] = logData[log.id].concat(log.content);
+    }
+  }
 
   for (const network of Object.keys(toFreeze)) {
     let multiSetName: undefined | string = undefined;
@@ -175,6 +183,9 @@ const main = async () => {
   // Add totals in the log
   logData["TotalRewards"] = {};
   for (const merkle of newMerkles) {
+    if (merkle.symbol === "sdMAV") {
+      continue;
+    }
     const amount = parseFloat(formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18));
     if (amount > 0) {
       logData["TotalRewards"][merkle.symbol] = amount;
@@ -194,6 +205,7 @@ const main = async () => {
 
 /**
  * Check, for each sdTkn, if the new amount in the merkle is higher than remaining sdTkn in the merkle contract + amount to distribute
+ * The sdTkn must not be freeze
  */
 const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, any>) => {
   if (!logData || !logData["TotalReported"]) {
@@ -232,6 +244,38 @@ const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, a
       transport: http(rpcUrl),
     });
 
+    // Check if the token is freeze
+    const merkleRootRes = await publicClient.readContract({
+      address: merkle.merkleContract as any,
+      abi: [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "merkleRoot",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+      ],
+      functionName: "merkleRoot",
+      args: [merkle.address as `0x${string}`],
+    });
+
+    if (merkleRootRes === "0x0000000000000000000000000000000000000000000000000000000000000000") {
+      continue;
+    }
+
     const sdTknBalanceBn = await publicClient.readContract({
       address: merkle.address as any,
       abi: [
@@ -251,7 +295,7 @@ const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, a
 
     // - 0.01 for threshold
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
-      //throw new Error("Amount in the merkle to high for space " + space);
+      throw new Error("Amount in the merkle to high for space " + space);
     }
   }
 }
