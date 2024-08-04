@@ -8,9 +8,8 @@ on:
         required: true
         type: choice
         options:
-        - Ethereum
-        - OTCs
-        - Ethereum,OTCs
+        - Generate Ethereum reports
+        - Generate OTCS reports
         default: 'Ethereum'
   schedule:
     - cron: "0 19 * * 4" # Runs every Thursday at 19:00 UTC
@@ -37,20 +36,20 @@ jobs:
         id: set-actions
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "actions=Ethereum" >> $GITHUB_OUTPUT
+            echo "actions=Generate Ethereum reports" >> $GITHUB_OUTPUT
           else
             echo "actions=${{ github.event.inputs.actions }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Run generateWeeklyReport script
-        if: contains(steps.set-actions.outputs.actions, 'Ethereum')
+        if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
         run: |
           npx ts-node script/generateWeeklyReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 
       - name: Run generateOTCReport script
-        if: contains(steps.set-actions.outputs.actions, 'OTCs')
+        if: contains(steps.set-actions.outputs.actions, 'Generate OTCS reports')
         run: |
           npx ts-node script/generateOTCReport.ts
         env:
@@ -60,6 +59,6 @@ jobs:
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add weekly-bounties otc-reports
+          git add .
           git commit -m "Update weekly bounties and OTC reports" || exit 0
           git push
