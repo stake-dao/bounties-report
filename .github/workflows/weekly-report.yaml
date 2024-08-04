@@ -1,12 +1,22 @@
-name: Generate Weekly Report (Bounties repartition)
+name: Generate Weekly and OTC Reports
 
 on:
   workflow_dispatch:
+    inputs:
+      actions:
+        description: 'Actions to perform'
+        required: true
+        type: choice
+        options:
+        - Ethereum
+        - OTCs
+        - Ethereum,OTCs
+        default: 'Ethereum'
   schedule:
-    - cron: "0 19 * * 0" # Runs every Sunday at 19:00 UTC
+    - cron: "0 19 * * 4" # Runs every Thursday at 19:00 UTC
 
 jobs:
-  generate-bounties:
+  generate-reports:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,17 +33,33 @@ jobs:
       - name: Install node dependencies
         run: yarn install
 
+      - name: Set actions
+        id: set-actions
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "actions=Ethereum" >> $GITHUB_OUTPUT
+          else
+            echo "actions=${{ github.event.inputs.actions }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run generateWeeklyReport script
+        if: contains(steps.set-actions.outputs.actions, 'Ethereum')
         run: |
           npx ts-node script/generateWeeklyReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 
+      - name: Run generateOTCReport script
+        if: contains(steps.set-actions.outputs.actions, 'OTCs')
+        run: |
+          npx ts-node script/generateOTCReport.ts
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+
       - name: Commit and push if changed
         run: |
-          git add .
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add weekly-bounties
-          git commit -m "Update weekly report" || exit 0
+          git add weekly-bounties otc-reports
+          git commit -m "Update weekly bounties and OTC reports" || exit 0
           git push
