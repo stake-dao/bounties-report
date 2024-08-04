@@ -48,6 +48,9 @@ export const HH_BALANCER_MARKET = getAddress(
 export const BOTMARKET = getAddress(
   "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF"
 );
+export const GOVERNANCE = getAddress(
+  "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063"
+);
 
 export async function getTokenInfo(
   publicClient: PublicClient,

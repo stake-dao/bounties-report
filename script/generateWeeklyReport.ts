@@ -13,7 +13,7 @@ import {
   getGaugesInfos,
 } from "./utils/reportUtils";
 import dotenv from "dotenv";
-import { ALL_MIGHT, BOTMARKET, OTC_REGISTRY, WETH_ADDRESS } from "./utils/reportUtils";
+import { ALL_MIGHT, BOTMARKET, OTC_REGISTRY, WETH_ADDRESS, GOVERNANCE } from "./utils/reportUtils";
 
 dotenv.config();
 
@@ -105,6 +105,7 @@ function processSwaps(
   return swaps
     .filter((swap) => swap.from.toLowerCase() !== BOTMARKET.toLowerCase())
     .filter((swap) => swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase())
+    .filter((swap) => swap.to.toLowerCase() !== GOVERNANCE.toLowerCase())
     .map((swap) => {
       const tokenInfo = tokenInfos[swap.token.toLowerCase()];
       let formattedAmount: number;
@@ -346,6 +347,15 @@ async function main() {
   }
 
   const protocolSummaries: ProtocolSummary[] = [];
+
+  // Filter out blocks that don't has any "sdTokenOut"
+  for (const [protocol, blocks] of Object.entries(swapsData)) {
+    for (const [blockNumber, blockData] of Object.entries(blocks)) {
+      if (!blockData.sdTokenOut || blockData.sdTokenOut.length === 0) {
+        delete swapsData[protocol][parseInt(blockNumber)];
+      }
+    }
+  }
 
   for (const [protocol, blocks] of Object.entries(swapsData)) {
     let totalWethOut = 0;
