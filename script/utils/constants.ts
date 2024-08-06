@@ -1,44 +1,44 @@
-const { parseAbi } = require("viem");
-const dotenv = require("dotenv");
+import * as dotenv from "dotenv";
+import { parseAbi } from 'viem';
 
 dotenv.config();
 
-const MERKLE_ADDRESS = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
-const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
-const STASH_CONTROLLER_ADDRESS = "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
+export const MERKLE_ADDRESS = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
+export const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
+export const STASH_CONTROLLER_ADDRESS = "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
 
-const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
-const ENDPOINT_DELEGATORS =
+export const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
+export const ENDPOINT_DELEGATORS =
   "https://subgraph.satsuma-prod.com/c27342af4445/pierres-team--102159/snapshot/api";
-const ENDPOINT_DELEGATORS_BSC = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.SUBGRAPH_API_KEY}/subgraphs/id/GuTMtMnx7zukaA1hiHB1uz6FR45gpZX3GtiEN7Cyitjd`;
+export const ENDPOINT_DELEGATORS_BSC = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.SUBGRAPH_API_KEY}/subgraphs/id/GuTMtMnx7zukaA1hiHB1uz6FR45gpZX3GtiEN7Cyitjd`;
 
 // Auto Voter
-const AUTO_VOTER_DELEGATION_ADDRESS =
+export const AUTO_VOTER_DELEGATION_ADDRESS =
   "0x0657C6bEe67Bb96fae96733D083DAADE0cb5a179";
-const AUTO_VOTER_CONTRACT = "0x619eDEF2d18Ec9758E96D8FF2c7DcbFb58DD5A5C";
+export const AUTO_VOTER_CONTRACT = "0x619eDEF2d18Ec9758E96D8FF2c7DcbFb58DD5A5C";
 
 // Delegation
-const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
+export const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 
 // Agnostic
-const AGNOSTIC_ENDPOINT = "https://proxy.eu-02.agnostic.engineering/query";
-const AGNOSTIC_API_KEY = "Fr2LXSVvKCfmXse8JQJiJBLHY9ujU3YZf8Kr6TDDh4Sw";
+export const AGNOSTIC_ENDPOINT = "https://proxy.eu-02.agnostic.engineering/query";
+export const AGNOSTIC_API_KEY = "Fr2LXSVvKCfmXse8JQJiJBLHY9ujU3YZf8Kr6TDDh4Sw";
 
 // Networks
-const ETHEREUM = "ethereum";
-const ETH_CHAIN_ID = "1";
-const BSC = "bsc";
-const BSC_CHAIN_ID = "56";
+export const ETHEREUM = "ethereum";
+export const ETH_CHAIN_ID = "1";
+export const BSC = "bsc";
+export const BSC_CHAIN_ID = "56";
 
-const SDCRV_SPACE = "sdcrv.eth";
-const SDBAL_SPACE = "sdbal.eth";
-const SDFXS_SPACE = "sdfxs.eth";
-const SDANGLE_SPACE = "sdangle.eth";
-const SDPENDLE_SPACE = "sdpendle.eth";
-const SDCAKE_SPACE = "sdcake.eth";
-const SDFXN_SPACE = "sdfxn.eth";
+export const SDCRV_SPACE = "sdcrv.eth";
+export const SDBAL_SPACE = "sdbal.eth";
+export const SDFXS_SPACE = "sdfxs.eth";
+export const SDANGLE_SPACE = "sdangle.eth";
+export const SDPENDLE_SPACE = "sdpendle.eth";
+export const SDCAKE_SPACE = "sdcake.eth";
+export const SDFXN_SPACE = "sdfxn.eth";
 
-const SPACES = [
+export const SPACES: string[] = [
   SDCRV_SPACE,
   SDBAL_SPACE,
   SDFXS_SPACE,
@@ -48,7 +48,7 @@ const SPACES = [
   SDCAKE_SPACE,
 ];
 
-const LABELS_TO_SPACE = {
+export const LABELS_TO_SPACE: Record<string, string> = {
   frax: SDFXS_SPACE,
   curve: SDCRV_SPACE,
   balancer: SDBAL_SPACE,
@@ -58,12 +58,12 @@ const LABELS_TO_SPACE = {
   fxn: SDFXN_SPACE,
 };
 
-const SUBGRAP_BY_CHAIN = {
+export const SUBGRAP_BY_CHAIN: Record<string, string> = {
   [BSC]: ENDPOINT_DELEGATORS_BSC,
   [ETHEREUM]: ENDPOINT_DELEGATORS,
 };
 
-const SPACE_TO_NETWORK = {
+export const SPACE_TO_NETWORK: Record<string, string> = {
   [SDFXS_SPACE]: ETHEREUM,
   [SDCRV_SPACE]: ETHEREUM,
   [SDBAL_SPACE]: ETHEREUM,
@@ -73,7 +73,7 @@ const SPACE_TO_NETWORK = {
   [SDCAKE_SPACE]: BSC,
 };
 
-const SPACE_TO_CHAIN_ID = {
+export const SPACE_TO_CHAIN_ID: Record<string, string> = {
   [SDFXS_SPACE]: ETH_CHAIN_ID,
   [SDCRV_SPACE]: ETH_CHAIN_ID,
   [SDBAL_SPACE]: ETH_CHAIN_ID,
@@ -83,17 +83,17 @@ const SPACE_TO_CHAIN_ID = {
   [SDCAKE_SPACE]: BSC_CHAIN_ID,
 };
 
-const NETWORK_TO_STASH = {
+export const NETWORK_TO_STASH: Record<string, string> = {
   [ETHEREUM]: STASH_CONTROLLER_ADDRESS,
   [BSC]: MERKLE_BSC_ADDRESS,
 };
 
-const NETWORK_TO_MERKLE = {
+export const NETWORK_TO_MERKLE: Record<string, string> = {
   [ETHEREUM]: MERKLE_ADDRESS,
   [BSC]: MERKLE_BSC_ADDRESS,
 };
 
-const SPACES_TOKENS = {
+export const SPACES_TOKENS: Record<string, string> = {
   [SDCRV_SPACE]: "0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5",
   [SDBAL_SPACE]: "0xF24d8651578a55b0C119B9910759a351A3458895",
   [SDFXS_SPACE]: "0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36",
@@ -103,7 +103,7 @@ const SPACES_TOKENS = {
   [SDCAKE_SPACE]: "0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A",
 };
 
-const SPACES_SYMBOL = {
+export const SPACES_SYMBOL: Record<string, string> = {
   [SDCRV_SPACE]: "sdCRV",
   [SDBAL_SPACE]: "sdBAL",
   [SDFXS_SPACE]: "sdFXS",
@@ -113,7 +113,7 @@ const SPACES_SYMBOL = {
   [SDFXN_SPACE]: "sdFXN",
 };
 
-const SPACES_IMAGE = {
+export const SPACES_IMAGE: Record<string, string> = {
   [SDCRV_SPACE]:
     "https://assets.coingecko.com/coins/images/27756/small/scCRV-2.png?1665654580",
   [SDBAL_SPACE]:
@@ -129,7 +129,7 @@ const SPACES_IMAGE = {
     "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad.png",
 };
 
-const SPACES_UNDERLYING_TOKEN = {
+export const SPACES_UNDERLYING_TOKEN: Record<string, string> = {
   [SDCRV_SPACE]: "0xd533a949740bb3306d119cc777fa900ba034cd52",
   [SDBAL_SPACE]: "0x5c6ee304399dbdb9c8ef030ab642b10820db8f56", //80BAL instead of bal
   [SDFXS_SPACE]: "0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0",
@@ -139,46 +139,11 @@ const SPACES_UNDERLYING_TOKEN = {
   [SDFXN_SPACE]: "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09",
 };
 
-const abi = parseAbi([
+export const abi = parseAbi([
   "function multiFreeze(address[] tokens) public",
   "function multiSet(address[] tokens, bytes32[] roots) public",
   "function multiUpdateMerkleRoot(address[] tokens, bytes32[] roots) public",
   "function isClaimed(address token, uint256 index) public view returns (bool)",
 ]);
 
-module.exports = {
-  MERKLE_ADDRESS,
-  MERKLE_BSC_ADDRESS,
-  STASH_CONTROLLER_ADDRESS,
-  SNAPSHOT_ENDPOINT,
-  ENDPOINT_DELEGATORS,
-  ENDPOINT_DELEGATORS_BSC,
-  AUTO_VOTER_DELEGATION_ADDRESS,
-  AUTO_VOTER_CONTRACT,
-  DELEGATION_ADDRESS,
-  AGNOSTIC_ENDPOINT,
-  AGNOSTIC_API_KEY,
-  ETHEREUM,
-  ETH_CHAIN_ID,
-  BSC,
-  BSC_CHAIN_ID,
-  SDCRV_SPACE,
-  SDBAL_SPACE,
-  SDFXS_SPACE,
-  SDANGLE_SPACE,
-  SDPENDLE_SPACE,
-  SDCAKE_SPACE,
-  SDFXN_SPACE,
-  SPACES,
-  LABELS_TO_SPACE,
-  SUBGRAP_BY_CHAIN,
-  SPACE_TO_NETWORK,
-  SPACE_TO_CHAIN_ID,
-  NETWORK_TO_STASH,
-  NETWORK_TO_MERKLE,
-  SPACES_TOKENS,
-  SPACES_SYMBOL,
-  SPACES_IMAGE,
-  SPACES_UNDERLYING_TOKEN,
-  abi,
-};
+export const WEEK = 604800;

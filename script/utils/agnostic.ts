@@ -1,7 +1,8 @@
-const axios = require('axios').default;
-const { MERKLE_ADDRESS, AGNOSTIC_ENDPOINT, AGNOSTIC_API_KEY } = require('./constants');
+import axios from "axios";
+import { AGNOSTIC_API_KEY, AGNOSTIC_ENDPOINT } from "./constants";
 
-const DATE_LAST_CLAIM_QUERY = (table, merkleAddress) => `
+
+const DATE_LAST_CLAIM_QUERY = (table: string, merkleAddress: string) => `
   SELECT
       timestamp
   FROM ${table}
@@ -12,7 +13,7 @@ const DATE_LAST_CLAIM_QUERY = (table, merkleAddress) => `
   LIMIT 1
 `;
 
-const DATE_LAST_UPDATE_QUERY = (timestamp, tokenAddress, table, merkleAddress) => `
+const DATE_LAST_UPDATE_QUERY = (timestamp: number, tokenAddress: string, table: string, merkleAddress: string) => `
   SELECT
       timestamp
   FROM ${table}
@@ -25,7 +26,7 @@ const DATE_LAST_UPDATE_QUERY = (timestamp, tokenAddress, table, merkleAddress) =
   LIMIT 1
 `;
 
-const ALL_CLAIMED_QUERY = (since, end, tokenAddress, table, merkleAddress) => `
+const ALL_CLAIMED_QUERY = (since: number, end: number, tokenAddress: string, table: string, merkleAddress: string) => `
   SELECT
       input_3_value_address as user
   FROM ${table}
@@ -38,8 +39,8 @@ const ALL_CLAIMED_QUERY = (since, end, tokenAddress, table, merkleAddress) => `
   ORDER BY timestamp DESC
 `;
 
-const getAllAccountClaimedSinceLastFreezeWithAgnostic = async (tokenAddress, table, merkleAddress) => {
-    const resp = {};
+export const getAllAccountClaimedSinceLastFreezeWithAgnostic = async (tokenAddress: string, table: string, merkleAddress: string): Promise<Record<string, boolean>> => {
+    const resp: Record<string, boolean> = {};
 
     const lastClaim = await agnosticFetch(DATE_LAST_CLAIM_QUERY(table, merkleAddress));
     const lastUpdate = await agnosticFetch(DATE_LAST_UPDATE_QUERY(lastClaim[0][0], tokenAddress, table, merkleAddress));
@@ -58,7 +59,7 @@ const getAllAccountClaimedSinceLastFreezeWithAgnostic = async (tokenAddress, tab
     return resp
 }
 
-const agnosticFetch = async (query) => {
+const agnosticFetch = async (query: string): Promise<any[]> => {
     try {
         const response = await axios.post(AGNOSTIC_ENDPOINT, query, {
             headers: {
@@ -74,7 +75,3 @@ const agnosticFetch = async (query) => {
         return [];
     }
 }
-
-module.exports = {
-    getAllAccountClaimedSinceLastFreezeWithAgnostic
-};
