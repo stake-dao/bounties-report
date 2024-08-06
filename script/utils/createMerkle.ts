@@ -1,6 +1,6 @@
 import { formatUnits, parseEther } from "viem";
 import { getAllAccountClaimedSinceLastFreezeWithAgnostic } from "./agnostic";
-import { BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
+import { BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
 import { getProposal, getVoters, getVoterVotingPower } from "./snapshot";
 import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getAllDelegators, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower, getTokenPrice } from "./utils";
 import { BigNumber, utils } from "ethers";
@@ -341,7 +341,9 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     if (aprs.length > 0) {
         const vpAverage = aprs.reduce((acc, aprData) => acc + aprData.vp, 0) / aprs.length;
         const sumRewards = aprs.reduce((acc, aprData) => acc + aprData.amount, 0);
-        apr = sumRewards / vpAverage * 52 * 100;
+
+        const multiplier = space === SDCAKE_SPACE ? 26 : 52; // because cake is distributed every 2 weeks
+        apr = sumRewards / vpAverage * multiplier * 100;
     }
 
     if (space === SDFXS_SPACE) {
