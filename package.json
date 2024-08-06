@@ -5,11 +5,11 @@
   "main": "index.js",
   "scripts": {
     "bounties": "npx ts-node script/generateWeeklyBounties.ts",
+    "merkle": "npx ts-node script/generateMerkle.ts",
     "report": "npx ts-node script/generateWeeklyReport.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "fork": "npx hardhat node --fork https://eth-mainnet.alchemyapi.io/v2/C9kzXL-6HwtqvidRZrFS51UX-XC_Nxho",
-    "localhostTest": "npx hardhat test --network localhost",
-    "create": "npx ts-node script/generateMerkle.ts"
+    "localhostTest": "npx hardhat test --network localhost"
   },
   "author": "",
   "license": "ISC",

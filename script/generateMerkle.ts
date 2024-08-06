@@ -38,7 +38,7 @@ const main = async () => {
   const newMerkles: Merkle[] = [];
   const toFreeze: Record<string, string[]> = {};
   const toSet: Record<string, string[]> = {};
-  const currentPeriodTimestamp = (Math.floor(now / WEEK) * WEEK) - WEEK;
+  const currentPeriodTimestamp = (Math.floor(now / WEEK) * WEEK);
 
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
@@ -226,6 +226,7 @@ const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, a
 
     let chain: null | Chain = null;
     let rpcUrl = ""
+
     switch (merkle.chainId) {
       case mainnet.id:
         chain = mainnet;
@@ -234,6 +235,7 @@ const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, a
       case bsc.id:
         chain = bsc;
         rpcUrl = "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        break;
       default:
         throw new Error("Chain not found");
     }
