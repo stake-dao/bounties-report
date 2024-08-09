@@ -135,22 +135,31 @@ export async function getClosestBlockTimestamp(
 }
 
 export const MAINNET_VM_PLATFORMS: {
-  [key: string]: { platform: string; locker: string };
+  [key: string]: { platforms: string[]; locker: string };
 } = {
   curve: {
-    platform: getAddress("0x0000000895cB182E6f983eb4D8b4E0Aa0B31Ae4c"),
+    platforms: [
+      getAddress("0x0000000895cB182E6f983eb4D8b4E0Aa0B31Ae4c"),
+      getAddress("0x000000073D065Fc33a3050C2d0E19C393a5699ba"),
+    ],
     locker: getAddress("0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6"),
   },
   balancer: {
-    platform: getAddress("0x0000000446b28e4c90DbF08Ead10F3904EB27606"),
+    platforms: [
+      getAddress("0x0000000446b28e4c90DbF08Ead10F3904EB27606"),
+    ],
     locker: getAddress("0xea79d1A83Da6DB43a85942767C389fE0ACf336A5"),
   },
   frax: {
-    platform: getAddress("0x000000060e56DEfD94110C1a9497579AD7F5b254"),
+    platforms: [
+      getAddress("0x000000060e56DEfD94110C1a9497579AD7F5b254"),
+    ],
     locker: getAddress("0xCd3a267DE09196C48bbB1d9e842D7D7645cE448f"),
   },
   fxn: {
-    platform: getAddress("0x00000007D987c2Ea2e02B48be44EC8F92B8B06e8"),
+    platforms: [
+      getAddress("0x00000007D987c2Ea2e02B48be44EC8F92B8B06e8"),
+    ],
     locker: getAddress("0x75736518075a01034fa72D675D36a47e9B06B2Fb"),
   },
 };

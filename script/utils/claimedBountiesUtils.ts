@@ -100,66 +100,68 @@ const fetchVotemarketClaimedBounties = async (
     encodePacked(["string"], [eventSignature])
   );
 
-  let filtereredLogs: { [protocol: string]: VotemarketBounty[] } = {};
+  let filteredLogs: { [protocol: string]: VotemarketBounty[] } = {};
 
   const claimedAbi = parseAbi([
     "event Claimed(address indexed user, address rewardToken, uint256 indexed bountyId, uint256 amount, uint256 protocolFees, uint256 period)",
   ]);
-  const promises = Object.keys(MAINNET_VM_PLATFORMS).map(async (protocol) => {
-    // Pad the contract address to 32 bytes
-    const paddedLocker = pad(
-      MAINNET_VM_PLATFORMS[protocol].locker as `0x${string}`,
-      { size: 32 }
-    ).toLowerCase();
 
-    const response = await getLogsByAddressAndTopics(
-      MAINNET_VM_PLATFORMS[protocol].platform,
-      fromBlock,
-      toBlock,
-      { "0": claimedEventHash, "1": paddedLocker }
-    );
+  const promises = Object.entries(MAINNET_VM_PLATFORMS).map(
+    async ([protocol, { platforms, locker }]) => {
+      const paddedLocker = pad(locker as `0x${string}`, {
+        size: 32,
+      }).toLowerCase();
 
-    if (!response || !response.result || response.result.length === 0) {
-      throw new Error("No logs found");
-    }
+      const responses = await Promise.all(
+        platforms.map((platform) =>
+          getLogsByAddressAndTopics(platform, fromBlock, toBlock, {
+            "0": claimedEventHash,
+            "1": paddedLocker,
+          })
+        )
+      );
 
-    for (const log of response.result) {
-      const decodedLog = decodeEventLog({
-        abi: claimedAbi,
-        data: log.data,
-        topics: log.topics,
-        strict: true,
-      });
-
-      if (
-        getAddress(decodedLog.args.user) ==
-        MAINNET_VM_PLATFORMS[protocol].locker
-      ) {
-        // Fetch info from platform contract to get gauge address
-        const bountyInfo = await publicClient.readContract({
-          address: getAddress(MAINNET_VM_PLATFORMS[protocol].platform),
-          abi: platformAbi,
-          functionName: "getBounty",
-          args: [decodedLog.args.bountyId],
-        });
-
-        const votemarketBounty: VotemarketBounty = {
-          bountyId: decodedLog.args.bountyId,
-          gauge: bountyInfo.gauge,
-          amount: decodedLog.args.amount,
-          rewardToken: getAddress(decodedLog.args.rewardToken),
-        };
-        if (!filtereredLogs[protocol]) {
-          filtereredLogs[protocol] = [];
+      for (const response of responses) {
+        if (!response || !response.result || response.result.length === 0) {
+          continue;
         }
-        filtereredLogs[protocol].push(votemarketBounty);
+
+        for (const log of response.result) {
+          const decodedLog = decodeEventLog({
+            abi: claimedAbi,
+            data: log.data,
+            topics: log.topics,
+            strict: true,
+          });
+
+          if (getAddress(decodedLog.args.user) == locker) {
+            const bountyInfo = await publicClient.readContract({
+              address: getAddress(log.address), // Use the address from the log
+              abi: platformAbi,
+              functionName: "getBounty",
+              args: [decodedLog.args.bountyId],
+            });
+
+            const votemarketBounty: VotemarketBounty = {
+              bountyId: decodedLog.args.bountyId,
+              gauge: bountyInfo.gauge,
+              amount: decodedLog.args.amount,
+              rewardToken: getAddress(decodedLog.args.rewardToken),
+            };
+
+            if (!filteredLogs[protocol]) {
+              filteredLogs[protocol] = [];
+            }
+            filteredLogs[protocol].push(votemarketBounty);
+          }
+        }
       }
     }
-  });
+  );
 
   await Promise.all(promises);
 
-  return filtereredLogs;
+  return filteredLogs;
 };
 
 /**
