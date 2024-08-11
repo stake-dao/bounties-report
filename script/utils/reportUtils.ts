@@ -145,21 +145,15 @@ export const MAINNET_VM_PLATFORMS: {
     locker: getAddress("0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6"),
   },
   balancer: {
-    platforms: [
-      getAddress("0x0000000446b28e4c90DbF08Ead10F3904EB27606"),
-    ],
+    platforms: [getAddress("0x0000000446b28e4c90DbF08Ead10F3904EB27606")],
     locker: getAddress("0xea79d1A83Da6DB43a85942767C389fE0ACf336A5"),
   },
   frax: {
-    platforms: [
-      getAddress("0x000000060e56DEfD94110C1a9497579AD7F5b254"),
-    ],
+    platforms: [getAddress("0x000000060e56DEfD94110C1a9497579AD7F5b254")],
     locker: getAddress("0xCd3a267DE09196C48bbB1d9e842D7D7645cE448f"),
   },
   fxn: {
-    platforms: [
-      getAddress("0x00000007D987c2Ea2e02B48be44EC8F92B8B06e8"),
-    ],
+    platforms: [getAddress("0x00000007D987c2Ea2e02B48be44EC8F92B8B06e8")],
     locker: getAddress("0x75736518075a01034fa72D675D36a47e9B06B2Fb"),
   },
 };
@@ -314,6 +308,21 @@ export async function getTokenBalance(
   });
 
   return Number(formatUnits(balance, decimals));
+}
+
+export async function getRawTokenBalance(
+  publicClient: PublicClient,
+  tokenAddress: Address,
+  contractAddress: Address
+): Promise<bigint> {
+  const balance = await publicClient.readContract({
+    address: tokenAddress,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [contractAddress],
+  });
+
+  return balance;
 }
 
 // Define the ABI for the gauge controller contract

@@ -1,8 +1,8 @@
 {
   "timestamp1": 1723075200,
-  "timestamp2": 1723193682,
+  "timestamp2": 1723337221,
   "blockNumber1": 20480142,
-  "blockNumber2": 20489978,
+  "blockNumber2": 20501887,
   "votemarket": {
     "fxn": {
       "0": {
@@ -219,42 +219,42 @@
       },
       "4": {
         "gauge": "0x79ef6103a513951a3b25743db509e267685726b7",
-        "amount": 536909077.5246558,
+        "amount": 536909099.3537972,
         "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       },
       "5": {
         "gauge": "0x79ef6103a513951a3b25743db509e267685726b7",
-        "amount": 536909077.5246558,
+        "amount": 536909099.3537972,
         "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       },
       "6": {
         "gauge": "0xcd19892916929f013930ed628547cc1f439b230e",
-        "amount": 80589.09929883546,
+        "amount": 80589.1025753508,
         "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       },
       "7": {
         "gauge": "0xcd19892916929f013930ed628547cc1f439b230e",
-        "amount": 80589.09929883546,
+        "amount": 80589.1025753508,
         "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       },
       "8": {
         "gauge": "0x5c0f23a5c1be65fa710d385814a7fd1bda480b1c",
-        "amount": 153393884.27659577,
+        "amount": 153393890.5131392,
         "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       },
       "9": {
         "gauge": "0x5c0f23a5c1be65fa710d385814a7fd1bda480b1c",
-        "amount": 153393884.27659577,
+        "amount": 153393890.5131392,
         "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       },
       "10": {
         "gauge": "0x8135d6abfd42707a87a7b94c5cfa3529f9b432ad",
-        "amount": 108985731.09944946,
+        "amount": 108985735.53048821,
         "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       },
       "11": {
         "gauge": "0x8135d6abfd42707a87a7b94c5cfa3529f9b432ad",
-        "amount": 108985731.09944946,
+        "amount": 108985735.53048821,
         "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       }
     }
