@@ -678,7 +678,32 @@ const fetchHiddenHandClaimedBounties = async (
     protocolBounties["balancer"].push(hiddenHandBounty);
   }
 
-  return protocolBounties;
+  // Merge when same reward token and same gauge
+  const mergedBounties: { [protocol: string]: any[] } = {};
+
+  for (const protocol in protocolBounties) {
+    const bounties = protocolBounties[protocol];
+    const merged: { [key: string]: any } = {};
+
+    for (const bounty of bounties) {
+      const key = `${bounty.rewardToken.toLowerCase()}-${bounty.gauge.toLowerCase()}`;
+
+      if (key in merged) {
+        merged[key].amount = merged[key].amount + Number(bounty.amount);
+      } else {
+        merged[key] = {
+          ...bounty,
+          rewardToken: bounty.rewardToken.toLowerCase(),
+          gauge: bounty.gauge.toLowerCase(),
+          amount: Number(bounty.amount),
+        };
+      }
+    }
+
+    mergedBounties[protocol] = Object.values(merged);
+  }
+
+  return mergedBounties;
 };
 
 export {
