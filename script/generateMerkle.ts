@@ -31,8 +31,9 @@ const main = async () => {
     axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json")
   ]);
 
+  const delegationAPRsClone = {...delegationAPRs};
   for (const key of Object.keys(delegationAPRs)) {
-    delegationAPRs[key] = 0;
+    delegationAPRs[key] = -1;
   }
 
   const newMerkles: Merkle[] = [];
@@ -178,6 +179,12 @@ const main = async () => {
   checkDistribution(newMerkles, logData);
 
   fs.writeFileSync(`./merkle.json`, JSON.stringify(newMerkles));
+
+  for (const key of Object.keys(delegationAPRs)) {
+    if(delegationAPRs[key] === -1) {
+      delegationAPRs[key] = delegationAPRsClone[key] || 0;
+    }
+  }
   fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
 
   // Add totals in the log
