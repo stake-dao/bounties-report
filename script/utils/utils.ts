@@ -30,7 +30,7 @@ export const extractCSV = async (currentPeriodTimestamp: number, space: string) 
             const dateA = a.split('_')[0];
             const dateB = b.split('_')[0] as string;
             return new Date(dateB).getTime() - new Date(dateA).getTime();
-        }).reverse();
+        });
 
         // Get the most recent CSV file
         const mostRecentCsvFile = sortedCsvFiles[0];
