@@ -45,6 +45,7 @@ jobs:
         if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
         run: |
           npx ts-node script/generateWeeklyReport.ts
+          npx ts-node script/generatePendleReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 
