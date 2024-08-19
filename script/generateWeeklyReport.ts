@@ -13,7 +13,13 @@ import {
   getGaugesInfos,
 } from "./utils/reportUtils";
 import dotenv from "dotenv";
-import { ALL_MIGHT, BOTMARKET, OTC_REGISTRY, WETH_ADDRESS, GOVERNANCE } from "./utils/reportUtils";
+import {
+  ALL_MIGHT,
+  BOTMARKET,
+  OTC_REGISTRY,
+  WETH_ADDRESS,
+  GOVERNANCE,
+} from "./utils/reportUtils";
 
 dotenv.config();
 
@@ -542,6 +548,11 @@ async function main() {
       groupedRows[row.protocol] = [];
     }
     groupedRows[row.protocol].push(row);
+  });
+
+  // Drop lines where no rewardSdValue (= 0)
+  Object.values(groupedRows).forEach((rows) => {
+    rows.filter((row) => row.rewardSdValue > 0);
   });
 
   // Create directory if it doesn't exist
