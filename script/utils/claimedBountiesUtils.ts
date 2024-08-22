@@ -328,40 +328,6 @@ const fetchHiddenHandClaimedBounties = async (
   const claimedAbi = parseAbi([
     "event RewardClaimed(bytes32 indexed identifier,address indexed token,address indexed account,uint256 amount)",
   ]);
-  /*
-  const claimedResponse = await getLogsByAddressAndTopics(
-    getAddress("0xa9b08B4CeEC1EF29EdEC7F9C94583270337D6416"),
-    block_min,
-    block_max,
-    { "0": rewardClaimedHash }
-  );
-
-  if (
-    !claimedResponse ||
-    !claimedResponse.result ||
-    claimedResponse.result.length === 0
-  ) {
-    throw new Error("No logs found");
-  }
-
-  for (const log of claimedResponse.result) {
-    const decodedLog = decodeEventLog({
-      abi: claimedAbi,
-      data: log.data,
-      topics: log.topics,
-      strict: true,
-    });
-
-    if (getAddress(decodedLog.args.account) == BOTMARKET) {
-      const hiddenHandBounty: Bounty = {
-        gauge: decodedLog.args.identifier,
-        amount: decodedLog.args.amount,
-        rewardToken: getAddress(decodedLog.args.token),
-      };
-      allClaimedBounties.push(hiddenHandBounty);
-    }
-  }
-  */
 
   const claimedResponse = await getLogsByAddressAndTopics(
     getAddress("0xa9b08B4CeEC1EF29EdEC7F9C94583270337D6416"),
@@ -395,75 +361,6 @@ const fetchHiddenHandClaimedBounties = async (
       allClaimedBounties.push(hiddenHandBounty);
     }
   }
-
-  // Get unique reward tokens
-  const allRewardTokens = allClaimedBounties.map(
-    (bounty) => bounty.rewardToken
-  );
-  const uniqueRewardTokens = [...new Set(allRewardTokens)];
-
-  // Get token balances
-  const tokenBalances = await Promise.all(
-    uniqueRewardTokens.map((token) =>
-      getRawTokenBalance(publicClient, getAddress(token), BOTMARKET)
-    )
-  );
-
-  // Create a map of token addresses to their balances
-  const tokenBalanceMap = Object.fromEntries(
-    uniqueRewardTokens.map((token, index) => [
-      token,
-      BigInt(tokenBalances[index]),
-    ])
-  );
-
-  // Calculate the total claimed amount for each token
-  const claimedAmountMap = allClaimedBounties.reduce((acc, bounty) => {
-    const { rewardToken, amount } = bounty;
-    acc[rewardToken] = (acc[rewardToken] || 0n) + BigInt(amount as any);
-    return acc;
-  }, {} as Record<string, bigint>);
-
-  // Compare claimed amounts with actual balances
-  const discrepancies: any[] = [];
-
-  for (const token of uniqueRewardTokens) {
-    const claimedAmount = claimedAmountMap[token] || 0n;
-    const actualBalance = tokenBalanceMap[token];
-
-    if (claimedAmount !== actualBalance) {
-      discrepancies.push({
-        token,
-        claimedAmount: claimedAmount.toString(),
-        actualBalance: actualBalance.toString(),
-        difference: (actualBalance - claimedAmount).toString(),
-      });
-    }
-  }
-
-  // Log discrepancies
-  if (discrepancies.length > 0) {
-    console.log("Discrepancies found:");
-    discrepancies.forEach(
-      ({ token, claimedAmount, actualBalance, difference }) => {
-        console.log(`Token: ${token}`);
-        console.log(`Claimed Amount: ${claimedAmount}`);
-        console.log(`Actual Balance: ${actualBalance}`);
-        console.log(`Difference: ${difference}`);
-        console.log("---");
-      }
-    );
-  } else {
-    console.log(
-      "No discrepancies found. All claimed amounts match actual balances."
-    );
-  }
-
-  // Update allClaimedBounties with correct amounts
-  const updatedAllClaimedBounties = allClaimedBounties.map((bounty) => ({
-    ...bounty,
-    amount: tokenBalanceMap[bounty.rewardToken],
-  }));
 
   // Get all bribes that has been deposited on Hidden Hand since inception
   const depositBribeSig =
@@ -650,7 +547,7 @@ const fetchHiddenHandClaimedBounties = async (
   // Compute real
   for (const bribe of allDepositedBribes) {
     // Get total claimed for that token
-    const totalClaimed = updatedAllClaimedBounties
+    const totalClaimed = allClaimedBounties
       .filter(
         (bounty) =>
           bounty.rewardToken.toLowerCase() === bribe.token.toLowerCase()
