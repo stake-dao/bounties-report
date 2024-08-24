@@ -12,7 +12,7 @@ on:
         - Generate OTCS reports
         default: 'Ethereum'
   schedule:
-    - cron: "0 20 * * 6" # Runs every Saturday at 20:00 UTC
+    - cron: "0 0 * * 0" # Runs every Sunday at 00:00 UTC
 
 jobs:
   generate-reports:
