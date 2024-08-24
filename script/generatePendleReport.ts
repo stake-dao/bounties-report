@@ -81,6 +81,8 @@ async function main() {
     const latestRewards = await getLatestJson(REPO_PATH, DIRECTORY_PATH);
 
     // SdPendle : Take balanceOf Botmarket
+    /// TODO : Put back
+    /*
     const sdPendleBalance = await publicClient.readContract({
       address: sdPENDLE,
       abi: [
@@ -95,6 +97,9 @@ async function main() {
       functionName: "balanceOf",
       args: [BOTMARKET],
     });
+    */
+
+    const sdPendleBalance = BigInt(1774115717131192358401);
 
     if (sdPendleBalance === BigInt(0)) {
       console.error("No sdPendle balance found on Botmarket");
