@@ -9,10 +9,7 @@ import {
 import { gql, request } from "graphql-request";
 import { getContract, formatUnits, PublicClient, Address } from "viem";
 import { erc20Abi } from "viem";
-import {
-  getLogsByAddressAndTopics,
-  getLogsByAddressesAndTopics,
-} from "./etherscanUtils";
+import { createBlockchainExplorerUtils, NetworkType } from "./explorerUtils";
 
 const WEEK = 604800; // One week in seconds
 
@@ -157,6 +154,10 @@ export const MAINNET_VM_PLATFORMS: {
     locker: getAddress("0x75736518075a01034fa72D675D36a47e9B06B2Fb"),
   },
 };
+
+export const BSC_CAKE_VM = '0x62c5d779f5e56f6bc7578066546527fee590032c';
+export const BSC_CAKE_LOCKER = '0x1E6F87A9ddF744aF31157d8DaA1e3025648d042d';
+
 
 export const WARDEN_PATHS: { [key: string]: string } = {
   curve: "crv",
@@ -358,11 +359,15 @@ export async function getGaugeWeight(
 }
 
 export async function fetchSwapInEvents(
+  chain: NetworkType,
   blockMin: number,
   blockMax: number,
   rewardTokens: string[],
   contractAddress: string
 ): Promise<SwapEvent[]> {
+
+  const explorerUtils = createBlockchainExplorerUtils(chain);
+
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
 
@@ -375,7 +380,7 @@ export async function fetchSwapInEvents(
     "2": paddedContractAddress,
   };
 
-  const response = await getLogsByAddressesAndTopics(
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
     rewardTokens,
     blockMin,
     blockMax,
@@ -402,11 +407,14 @@ export async function fetchSwapInEvents(
 }
 
 export async function fetchSwapOutEvents(
+  chain: NetworkType,
   blockMin: number,
   blockMax: number,
   rewardTokens: string[],
   contractAddress: string
 ): Promise<SwapEvent[]> {
+  const explorerUtils = createBlockchainExplorerUtils(chain);
+
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
 
@@ -419,7 +427,7 @@ export async function fetchSwapOutEvents(
     "1": paddedContractAddress,
   };
 
-  const response = await getLogsByAddressesAndTopics(
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
     rewardTokens,
     blockMin,
     blockMax,

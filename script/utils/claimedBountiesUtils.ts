@@ -1,5 +1,4 @@
-import { getLogsByAddressAndTopics } from "./etherscanUtils";
-import { BigNumber } from "ethers";
+import { createBlockchainExplorerUtils } from "./explorerUtils";
 
 import {
   decodeEventLog,
@@ -17,6 +16,8 @@ import {
   getRawTokenBalance,
   getGaugeWeight,
   isValidAddress,
+  BSC_CAKE_LOCKER,
+  BSC_CAKE_VM,
 } from "./reportUtils";
 import axios from "axios";
 import { Bounty, VotemarketBounty, WardenBounty, GaugeShare } from "./types";
@@ -86,6 +87,77 @@ const platformAbi = [
   },
 ] as const;
 
+// BSC
+
+const bscPlatformAbi = [
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "bountyId",
+        type: "uint256",
+      },
+    ],
+    name: "getBounty",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "address",
+            name: "gauge",
+            type: "address",
+          },
+          {
+            internalType: "uint256",
+            name: "chainId",
+            type: "uint256",
+          },
+          {
+            internalType: "address",
+            name: "manager",
+            type: "address",
+          },
+          {
+            internalType: "address",
+            name: "rewardToken",
+            type: "address",
+          },
+          {
+            internalType: "uint8",
+            name: "numberOfEpochs",
+            type: "uint8",
+          },
+          {
+            internalType: "uint256",
+            name: "endTimestamp",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "maxRewardPerVote",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "totalRewardAmount",
+            type: "uint256",
+          },
+          {
+            internalType: "address[]",
+            name: "blacklist",
+            type: "address[]",
+          },
+        ],
+        internalType: "struct CakePlatform.Bounty",
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
 /**
  * Fetches claimed bounties from the Votemarket platform within a specified block range.
  * @param {number} block_min - The minimum block number to fetch from.
@@ -97,6 +169,8 @@ const fetchVotemarketClaimedBounties = async (
   fromBlock: number,
   toBlock: number
 ) => {
+  const ethUtils = createBlockchainExplorerUtils("ethereum");
+
   const eventSignature =
     "Claimed(address,address,uint256,uint256,uint256,uint256)";
   const claimedEventHash = keccak256(
@@ -117,7 +191,7 @@ const fetchVotemarketClaimedBounties = async (
 
       const responses = await Promise.all(
         platforms.map((platform) =>
-          getLogsByAddressAndTopics(platform, fromBlock, toBlock, {
+          ethUtils.getLogsByAddressAndTopics(platform, fromBlock, toBlock, {
             "0": claimedEventHash,
             "1": paddedLocker,
           })
@@ -167,6 +241,71 @@ const fetchVotemarketClaimedBounties = async (
   return filteredLogs;
 };
 
+export const fetchVotemarketBSCBounties = async (
+  publicClient: PublicClient,
+  fromBlock: number,
+  toBlock: number
+): Promise<{ cake: VotemarketBounty[] }> => {
+  const bscUtils = createBlockchainExplorerUtils("bsc");
+
+  const eventSignature =
+    "Claimed(address,address,uint256,uint256,uint256,uint256)";
+  const claimedEventHash = keccak256(
+    encodePacked(["string"], [eventSignature])
+  );
+
+  const claimedAbi = parseAbi([
+    "event Claimed(address indexed user, address rewardToken, uint256 indexed bountyId, uint256 amount, uint256 protocolFees, uint256 period)",
+  ]);
+
+  const paddedLocker = pad(BSC_CAKE_LOCKER as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  const response = await bscUtils.getLogsByAddressAndTopics(
+    BSC_CAKE_VM,
+    fromBlock,
+    toBlock,
+    {
+      "0": claimedEventHash,
+      "1": paddedLocker,
+    }
+  );
+
+  const filteredBounties: VotemarketBounty[] = [];
+
+  if (response && response.result && response.result.length > 0) {
+    for (const log of response.result) {
+      const decodedLog = decodeEventLog({
+        abi: claimedAbi,
+        data: log.data,
+        topics: log.topics,
+        strict: true,
+      });
+
+      if (getAddress(decodedLog.args.user) === BSC_CAKE_LOCKER) {
+        const bountyInfo = await publicClient.readContract({
+          address: getAddress(BSC_CAKE_VM),
+          abi: bscPlatformAbi,
+          functionName: "getBounty",
+          args: [decodedLog.args.bountyId],
+        });
+
+        const votemarketBounty: VotemarketBounty = {
+          bountyId: decodedLog.args.bountyId,
+          gauge: bountyInfo.gauge, // Access the property directly
+          amount: decodedLog.args.amount,
+          rewardToken: getAddress(decodedLog.args.rewardToken),
+        };
+
+        filteredBounties.push(votemarketBounty);
+      }
+    }
+  }
+
+  return { cake: filteredBounties };
+};
+
 /**
  * Fetches claimed bounties from Warden by querying the blockchain and filtering based on API data.
  * @param {number} block_min - The minimum block number for the query range.
@@ -177,6 +316,8 @@ const fetchWardenClaimedBounties = async (
   block_min: number,
   block_max: number
 ) => {
+  const ethUtils = createBlockchainExplorerUtils("ethereum");
+
   // Fetch all bounties data from Warden API
   const wardenApiBase = "https://api.paladin.vote/quest/v2/copilot/claims/";
   let distributorAddresses: string[] = [];
@@ -236,7 +377,7 @@ const fetchWardenClaimedBounties = async (
     return new Promise(async (resolve) => {
       // manage rate limits
       setTimeout(async () => {
-        const logsResponse = await getLogsByAddressAndTopics(
+        const logsResponse = await ethUtils.getLogsByAddressAndTopics(
           distributor,
           block_min,
           block_max,
@@ -318,6 +459,8 @@ const fetchHiddenHandClaimedBounties = async (
   block_min: number,
   block_max: number
 ) => {
+  const ethUtils = createBlockchainExplorerUtils("ethereum");
+
   const rewardClaimedSig = "RewardClaimed(bytes32,address,address,uint256)";
   const rewardClaimedHash = keccak256(
     encodePacked(["string"], [rewardClaimedSig])
@@ -329,7 +472,7 @@ const fetchHiddenHandClaimedBounties = async (
     "event RewardClaimed(bytes32 indexed identifier,address indexed token,address indexed account,uint256 amount)",
   ]);
 
-  const claimedResponse = await getLogsByAddressAndTopics(
+  const claimedResponse = await ethUtils.getLogsByAddressAndTopics(
     getAddress("0xa9b08B4CeEC1EF29EdEC7F9C94583270337D6416"),
     block_min,
     block_max,
@@ -384,7 +527,7 @@ const fetchHiddenHandClaimedBounties = async (
   for (let i = 0; i < numChunks; i++) {
     const block_min = startBlock + i * chunk;
     const block_max = Math.min(block_min + chunk, endBlock);
-    const depositedBribeResponse = await getLogsByAddressAndTopics(
+    const depositedBribeResponse = await ethUtils.getLogsByAddressAndTopics(
       getAddress("0xE00fe722e5bE7ad45b1A16066E431E47Df476CeC"),
       block_min,
       block_max,
