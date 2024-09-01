@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, formatUnits, http } from "viem";
 import { mainnet } from "viem/chains";
-import { getAddress } from "viem";
 import {
   getTimestampsBlocks,
   fetchSwapInEvents,
@@ -235,12 +234,14 @@ async function main() {
   };
 
   const swapIn = await fetchSwapInEvents(
+    "ethereum",
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
     ALL_MIGHT
   );
   const swapOut = await fetchSwapOutEvents(
+    "ethereum",
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),

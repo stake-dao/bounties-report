@@ -9,10 +9,7 @@ import {
 import { gql, request } from "graphql-request";
 import { getContract, formatUnits, PublicClient, Address } from "viem";
 import { erc20Abi } from "viem";
-import {
-  getLogsByAddressAndTopics,
-  getLogsByAddressesAndTopics,
-} from "./etherscanUtils";
+import { createBlockchainExplorerUtils, NetworkType } from "./explorerUtils";
 
 const WEEK = 604800; // One week in seconds
 
@@ -36,6 +33,10 @@ export const WETH_ADDRESS = getAddress(
   "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 );
 
+export const WBNB_ADDRESS = getAddress(
+  "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+);
+
 export const OTC_REGISTRY = getAddress(
   "0x9Cc16BDd233A74646e31100b2f13334810d12cB0"
 );
@@ -48,9 +49,16 @@ export const HH_BALANCER_MARKET = getAddress(
 export const BOTMARKET = getAddress(
   "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF"
 );
+export const BSC_BOTMARKET = getAddress(
+  "0x1F18E2A3fB75D5f8d2a879fe11D7c30730236B8d"
+);
+export const BSC_CAKE_VM = getAddress(
+  "0x62c5D779f5e56F6BC7578066546527fEE590032c"
+);
 export const GOVERNANCE = getAddress(
   "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063"
 );
+export const BSC_CAKE_LOCKER = "0x1E6F87A9ddF744aF31157d8DaA1e3025648d042d";
 
 export async function getTokenInfo(
   publicClient: PublicClient,
@@ -358,11 +366,14 @@ export async function getGaugeWeight(
 }
 
 export async function fetchSwapInEvents(
+  chain: NetworkType,
   blockMin: number,
   blockMax: number,
   rewardTokens: string[],
   contractAddress: string
 ): Promise<SwapEvent[]> {
+  const explorerUtils = createBlockchainExplorerUtils(chain);
+
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
 
@@ -375,7 +386,7 @@ export async function fetchSwapInEvents(
     "2": paddedContractAddress,
   };
 
-  const response = await getLogsByAddressesAndTopics(
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
     rewardTokens,
     blockMin,
     blockMax,
@@ -402,11 +413,14 @@ export async function fetchSwapInEvents(
 }
 
 export async function fetchSwapOutEvents(
+  chain: NetworkType,
   blockMin: number,
   blockMax: number,
   rewardTokens: string[],
   contractAddress: string
 ): Promise<SwapEvent[]> {
+  const explorerUtils = createBlockchainExplorerUtils(chain);
+
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
 
@@ -419,7 +433,7 @@ export async function fetchSwapOutEvents(
     "1": paddedContractAddress,
   };
 
-  const response = await getLogsByAddressesAndTopics(
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
     rewardTokens,
     blockMin,
     blockMax,
@@ -487,6 +501,8 @@ export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
       return getFraxGaugesInfos();
     case "fxn":
       return getFxnGaugesInfos();
+    case "cake":
+      return getCakeGaugesInfos();
     default:
       return [];
   }
@@ -589,6 +605,22 @@ async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
     return [];
   } catch (error) {
     console.error("Error fetching FXN gauges:", error);
+    return [];
+  }
+}
+
+export async function getCakeGaugesInfos(): Promise<GaugeInfo[]> {
+  try {
+    const response = await axios.get(
+      "https://raw.githubusercontent.com/stake-dao/votemarket-data/main/gauges/cake.json"
+    );
+    if (response.data.success) {
+      return response.data.data;
+    }
+    console.error("Failed to fetch CAKE gauges: Invalid response format");
+    return [];
+  } catch (error) {
+    console.error("Error fetching CAKE gauges:", error);
     return [];
   }
 }

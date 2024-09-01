@@ -171,12 +171,14 @@ async function fetchSwaps(
   const maxBlock = Math.max(...uniqueBlocks);
 
   const swapIn = await fetchSwapInEvents(
+    "ethereum",
     minBlock,
     maxBlock,
     Array.from(allTokens),
     ALL_MIGHT
   );
   const swapOut = await fetchSwapOutEvents(
+    "ethereum",
     minBlock,
     maxBlock,
     Array.from(allTokens),
