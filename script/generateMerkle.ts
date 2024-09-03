@@ -15,7 +15,8 @@ dotenv.config();
 
 const logData: Record<string, any> = {
   "TotalReported": {},
-  "Transactions": []
+  "Transactions": [],
+  "SnapshotIds": [],
 }; // Use to store and write logs in a JSON
 
 const main = async () => {
@@ -97,6 +98,11 @@ const main = async () => {
     } else {
       ids = [proposalIdPerSpace[space]];
     }
+
+    logData["SnapshotIds"].push({
+      space,
+      ids
+    });
 
     // Create the merkle
     const merkleStat = await createMerkle(ids, space, lastMerkles, csvResult, pendleRewards);
