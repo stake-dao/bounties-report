@@ -37,6 +37,7 @@ export const SDANGLE_SPACE = "sdangle.eth";
 export const SDPENDLE_SPACE = "sdpendle.eth";
 export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
+export const CVX_SPACE = "cvx.eth";
 
 export const SPACES: string[] = [
   SDCRV_SPACE,

@@ -41,8 +41,6 @@ interface CSVRow {
   rewardToken: string;
   rewardAddress: string;
   rewardAmount: string;
-  rewardSdValue: string;
-  sharePercentage: string;
 }
 
 async function fetchClaimedBounties(): Promise<ClaimedBounties> {
@@ -84,27 +82,14 @@ async function generateReport() {
       tokenInfo.decimals
     );
 
-    const sdValue = Number(formattedAmount);
-    totalSdValue += sdValue;
-
     rows.push({
       gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "Unknown",
       gaugeAddress: bounty.gauge,
       rewardToken: tokenInfo.symbol,
       rewardAddress: bounty.rewardToken,
       rewardAmount: formattedAmount,
-      rewardSdValue: sdValue.toString(),
-      sharePercentage: "0", // Will be calculated after
     });
   }
-
-  // Calculate share percentages
-  rows.forEach((row) => {
-    row.sharePercentage = (
-      (Number(row.rewardSdValue) / totalSdValue) *
-      100
-    ).toFixed(2);
-  });
 
   return rows;
 }
@@ -123,7 +108,7 @@ function writeReportToCSV(rows: CSVRow[]) {
     ...rows.map(
       (row) =>
         `${row.gaugeName};${row.gaugeAddress};${row.rewardToken};${row.rewardAddress};` +
-        `${row.rewardAmount};${row.rewardSdValue};${row.sharePercentage}`
+        `${row.rewardAmount};`
     ),
   ].join("\n");
 
