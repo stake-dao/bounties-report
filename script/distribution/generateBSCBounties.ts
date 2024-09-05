@@ -11,7 +11,7 @@ import { bsc } from "viem/chains";
 import axios from "axios";
 import fs from "fs";
 import path from "path";
-import { fetchVotemarketBSCBounties } from "./utils/claimedBountiesUtils";
+import { fetchVotemarketBSCBounties } from "../utils/claimedBountiesUtils";
 
 // Constants
 const WEEK = 604800;

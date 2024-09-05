@@ -167,7 +167,8 @@ const bscPlatformAbi = [
 const fetchVotemarketClaimedBounties = async (
   publicClient: PublicClient,
   fromBlock: number,
-  toBlock: number
+  toBlock: number,
+  locker: string
 ) => {
   const ethUtils = createBlockchainExplorerUtils("ethereum");
 
@@ -211,9 +212,9 @@ const fetchVotemarketClaimedBounties = async (
             strict: true,
           });
 
-          if (getAddress(decodedLog.args.user) == locker) {
+          if (getAddress(decodedLog.args.user) == getAddress(locker)) {
             const bountyInfo = await publicClient.readContract({
-              address: getAddress(log.address), // Use the address from the log
+              address: getAddress(log.address),
               abi: platformAbi,
               functionName: "getBounty",
               args: [decodedLog.args.bountyId],

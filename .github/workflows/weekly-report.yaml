@@ -44,8 +44,8 @@ jobs:
       - name: Run generateWeeklyReport script
         if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
         run: |
-          npx ts-node script/generateReport.ts
-          npx ts-node script/generatePendleReport.ts
+          npx ts-node script/reports/generateReport.ts
+          npx ts-node script/reports/generatePendleReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 

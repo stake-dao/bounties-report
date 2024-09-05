@@ -19,7 +19,7 @@ export const extractCSV = async (currentPeriodTimestamp: number, space: string) 
 
     if (space === SDPENDLE_SPACE) {
         // Special case here
-        const reportDir = path.join(__dirname, '../../bribes-reports/pendle');
+        const reportDir = path.join(__dirname, '../../bounties-reports/pendle');
 
         // Read the directory and filter out the CSV files
         const files = fs.readdirSync(reportDir);
@@ -49,7 +49,7 @@ export const extractCSV = async (currentPeriodTimestamp: number, space: string) 
             throw new Error("can't find name space for space " + space);
         }
 
-        csvFilePath = path.join(__dirname, `../../bribes-reports/${currentPeriodTimestamp}/${nameSpace}.csv`);
+        csvFilePath = path.join(__dirname, `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}.csv`);
     }
 
     if (!csvFilePath || !fs.existsSync(csvFilePath)) {

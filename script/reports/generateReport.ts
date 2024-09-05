@@ -10,7 +10,7 @@ import {
   matchWethInWithRewardsOut,
   getTokenInfo,
   getGaugesInfos,
-} from "./utils/reportUtils";
+} from "../utils/reportUtils";
 import dotenv from "dotenv";
 import {
   ALL_MIGHT,
@@ -18,7 +18,7 @@ import {
   OTC_REGISTRY,
   WETH_ADDRESS,
   GOVERNANCE,
-} from "./utils/reportUtils";
+} from "../utils/reportUtils";
 
 dotenv.config();
 
@@ -560,7 +560,7 @@ async function main() {
   const projectRoot = path.resolve(__dirname, ".."); // Go up one level from the script directory
   const dirPath = path.join(
     projectRoot,
-    "bribes-reports",
+    "bounties-reports",
     currentPeriod.toString()
   );
 

@@ -1,7 +1,7 @@
 import fs from "fs";
 import { parse } from "csv-parse/sync";
 import path from "path";
-import { getLogsByAddressAndTopics } from "./utils/etherscanUtils";
+import { getLogsByAddressAndTopics } from "../utils/etherscanUtils";
 import {
   createPublicClient,
   formatUnits,
@@ -21,13 +21,13 @@ import {
   getGaugesInfos,
   fetchSwapInEvents,
   fetchSwapOutEvents,
-} from "./utils/reportUtils";
+} from "../utils/reportUtils";
 import {
   OTC_REGISTRY,
   BOTMARKET,
   ALL_MIGHT,
   WETH_ADDRESS,
-} from "./utils/reportUtils";
+} from "../utils/reportUtils";
 
 import dotenv from "dotenv";
 
@@ -404,7 +404,7 @@ async function main() {
   const projectRoot = path.resolve(__dirname, ".."); // Go up one level from the script directory
   const dirPath = path.join(
     projectRoot,
-    "bribes-reports",
+    "bounties-reports",
     currentPeriod.toString()
   );
 
