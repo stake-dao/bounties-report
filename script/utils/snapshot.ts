@@ -4,7 +4,7 @@ import { SNAPSHOT_ENDPOINT, WEEK } from "./constants";
 import axios from "axios";
 import { orderBy } from "lodash";
 import { GaugeInfo, Proposal, Delegation, Vote } from "./types";
-import { CurveGauge } from "../curveApi";
+import { CurveGauge } from "./curveApi";
 
 /**
  * Fetch last proposal id for all spaces

@@ -12,56 +12,67 @@ import {
   SPACES_TOKENS,
   SPACES_UNDERLYING_TOKEN,
   WEEK,
-} from "./utils/constants";
+} from "../utils/constants";
 import {
   associateGaugesPerId,
   getDelegators,
   getProposal,
   getVoters,
   getVp,
-} from "./utils/snapshot";
-import { extractCSV, ExtractCSVType } from "./utils/utils";
-import { DELEGATION_ADDRESS } from "./utils/constants";
+} from "../utils/snapshot";
+import { extractCSV, ExtractCSVType } from "../utils/utils";
+import { DELEGATION_ADDRESS } from "../utils/constants";
 import * as moment from "moment";
-import { getGaugesInfos } from "./utils/reportUtils";
-import { getAllCurveGauges } from "./curveApi";
+import { getGaugesInfos } from "../utils/reportUtils";
+import { getAllCurveGauges } from "../utils/curveApi";
 
 dotenv.config();
 
+type CvxCSVType = Record<
+  string,
+  { rewardAddress: string; rewardAmount: number }
+>;
+
 const checkDistribution = (
   distribution: Record<string, Record<string, number>>,
-  report: ExtractCSVType
+  report: CvxCSVType
 ) => {
-  console.log(report);
-
-  /*
   // Check if we don't distribute more than what we have to distribute
   const totalsDistribution: Record<string, number> = {};
   for (const voter in distribution) {
-      for (const tokenAddress in distribution[voter]) {
-          if (!totalsDistribution[tokenAddress]) {
-              totalsDistribution[tokenAddress] = 0;
-          }
-          totalsDistribution[tokenAddress] += distribution[voter][tokenAddress];
+    for (const tokenAddress in distribution[voter]) {
+      if (!totalsDistribution[tokenAddress]) {
+        totalsDistribution[tokenAddress] = 0;
       }
+      totalsDistribution[tokenAddress] += distribution[voter][tokenAddress];
+    }
   }
+
+  console.log("Total Distribution:", totalsDistribution);
 
   const totalsReport: Record<string, number> = {};
-  for (const line of report) {
-      for (const reward of line.rewards) {
-          if (!totalsReport[reward.tokenAddress.toLowerCase()]) {
-              totalsReport[reward.tokenAddress.toLowerCase()] = 0;
-          }
-          totalsReport[reward.tokenAddress.toLowerCase()] += reward.amount;
-      }
+  for (const [gaugeAddress, rewardInfo] of Object.entries(report)) {
+    const { rewardAddress, rewardAmount } = rewardInfo;
+    if (!totalsReport[rewardAddress.toLowerCase()]) {
+      totalsReport[rewardAddress.toLowerCase()] = 0;
+    }
+    totalsReport[rewardAddress.toLowerCase()] += rewardAmount;
   }
 
+  console.log("Total Report:", totalsReport);
+
   for (const tokenAddress in totalsDistribution) {
-      if (totalsDistribution[tokenAddress] > totalsReport[tokenAddress]) {
-          throw new Error("Diff in the distribution for " + tokenAddress + ", " + totalsDistribution[tokenAddress] + " vs " + totalsReport[tokenAddress]);
-      }
+    const distributionAmount = totalsDistribution[tokenAddress];
+    const reportAmount = totalsReport[tokenAddress.toLowerCase()] || 0;
+
+    if (distributionAmount > reportAmount) {
+      throw new Error(
+        `Diff in the distribution for ${tokenAddress}: ${distributionAmount} distributed vs ${reportAmount} reported`
+      );
+    }
   }
-      */
+
+  console.log("Distribution check passed successfully.");
 };
 
 const main = async () => {
@@ -73,7 +84,7 @@ const main = async () => {
   const curveGauges = await getAllCurveGauges();
 
   // Extract report before doing everything
-  const csvResult = await extractCSV(currentPeriodTimestamp, "cvx.eth");
+  const csvResult = await extractCSV(currentPeriodTimestamp, "cvx.eth") as CvxCSVType;
   if (!csvResult) {
     throw new Error("No report");
   }
@@ -267,11 +278,12 @@ const main = async () => {
   // Check the amounts ditributed
   checkDistribution(distribution, csvResult);
 
-  fs.writeFileSync("./distribution.json", JSON.stringify(distribution), {
+  fs.writeFileSync("./script/vlCVX/distribution.json", JSON.stringify(distribution), {
     encoding: "utf-8",
   });
 
   // Add merkle generation (send tokens to Botmarket to be swapped in sdCRV ?)
+  // Process --> claim, generate repartition --> (Delegation ?) -> Botmarket -> swap -> Merkle / Reward contract | (Raw voters) -> Merkle
 };
 
 main();
