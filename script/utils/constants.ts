@@ -113,6 +113,11 @@ export const SPACES_SYMBOL: Record<string, string> = {
   [SDFXN_SPACE]: "sdFXN",
 };
 
+export const BOTMARKETS: Record<string, string> = {
+  [ETHEREUM]: "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF",
+  [BSC]: "0x1F18E2A3fB75D5f8d2a879fe11D7c30730236B8d",
+};
+
 export const SPACES_IMAGE: Record<string, string> = {
   [SDCRV_SPACE]:
     "https://assets.coingecko.com/coins/images/27756/small/scCRV-2.png?1665654580",
