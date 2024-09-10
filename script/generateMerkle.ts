@@ -100,8 +100,7 @@ const main = async () => {
     }
 
     let sdTknBalance = BigInt(0);
-    let totalSDToken = BigInt(0);
-
+    /*
     // Check with balance of sdTKN in Botmarket contract
     if (network === "ethereum") {
       sdTknBalance = await balanceOf(
@@ -145,9 +144,22 @@ const main = async () => {
       console.error(`  totalSDToken: ${totalSDToken}`);
       console.error(`  Difference: ${totalSDToken - sdTknBalance}`);
       continue; // Skip this space
+    }*/
+
+    if (space === "sdpendle.eth") {
+      continue;
     }
 
-    logData["TotalReported"][space] = Number(totalSDToken) / 1e18;
+    let totalSDToken = 0;
+    if (isPendle) {
+
+      for (const period of Object.keys(csvResult)) {
+        totalSDToken += Object.values(csvResult[period]).reduce((acc, amount) => acc + amount, 0);
+      }
+    } else {
+      totalSDToken = Object.values(csvResult).reduce((acc, amount) => acc + amount, 0);
+    }
+    logData["TotalReported"][space] = totalSDToken;
 
     let ids: string[] = [];
     let pendleRewards: Record<string, Record<string, number>> | undefined =
