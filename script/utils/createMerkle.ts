@@ -1,35 +1,8 @@
-import { formatUnits, parseEther } from "viem";
-import { getAllAccountClaimedSinceLastFreezeWithAgnostic } from "./agnostic";
 import { AUTO_VOTER_DELEGATION_ADDRESS, BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
 import { formatVotingPowerResult, getProposal, getVoters, getVotingPower } from "./snapshot";
 import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getAllDelegators, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower, getTokenPrice } from "./utils";
-import { BigNumber, utils } from "ethers";
-import MerkleTree from "merkletreejs";
-import keccak256 from "keccak256";
-
-export type LogId = "TotalReported" | "Concentrator" | "sdCAKE";
-
-export interface Log {
-    id: LogId;
-    content: string[];
-}
-
-export interface MerkleStat {
-    apr: number;
-    merkle: Merkle;
-    logs: Log[];
-}
-
-export interface Merkle {
-    symbol: string;
-    address: string;
-    image: string;
-    merkle: any;
-    root: string;
-    total: BigNumber;
-    chainId: number;
-    merkleContract: string;
-}
+import { Log, MerkleStat } from "./types";
+import { generateMerkle } from "./utils";
 
 export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined): Promise<MerkleStat> => {
 
@@ -263,84 +236,11 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     // New distribution is split here
     // We have to sum with old distribution if users don't claim
     const tokenToDistribute = SPACES_TOKENS[space];
-
     const lastMerkle = lastMerkles.find((m: any) => m.address.toLowerCase() === tokenToDistribute.toLowerCase());
     const network = SPACE_TO_NETWORK[space];
+    const merkleContract = NETWORK_TO_MERKLE[network];
 
-    if (lastMerkle) {
-
-        let usersClaimedAddress: Record<string, boolean> = {};
-        switch (network) {
-            case ETHEREUM:
-                usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, "evm_events_ethereum_mainnet", NETWORK_TO_MERKLE[network]);
-                break;
-            case BSC:
-                usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, "evm_events_bsc_mainnet_v1", NETWORK_TO_MERKLE[network]);
-                break;
-            default:
-                throw new Error("network unknow");
-        }
-
-        const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
-
-        for (const userAddress of userAddressesLastMerkle) {
-
-            const userAddressLowerCase = userAddress.toLowerCase();
-            const isClaimed = usersClaimedAddress[userAddressLowerCase];
-
-            // If user didn't claim, we add the previous rewards to new one
-            if (!isClaimed) {
-                const leaf = lastMerkle.merkle[userAddress];
-                const amount = parseFloat(formatUnits(BigInt(BigNumber.from(leaf.amount).toString()), 18));
-
-                if (userRewards[userAddressLowerCase]) {
-                    userRewards[userAddressLowerCase] += amount;
-                } else {
-                    userRewards[userAddressLowerCase] = amount;
-                }
-            }
-        }
-    }
-
-    // Since this point, userRewards map contains the new reward amount for each user
-    // We have to generate the merkle
-    const userRewardAddresses = Object.keys(userRewards);
-
-    // Define a threshold below which numbers are considered too small and should be set to 0
-    const threshold = 1e-8;
-
-    const adjustedUserRewards = Object.fromEntries(
-        Object.entries(userRewards).map(([address, reward]) => {
-            // If the reward is smaller than the threshold, set it to 0
-            const adjustedReward = reward < threshold ? 0 : reward;
-            return [address.toLowerCase(), adjustedReward];
-        })
-    );
-
-    const elements: any[] = [];
-    for (let i = 0; i < userRewardAddresses.length; i++) {
-        const userAddress = userRewardAddresses[i];
-
-        const amount = parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString());
-
-        elements.push(utils.solidityKeccak256(["uint256", "address", "uint256"], [i, userAddress.toLowerCase(), BigInt(BigNumber.from(amount).toString())]));
-    }
-
-    const merkleTree = new MerkleTree(elements, keccak256, { sort: true });
-
-    const merkle: any = {};
-    let totalAmount = BigNumber.from(0);
-    for (let i = 0; i < userRewardAddresses.length; i++) {
-        const userAddress = userRewardAddresses[i];
-        const amount = BigNumber.from(parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString()));
-        totalAmount = totalAmount.add(amount);
-
-        merkle[userAddress.toLowerCase()] = {
-            index: i,
-            amount,
-            proof: merkleTree.getHexProof(elements[i]),
-        };
-    }
+    const { merkle, root, total, chainId } = await generateMerkle(userRewards, lastMerkle, network, tokenToDistribute, merkleContract);
 
     let apr = 0;
     if (aprs.length > 0) {
@@ -362,10 +262,10 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             "address": tokenToDistribute,
             "image": SPACES_IMAGE[space],
             "merkle": merkle,
-            root: merkleTree.getHexRoot(),
-            "total": totalAmount,
-            "chainId": parseInt(SPACE_TO_CHAIN_ID[space]),
-            "merkleContract": NETWORK_TO_MERKLE[network]
+            root: root,
+            "total": total,
+            "chainId": chainId,
+            "merkleContract": merkleContract
         },
         logs,
     }
