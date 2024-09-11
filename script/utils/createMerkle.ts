@@ -1,7 +1,7 @@
 import { formatUnits, parseEther } from "viem";
 import { getAllAccountClaimedSinceLastFreezeWithAgnostic } from "./agnostic";
 import { AUTO_VOTER_DELEGATION_ADDRESS, BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
-import { getProposal, getVoters, getVoterVotingPower } from "./snapshot";
+import { formatVotingPowerResult, getProposal, getVoters, getVotingPower } from "./snapshot";
 import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getAllDelegators, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower, getTokenPrice } from "./utils";
 import { BigNumber, utils } from "ethers";
 import MerkleTree from "merkletreejs";
@@ -60,8 +60,9 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         // Here, we should have delegation voter + all other voters
         // Object with vp property
         let voters = await getVoters(id);
+        const vps = await getVotingPower(proposal, voters.map((v) => v.voter), SPACE_TO_CHAIN_ID[space]);
+        voters = formatVotingPowerResult(voters, vps);
 
-        voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID[space]);
         voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice);
 
         // Should be already done but remove the autovoter address again to be sure

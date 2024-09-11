@@ -7,7 +7,10 @@ import { GaugeInfo, Proposal, Delegation, Vote } from "./types";
 import { CurveGauge } from "./curveApi";
 
 /**
- * Fetch last proposal id for all spaces
+ * Fetch last proposal id for all specified spaces
+ * @param spaces - Array of space IDs
+ * @param currentTimestamp - Current timestamp
+ * @returns Record of space IDs to their last proposal IDs
  */
 export const fetchLastProposalsIds = async (
   spaces: string[],
@@ -55,6 +58,13 @@ export const fetchLastProposalsIds = async (
   return proposalIdPerSpace;
 };
 
+/**
+ * Fetch proposal IDs based on specified periods for a space
+ * @param space - Space ID
+ * @param periods - Array of period timestamps
+ * @param currentTimestamp - Current timestamp
+ * @returns Record of period timestamps to their corresponding proposal IDs
+ */
 export const fetchProposalsIdsBasedOnPeriods = async (
   space: string,
   periods: string[],
@@ -118,7 +128,9 @@ export const fetchProposalsIdsBasedOnPeriods = async (
 };
 
 /**
- * Fetch the proposal
+ * Fetch a specific proposal by ID
+ * @param idProposal - Proposal ID
+ * @returns Proposal details
  */
 export const getProposal = async (idProposal: string): Promise<any> => {
   const QUERY_PROPOSAL = gql`
@@ -163,6 +175,8 @@ export const getProposal = async (idProposal: string): Promise<any> => {
 
 /**
  * Get all voters for a proposal
+ * @param proposalId - Proposal ID
+ * @returns Array of votes
  */
 export const getVoters = async (proposalId: string): Promise<any[]> => {
   const QUERY_VOTES = gql`
@@ -218,88 +232,100 @@ export const getVoters = async (proposalId: string): Promise<any[]> => {
   return votes;
 };
 
-export const getVoterVotingPower = async (
-  proposal: any,
-  votes: any[],
-  network: string
-): Promise<any[]> => {
-  try {
-    const votersAddresses = votes.map((v) => v.voter);
+interface ScoreResponse {
+  result?: {
+    scores: Record<string, number>[];
+  };
+}
 
-    const { data } = await axios.post("https://score.snapshot.org/api/scores", {
-      params: {
-        network,
-        snapshot: parseInt(proposal.snapshot),
-        strategies: proposal.strategies,
-        space: proposal.space.id,
-        addresses: votersAddresses,
-      },
-    });
-
-    const scores = votes.map((vote) => {
-      let vp = 0;
-      if (vote.vp > 0) {
-        vp = vote.vp;
-      } else if (data?.result?.scores) {
-        for (const score of data.result.scores) {
-          const keys = Object.keys(score);
-          for (const key of keys) {
-            if (key.toLowerCase() === vote.voter.toLowerCase()) {
-              vp += score[key];
-              break;
-            }
-          }
-        }
-        //vp = data?.result?.scores?.[0]?.[vote.voter] || data?.result?.scores?.[1]?.[vote.voter];
-      }
-      return { ...vote, vp };
-    });
-
-    return orderBy(scores, "vp", "desc");
-  } catch (e) {
-    console.log("Error getVoterVotingPower");
-    throw e;
-  }
-};
-// TODO : Merge with the one above
-export const getVp = async (
-  proposal: any,
-  addresses: string[]
+/**
+ * Get voting power for a list of addresses
+ * @param proposal - Proposal object
+ * @param addresses - Array of addresses
+ * @param network - Network ID (default: '1')
+ * @param includeExistingVp - Whether to include existing voting power (default: false)
+ * @returns Record of addresses to their voting power
+ */
+export const getVotingPower = async (
+  proposal: Proposal,
+  addresses: string[],
+  network: string = "1",
+  includeExistingVp: boolean = false
 ): Promise<Record<string, number>> => {
   try {
-    const { data } = await axios.post("https://score.snapshot.org/api/scores", {
-      params: {
-        network: "1",
-        snapshot: parseInt(proposal.snapshot),
-        strategies: proposal.strategies,
-        space: proposal.space.id,
-        addresses,
-      },
-    });
+    const { data } = await axios.post<ScoreResponse>(
+      "https://score.snapshot.org/api/scores",
+      {
+        params: {
+          network,
+          snapshot: parseInt(proposal.snapshot),
+          strategies: proposal.strategies,
+          space: proposal.space.id,
+          addresses,
+        },
+      }
+    );
 
     if (!data?.result?.scores) {
-      throw new Error("No score");
+      throw new Error("No scores returned from the API");
     }
 
     const result: Record<string, number> = {};
+
     for (const score of data.result.scores) {
-      for (const addressScore of Object.keys(score)) {
-        const voter = addressScore.toLowerCase();
-        if (!result[voter]) {
-          result[voter] = 0;
+      for (const [address, scoreValue] of Object.entries(score)) {
+        const normalizedAddress = address.toLowerCase();
+        if (!result[normalizedAddress]) {
+          result[normalizedAddress] = 0;
         }
-        result[voter] += score[addressScore];
+        result[normalizedAddress] += scoreValue as number;
       }
     }
 
+    if (includeExistingVp) {
+      addresses.forEach((address) => {
+        const vote = (addresses as any as Vote[]).find(
+          (v) => v.voter.toLowerCase() === address.toLowerCase()
+        );
+        if (vote && vote.vp && vote.vp > 0) {
+          result[address.toLowerCase()] = vote.vp;
+        }
+      });
+    }
+
     return result;
-  } catch (e) {
-    console.log(e);
-    throw e;
+  } catch (error) {
+    console.error("Error in getVotingPower:", error);
+    throw error;
   }
 };
 
+/**
+ * Format voting power result
+ * @param votes - Array of votes
+ * @param votingPower - Record of addresses to their voting power
+ * @returns Formatted array of votes with voting power
+ */
+export const formatVotingPowerResult = (
+  votes: Vote[],
+  votingPower: Record<string, number>
+): Vote[] => {
+  return orderBy(
+    votes.map((vote) => ({
+      ...vote,
+      vp: votingPower[vote.voter.toLowerCase()] || 0,
+    })),
+    "vp",
+    "desc"
+  );
+};
 
+/**
+ * Associate gauges with choice IDs
+ * @param proposal - Proposal object
+ * @param curveGauges - Array of Curve gauges
+ * @returns Record of gauge addresses to their choice IDs
+ */
 export const associateGaugesPerId = (
   proposal: Proposal,
   curveGauges: CurveGauge[]
@@ -331,7 +357,13 @@ export const associateGaugesPerId = (
   return gaugePerChoiceId;
 };
 
-
+/**
+ * Get delegators for a space
+ * @param space - Space ID
+ * @param delegationAddresses - Array of delegation addresses
+ * @param proposalCreatedTimestamp - Timestamp when the proposal was created
+ * @returns Array of delegations
+ */
 export const getDelegators = async (
   space: string,
   delegationAddresses: string[],
