@@ -1,3 +1,5 @@
+import { BigNumber } from "ethers";
+
 export interface Bounty {
   rewardToken: string;
   gauge: string;
@@ -82,4 +84,36 @@ export interface Vote {
 export interface DelegationVote {
   voter: string;
   vp: number;
+}
+
+export type LogId = "TotalReported" | "Concentrator" | "sdCAKE";
+
+export interface Log {
+  id: LogId;
+  content: string[];
+}
+
+export interface RawMerkle {
+  merkle: any;
+  root: string;
+  total: BigNumber;
+  chainId: number;
+  merkleContract: string;
+}
+
+export interface MerkleStat {
+  apr: number;
+  merkle: Merkle;
+  logs: Log[];
+}
+
+export interface Merkle {
+  symbol: string;
+  address: string;
+  image: string;
+  merkle: any;
+  root: string;
+  total: BigNumber;
+  chainId: number;
+  merkleContract: string;
 }

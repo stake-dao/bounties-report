@@ -1,16 +1,16 @@
 import axios from 'axios';
 import * as dotenv from "dotenv";
-import { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods } from './utils/snapshot';
-import { abi, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from './utils/constants';
+import { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods } from '../utils/snapshot';
+import { abi, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from '../utils/constants';
 import * as moment from 'moment';
-import { checkSpace, extractCSV, PendleCSVType } from './utils/utils';
-import { createMerkle } from './utils/createMerkle';
+import { checkSpace, extractCSV, PendleCSVType } from '../utils/utils';
+import { createMerkle } from '../utils/createMerkle';
 import { Chain, createPublicClient, encodeFunctionData, formatUnits, http } from 'viem';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BigNumber } from 'ethers';
 import { bsc, mainnet } from 'viem/chains';
-import { Merkle } from './utils/types';
+import { Merkle } from '../utils/types';
 
 dotenv.config();
 

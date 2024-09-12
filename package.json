@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "bounties": "npx ts-node script/generateWeeklyBounties.ts",
-    "merkle": "npx ts-node script/generateMerkle.ts",
+    "sd-merkle": "npx ts-node script/sdTkns/generateMerkle.ts",
+    "vlcvx": "npx ts-node script/vlCVX/generatevlCVXRepartition.ts",
     "report": "npx ts-node script/generateWeeklyReport.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "fork": "npx hardhat node --fork https://eth-mainnet.alchemyapi.io/v2/C9kzXL-6HwtqvidRZrFS51UX-XC_Nxho",

@@ -72,7 +72,6 @@ async function generateReport() {
     gaugesInfo.map((g) => [g.address.toLowerCase(), g.name])
   );
 
-  let totalSdValue = 0;
   const rows: CSVRow[] = [];
 
   for (const bounty of curveBounties) {
