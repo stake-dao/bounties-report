@@ -53,7 +53,7 @@ export const extractCSV = async (
   } else if (space === CVX_SPACE) {
     csvFilePath = path.join(
       __dirname,
-      `../../bounties-reports/${currentPeriodTimestamp}/curve_convex.csv`
+      `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/curve_convex.csv`
     );
   } else {
     let nameSpace: string | undefined;

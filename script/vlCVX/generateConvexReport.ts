@@ -98,7 +98,8 @@ function writeReportToCSV(rows: CSVRow[]) {
     __dirname,
     "..",
     "bounties-reports",
-    currentPeriod.toString()
+    currentPeriod.toString(),
+    "vlCVX"
   );
   fs.mkdirSync(dirPath, { recursive: true });
 
