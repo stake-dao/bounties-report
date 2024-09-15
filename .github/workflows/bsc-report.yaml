@@ -61,7 +61,8 @@ jobs:
           CURRENT_TIMESTAMP=$(date +%s)
           WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
           mkdir -p "bribes-reports/$WEEK_TIMESTAMP"
-          mv /home/runner/work/workflows/workflows/target-devops/bsc_report.csv "bribes-reports/$WEEK_TIMESTAMP/cake.csv"
+          mv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "bribes-reports/$WEEK_TIMESTAMP/cake.csv"
+        shell: bash
 
       - name: Commit and push if changed
         run: |
