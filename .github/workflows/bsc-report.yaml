@@ -49,7 +49,7 @@ jobs:
       - name: Run BSC report script
         run: |
           cd ${{ env.AUTOMATION_DEVOPS_DIR }}
-          python script-repo/script/bounties/bsc/report.py
+          python script/bounties/bsc/report.py
         env:
           BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
 
