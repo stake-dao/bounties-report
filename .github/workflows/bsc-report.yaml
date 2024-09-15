@@ -2,13 +2,12 @@ name: Generate Bi-Weekly BSC Report
 
 on:
   workflow_dispatch:
+
   schedule:
     - cron: "0 0 * * 0" # Runs every Sunday at 00:00 UTC
 
-
 env:
   AUTOMATION_DEVOPS_DIR: target-devops
-
 
 jobs:
   check-week:
@@ -44,7 +43,7 @@ jobs:
           python-version: "3.10.13"
 
       - name: Install dependencies
-        run: pip install -r script-repo/requirements.txt
+        run: pip install -r ${{ env.AUTOMATION_DEVOPS_DIR }}/requirements.txt
         shell: bash
 
       - name: Run BSC report script
