@@ -52,6 +52,7 @@ jobs:
           python script/bounties/bsc/report.py
         env:
           BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
+          PYTHONPATH: script/
 
       - name: Move and rename report
         run: |
