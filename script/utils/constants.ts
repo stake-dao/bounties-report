@@ -39,6 +39,8 @@ export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
 export const CVX_SPACE = "cvx.eth";
 
+export const VLCVX_RECIPIENT = "0xAe86A3993D13C8D77Ab77dBB8ccdb9b7Bc18cd09";
+
 export const SPACES: string[] = [
   SDCRV_SPACE,
   SDBAL_SPACE,
