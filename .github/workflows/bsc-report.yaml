@@ -83,6 +83,34 @@ jobs:
           BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
           PYTHONPATH: script/
 
+      - name: Update cake.csv with new reports
+        run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
+          CAKE_CSV_PATH="bounties-reports/$WEEK_TIMESTAMP/cake.csv"
+
+          # Ensure the directory exists
+          mkdir -p "bounties-reports/$WEEK_TIMESTAMP"
+
+          # If cake.csv doesn't exist, create it with the header
+          if [ ! -f "$CAKE_CSV_PATH" ]; then
+            echo "Protocol;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol" > "$CAKE_CSV_PATH"
+          fi
+
+          # Append BSC report (skipping header)
+          tail -n +2 "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" >> "$CAKE_CSV_PATH"
+
+          # Append OTC report if it exists (skipping header)
+          if [ -f "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" ]; then
+            tail -n +2 "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" >> "$CAKE_CSV_PATH"
+          fi
+
+          echo "Updated contents of cake.csv:"
+          cat "$CAKE_CSV_PATH"
+
+        shell: bash
+
       - name: Move and combine reports
         run: |
           WEEK=604800
