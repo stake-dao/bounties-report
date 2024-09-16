@@ -86,27 +86,47 @@ jobs:
       - name: Move and combine reports
         run: |
           WEEK=604800
-          CURRENT_TIMESTAMP=$(date +%s)
-          WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
-          mkdir -p "bounties-reports/$WEEK_TIMESTAMP"
+            CURRENT_TIMESTAMP=$(date +%s)
+            WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
+            mkdir -p "bounties-reports/$WEEK_TIMESTAMP"
 
-          # Move and rename BSC report
-          mv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
+            # Debug: List contents of AUTOMATION_DEVOPS_DIR
+            echo "Contents of ${{ env.AUTOMATION_DEVOPS_DIR }}:"
+            ls -l ${{ env.AUTOMATION_DEVOPS_DIR }}
 
-          # Append OTC report if it exists
-          if [ -f "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" ]; then
-            # Skip the header line when appending
-            tail -n +2 "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" >> "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
-          fi
+            # Move and rename BSC report
+            mv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
 
-          # Clean up
-          rm -rf ${{ env.AUTOMATION_DEVOPS_DIR }}
-        shell: bash
+            # Debug: Show contents of cake.csv after moving BSC report
+            echo "Contents of cake.csv after moving BSC report:"
+            cat "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
 
-      - name: Commit and push if changed
+            # Append OTC report if it exists
+            if [ -f "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" ]; then
+              echo "OTC report found, appending..."
+              # Skip the header line and append only the data lines
+              tail -n +2 "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" >> "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
+            else
+              echo "OTC report not found"
+            fi
+
+            # Debug: Show final contents of cake.csv
+            echo "Final contents of cake.csv:"
+            cat "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
+
+            # Clean up
+            rm -rf ${{ env.AUTOMATION_DEVOPS_DIR }}
+          shell: bash
+
+      - name: Debug report contents
         run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git add bounties-reports
-          git commit -m "Update bi-weekly BSC report" || exit 0
-          git push
+          echo "Contents of bsc_report.csv:"
+          cat "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv"
+
+          echo "Contents of bsc_otc_report.csv:"
+          if [ -f "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" ]; then
+            cat "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv"
+          else
+            echo "bsc_otc_report.csv not found"
+          fi
+        shell: bash
