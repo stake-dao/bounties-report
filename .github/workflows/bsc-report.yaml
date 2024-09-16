@@ -1,4 +1,4 @@
-name: Generate Bi-Weekly BSC Report
+name: Generate Bi-Weekly and OTC BSC Reports
 
 on:
   workflow_dispatch:
@@ -8,8 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - Generate BSC reports
-          - Generate OTCS reports
+          - Generate BSC report
+          - Generate OTCS report
         default: "BSC"
 
   schedule:
@@ -34,7 +34,7 @@ jobs:
   generate-bsc-report:
     runs-on: ubuntu-latest
     needs: check-week
-    if: ${{ needs.check-week.outputs.isOdd == 'true' }}
+    if: ${{ needs.check-week.outputs.isOdd == 'true' || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout main repository
