@@ -60,8 +60,8 @@ jobs:
           WEEK=604800
           CURRENT_TIMESTAMP=$(date +%s)
           WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
-          mkdir -p "bribes-reports/$WEEK_TIMESTAMP"
-          mv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "bribes-reports/$WEEK_TIMESTAMP/cake.csv"
+          mkdir -p "bounties-reports/$WEEK_TIMESTAMP"
+          mv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
           rm -rf ${{ env.AUTOMATION_DEVOPS_DIR }}
         shell: bash
 
@@ -69,6 +69,6 @@ jobs:
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add bribes-reports
+          git add bounties-reports
           git commit -m "Update bi-weekly BSC report" || exit 0
           git push

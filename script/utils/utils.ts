@@ -30,7 +30,7 @@ export const extractCSV = async (
 
   if (space === SDPENDLE_SPACE) {
     // Special case here
-    const reportDir = path.join(__dirname, "../../bribes-reports/pendle");
+    const reportDir = path.join(__dirname, "../../bounties-reports/pendle");
 
     // Read the directory and filter out the CSV files
     const files = fs.readdirSync(reportDir);
@@ -62,7 +62,7 @@ export const extractCSV = async (
 
     csvFilePath = path.join(
       __dirname,
-      `../../bribes-reports/${currentPeriodTimestamp}/${nameSpace}.csv`
+      `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}.csv`
     );
   }
 
