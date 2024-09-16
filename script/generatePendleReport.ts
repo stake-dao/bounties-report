@@ -197,7 +197,7 @@ async function main() {
     const formattedFileName = `${formatDate(dateMin)}_${formatDate(dateMax)}`;
 
     // Write to file
-    const dirPath = path.join(__dirname, "..", "bribes-reports", "pendle");
+    const dirPath = path.join(__dirname, "..", "bounties-reports", "pendle");
     fs.mkdirSync(dirPath, { recursive: true });
     const filePath = path.join(dirPath, `${formattedFileName}.csv`);
     fs.writeFileSync(filePath, csvContent);
