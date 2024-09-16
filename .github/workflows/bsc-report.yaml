@@ -2,6 +2,15 @@ name: Generate Bi-Weekly BSC Report
 
 on:
   workflow_dispatch:
+    inputs:
+      actions:
+        description: "Actions to perform"
+        required: true
+        type: choice
+        options:
+          - Generate BSC reports
+          - Generate OTCS reports
+        default: "BSC"
 
   schedule:
     - cron: "0 0 * * 0" # Runs every Sunday at 00:00 UTC
@@ -38,6 +47,15 @@ jobs:
           path: ${{ env.AUTOMATION_DEVOPS_DIR }}
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
 
+      - name: Set actions
+        id: set-actions
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "actions=Generate BSC reports" >> $GITHUB_OUTPUT
+          else
+            echo "actions=${{ github.event.inputs.actions }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -48,6 +66,7 @@ jobs:
         shell: bash
 
       - name: Run BSC report script
+        if: contains(steps.set-actions.outputs.actions, 'Generate BSC reports')
         run: |
           cd ${{ env.AUTOMATION_DEVOPS_DIR }}
           python script/bounties/bsc/report.py
@@ -55,13 +74,32 @@ jobs:
           BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
           PYTHONPATH: script/
 
-      - name: Move and rename report
+      - name: Run OTCS report script
+        if: contains(steps.set-actions.outputs.actions, 'Generate OTCS reports')
+        run: |
+          cd ${{ env.AUTOMATION_DEVOPS_DIR }}
+          python script/bounties/otc/report_bsc.py
+        env:
+          BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
+          PYTHONPATH: script/
+
+      - name: Move and combine reports
         run: |
           WEEK=604800
           CURRENT_TIMESTAMP=$(date +%s)
           WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
           mkdir -p "bounties-reports/$WEEK_TIMESTAMP"
+
+          # Move and rename BSC report
           mv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
+
+          # Append OTC report if it exists
+          if [ -f "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" ]; then
+            # Skip the header line when appending
+            tail -n +2 "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv" >> "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
+          fi
+
+          # Clean up
           rm -rf ${{ env.AUTOMATION_DEVOPS_DIR }}
         shell: bash
 
