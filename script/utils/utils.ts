@@ -536,8 +536,8 @@ export const getAllDelegators = async (
         $timestamp: Int
         $space: String
         ) {
-        delegations(first: 1000 skip: $skip where: { 
-          space: $space 
+        delegations(first: 1000 skip: $skip where: {
+          space: $space
           delegate:"${delegationAddress}"
           timestamp_lte: $timestamp
         }) {

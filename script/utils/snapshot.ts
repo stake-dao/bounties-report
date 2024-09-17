@@ -7,41 +7,56 @@ import { GaugeInfo, Proposal, Delegation, Vote } from "./types";
 import { CurveGauge } from "./curveApi";
 
 /**
- * Fetch last proposal id for all specified spaces
+ * Fetch last proposal ID for all specified spaces with an optional global filter.
  * @param spaces - Array of space IDs
  * @param currentTimestamp - Current timestamp
+ * @param filter - "all" to fetch without filtering or a regex pattern string to match titles
  * @returns Record of space IDs to their last proposal IDs
  */
 export const fetchLastProposalsIds = async (
   spaces: string[],
-  currentTimestamp: number
+  currentTimestamp: number,
+  filter: string = "all"
 ): Promise<Record<string, string>> => {
   const query = gql`
-      query Proposals {
-        proposals(
-          first: 1000
-          skip: 0
-          orderBy: "created",
-          orderDirection: desc,
-          where: {
-            space_in: [${spaces.map((space) => '"' + space + '"').join(",")}]
-            type: "weighted"
-            start_lt: ${currentTimestamp - WEEK}
-          }
-        ) {
+    query Proposals($spaces: [String!], $start_lt: Int!) {
+      proposals(
+        first: 1000
+        skip: 0
+        orderBy: "created"
+        orderDirection: desc
+        where: { space_in: $spaces, type: "weighted", start_lt: $start_lt }
+      ) {
+        id
+        title
+        space {
           id
-          title
-          space {
-            id
-          }
         }
       }
-    `;
+    }
+  `;
 
-  const result = await request(SNAPSHOT_ENDPOINT, query);
-  const proposals = result.proposals.filter(
-    (proposal: any) => proposal.title.indexOf("Gauge vote") > -1
-  );
+  const variables = {
+    spaces,
+    start_lt: currentTimestamp - WEEK,
+  };
+
+  const result = await request(SNAPSHOT_ENDPOINT, query, variables);
+  let proposals = result.proposals;
+
+  if (filter !== "all") {
+    let regex: RegExp;
+
+    try {
+      // Create a RegExp object from the filter string
+      regex = new RegExp(filter);
+    } catch (error) {
+      throw new Error(`Invalid regex pattern provided for filter: "${filter}"`);
+    }
+
+    // Filter proposals based on the regex pattern
+    proposals = proposals.filter((proposal: any) => regex.test(proposal.title));
+  }
 
   const proposalIdPerSpace: Record<string, string> = {};
   for (const space of spaces) {
@@ -51,7 +66,7 @@ export const fetchLastProposalsIds = async (
       }
 
       proposalIdPerSpace[space] = proposal.id;
-      break;
+      break; // Stop after finding the latest matching proposal for the space
     }
   }
 

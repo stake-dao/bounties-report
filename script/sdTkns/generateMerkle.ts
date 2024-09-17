@@ -23,13 +23,14 @@ const logData: Record<string, any> = {
 const main = async () => {
   const now = moment.utc().unix();
 
+  const filter: string = "*Gauge vote.*$";
   const [
     { data: lastMerkles },
     proposalIdPerSpace,
     { data: delegationAPRs },
   ] = await Promise.all([
     axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"),
-    fetchLastProposalsIds(SPACES, now),
+    fetchLastProposalsIds(SPACES, now, filter),
     axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json")
   ]);
 

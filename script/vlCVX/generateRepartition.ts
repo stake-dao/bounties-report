@@ -3,19 +3,18 @@ import fs from "fs";
 import { WEEK } from "../utils/constants";
 import {
   associateGaugesPerId,
+  fetchLastProposalsIds,
   getDelegators,
   getProposal,
   getVoters,
   getVotingPower,
 } from "../utils/snapshot";
 import { extractCSV, ExtractCSVType } from "../utils/utils";
+import { DELEGATION_ADDRESS } from "../utils/constants";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
 
 dotenv.config();
-
-// TODO: Replace with actual DELEGATION_ADDRESS from constants
-const DELEGATION_ADDRESS = "0x68378fCB3A27D5613aFCfddB590d35a6e751972C";
 
 type CvxCSVType = Record<
   string,
@@ -62,8 +61,7 @@ const main = async () => {
   console.log("Starting vlCVX repartition generation...");
   const now = moment.utc().unix();
 
-  // TODO: Replace with actual timestamp calculation
-  const currentPeriodTimestamp = 1725494400; // Math.floor(now / WEEK) * WEEK;
+  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
   let stakeDaoDelegators: string[] = [];
 
@@ -91,8 +89,17 @@ const main = async () => {
 
   // Fetch proposal and votes
   console.log("Fetching proposal and votes...");
-  const proposalId =
-    "0x7939a80a4e9eb40be5147a4be2d0c57467d12efb08005541eb56d9191194f85b";
+
+  const filter: string = "^(?!FXN ).*Gauge Weight for Week of";
+
+  const proposalIdPerSpace = await fetchLastProposalsIds(
+    ["cvx.eth"],
+    now,
+    filter
+  );
+
+  const proposalId = proposalIdPerSpace["cvx.eth"];
+
   const proposal = await getProposal(proposalId);
   const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
   const votes = await getVoters(proposalId);
