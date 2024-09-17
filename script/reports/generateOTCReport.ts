@@ -401,7 +401,7 @@ async function main() {
     }
   }
 
-  const projectRoot = path.resolve(__dirname, ".."); // Go up one level from the script directory
+  const projectRoot = path.resolve(__dirname, "..");
   const dirPath = path.join(
     projectRoot,
     "bounties-reports",

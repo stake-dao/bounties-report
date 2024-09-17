@@ -1,0 +1,74 @@
+name: Generate Bi-Weekly BSC Report
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 0 * * 0" # Runs every Sunday at 00:00 UTC
+
+env:
+  AUTOMATION_DEVOPS_DIR: target-devops
+  WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+jobs:
+  check-week:
+    runs-on: ubuntu-latest
+    outputs:
+      isOdd: ${{ steps.week-check.outputs.isOdd }}
+    steps:
+      - name: Check if week is odd or even
+        id: week-check
+        run: |
+          echo "isOdd=$(if (( $(date +'%V') % 2 )); then echo 'true'; else echo 'false'; fi)" >> $GITHUB_OUTPUT
+        shell: bash
+
+  generate-bsc-report:
+    runs-on: ubuntu-latest
+    needs: check-week
+    if: ${{ needs.check-week.outputs.isOdd == 'true' || github.event_name == 'dispatch' }}
+
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Checkout script repository
+        uses: actions/checkout@v4
+        with:
+          repository: stake-dao/automation-jobs
+          path: ${{ env.AUTOMATION_DEVOPS_DIR }}
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
+
+      - name: Install dependencies
+        run: pip install -r ${{ env.AUTOMATION_DEVOPS_DIR }}/requirements.txt
+        shell: bash
+
+      - name: Run BSC report script
+        run: |
+          cd ${{ env.AUTOMATION_DEVOPS_DIR }}
+          python script/bounties/bsc/report.py
+        env:
+          BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
+          PYTHONPATH: script/
+
+      - name: Move and rename report
+        run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
+          mkdir -p "bounties-reports/$WEEK_TIMESTAMP"
+          mv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
+          rm -rf ${{ env.AUTOMATION_DEVOPS_DIR }}
+        shell: bash
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add bounties-reports
+          git commit -m "Update bi-weekly BSC report" || exit 0
+          git push

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from "axios";
 import * as dotenv from "dotenv";
 import { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods } from '../utils/snapshot';
 import { abi, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from '../utils/constants';
@@ -15,10 +15,20 @@ import { Merkle } from '../utils/types';
 dotenv.config();
 
 const logData: Record<string, any> = {
-  "TotalReported": {},
-  "Transactions": [],
-  "SnapshotIds": [],
+  TotalReported: {},
+  Transactions: [],
+  SnapshotIds: [],
 }; // Use to store and write logs in a JSON
+
+const publicClient_ETHEREUM = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+});
+
+const publicClient_BSC = createPublicClient({
+  chain: bsc,
+  transport: http(),
+});
 
 const main = async () => {
   const now = moment.utc().unix();
@@ -34,7 +44,7 @@ const main = async () => {
     axios.get("https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json")
   ]);
 
-  const delegationAPRsClone = {...delegationAPRs};
+  const delegationAPRsClone = { ...delegationAPRs };
   for (const key of Object.keys(delegationAPRs)) {
     delegationAPRs[key] = -1;
   }
@@ -42,12 +52,20 @@ const main = async () => {
   const newMerkles: Merkle[] = [];
   const toFreeze: Record<string, string[]> = {};
   const toSet: Record<string, string[]> = {};
-  const currentPeriodTimestamp = (Math.floor(now / WEEK) * WEEK);
+  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
-
-    checkSpace(space, SPACES_SYMBOL, SPACES_IMAGE, SPACES_UNDERLYING_TOKEN, SPACES_TOKENS, SPACE_TO_NETWORK, NETWORK_TO_STASH, NETWORK_TO_MERKLE);
+    checkSpace(
+      space,
+      SPACES_SYMBOL,
+      SPACES_IMAGE,
+      SPACES_UNDERLYING_TOKEN,
+      SPACES_TOKENS,
+      SPACE_TO_NETWORK,
+      NETWORK_TO_STASH,
+      NETWORK_TO_MERKLE
+    );
 
     // If no bribe to distribute to this space => skip
     const csvResult = await extractCSV(currentPeriodTimestamp, space);
@@ -60,7 +78,57 @@ const main = async () => {
       continue;
     }
 
+    let sdTknBalance = BigInt(0);
+    /*
+    // Check with balance of sdTKN in Botmarket contract
+    if (network === "ethereum") {
+      sdTknBalance = await balanceOf(
+        publicClient_ETHEREUM,
+        SPACES_TOKENS[space],
+        BOTMARKETS["ethereum"]
+      );
+    } else {
+      sdTknBalance = await balanceOf(
+        publicClient_BSC,
+        SPACES_TOKENS[space],
+        BOTMARKETS["bsc"]
+      );
+    }
+
     // Calculate total sdTkn to distribute
+    if (isPendle) {
+      for (const period of Object.keys(csvResult)) {
+        totalSDToken += BigInt(
+          Math.floor(
+            Object.values(csvResult[period]).reduce((acc, amount) => acc + amount, 0) * 1e18
+          )
+        );
+      }
+    } else {
+      totalSDToken = BigInt(
+        Math.floor(
+          Object.values(csvResult).reduce((acc, amount) => acc + amount, 0) * 1e18
+        )
+      );
+    }
+
+    console.log(`${space} sdTknBalance: ${sdTknBalance}`);
+    console.log(`${space} totalSDToken: ${totalSDToken}`);
+
+    // Compare with a small threshold (0.01% difference)
+    const threshold = sdTknBalance * BigInt(1) / BigInt(10000);
+    if (sdTknBalance < totalSDToken && sdTknBalance + threshold < totalSDToken) {
+      console.error(`Error: Insufficient balance for ${space}`);
+      console.error(`  sdTknBalance: ${sdTknBalance}`);
+      console.error(`  totalSDToken: ${totalSDToken}`);
+      console.error(`  Difference: ${totalSDToken - sdTknBalance}`);
+      continue; // Skip this space
+    }*/
+
+    if (space === "sdpendle.eth") {
+      continue;
+    }
+
     let totalSDToken = 0;
     if (isPendle) {
 
@@ -73,14 +141,19 @@ const main = async () => {
     logData["TotalReported"][space] = totalSDToken;
 
     let ids: string[] = [];
-    let pendleRewards: Record<string, Record<string, number>> | undefined = undefined;
+    let pendleRewards: Record<string, Record<string, number>> | undefined =
+      undefined;
 
     // If it's pendle, we merge the rewards before
     if (isPendle) {
-      const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(space, Object.keys(csvResult), currentPeriodTimestamp);
+      const proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(
+        space,
+        Object.keys(csvResult),
+        currentPeriodTimestamp
+      );
 
       // Merge rewards by proposal period
-      pendleRewards = {}
+      pendleRewards = {};
       for (const period in csvResult) {
         const proposalId = proposalsPeriods[period];
         if (!pendleRewards[proposalId]) {
@@ -104,11 +177,17 @@ const main = async () => {
 
     logData["SnapshotIds"].push({
       space,
-      ids
+      ids,
     });
 
     // Create the merkle
-    const merkleStat = await createMerkle(ids, space, lastMerkles, csvResult, pendleRewards);
+    const merkleStat = await createMerkle(
+      ids,
+      space,
+      lastMerkles,
+      csvResult,
+      pendleRewards
+    );
 
     newMerkles.push(merkleStat.merkle);
 
@@ -136,44 +215,48 @@ const main = async () => {
   for (const network of Object.keys(toFreeze)) {
     let multiSetName: undefined | string = undefined;
     if (network === "ethereum") {
-      multiSetName = 'multiSet';
+      multiSetName = "multiSet";
     } else {
-      multiSetName = 'multiUpdateMerkleRoot';
+      multiSetName = "multiUpdateMerkleRoot";
     }
 
     const freezeData = encodeFunctionData({
       abi,
-      functionName: 'multiFreeze',
+      functionName: "multiFreeze",
       args: [toFreeze[network] as `0x${string}`[]],
     });
 
     const multiSetData = encodeFunctionData({
       abi,
       functionName: multiSetName as any,
-      args: [toFreeze[network] as `0x${string}`[], toSet[network] as `0x${string}`[]],
+      args: [
+        toFreeze[network] as `0x${string}`[],
+        toSet[network] as `0x${string}`[],
+      ],
     });
 
     logData["Transactions"].push({
-      "network": network,
-      "tokenAddressesToFreeze": toFreeze[network],
-      "newMerkleRoots": toSet[network],
-      "toFreeze": {
-        "contract": NETWORK_TO_STASH[network],
-        "data": freezeData,
+      network: network,
+      tokenAddressesToFreeze: toFreeze[network],
+      newMerkleRoots: toSet[network],
+      toFreeze: {
+        contract: NETWORK_TO_STASH[network],
+        data: freezeData,
       },
-      "toSet": {
-        "contract": NETWORK_TO_STASH[network],
-        "function": multiSetName,
-        "data": multiSetData,
+      toSet: {
+        contract: NETWORK_TO_STASH[network],
+        function: multiSetName,
+        data: multiSetData,
       },
     });
   }
 
   for (const lastMerkle of lastMerkles) {
-
     let found = false;
     for (const newMerkle of newMerkles) {
-      if (newMerkle.address.toLowerCase() === lastMerkle.address.toLowerCase()) {
+      if (
+        newMerkle.address.toLowerCase() === lastMerkle.address.toLowerCase()
+      ) {
         found = true;
         break;
       }
@@ -190,7 +273,7 @@ const main = async () => {
   fs.writeFileSync(`./merkle.json`, JSON.stringify(newMerkles));
 
   for (const key of Object.keys(delegationAPRs)) {
-    if(delegationAPRs[key] === -1) {
+    if (delegationAPRs[key] === -1) {
       delegationAPRs[key] = delegationAPRsClone[key] || 0;
     }
   }
@@ -202,28 +285,40 @@ const main = async () => {
     if (merkle.symbol === "sdMAV") {
       continue;
     }
-    const amount = parseFloat(formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18));
+    const amount = parseFloat(
+      formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18)
+    );
     if (amount > 0) {
       logData["TotalRewards"][merkle.symbol] = amount;
     }
   }
 
   // Add full path to the written files in the log
-  logData["Merkle"] = path.join(__dirname, '..', 'merkle.json');
-  logData["DelegationsAPRs"] = path.join(__dirname, '..', 'delegationsAPRs.json');
+  logData["Merkle"] = path.join(__dirname, "..", "merkle.json");
+  logData["DelegationsAPRs"] = path.join(
+    __dirname,
+    "..",
+    "delegationsAPRs.json"
+  );
 
-  fs.writeFileSync(path.join(__dirname, '..', 'log.json'), JSON.stringify(logData));
+  fs.writeFileSync(
+    path.join(__dirname, "..", "log.json"),
+    JSON.stringify(logData)
+  );
 
-  const logPath = path.join(__dirname, '..', 'log.json');
+  const logPath = path.join(__dirname, "..", "log.json");
   fs.writeFileSync(logPath, JSON.stringify(logData));
   console.log(logPath);
-}
+};
 
 /**
  * Check, for each sdTkn, if the new amount in the merkle is higher than remaining sdTkn in the merkle contract + amount to distribute
  * The sdTkn must not be freeze
  */
-const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, any>) => {
+const checkDistribution = async (
+  newMerkles: Merkle[],
+  logData: Record<string, any>
+) => {
   if (!logData || !logData["TotalReported"]) {
     throw new Error("Total reported not exists in log");
   }
@@ -232,25 +327,31 @@ const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, a
     const amountToDistribute = logData["TotalReported"][space];
 
     // Find the merkle object
-    const merkle = newMerkles.find((merkle) => SPACES_SYMBOL[space] === merkle.symbol);
+    const merkle = newMerkles.find(
+      (merkle) => SPACES_SYMBOL[space] === merkle.symbol
+    );
     if (!merkle) {
       throw new Error("Merkle object not found for " + space);
     }
 
     // Get the total amount
-    const totalAmount = parseFloat(formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18));
+    const totalAmount = parseFloat(
+      formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18)
+    );
 
     let chain: null | Chain = null;
-    let rpcUrl = ""
+    let rpcUrl = "";
 
     switch (merkle.chainId) {
       case mainnet.id:
         chain = mainnet;
-        rpcUrl = "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        rpcUrl =
+          "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
         break;
       case bsc.id:
         chain = bsc;
-        rpcUrl = "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        rpcUrl =
+          "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
         break;
       default:
         throw new Error("Chain not found");
@@ -267,30 +368,33 @@ const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, a
       address: merkle.merkleContract as any,
       abi: [
         {
-          "inputs": [
+          inputs: [
             {
-              "internalType": "address",
-              "name": "",
-              "type": "address"
-            }
+              internalType: "address",
+              name: "",
+              type: "address",
+            },
           ],
-          "name": "merkleRoot",
-          "outputs": [
+          name: "merkleRoot",
+          outputs: [
             {
-              "internalType": "bytes32",
-              "name": "",
-              "type": "bytes32"
-            }
+              internalType: "bytes32",
+              name: "",
+              type: "bytes32",
+            },
           ],
-          "stateMutability": "view",
-          "type": "function"
+          stateMutability: "view",
+          type: "function",
         },
       ],
       functionName: "merkleRoot",
       args: [merkle.address as `0x${string}`],
     });
 
-    if (merkleRootRes === "0x0000000000000000000000000000000000000000000000000000000000000000") {
+    if (
+      merkleRootRes ===
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ) {
       continue;
     }
 
@@ -316,6 +420,6 @@ const checkDistribution = async (newMerkles: Merkle[], logData: Record<string, a
       throw new Error("Amount in the merkle to high for space " + space);
     }
   }
-}
+};
 
 main();
