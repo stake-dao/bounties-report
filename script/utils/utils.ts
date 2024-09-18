@@ -9,24 +9,14 @@ import {
   LABELS_TO_SPACE,
   SDBAL_SPACE,
   SDPENDLE_SPACE,
-  SPACE_TO_NETWORK,
 } from "./constants";
 import fs from "fs";
 import path from "path";
 import {
   createPublicClient,
-  formatUnits,
   http,
-  keccak256,
-  parseEther,
 } from "viem";
 import { bsc, mainnet } from "viem/chains";
-import request, { gql } from "graphql-request";
-import { BigNumber, utils } from "ethers";
-import MerkleTree from "merkletreejs";
-import { getAllAccountClaimedSinceLastFreezeWithAgnostic } from "./agnostic";
-import { RawMerkle } from "./types";
-
 import { getDelegators } from "./agnostic";
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
