@@ -1,9 +1,12 @@
-import { getDelegators } from "./agnostic";
+import { formatUnits, parseEther } from "viem";
+import { BigNumber, utils } from "ethers";
+import { getAllAccountClaimedSinceLastFreezeWithAgnostic, getDelegators } from "./agnostic";
 import { AUTO_VOTER_DELEGATION_ADDRESS, BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
 import { formatVotingPowerResult, getProposal, getVoters, getVotingPower } from "./snapshot";
 import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower } from "./utils";
 import { Log, MerkleStat } from "./types";
-import { generateMerkle } from "./utils";
+import MerkleTree from "merkletreejs";
+import keccak256 from "keccak256";
 
 
 const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
@@ -244,10 +247,83 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     // New distribution is split here
     // We have to sum with old distribution if users don't claim
     const tokenToDistribute = SPACES_TOKENS[space];
-    const lastMerkle = lastMerkles.find((m: any) => m.address.toLowerCase() === tokenToDistribute.toLowerCase());
-    const merkleContract = NETWORK_TO_MERKLE[network];
 
-    const { merkle, root, total, chainId } = await generateMerkle(userRewards, lastMerkle, network, tokenToDistribute, merkleContract);
+    const lastMerkle = lastMerkles.find((m: any) => m.address.toLowerCase() === tokenToDistribute.toLowerCase());
+
+    if (lastMerkle) {
+
+        let usersClaimedAddress: Record<string, boolean> = {};
+        switch (network) {
+            case ETHEREUM:
+                usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, AGNOSTIC_MAINNET_TABLE, NETWORK_TO_MERKLE[network]);
+                break;
+            case BSC:
+                usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, AGNOSTIC_BSC_TABLE, NETWORK_TO_MERKLE[network]);
+                break;
+            default:
+                throw new Error("network unknow");
+        }
+
+        const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
+
+        for (const userAddress of userAddressesLastMerkle) {
+
+            const userAddressLowerCase = userAddress.toLowerCase();
+            const isClaimed = usersClaimedAddress[userAddressLowerCase];
+
+            // If user didn't claim, we add the previous rewards to new one
+            if (!isClaimed) {
+                const leaf = lastMerkle.merkle[userAddress];
+                const amount = parseFloat(formatUnits(BigInt(BigNumber.from(leaf.amount).toString()), 18));
+
+                if (userRewards[userAddressLowerCase]) {
+                    userRewards[userAddressLowerCase] += amount;
+                } else {
+                    userRewards[userAddressLowerCase] = amount;
+                }
+            }
+        }
+    }
+
+    // Since this point, userRewards map contains the new reward amount for each user
+    // We have to generate the merkle
+    const userRewardAddresses = Object.keys(userRewards);
+
+    // Define a threshold below which numbers are considered too small and should be set to 0
+    const threshold = 1e-8;
+
+    const adjustedUserRewards = Object.fromEntries(
+        Object.entries(userRewards).map(([address, reward]) => {
+            // If the reward is smaller than the threshold, set it to 0
+            const adjustedReward = reward < threshold ? 0 : reward;
+            return [address.toLowerCase(), adjustedReward];
+        })
+    );
+
+    const elements: any[] = [];
+    for (let i = 0; i < userRewardAddresses.length; i++) {
+        const userAddress = userRewardAddresses[i];
+
+        const amount = parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString());
+
+        elements.push(utils.solidityKeccak256(["uint256", "address", "uint256"], [i, userAddress.toLowerCase(), BigInt(BigNumber.from(amount).toString())]));
+    }
+
+    const merkleTree = new MerkleTree(elements, keccak256, { sort: true });
+
+    const merkle: any = {};
+    let totalAmount = BigNumber.from(0);
+    for (let i = 0; i < userRewardAddresses.length; i++) {
+        const userAddress = userRewardAddresses[i];
+        const amount = BigNumber.from(parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString()));
+        totalAmount = totalAmount.add(amount);
+
+        merkle[userAddress.toLowerCase()] = {
+            index: i,
+            amount,
+            proof: merkleTree.getHexProof(elements[i]),
+        };
+    }
 
     let apr = 0;
     if (aprs.length > 0) {
@@ -269,10 +345,10 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             "address": tokenToDistribute,
             "image": SPACES_IMAGE[space],
             "merkle": merkle,
-            root: root,
-            "total": total,
-            "chainId": chainId,
-            "merkleContract": merkleContract
+            root: merkleTree.getHexRoot(),
+            "total": totalAmount,
+            "chainId": parseInt(SPACE_TO_CHAIN_ID[space]),
+            "merkleContract": NETWORK_TO_MERKLE[network]
         },
         logs,
     }
