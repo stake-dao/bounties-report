@@ -1,5 +1,4 @@
 import request, { gql } from "graphql-request";
-import { wait } from "./utils";
 import { SNAPSHOT_ENDPOINT, WEEK } from "./constants";
 import axios from "axios";
 import { orderBy } from "lodash";
@@ -371,6 +370,18 @@ export const associateGaugesPerId = (
   }
   return gaugePerChoiceId;
 };
+
+/**
+
+ * All endpoints here : https://raw.githubusercontent.com/snapshot-labs/snapshot.js/master/src/delegationSubgraphs.json
+ */
+function wait(ms: number) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve(ms);
+    }, ms);
+  });
+}
 
 /**
  * Get delegators for a space
