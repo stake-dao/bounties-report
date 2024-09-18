@@ -146,10 +146,6 @@ const main = async () => {
       continue; // Skip this space
     }*/
 
-    if (space === "sdpendle.eth") {
-      continue;
-    }
-
     let totalSDToken = 0;
     if (isPendle) {
 

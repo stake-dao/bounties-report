@@ -26,43 +26,23 @@ export const extractCSV = async (
 ) => {
   let csvFilePath: undefined | string = undefined;
 
-  if (space === SDPENDLE_SPACE) {
-    // Special case here
-    const reportDir = path.join(__dirname, "../../bounties-reports/pendle");
+  let nameSpace: undefined | string = undefined;
 
-    // Read the directory and filter out the CSV files
-    const files = fs.readdirSync(reportDir);
-    const csvFiles = files.filter((file) => file.endsWith(".csv"));
-
-    // Sort the CSV files based on the date in the filename in descending order (latest date first)
-    const sortedCsvFiles = csvFiles.sort((a, b) => {
-      const dateA = a.split("_")[0];
-      const dateB = b.split("_")[0] as string;
-      return new Date(dateB).getTime() - new Date(dateA).getTime();
-    });
-
-    // Get the most recent CSV file
-    const mostRecentCsvFile = sortedCsvFiles[0];
-    csvFilePath = path.join(reportDir, mostRecentCsvFile);
-  } else {
-    let nameSpace: undefined | string = undefined;
-
-    for (const name of Object.keys(LABELS_TO_SPACE)) {
-      if (LABELS_TO_SPACE[name] === space) {
-        nameSpace = name;
-        break;
-      }
+  for (const name of Object.keys(LABELS_TO_SPACE)) {
+    if (LABELS_TO_SPACE[name] === space) {
+      nameSpace = name;
+      break;
     }
-
-    if (!nameSpace) {
-      throw new Error("can't find name space for space " + space);
-    }
-
-    csvFilePath = path.join(
-      __dirname,
-      `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}.csv`
-    );
   }
+
+  if (!nameSpace) {
+    throw new Error("can't find name space for space " + space);
+  }
+
+  csvFilePath = path.join(
+    __dirname,
+    `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}.csv`
+  );
 
   if (!csvFilePath || !fs.existsSync(csvFilePath)) {
     return undefined;
@@ -359,7 +339,7 @@ export const addVotersFromAutoVoter = async (
   proposal: any,
   voters: Voter[],
   addressesPerChoice: Record<string, number>,
-  table: string,
+  table: string
 ): Promise<Voter[]> => {
   const autoVoter = voters.find(
     (v) => v.voter.toLowerCase() === AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
@@ -368,7 +348,12 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
-  const delegators = await getDelegators(AUTO_VOTER_DELEGATION_ADDRESS, table, proposal.created, space);
+  const delegators = await getDelegators(
+    AUTO_VOTER_DELEGATION_ADDRESS,
+    table,
+    proposal.created,
+    space
+  );
   if (delegators.length === 0) {
     return voters;
   }
