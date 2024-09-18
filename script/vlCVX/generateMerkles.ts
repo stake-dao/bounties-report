@@ -27,7 +27,9 @@ import {
   calculateTokenSdCrvShares,
   generateMerkleTree,
   MerkleData,
+  CombinedMerkleData,
 } from "./utils";
+import { getClosestBlockTimestamp } from "../utils/reportUtils";
 
 interface Distribution {
   [address: string]: {
@@ -40,10 +42,13 @@ interface Distribution {
 
 async function generateDelegatorMerkleTree(
   publicClient: any,
-  distribution: Distribution
+  minBlock: number,
+  maxBlock: number,
+  distribution: Distribution,
+  previousMerkleData: MerkleData
 ): Promise<MerkleData> {
   // Step 1: Get the total sdCRV transfer amount and block number
-  const sdCrvTransfer = await getSdCrvTransfer(publicClient);
+  const sdCrvTransfer = await getSdCrvTransfer(minBlock, maxBlock);
   const totalSdCrv = sdCrvTransfer.amount;
   const transferBlock = sdCrvTransfer.blockNumber;
 
@@ -106,7 +111,36 @@ async function generateDelegatorMerkleTree(
     }
   });
 
-  // Step 7: Generate Merkle tree for delegators using the calculated sdCRV amounts
+  // Step 7: Merge previous merkle data with new delegator distribution
+  if (previousMerkleData && previousMerkleData.claims) {
+    Object.entries(previousMerkleData.claims).forEach(
+      ([address, claimData]: [string, any]) => {
+        if (!delegatorDistribution[address]) {
+          delegatorDistribution[address] = {};
+        }
+        if (claimData && claimData.tokens) {
+          Object.entries(claimData.tokens).forEach(
+            ([tokenAddress, tokenData]: [string, any]) => {
+              if (tokenData && tokenData.amount) {
+                if (!delegatorDistribution[address][tokenAddress]) {
+                  delegatorDistribution[address][tokenAddress] = "0";
+                }
+                const previousAmount = BigInt(tokenData.amount);
+                const currentAmount = BigInt(
+                  delegatorDistribution[address][tokenAddress]
+                );
+                delegatorDistribution[address][tokenAddress] = (
+                  previousAmount + currentAmount
+                ).toString();
+              }
+            }
+          );
+        }
+      }
+    );
+  }
+
+  // Step 8: Generate Merkle tree for delegators using the calculated sdCRV amounts
   return generateMerkleTree(delegatorDistribution);
 }
 
@@ -118,37 +152,74 @@ async function generateMerkles() {
 
   const WEEK = 604800;
   const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+  const previousPeriodTimestamp = currentPeriodTimestamp - WEEK;
 
-  // Step 1: Load distribution data
-  const distributionPath = path.join(
+  const currentBlock = Number(await publicClient.getBlockNumber());
+  const minBlock = await getClosestBlockTimestamp(
+    "ethereum",
+    currentPeriodTimestamp
+  );
+
+  // Step 1: Load current distribution data
+  const currentDistributionPath = path.join(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/repartition.json`
   );
-  const distribution: Distribution = JSON.parse(
-    fs.readFileSync(distributionPath, "utf-8")
+  const currentDistribution: Distribution = JSON.parse(
+    fs.readFileSync(currentDistributionPath, "utf-8")
   );
 
-  // Step 2: Retrieve token info (symbol and decimals) for all reward tokens
-  const rewardTokenAddresses = Object.entries(distribution).reduce(
-    (acc, [address, data]) => {
-      if (typeof data !== "boolean" && data.tokens) {
-        Object.keys(data.tokens).forEach((tokenAddress) =>
-          acc.add(tokenAddress)
+  // Step 2: Load previous merkle data (if exists)
+  const previousMerkleDataPath = path.join(
+    __dirname,
+    `../../bounties-reports/${previousPeriodTimestamp}/vlCVX/merkle_data.json`
+  );
+  let previousMerkleData: CombinedMerkleData = {
+    delegators: { merkleRoot: "", claims: {} },
+    nonDelegators: { merkleRoot: "", claims: {} },
+  };
+  if (fs.existsSync(previousMerkleDataPath)) {
+    previousMerkleData = JSON.parse(
+      fs.readFileSync(previousMerkleDataPath, "utf-8")
+    );
+  }
+
+  // Step 3: Combine current distribution with previous amounts for non-delegators
+  const combinedNonDelegatorDistribution: Distribution = {};
+
+  // Add current distribution for non-delegators
+  Object.entries(currentDistribution.distribution).forEach(
+    ([address, data]) => {
+      if (!(data as any).isStakeDaoDelegator) {
+        combinedNonDelegatorDistribution[address] = {
+          isStakeDaoDelegator: false,
+          tokens: {},
+        };
+        Object.entries((data as any).tokens).forEach(
+          ([tokenAddress, amount]) => {
+            combinedNonDelegatorDistribution[address].tokens[tokenAddress] =
+              amount as number;
+          }
         );
       }
-      return acc;
-    },
-    new Set<string>()
+    }
   );
 
-  // For each token address, get token info (symbol, decimals)
+  // Step 4: Retrieve token info (symbol and decimals) for all reward tokens
+  const rewardTokenAddresses = new Set<string>();
+  Object.values(combinedNonDelegatorDistribution).forEach((data) => {
+    Object.keys(data.tokens).forEach((tokenAddress) =>
+      rewardTokenAddresses.add(tokenAddress)
+    );
+  });
+
   const tokenInfoArray = await Promise.allSettled(
     Array.from(rewardTokenAddresses).map(async (tokenAddress) => {
       const address = getAddress(tokenAddress.toLowerCase());
       try {
         const [symbol, decimals] = await Promise.all([
           publicClient.readContract({
-            address: address,
+            address,
             abi: [
               {
                 inputs: [],
@@ -161,7 +232,7 @@ async function generateMerkles() {
             functionName: "symbol",
           }),
           publicClient.readContract({
-            address: address,
+            address,
             abi: [
               {
                 inputs: [],
@@ -183,11 +254,9 @@ async function generateMerkles() {
     })
   );
 
-  // Store token info in a dictionary
   const tokenInfo: {
     [tokenAddress: string]: { symbol: string; decimals: number };
   } = {};
-
   tokenInfoArray.forEach((result, index) => {
     if (result.status === "fulfilled") {
       const { tokenAddress, symbol, decimals } = result.value;
@@ -200,69 +269,94 @@ async function generateMerkles() {
       console.warn(
         `Failed to fetch info for token ${tokenAddress}. Using default values.`
       );
-      tokenInfo[tokenAddress] = {
-        symbol: "UNKNOWN",
-        decimals: 18,
-      };
+      tokenInfo[tokenAddress] = { symbol: "UNKNOWN", decimals: 18 };
     }
   });
 
-  // Step 3: Calculate distribution for regular voters (non-delegators)
-  const nonDelegatorDistribution = Object.entries(
-    distribution.distribution
-  ).reduce((acc, [address, data]) => {
-    if (typeof data !== "boolean" && !data.isStakeDaoDelegator) {
-      acc[address] = Object.entries(data.tokens || {}).reduce(
-        (tokenAcc, [tokenAddress, amount]) => {
-          if (typeof amount === "number") {
-            const decimals = tokenInfo[tokenAddress]?.decimals || 18;
-            try {
-              // Convert the amount to a fixed-point representation
-              const fixedAmount = amount.toFixed(decimals);
-              const formattedAmount = utils
-                .parseUnits(fixedAmount, decimals)
-                .toString();
-              tokenAcc[tokenAddress] = formattedAmount;
-            } catch (error) {
-              console.error(
-                `Error parsing amount for token ${tokenAddress} with amount ${amount}:`,
-                error
-              );
+  if (
+    previousMerkleData.nonDelegators &&
+    previousMerkleData.nonDelegators.claims
+  ) {
+    Object.entries(previousMerkleData.nonDelegators.claims).forEach(
+      ([address, claimData]: [string, any]) => {
+        if (!combinedNonDelegatorDistribution[address]) {
+          combinedNonDelegatorDistribution[address] = {
+            isStakeDaoDelegator: false,
+            tokens: {},
+          };
+        }
+        if (claimData && claimData.tokens) {
+          Object.entries(claimData.tokens).forEach(
+            ([tokenAddress, tokenData]: [string, any]) => {
+              if (tokenData && tokenData.amount) {
+                const decimals = tokenInfo[tokenAddress]?.decimals || 18;
+                if (
+                  !combinedNonDelegatorDistribution[address].tokens[
+                    tokenAddress
+                  ]
+                ) {
+                  combinedNonDelegatorDistribution[address].tokens[
+                    tokenAddress
+                  ] = 0;
+                }
+                combinedNonDelegatorDistribution[address].tokens[
+                  tokenAddress
+                ] += parseFloat(utils.formatUnits(tokenData.amount, decimals));
+              }
             }
-          } else {
-            console.warn(
-              `Amount for token ${tokenAddress} is not a number:`,
-              amount
-            );
-          }
-          return tokenAcc;
-        },
-        {} as { [tokenAddress: string]: string }
-      );
-    }
+          );
+        }
+      }
+    );
+  }
+
+  // Step 5: Generate Merkle tree for non-delegators
+  const nonDelegatorDistribution = Object.entries(
+    combinedNonDelegatorDistribution
+  ).reduce((acc, [address, data]) => {
+    acc[address] = Object.entries(data.tokens).reduce(
+      (tokenAcc, [tokenAddress, amount]) => {
+        if (typeof amount === "number") {
+          const decimals = tokenInfo[tokenAddress]?.decimals || 18;
+          const formattedAmount = utils
+            .parseUnits(amount.toFixed(decimals), decimals)
+            .toString();
+          tokenAcc[tokenAddress] = formattedAmount;
+        } else {
+          console.warn(
+            `Amount for token ${tokenAddress} is not a number:`,
+            amount
+          );
+        }
+        return tokenAcc;
+      },
+      {} as { [tokenAddress: string]: string }
+    );
     return acc;
   }, {} as { [address: string]: { [tokenAddress: string]: string } });
 
-  // Step 4: Generate Merkle tree for regular voters
   const nonDelegatorMerkleData = generateMerkleTree(nonDelegatorDistribution);
 
-  // Step 5: Generate Merkle tree for delegators
+  // Step 6: Generate Merkle tree for delegators
   const delegatorMerkleData = await generateDelegatorMerkleTree(
     publicClient,
-    distribution
+    minBlock,
+    currentBlock,
+    currentDistribution,
+    previousMerkleData.delegators
   );
 
-  // Step 6: Combine Merkle data for both delegators and regular voters
+  // Step 7: Combine Merkle data for both delegators and non-delegators
   const merkleDataPath = path.join(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/merkle_data.json`
   );
   const merkleData = {
-    delegators: delegatorMerkleData,
-    regularVoters: nonDelegatorMerkleData,
+    // delegators: delegatorMerkleData,
+    nonDelegators: nonDelegatorMerkleData,
   };
 
-  // Step 7: Save the combined Merkle data to a JSON file
+  // Step 8: Save the combined Merkle data to a JSON file
   fs.writeFileSync(merkleDataPath, JSON.stringify(merkleData, null, 2));
 
   console.log("Merkle trees generated and saved successfully.");

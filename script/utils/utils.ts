@@ -14,7 +14,13 @@ import {
 } from "./constants";
 import fs from "fs";
 import path from "path";
-import { createPublicClient, formatUnits, http, keccak256, parseEther } from "viem";
+import {
+  createPublicClient,
+  formatUnits,
+  http,
+  keccak256,
+  parseEther,
+} from "viem";
 import { bsc, mainnet } from "viem/chains";
 import request, { gql } from "graphql-request";
 import { BigNumber, utils } from "ethers";
@@ -717,60 +723,89 @@ export const getAllAccountClaimedSinceLastFreezeOnBSC = async (
   return resp;
 };
 
-export const generateMerkle = async (userRewards: Record<string, number>, lastMerkle: any, network: string, tokenToDistribute: string, merkleContract: string): Promise<RawMerkle> => {
+export const generateMerkle = async (
+  userRewards: Record<string, number>,
+  lastMerkle: any,
+  network: string,
+  tokenToDistribute: string,
+  merkleContract: string
+): Promise<RawMerkle> => {
   // Define a threshold below which numbers are considered too small and should be set to 0
   const threshold = 1e-8;
 
   let chainId = 1;
 
   const adjustedUserRewards = Object.fromEntries(
-      Object.entries(userRewards).map(([address, reward]) => {
-          // If the reward is smaller than the threshold, set it to 0
-          const adjustedReward = reward < threshold ? 0 : reward;
-          return [address.toLowerCase(), adjustedReward];
-      })
+    Object.entries(userRewards).map(([address, reward]) => {
+      // If the reward is smaller than the threshold, set it to 0
+      const adjustedReward = reward < threshold ? 0 : reward;
+      return [address.toLowerCase(), adjustedReward];
+    })
   );
 
   if (lastMerkle) {
-      let usersClaimedAddress: Record<string, boolean> = {};
-      switch (network) {
-          case ETHEREUM:
-              usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, "evm_events_ethereum_mainnet", merkleContract);
-              break;
-          case BSC:
-              chainId = 56;
-              usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, "evm_events_bsc_mainnet_v1", merkleContract);
-              break;
-          default:
-              throw new Error("network unknown");
+    let usersClaimedAddress: Record<string, boolean> = {};
+    switch (network) {
+      case ETHEREUM:
+        usersClaimedAddress =
+          await getAllAccountClaimedSinceLastFreezeWithAgnostic(
+            tokenToDistribute,
+            "evm_events_ethereum_mainnet",
+            merkleContract
+          );
+        break;
+      case BSC:
+        chainId = 56;
+        usersClaimedAddress =
+          await getAllAccountClaimedSinceLastFreezeWithAgnostic(
+            tokenToDistribute,
+            "evm_events_bsc_mainnet_v1",
+            merkleContract
+          );
+        break;
+      default:
+        throw new Error("network unknown");
+    }
+
+    const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
+
+    for (const userAddress of userAddressesLastMerkle) {
+      const userAddressLowerCase = userAddress.toLowerCase();
+      const isClaimed = usersClaimedAddress[userAddressLowerCase];
+
+      // If user didn't claim, we add the previous rewards to new one
+      if (!isClaimed) {
+        const leaf = lastMerkle.merkle[userAddress];
+        const amount = parseFloat(
+          formatUnits(BigInt(BigNumber.from(leaf.amount).toString()), 18)
+        );
+
+        if (adjustedUserRewards[userAddressLowerCase]) {
+          adjustedUserRewards[userAddressLowerCase] += amount;
+        } else {
+          adjustedUserRewards[userAddressLowerCase] = amount;
+        }
       }
-
-      const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
-
-      for (const userAddress of userAddressesLastMerkle) {
-          const userAddressLowerCase = userAddress.toLowerCase();
-          const isClaimed = usersClaimedAddress[userAddressLowerCase];
-
-          // If user didn't claim, we add the previous rewards to new one
-          if (!isClaimed) {
-              const leaf = lastMerkle.merkle[userAddress];
-              const amount = parseFloat(formatUnits(BigInt(BigNumber.from(leaf.amount).toString()), 18));
-
-              if (adjustedUserRewards[userAddressLowerCase]) {
-                  adjustedUserRewards[userAddressLowerCase] += amount;
-              } else {
-                  adjustedUserRewards[userAddressLowerCase] = amount;
-              }
-          }
-      }
+    }
   }
 
   const userRewardAddresses = Object.keys(adjustedUserRewards);
   const elements: any[] = [];
   for (let i = 0; i < userRewardAddresses.length; i++) {
-      const userAddress = userRewardAddresses[i];
-      const amount = parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString());
-      elements.push(utils.solidityKeccak256(["uint256", "address", "uint256"], [i, userAddress.toLowerCase(), BigInt(BigNumber.from(amount).toString())]));
+    const userAddress = userRewardAddresses[i];
+    const amount = parseEther(
+      adjustedUserRewards[userAddress.toLowerCase()].toString()
+    );
+    elements.push(
+      utils.solidityKeccak256(
+        ["uint256", "address", "uint256"],
+        [
+          i,
+          userAddress.toLowerCase(),
+          BigInt(BigNumber.from(amount).toString()),
+        ]
+      )
+    );
   }
 
   const merkleTree = new MerkleTree(elements, keccak256, { sort: true });
@@ -778,22 +813,46 @@ export const generateMerkle = async (userRewards: Record<string, number>, lastMe
   const merkle: any = {};
   let totalAmount = BigNumber.from(0);
   for (let i = 0; i < userRewardAddresses.length; i++) {
-      const userAddress = userRewardAddresses[i];
-      const amount = BigNumber.from(parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString()));
-      totalAmount = totalAmount.add(amount);
+    const userAddress = userRewardAddresses[i];
+    const amount = BigNumber.from(
+      parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString())
+    );
+    totalAmount = totalAmount.add(amount);
 
-      merkle[userAddress.toLowerCase()] = {
-          index: i,
-          amount,
-          proof: merkleTree.getHexProof(elements[i]),
-      };
+    merkle[userAddress.toLowerCase()] = {
+      index: i,
+      amount,
+      proof: merkleTree.getHexProof(elements[i]),
+    };
   }
 
   return {
-      merkle,
-      root: merkleTree.getHexRoot(),
-      total: totalAmount,
-      chainId: chainId,
-      merkleContract: merkleContract
+    merkle,
+    root: merkleTree.getHexRoot(),
+    total: totalAmount,
+    chainId: chainId,
+    merkleContract: merkleContract,
   };
 };
+
+async function getClosestBlockTimestamp(
+  chain: string,
+  timestamp: number
+): Promise<number> {
+  try {
+    const response = await axios.get(
+      `https://coins.llama.fi/block/${chain}/${timestamp}`
+    );
+
+    if (response.status !== 200) {
+      console.error(response.data);
+      throw new Error("Failed to get closest block timestamp");
+    }
+
+    const result = response.data;
+    return result.height;
+  } catch (error) {
+    console.error("Error fetching closest block timestamp:", error);
+    throw error;
+  }
+}

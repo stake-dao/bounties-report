@@ -1,78 +1,128 @@
-import { getAddress } from "viem";
-import { VLCVX_RECIPIENT } from "../utils/constants";
+import {
+  getAddress,
+  decodeAbiParameters,
+  encodePacked,
+  keccak256,
+  pad,
+} from "viem";
+import {
+  createBlockchainExplorerUtils,
+  NetworkType,
+} from "../utils/explorerUtils";
 import { ALL_MIGHT, WETH_ADDRESS } from "../utils/reportUtils";
-import MerkleTree from "merkletreejs";
+import { VLCVX_RECIPIENT } from "../utils/constants";
 import { utils } from "ethers";
-import keccak256 from "keccak256";
+import MerkleTree from "merkletreejs";
 
-export async function getSdCrvTransfer(publicClient: any) {
-  const sdCrvAddress = "0x..."; // Replace with actual sdCRV address
-  const transferFilter = await publicClient.createEventFilter({
-    address: sdCrvAddress,
-    event: "Transfer(address,address,uint256)",
-    fromBlock: "latest",
-    toBlock: "latest",
-    args: {
-      from: ALL_MIGHT,
-      to: VLCVX_RECIPIENT,
-    },
-  });
+export async function getSdCrvTransfer(minBlock: number, maxBlock: number) {
+  const explorerUtils = createBlockchainExplorerUtils("ethereum");
+  const sdCrvAddress = getAddress("0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5");
 
-  const logs = await publicClient.getFilterLogs({ filter: transferFilter });
+  const transferSig = "Transfer(address,address,uint256)";
+  const transferHash = keccak256(encodePacked(["string"], [transferSig]));
 
-  if (logs.length === 0) {
+  const paddedAllMight = pad(ALL_MIGHT as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+  const paddedVlcvxRecipient = pad(VLCVX_RECIPIENT as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  const topics = {
+    "0": transferHash,
+    "1": paddedAllMight,
+    "2": paddedVlcvxRecipient,
+  };
+
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
+    [sdCrvAddress],
+    minBlock,
+    maxBlock,
+    topics
+  );
+
+  if (response.result.length === 0) {
     throw new Error("No sdCRV transfer found");
   }
 
-  const latestTransfer = logs[logs.length - 1];
+  const latestTransfer = response.result[response.result.length - 1];
+  const [amount] = decodeAbiParameters(
+    [{ type: "uint256" }],
+    latestTransfer.data
+  );
+
   return {
-    amount: BigInt(latestTransfer.args.value),
-    blockNumber: Number(latestTransfer.blockNumber),
+    amount: BigInt(amount),
+    blockNumber: parseInt(latestTransfer.blockNumber, 16),
   };
 }
 
 export async function getTokenTransfersOut(
-  publicClient: any,
+  chain: NetworkType,
   token: string,
   blockNumber: number
 ) {
-  const transferFilter = await publicClient.createEventFilter({
-    address: token,
-    event: "Transfer(address,address,uint256)",
-    fromBlock: BigInt(blockNumber),
-    toBlock: BigInt(blockNumber),
-    args: {
-      from: ALL_MIGHT,
-    },
+  const explorerUtils = createBlockchainExplorerUtils(chain);
+
+  const transferSig = "Transfer(address,address,uint256)";
+  const transferHash = keccak256(encodePacked(["string"], [transferSig]));
+
+  const paddedAllMight = pad(ALL_MIGHT as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  const topics = {
+    "0": transferHash,
+    "1": paddedAllMight,
+  };
+
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
+    [token],
+    blockNumber,
+    blockNumber,
+    topics
+  );
+
+  return response.result.map((log) => {
+    const [amount] = decodeAbiParameters([{ type: "uint256" }], log.data);
+    return {
+      tokenAddress: getAddress(log.address),
+      amount: BigInt(amount),
+    };
   });
-
-  const logs = await publicClient.getFilterLogs({ filter: transferFilter });
-
-  return logs.map((log: any) => ({
-    tokenAddress: getAddress(log.address),
-    amount: BigInt(log.args.value),
-  }));
 }
 
 export async function getWethTransfersIn(
-  publicClient: any,
+  chain: NetworkType,
   blockNumber: number
 ) {
-  const transferFilter = await publicClient.createEventFilter({
-    address: WETH_ADDRESS,
-    event: "Transfer(address,address,uint256)",
-    fromBlock: BigInt(blockNumber),
-    toBlock: BigInt(blockNumber),
-    args: {
-      to: ALL_MIGHT,
-    },
+  const explorerUtils = createBlockchainExplorerUtils(chain);
+
+  const transferSig = "Transfer(address,address,uint256)";
+  const transferHash = keccak256(encodePacked(["string"], [transferSig]));
+
+  const paddedAllMight = pad(ALL_MIGHT as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  const topics = {
+    "0": transferHash,
+    "2": paddedAllMight,
+  };
+
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
+    [WETH_ADDRESS],
+    blockNumber,
+    blockNumber,
+    topics
+  );
+
+  return response.result.map((log) => {
+    const [amount] = decodeAbiParameters([{ type: "uint256" }], log.data);
+    return {
+      amount: BigInt(amount),
+    };
   });
-
-  const logs = await publicClient.getFilterLogs({ filter: transferFilter });
-
-  return logs.map((log: any) => ({
-    amount: BigInt(log.args.value),
-  }));
 }
 
 export function matchTokensWithWeth(
@@ -110,18 +160,27 @@ export function calculateTokenSdCrvShares(
   return tokenSdCrvShares;
 }
 
+export interface TokenClaim {
+  amount: string;
+  proof: string[];
+}
+
+export interface AddressClaim {
+  tokens: {
+    [tokenAddress: string]: TokenClaim;
+  };
+}
+
 export interface MerkleData {
   merkleRoot: string;
   claims: {
-    [address: string]: {
-      tokens: {
-        [tokenAddress: string]: {
-          amount: string;
-          proof: string[];
-        };
-      };
-    };
+    [address: string]: AddressClaim;
   };
+}
+
+export interface CombinedMerkleData {
+  delegators: MerkleData;
+  nonDelegators: MerkleData;
 }
 
 export function generateMerkleTree(distribution: {
