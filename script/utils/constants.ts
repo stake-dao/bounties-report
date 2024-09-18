@@ -8,9 +8,6 @@ export const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
 export const STASH_CONTROLLER_ADDRESS = "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
 
 export const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
-export const ENDPOINT_DELEGATORS =
-  "https://subgraph.satsuma-prod.com/c27342af4445/pierres-team--102159/snapshot/api";
-export const ENDPOINT_DELEGATORS_BSC = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.SUBGRAPH_API_KEY}/subgraphs/id/GuTMtMnx7zukaA1hiHB1uz6FR45gpZX3GtiEN7Cyitjd`;
 
 // Auto Voter
 export const AUTO_VOTER_DELEGATION_ADDRESS =
@@ -59,11 +56,6 @@ export const LABELS_TO_SPACE: Record<string, string> = {
   pendle: SDPENDLE_SPACE,
   cake: SDCAKE_SPACE,
   fxn: SDFXN_SPACE,
-};
-
-export const SUBGRAP_BY_CHAIN: Record<string, string> = {
-  [BSC]: ENDPOINT_DELEGATORS_BSC,
-  [ETHEREUM]: ENDPOINT_DELEGATORS,
 };
 
 export const SPACE_TO_NETWORK: Record<string, string> = {

@@ -10,7 +10,6 @@ import {
   SDBAL_SPACE,
   SDPENDLE_SPACE,
   SPACE_TO_NETWORK,
-  SUBGRAP_BY_CHAIN,
 } from "./constants";
 import fs from "fs";
 import path from "path";
@@ -26,8 +25,9 @@ import request, { gql } from "graphql-request";
 import { BigNumber, utils } from "ethers";
 import MerkleTree from "merkletreejs";
 import { getAllAccountClaimedSinceLastFreezeWithAgnostic } from "./agnostic";
-import { Merkle, RawMerkle } from "./types";
+import { RawMerkle } from "./types";
 
+import { getDelegators } from "./agnostic";
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
@@ -370,7 +370,8 @@ export const addVotersFromAutoVoter = async (
   space: string,
   proposal: any,
   voters: Voter[],
-  addressesPerChoice: Record<string, number>
+  addressesPerChoice: Record<string, number>,
+  table: string
 ): Promise<Voter[]> => {
   const autoVoter = voters.find(
     (v) => v.voter.toLowerCase() === AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
@@ -379,11 +380,8 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
-  const delegators = await getAllDelegators(
-    AUTO_VOTER_DELEGATION_ADDRESS,
-    proposal.created,
-    space
-  );
+  const delegators = await getDelegators(AUTO_VOTER_DELEGATION_ADDRESS, table, proposal.created, space);
+
   if (delegators.length === 0) {
     return voters;
   }
@@ -511,68 +509,6 @@ export const addVotersFromAutoVoter = async (
     (voter) =>
       voter.voter.toLowerCase() !== AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
   );
-};
-
-/**
- * All endpoints here : https://raw.githubusercontent.com/snapshot-labs/snapshot.js/master/src/delegationSubgraphs.json
- */
-export const wait = (ms: number) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      resolve(ms);
-    }, ms);
-  });
-};
-
-export const getAllDelegators = async (
-  delegationAddress: string,
-  proposalCreatedTimestamp: number,
-  space: string
-): Promise<string[]> => {
-  // Rate limite subgraph
-  await wait(5000);
-
-  let delegatorAddresses: string[] = [];
-  let run = true;
-  let skip = 0;
-
-  const DELEGATIONS_QUERY = gql`
-      query Proposal(
-        $skip: Int
-        $timestamp: Int
-        $space: String
-        ) {
-        delegations(first: 1000 skip: $skip where: {
-          space: $space
-          delegate:"${delegationAddress}"
-          timestamp_lte: $timestamp
-        }) {
-          delegator
-          space
-          delegate
-        }
-      }
-    `;
-
-  // Fetch all data
-  do {
-    const result = await request(
-      SUBGRAP_BY_CHAIN[SPACE_TO_NETWORK[space]],
-      DELEGATIONS_QUERY,
-      { space, skip, timestamp: proposalCreatedTimestamp }
-    );
-
-    if (result.delegations?.length > 0) {
-      delegatorAddresses = delegatorAddresses.concat(
-        result.delegations.map((d: any) => d.delegator)
-      );
-      skip += 1000;
-    } else {
-      run = false;
-    }
-  } while (run);
-
-  return delegatorAddresses;
 };
 
 export const getDelegationVotingPower = async (

@@ -1,14 +1,22 @@
+import { getDelegators } from "./agnostic";
 import { AUTO_VOTER_DELEGATION_ADDRESS, BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
 import { formatVotingPowerResult, getProposal, getVoters, getVotingPower } from "./snapshot";
-import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getAllDelegators, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower, getTokenPrice } from "./utils";
+import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower } from "./utils";
 import { Log, MerkleStat } from "./types";
 import { generateMerkle } from "./utils";
+
+
+const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
+const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet_v1";
 
 export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined): Promise<MerkleStat> => {
 
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
     const logs: Log[] = [];
+    const network = SPACE_TO_NETWORK[space];
+    const table = network === ETHEREUM ? AGNOSTIC_MAINNET_TABLE : AGNOSTIC_BSC_TABLE;
+
 
     for (const id of ids) {
 
@@ -36,14 +44,14 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         const vps = await getVotingPower(proposal, voters.map((v) => v.voter), SPACE_TO_CHAIN_ID[space]);
         voters = formatVotingPowerResult(voters, vps);
 
-        voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice);
+        voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice, table);
 
         // Should be already done but remove the autovoter address again to be sure
         voters = voters
             .filter((voter) => voter.voter.toLowerCase() !== AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase());
 
         // Get all delegator addresses
-        const delegators = await getAllDelegators(DELEGATION_ADDRESS, proposal.created, space);
+        const delegators = await getDelegators(DELEGATION_ADDRESS, table, proposal.created, space)
 
         // Get voting power for all delegator
         // Map of address => VotingPower
@@ -237,7 +245,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     // We have to sum with old distribution if users don't claim
     const tokenToDistribute = SPACES_TOKENS[space];
     const lastMerkle = lastMerkles.find((m: any) => m.address.toLowerCase() === tokenToDistribute.toLowerCase());
-    const network = SPACE_TO_NETWORK[space];
     const merkleContract = NETWORK_TO_MERKLE[network];
 
     const { merkle, root, total, chainId } = await generateMerkle(userRewards, lastMerkle, network, tokenToDistribute, merkleContract);

@@ -352,7 +352,7 @@ async function generateMerkles() {
     `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/merkle_data.json`
   );
   const merkleData = {
-    // delegators: delegatorMerkleData,
+    delegators: delegatorMerkleData,
     nonDelegators: nonDelegatorMerkleData,
   };
 
