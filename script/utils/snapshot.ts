@@ -384,7 +384,7 @@ export const getDelegators = async (
   delegationAddresses: string[],
   proposalCreatedTimestamp: number
 ): Promise<Delegation[]> => {
-  // Rate limite subgraph
+  // Rate limit subgraph
   let delegations: Delegation[] = [];
   let run = true;
   let skip = 0;
@@ -394,7 +394,7 @@ export const getDelegators = async (
       $skip: Int
       $timestamp: Int
       ) {
-      delegations(first: 1000 skip: $skip where: { 
+      delegations(first: 1000 skip: $skip where: {
         space: "${space}"
         delegate_in: [${delegationAddresses
           .map((delegationAddress) => '"' + delegationAddress + '"')
