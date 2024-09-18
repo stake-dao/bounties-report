@@ -74,7 +74,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             .filter((voter) => voter.voter.toLowerCase() !== AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase());
 
         // Get all delegator addresses
-        const delegators = await getDelegators(table, proposal.created, space)
+        const delegators = await getDelegators(DELEGATION_ADDRESS, table, proposal.created, space)
 
         // Get voting power for all delegator
         // Map of address => VotingPower

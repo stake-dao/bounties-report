@@ -368,7 +368,7 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
-  const delegators = await getDelegators(table, proposal.created, space);
+  const delegators = await getDelegators(AUTO_VOTER_DELEGATION_ADDRESS, table, proposal.created, space);
   if (delegators.length === 0) {
     return voters;
   }

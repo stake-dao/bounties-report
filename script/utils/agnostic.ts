@@ -41,14 +41,14 @@ const ALL_CLAIMED_QUERY = (since: number, end: number, tokenAddress: string, tab
 `;
 
 // Should be order by ASC !
-const DELEGATION_QUERY = (table: string, limit: number, offset: number, ts: number, spaceId: string) => `
+const DELEGATION_QUERY = (delegationAddress: string, table: string, limit: number, offset: number, ts: number, spaceId: string) => `
 SELECT
       input_0_value_address as user,
       signature
   FROM ${table}
   WHERE
       address = '0x469788fE6E9E9681C6ebF3bF78e7Fd26Fc015446' 
-      and input_2_value_address = '0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC'
+      and input_2_value_address = '${delegationAddress}'
       and input_1_value_string = '${spaceId}'
       and timestamp <= ${ts}
       and (signature = 'SetDelegate(address,bytes32,address)' OR signature = 'ClearDelegate(address,bytes32,address)')
@@ -76,7 +76,7 @@ export const getAllAccountClaimedSinceLastFreezeWithAgnostic = async (tokenAddre
     return resp
 }
 
-export const getDelegators = async (table: string, snapshotStartTimestamp: number, space: string): Promise<string[]> => {
+export const getDelegators = async (delegationAddress: string, table: string, snapshotStartTimestamp: number, space: string): Promise<string[]> => {
     const limit = 10_000;
     let offset = 0;
     let run = true;
@@ -84,7 +84,7 @@ export const getDelegators = async (table: string, snapshotStartTimestamp: numbe
 
     do {
         
-        const rows = await agnosticFetch(DELEGATION_QUERY(table, limit, offset, snapshotStartTimestamp, formatBytes32String(space)));
+        const rows = await agnosticFetch(DELEGATION_QUERY(delegationAddress, table, limit, offset, snapshotStartTimestamp, formatBytes32String(space)));
         if (rows.length === limit) {
             offset += limit;
         } else {
