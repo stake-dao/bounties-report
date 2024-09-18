@@ -361,7 +361,7 @@ export const addVotersFromAutoVoter = async (
   proposal: any,
   voters: Voter[],
   addressesPerChoice: Record<string, number>,
-  table: string
+  table: string,
 ): Promise<Voter[]> => {
   const autoVoter = voters.find(
     (v) => v.voter.toLowerCase() === AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
@@ -371,7 +371,6 @@ export const addVotersFromAutoVoter = async (
   }
 
   const delegators = await getDelegators(AUTO_VOTER_DELEGATION_ADDRESS, table, proposal.created, space);
-
   if (delegators.length === 0) {
     return voters;
   }

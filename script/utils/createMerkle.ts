@@ -1,4 +1,8 @@
 import { formatUnits, parseEther } from "viem";
+import { getAllAccountClaimedSinceLastFreezeWithAgnostic, getDelegators } from "./agnostic";
+import { AUTO_VOTER_DELEGATION_ADDRESS, BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
+import { getProposal, getVoters, getVoterVotingPower } from "./snapshot";
+import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower, getTokenPrice } from "./utils";
 import { BigNumber, utils } from "ethers";
 import { getAllAccountClaimedSinceLastFreezeWithAgnostic, getDelegators } from "./agnostic";
 import { AUTO_VOTER_DELEGATION_ADDRESS, BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
@@ -12,6 +16,9 @@ import keccak256 from "keccak256";
 const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
 const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet_v1";
 
+const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
+const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet_v1";
+
 export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined): Promise<MerkleStat> => {
 
     const userRewards: Record<string, number> = {};
@@ -20,9 +27,8 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     const network = SPACE_TO_NETWORK[space];
     const table = network === ETHEREUM ? AGNOSTIC_MAINNET_TABLE : AGNOSTIC_BSC_TABLE;
 
-
     for (const id of ids) {
-
+        
         // Get the proposal to find the create timestamp
         const proposal = await getProposal(id);
 
@@ -47,6 +53,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         const vps = await getVotingPower(proposal, voters.map((v) => v.voter), SPACE_TO_CHAIN_ID[space]);
         voters = formatVotingPowerResult(voters, vps);
 
+        voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID[space]);
         voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice, table);
 
         // Should be already done but remove the autovoter address again to be sure
