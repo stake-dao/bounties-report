@@ -78,7 +78,7 @@ export const extractCSV = async (
 
     // Pendle case : Period passed in protocol
     if (space === SDPENDLE_SPACE) {
-      const period = row["protocol"].split("-")[1];
+      const period = row["Period"];
       const pendleResponse = response as PendleCSVType;
       if (!pendleResponse[period]) {
         pendleResponse[period] = {};

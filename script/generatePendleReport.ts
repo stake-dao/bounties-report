@@ -27,6 +27,7 @@ interface LatestRewards {
 
 interface CSVRow {
   Protocol: string;
+  Period: string;
   "Gauge Name": string;
   "Gauge Address": string;
   "Reward Token": string;
@@ -119,7 +120,8 @@ async function main() {
           const share = Number(reward) / Number(totalVoterRewards);
 
           newData.push({
-            Protocol: `${PROTOCOL}-${period}`,
+            Protocol: `${PROTOCOL}`,
+            "Period": period,
             "Gauge Name": gaugeInfo.name,
             "Gauge Address": address,
             "Reward Token": "WETH",
@@ -162,9 +164,10 @@ async function main() {
 
     // Generate CSV content
     const csvContent = [
-      "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+      "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
       ...newData.map(
         (row) =>
+          `${row["Period"]};` +
           `${row["Gauge Name"]};` +
           `${row["Gauge Address"]};` +
           `${row["Reward Token"]};` +
