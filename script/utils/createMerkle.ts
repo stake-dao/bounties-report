@@ -43,7 +43,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     const table = network === ETHEREUM ? AGNOSTIC_MAINNET_TABLE : AGNOSTIC_BSC_TABLE;
 
     for (const id of ids) {
-        
         // Get the proposal to find the create timestamp
         const proposal = await getProposal(id);
 

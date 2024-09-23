@@ -78,7 +78,8 @@ export const extractCSV = async (
 
     // Pendle case : Period passed in protocol
     if (space === SDPENDLE_SPACE) {
-      const period = row["Period"];
+      const period = row["period"];
+      console.log(period);
       const pendleResponse = response as PendleCSVType;
       if (!pendleResponse[period]) {
         pendleResponse[period] = {};
@@ -88,9 +89,9 @@ export const extractCSV = async (
         pendleResponse[period][gaugeAddress] = 0;
       }
 
-      total += parseFloat(row["Reward sd Value".toLowerCase()]);
+      total += parseFloat(row["reward sd value"]);
       pendleResponse[period][gaugeAddress] += parseFloat(
-        row["Reward sd Value".toLowerCase()]
+        row["reward sd value"]
       );
     } else {
       const otherResponse = response as OtherCSVType;
@@ -176,6 +177,8 @@ export const extractProposalChoices = (
   proposal: any
 ): Record<string, number> => {
   const addressesPerChoice: Record<string, number> = {};
+
+  console.log(proposal.space.id);
 
   if (proposal.space.id.toLowerCase() === SDPENDLE_SPACE) {
     const SEP = " - ";

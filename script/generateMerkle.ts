@@ -42,16 +42,6 @@ const logData: Record<string, any> = {
   SnapshotIds: [],
 }; // Use to store and write logs in a JSON
 
-const publicClient_ETHEREUM = createPublicClient({
-  chain: mainnet,
-  transport: http(),
-});
-
-const publicClient_BSC = createPublicClient({
-  chain: bsc,
-  transport: http(),
-});
-
 const main = async () => {
   const now = moment.utc().unix();
 
@@ -99,61 +89,19 @@ const main = async () => {
       continue;
     }
 
-    let sdTknBalance = BigInt(0);
-    /*
-    // Check with balance of sdTKN in Botmarket contract
-    if (network === "ethereum") {
-      sdTknBalance = await balanceOf(
-        publicClient_ETHEREUM,
-        SPACES_TOKENS[space],
-        BOTMARKETS["ethereum"]
-      );
-    } else {
-      sdTknBalance = await balanceOf(
-        publicClient_BSC,
-        SPACES_TOKENS[space],
-        BOTMARKETS["bsc"]
-      );
-    }
-
-    // Calculate total sdTkn to distribute
+    let totalSDToken = 0;
     if (isPendle) {
       for (const period of Object.keys(csvResult)) {
-        totalSDToken += BigInt(
-          Math.floor(
-            Object.values(csvResult[period]).reduce((acc, amount) => acc + amount, 0) * 1e18
-          )
+        totalSDToken += Object.values(csvResult[period]).reduce(
+          (acc, amount) => acc + amount,
+          0
         );
       }
     } else {
-      totalSDToken = BigInt(
-        Math.floor(
-          Object.values(csvResult).reduce((acc, amount) => acc + amount, 0) * 1e18
-        )
+      totalSDToken = Object.values(csvResult).reduce(
+        (acc, amount) => acc + amount,
+        0
       );
-    }
-
-    console.log(`${space} sdTknBalance: ${sdTknBalance}`);
-    console.log(`${space} totalSDToken: ${totalSDToken}`);
-
-    // Compare with a small threshold (0.01% difference)
-    const threshold = sdTknBalance * BigInt(1) / BigInt(10000);
-    if (sdTknBalance < totalSDToken && sdTknBalance + threshold < totalSDToken) {
-      console.error(`Error: Insufficient balance for ${space}`);
-      console.error(`  sdTknBalance: ${sdTknBalance}`);
-      console.error(`  totalSDToken: ${totalSDToken}`);
-      console.error(`  Difference: ${totalSDToken - sdTknBalance}`);
-      continue; // Skip this space
-    }*/
-
-    let totalSDToken = 0;
-    if (isPendle) {
-
-      for (const period of Object.keys(csvResult)) {
-        totalSDToken += Object.values(csvResult[period]).reduce((acc, amount) => acc + amount, 0);
-      }
-    } else {
-      totalSDToken = Object.values(csvResult).reduce((acc, amount) => acc + amount, 0);
     }
     logData["TotalReported"][space] = totalSDToken;
 
