@@ -354,7 +354,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         apr = sumRewards / vpAverage * multiplier * 100;
 
         if (space == SDFXS_SPACE) {
-            const vpFXS = 1639859.5904810522
+            const vpFXS = 1658827.4480122817
             apr = sumRewards / vpFXS * 52 * 100;
         }
 
