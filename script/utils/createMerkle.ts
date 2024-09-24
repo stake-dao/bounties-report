@@ -34,7 +34,7 @@ export interface Merkle {
 const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
 const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet_v1";
 
-export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined): Promise<MerkleStat> => {
+export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any): Promise<MerkleStat> => {
 
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
@@ -346,18 +346,15 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
     let apr = 0;
     if (aprs.length > 0) {
-        const vpAverage = aprs.reduce((acc, aprData) => acc + aprData.vp, 0) / aprs.length;
         const sumRewards = aprs.reduce((acc, aprData) => acc + aprData.amount, 0);
 
-
-        const multiplier = space === SDCAKE_SPACE ? 26 : 52; // because cake is distributed every 2 weeks
-        apr = sumRewards / vpAverage * multiplier * 100;
-
         if (space == SDFXS_SPACE) {
-            const vpFXS = 1658827.4480122817
-            apr = sumRewards / vpFXS * 52 * 100;
+            apr = sumRewards / sdFXSWorkingData.total_vp * 52 * 100;
+        } else {
+            const vpAverage = aprs.reduce((acc, aprData) => acc + aprData.vp, 0) / aprs.length;
+            const multiplier = space === SDCAKE_SPACE ? 26 : 52; // because cake is distributed every 2 weeks
+            apr = sumRewards / vpAverage * multiplier * 100;
         }
-
     }
 
     if (space === SDFXS_SPACE) {

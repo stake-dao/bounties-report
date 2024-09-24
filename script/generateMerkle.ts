@@ -45,7 +45,7 @@ const logData: Record<string, any> = {
 const main = async () => {
   const now = moment.utc().unix();
 
-  const [{ data: lastMerkles }, proposalIdPerSpace, { data: delegationAPRs }] =
+  const [{ data: lastMerkles }, proposalIdPerSpace, { data: delegationAPRs }, {data: sdFXSWorkingData}] =
     await Promise.all([
       axios.get(
         "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
@@ -53,6 +53,9 @@ const main = async () => {
       fetchLastProposalsIds(SPACES, now),
       axios.get(
         "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
+      ),
+      axios.get(
+        "https://raw.githubusercontent.com/stake-dao/tg-bots/refs/heads/main/data/sdfxs/sdfxs-working-supply.json"
       ),
     ]);
 
@@ -151,7 +154,8 @@ const main = async () => {
       space,
       lastMerkles,
       csvResult,
-      pendleRewards
+      pendleRewards,
+      sdFXSWorkingData
     );
 
     newMerkles.push(merkleStat.merkle);
