@@ -349,8 +349,15 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         const vpAverage = aprs.reduce((acc, aprData) => acc + aprData.vp, 0) / aprs.length;
         const sumRewards = aprs.reduce((acc, aprData) => acc + aprData.amount, 0);
 
+
         const multiplier = space === SDCAKE_SPACE ? 26 : 52; // because cake is distributed every 2 weeks
         apr = sumRewards / vpAverage * multiplier * 100;
+
+        if (space == SDFXS_SPACE) {
+            const vpFXS = 1639859.5904810522
+            apr = sumRewards / vpFXS * 52 * 100;
+        }
+
     }
 
     if (space === SDFXS_SPACE) {
