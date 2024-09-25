@@ -189,6 +189,9 @@ export function generateMerkleTree(distribution: {
   const leaves: string[] = [];
   const claims: MerkleData["claims"] = {};
 
+  // Log : first element of distribution
+  console.log(Object.entries(distribution)[0]);
+
   Object.entries(distribution).forEach(([address, tokens]) => {
     Object.entries(tokens).forEach(([tokenAddress, amount]) => {
       const leaf = utils.keccak256(

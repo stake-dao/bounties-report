@@ -33,7 +33,7 @@ import { getClosestBlockTimestamp } from "../utils/reportUtils";
 
 interface Distribution {
   [address: string]: {
-    isStakeDaoDelegator: boolean;
+    isStakeDelegator: boolean;
     tokens: {
       [tokenAddress: string]: number;
     };
@@ -47,21 +47,28 @@ async function generateDelegatorMerkleTree(
   distribution: Distribution,
   previousMerkleData: MerkleData
 ): Promise<MerkleData> {
+  const sdCrvTokenAddress = "0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5"; // sdCRV token
+
   // Step 1: Get the total sdCRV transfer amount and block number
-  const sdCrvTransfer = await getSdCrvTransfer(minBlock, maxBlock);
-  const totalSdCrv = sdCrvTransfer.amount;
-  const transferBlock = sdCrvTransfer.blockNumber;
+  // const sdCrvTransfer = await getSdCrvTransfer(minBlock, maxBlock);
+  // const totalSdCrv = sdCrvTransfer.amount;
+  // const transferBlock = sdCrvTransfer.blockNumber;
 
   // Step 2: Get all unique tokens from delegators
   const uniqueTokens = new Set<string>();
   Object.values(distribution).forEach((data) => {
-    if (data.isStakeDaoDelegator) {
+    if (
+      typeof data === "object" &&
+      "isStakeDelegator" in data &&
+      data.isStakeDelegator
+    ) {
       Object.keys(data.tokens || {}).forEach((token) =>
         uniqueTokens.add(token)
       );
     }
   });
 
+  /*
   // Step 3: Get token transfers out and WETH transfers in at the transfer block
   const tokenTransfers = await Promise.all(
     Array.from(uniqueTokens).map((token) =>
@@ -76,6 +83,15 @@ async function generateDelegatorMerkleTree(
     flattenedTokenTransfers,
     wethTransfers
   );
+  */
+
+  // TODO : DELETE ; tests only
+  const tokenWethValues = {
+    "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": BigInt(2e18),
+    "0x97efFB790f2fbB701D88f89DB4521348A2B77be8": BigInt(1e18),
+  };
+
+  const totalSdCrv = BigInt(100e18);
 
   // Step 5: Calculate sdCRV shares for each token based on WETH values
   const tokenSdCrvShares = calculateTokenSdCrvShares(
@@ -84,30 +100,49 @@ async function generateDelegatorMerkleTree(
   );
 
   // Step 6: Calculate sdCRV amounts for each delegator based on their token holdings
+
+  // First, calculate total amounts for each token across all delegators
+  const tokenTotals: { [tokenAddress: string]: bigint } = {};
+  const delegatorShares: {
+    [address: string]: { [tokenAddress: string]: bigint };
+  } = {};
+
+  Object.entries(distribution.distribution).forEach(([address, data]) => {
+    if (
+      typeof data === "object" &&
+      "isStakeDelegator" in data &&
+      data.isStakeDelegator
+    ) {
+      delegatorShares[address] = {};
+      Object.entries(data.tokens || {}).forEach(([tokenAddress, amount]) => {
+        const tokenAmount = BigInt(Math.floor(amount * 1e18)); // Convert to wei
+        delegatorShares[address][tokenAddress] = tokenAmount;
+        tokenTotals[tokenAddress] =
+          (tokenTotals[tokenAddress] || BigInt(0)) + tokenAmount;
+      });
+    }
+  });
+
   const delegatorDistribution: {
     [address: string]: { [tokenAddress: string]: string };
   } = {};
 
-  const sdCrvTokenAddress = "0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5"; // sdCRV token
+  Object.entries(delegatorShares).forEach(([address, tokens]) => {
+    let totalSdCrvShare = BigInt(0);
 
-  Object.entries(distribution).forEach(([address, data]) => {
-    if (data.isStakeDaoDelegator) {
-      let totalSdCrvShare = BigInt(0);
-
-      Object.entries(data.tokens || {}).forEach(([tokenAddress, amount]) => {
-        if (tokenSdCrvShares[tokenAddress]) {
-          const tokenAmount = BigInt(Math.floor(amount * 1e18)); // Convert to wei
-          const sdCrvShare =
-            (tokenSdCrvShares[tokenAddress] * tokenAmount) / BigInt(1e18);
-          totalSdCrvShare += sdCrvShare;
-        }
-      });
-
-      if (totalSdCrvShare > 0) {
-        delegatorDistribution[address] = {
-          [sdCrvTokenAddress]: totalSdCrvShare.toString(),
-        };
+    Object.entries(tokens).forEach(([tokenAddress, amount]) => {
+      if (tokenSdCrvShares[tokenAddress] && tokenTotals[tokenAddress]) {
+        const tokenShare = (amount * BigInt(1e18)) / tokenTotals[tokenAddress]; // Calculate share with 18 decimals precision
+        const sdCrvShare =
+          (tokenSdCrvShares[tokenAddress] * tokenShare) / BigInt(1e18);
+        totalSdCrvShare += sdCrvShare;
       }
+    });
+
+    if (totalSdCrvShare > BigInt(0)) {
+      delegatorDistribution[address] = {
+        [sdCrvTokenAddress]: totalSdCrvShare.toString(),
+      };
     }
   });
 
@@ -192,7 +227,7 @@ async function generateMerkles() {
     ([address, data]) => {
       if (!(data as any).isStakeDaoDelegator) {
         combinedNonDelegatorDistribution[address] = {
-          isStakeDaoDelegator: false,
+          isStakeDelegator: false,
           tokens: {},
         };
         Object.entries((data as any).tokens).forEach(
@@ -281,7 +316,7 @@ async function generateMerkles() {
       ([address, claimData]: [string, any]) => {
         if (!combinedNonDelegatorDistribution[address]) {
           combinedNonDelegatorDistribution[address] = {
-            isStakeDaoDelegator: false,
+            isStakeDelegator: false,
             tokens: {},
           };
         }

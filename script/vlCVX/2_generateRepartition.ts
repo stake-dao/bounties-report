@@ -1,20 +1,22 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
-import { WEEK } from "../utils/constants";
+import { AGNOSTIC_MAINNET_TABLE, CVX_SPACE, WEEK } from "../utils/constants";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
-  getDelegators,
   getProposal,
   getVoters,
   getVotingPower,
 } from "../utils/snapshot";
+import { getDelegators } from "../utils/agnostic";
 import { extractCSV, ExtractCSVType } from "../utils/utils";
-import { DELEGATION_ADDRESS } from "../utils/constants";
+//import { DELEGATION_ADDRESS } from "../utils/constants";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
 
 dotenv.config();
+
+const DELEGATION_ADDRESS = "0x5180db0237291a6449dda9ed33ad90a38787621c";
 
 type CvxCSVType = Record<
   string,
@@ -73,7 +75,7 @@ const main = async () => {
   console.log("Extracting CSV report...");
   const csvResult = (await extractCSV(
     currentPeriodTimestamp,
-    "cvx.eth"
+    CVX_SPACE
   )) as CvxCSVType;
   if (!csvResult) throw new Error("No CSV report found");
 
@@ -93,12 +95,14 @@ const main = async () => {
   const filter: string = "^(?!FXN ).*Gauge Weight for Week of";
 
   const proposalIdPerSpace = await fetchLastProposalsIds(
-    ["cvx.eth"],
+    [CVX_SPACE],
     now,
     filter
   );
 
-  const proposalId = proposalIdPerSpace["cvx.eth"];
+  const proposalId = proposalIdPerSpace[CVX_SPACE];
+
+  console.log("proposalId", proposalId);
 
   const proposal = await getProposal(proposalId);
   const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
@@ -120,19 +124,34 @@ const main = async () => {
       (vote) => vote.vp_by_strategy[delegationId] > 0
     );
     if (votesWithDelegation.length > 0) {
-      let delegators = await getDelegators(
-        "cvx.eth",
-        votesWithDelegation.map((v) => v.voter),
-        proposal.created
-      );
-      delegators = delegators.filter(
-        (d) =>
-          !votes.some(
-            (v) => v.voter.toLowerCase() === d.delegator.toLowerCase()
-          )
+      let delegators: Record<string, { delegator: string; delegate: string }> =
+        {};
+
+      for (const vote of votesWithDelegation) {
+        const _delegators = await getDelegators(
+          vote.voter,
+          AGNOSTIC_MAINNET_TABLE,
+          proposal.created,
+          CVX_SPACE
+        );
+        const delegator_for: Record<string, { delegator: string; delegate: string }> = {};
+        _delegators.forEach((d) => {
+          delegator_for[d.toLowerCase()] = { delegator: d.toLowerCase(), delegate: vote.voter.toLowerCase() };
+        });
+        delegators = { ...delegators, ...delegator_for };
+      }
+
+      // If a delegator voted, we remove it from the delegations
+      delegators = Object.fromEntries(
+        Object.entries(delegators).filter(
+          ([, d]) =>
+            !votes.some(
+              (v) => v.voter.toLowerCase() === d.delegator.toLowerCase()
+            )
+        )
       );
 
-      stakeDaoDelegators = delegators
+      stakeDaoDelegators = Object.values(delegators)
         .filter(
           (d) => d.delegate.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
         )
@@ -140,11 +159,11 @@ const main = async () => {
 
       const vps = await getVotingPower(
         proposal,
-        delegators.map((d) => d.delegator)
+        Object.values(delegators).map((d) => d.delegator)
       );
 
       votesWithDelegation.forEach((vote) => {
-        vote.delegation = delegators
+        vote.delegation = Object.values(delegators)
           .filter(
             (d) =>
               d.delegate.toLowerCase() === vote.voter.toLowerCase() &&
@@ -158,7 +177,8 @@ const main = async () => {
     }
   }
 
-  // Calculate voting power without delegation
+  // For each voter, calculate his vp without the delegation
+  // A voter can have a delegation but also owns some vp
   votes.forEach((vote) => {
     vote.vp_without_delegation =
       vote.vp -
@@ -179,6 +199,8 @@ const main = async () => {
 
   Object.entries(csvResult).forEach(([gauge, rewardInfo]) => {
     const choiceId = gaugePerChoiceId[gauge.toLowerCase()];
+
+    console.log("gauge", gauge, "| choiceId", choiceId);
     if (!choiceId) throw new Error(`Choice ID not found for gauge: ${gauge}`);
 
     let totalVp = 0;
