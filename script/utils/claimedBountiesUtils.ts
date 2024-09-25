@@ -22,6 +22,7 @@ import {
 import axios from "axios";
 import { Bounty, VotemarketBounty, WardenBounty, GaugeShare } from "./types";
 import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
+import { CONVEX_LOCKER } from "./constants";
 
 const platformAbi = [
   {
@@ -159,16 +160,16 @@ const bscPlatformAbi = [
 ] as const;
 
 /**
- * Fetches claimed bounties from the Votemarket platform within a specified block range.
- * @param {number} block_min - The minimum block number to fetch from.
- * @param {number} block_max - The maximum block number to fetch to.
+ * Fetches claimed bounties from the Votemarket platform for StakeDAO Locker within a specified block range.
+ * @param {PublicClient} publicClient - The public client for interacting with the blockchain.
+ * @param {number} fromBlock - The starting block number to fetch from.
+ * @param {number} toBlock - The ending block number to fetch to.
  * @returns {Promise<{[protocol: string]: VotemarketBounty[]}>} A mapping of protocol names to their respective claimed bounties.
  */
-const fetchVotemarketClaimedBounties = async (
+const fetchVotemarketStakeDaoLockerClaimedBounties = async (
   publicClient: PublicClient,
   fromBlock: number,
   toBlock: number,
-  locker: string
 ) => {
   const ethUtils = createBlockchainExplorerUtils("ethereum");
 
@@ -238,6 +239,79 @@ const fetchVotemarketClaimedBounties = async (
   );
 
   await Promise.all(promises);
+
+  return filteredLogs;
+};
+
+/**
+ * Fetches claimed bounties from the Votemarket platform for Convex Locker within a specified block range.
+ * @param {PublicClient} publicClient - The public client for interacting with the blockchain.
+ * @param {number} fromBlock - The starting block number to fetch from.
+ * @param {number} toBlock - The ending block number to fetch to.
+ * @returns {Promise<{curve: VotemarketBounty[]}>} An object with 'curve' key mapping to claimed bounties.
+ */
+const fetchVotemarketConvexLockerClaimedBounties = async (
+  publicClient: PublicClient,
+  fromBlock: number,
+  toBlock: number,
+) => {
+  const ethUtils = createBlockchainExplorerUtils("ethereum");
+
+  const eventSignature =
+    "Claimed(address,address,uint256,uint256,uint256,uint256)";
+  const claimedEventHash = keccak256(
+    encodePacked(["string"], [eventSignature])
+  );
+
+  let filteredLogs: { curve: VotemarketBounty[] } = { curve: [] };
+
+  const claimedAbi = parseAbi([
+    "event Claimed(address indexed user, address rewardToken, uint256 indexed bountyId, uint256 amount, uint256 protocolFees, uint256 period)",
+  ]);
+
+  // Assuming we have constants for Convex Locker and Votemarket platform
+  const paddedLocker = pad(CONVEX_LOCKER as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  const response = await ethUtils.getLogsByAddressAndTopics(
+    getAddress("0x000000073D065Fc33a3050C2d0E19C393a5699ba"),
+    fromBlock,
+    toBlock,
+    {
+      "0": claimedEventHash,
+      "1": paddedLocker,
+    }
+  );
+
+  if (response && response.result && response.result.length > 0) {
+    for (const log of response.result) {
+      const decodedLog = decodeEventLog({
+        abi: claimedAbi,
+        data: log.data,
+        topics: log.topics,
+        strict: true,
+      });
+
+      if (getAddress(decodedLog.args.user) == getAddress(CONVEX_LOCKER)) {
+        const bountyInfo = await publicClient.readContract({
+          address: getAddress("0x000000073D065Fc33a3050C2d0E19C393a5699ba"),
+          abi: platformAbi,
+          functionName: "getBounty",
+          args: [decodedLog.args.bountyId],
+        });
+
+        const votemarketBounty: VotemarketBounty = {
+          bountyId: decodedLog.args.bountyId,
+          gauge: bountyInfo.gauge,
+          amount: decodedLog.args.amount,
+          rewardToken: getAddress(decodedLog.args.rewardToken),
+        };
+
+        filteredLogs.curve.push(votemarketBounty);
+      }
+    }
+  }
 
   return filteredLogs;
 };
@@ -748,7 +822,8 @@ const fetchHiddenHandClaimedBounties = async (
 };
 
 export {
-  fetchVotemarketClaimedBounties,
+  fetchVotemarketStakeDaoLockerClaimedBounties,
+  fetchVotemarketConvexLockerClaimedBounties,
   fetchWardenClaimedBounties,
   fetchHiddenHandClaimedBounties,
 };

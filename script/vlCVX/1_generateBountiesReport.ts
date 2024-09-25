@@ -12,9 +12,7 @@ const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http(
-    "https://eth-mainnet.g.alchemy.com/v2/" + process.env.WEB3_ALCHEMY_API_KEY
-  ),
+  transport: http("https://rpc.flashbots.net"),
 });
 
 interface Bounty {
@@ -97,6 +95,7 @@ function writeReportToCSV(rows: CSVRow[]) {
   const dirPath = path.join(
     __dirname,
     "..",
+    "..",
     "bounties-reports",
     currentPeriod.toString(),
     "vlCVX"
@@ -104,7 +103,7 @@ function writeReportToCSV(rows: CSVRow[]) {
   fs.mkdirSync(dirPath, { recursive: true });
 
   const csvContent = [
-    "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+    "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;",
     ...rows.map(
       (row) =>
         `${row.gaugeName};${row.gaugeAddress};${row.rewardToken};${row.rewardAddress};` +

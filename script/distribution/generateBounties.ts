@@ -2,7 +2,8 @@
 
 import { getTimestampsBlocks } from "../utils/reportUtils";
 import {
-  fetchVotemarketClaimedBounties,
+  fetchVotemarketStakeDaoLockerClaimedBounties,
+  fetchVotemarketConvexLockerClaimedBounties,
   fetchWardenClaimedBounties,
   fetchHiddenHandClaimedBounties,
 } from "../utils/claimedBountiesUtils";
@@ -10,6 +11,7 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http, pad } from "viem";
 import { mainnet } from "viem/chains";
+import { STAKE_DAO_LOCKER, CONVEX_LOCKER } from "../utils/constants";
 
 const WEEK = 604800; // One week in seconds
 
@@ -53,25 +55,18 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
   const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
     await getTimestampsBlocks(publicClient, pastWeek);
 
-  // Stake DAO locker
-  const stakeDaoLocker = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";
-  // Convex locker
-  const convexLocker = "0x989AEb4d175e16225E39E87d0D97A3360524AD80";
-
   // Fetch bounties for standard locker
-  const votemarketStakeBounties = await fetchVotemarketClaimedBounties(
+  const votemarketStakeBounties = await fetchVotemarketStakeDaoLockerClaimedBounties(
     publicClient,
     blockNumber1,
     blockNumber2,
-    stakeDaoLocker
   );
 
   // Fetch bounties for Convex locker
-  const votemarketConvexBounties = await fetchVotemarketClaimedBounties(
+  const votemarketConvexBounties = await fetchVotemarketConvexLockerClaimedBounties(
     publicClient,
     blockNumber1,
     blockNumber2,
-    convexLocker
   );
 
   const warden = await fetchWardenClaimedBounties(blockNumber1, blockNumber2);
