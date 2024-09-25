@@ -11,11 +11,11 @@ This directory contains scripts for managing the distribution of rewards for vlC
 This is the process of distributing Votemarket rewards to vlCVX voters and Stake DAO delegators on vlCVX. It performs the following key steps:
 
 1. Claims rewards from Votemarket (`automation-jobs`)
-2. Calculates the repartition of rewards per token and gauge
-3. Generates repartition data for vlCVX voters and delegators
+2. Calculates the repartition of rewards per token and gauge (`distribution/generateBounties`)
+3. Generates repartition data for vlCVX voters and delegators (`1_generateBountieesReport`)
 4. Swaps tokens to sdCRV (`automation-jobs`)
-5. Computes sdCRV amounts for delegators
-6. Generates Merkle trees for both vlCVX voters and delegators
+5. Computes sdCRV amounts for delegators (`3_generateMerkles`)
+6. Generates Merkle trees for both vlCVX voters and delegators (`3_generateMerkles`)
 7. Withdraws funds to respective Merkle distributors (`automation-jobs`)
 8. Sets Merkle roots for distribution (`automation-jobs`)
 
