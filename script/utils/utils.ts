@@ -35,38 +35,23 @@ export const extractCSV = async (
 ): Promise<ExtractCSVType | undefined> => {
   let csvFilePath: string | undefined;
 
-  if (space === SDPENDLE_SPACE) {
-    const reportDir = path.join(__dirname, "../../bounties-reports/pendle");
-    const files = fs.readdirSync(reportDir);
-    const csvFiles = files.filter((file) => file.endsWith(".csv"));
-    const sortedCsvFiles = csvFiles.sort((a, b) => {
-      const dateA = a.split("_")[0];
-      const dateB = b.split("_")[0];
-      return new Date(dateB).getTime() - new Date(dateA).getTime();
-    });
-    const mostRecentCsvFile = sortedCsvFiles[0];
-    csvFilePath = path.join(reportDir, mostRecentCsvFile);
-  } else if (space === CVX_SPACE) {
-    csvFilePath = path.join(
-      __dirname,
-      `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/curve_convex.csv`
-    );
-  } else {
-    let nameSpace: string | undefined;
-    for (const name of Object.keys(LABELS_TO_SPACE)) {
-      if (LABELS_TO_SPACE[name] === space) {
-        nameSpace = name;
-        break;
-      }
+  let nameSpace: undefined | string = undefined;
+
+  for (const name of Object.keys(LABELS_TO_SPACE)) {
+    if (LABELS_TO_SPACE[name] === space) {
+      nameSpace = name;
+      break;
     }
-    if (!nameSpace) {
-      throw new Error("can't find name space for space " + space);
-    }
-    csvFilePath = path.join(
-      __dirname,
-      `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}.csv`
-    );
   }
+
+  if (!nameSpace) {
+    throw new Error("can't find name space for space " + space);
+  }
+
+  csvFilePath = path.join(
+    __dirname,
+    `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}.csv`
+  );
 
   if (!csvFilePath || !fs.existsSync(csvFilePath)) {
     return undefined;
@@ -98,7 +83,7 @@ export const extractCSV = async (
     }
 
     if (space === SDPENDLE_SPACE) {
-      const period = row["protocol"].split("-")[1];
+      const period = row["period"];
       const pendleResponse = response as PendleCSVType;
       if (!pendleResponse[period]) {
         pendleResponse[period] = {};
@@ -106,16 +91,11 @@ export const extractCSV = async (
       if (!pendleResponse[period][gaugeAddress]) {
         pendleResponse[period][gaugeAddress] = 0;
       }
-      const rewardValue = parseFloat(row["reward sd value"]);
-      total += rewardValue;
-      pendleResponse[period][gaugeAddress] += rewardValue;
-    } else if (space === CVX_SPACE) {
-      const cvxResponse = response as CvxCSVType;
-      cvxResponse[gaugeAddress] = {
-        rewardAddress: row["reward address"],
-        rewardAmount: parseFloat(row["reward amount"]),
-      };
-      total += cvxResponse[gaugeAddress].rewardAmount;
+
+      total += parseFloat(row["reward sd value"]);
+      pendleResponse[period][gaugeAddress] += parseFloat(
+        row["reward sd value"]
+      );
     } else {
       const otherResponse = response as OtherCSVType;
       if (!otherResponse[gaugeAddress]) {
@@ -361,7 +341,7 @@ export const addVotersFromAutoVoter = async (
   proposal: any,
   voters: Voter[],
   addressesPerChoice: Record<string, number>,
-  table: string,
+  table: string
 ): Promise<Voter[]> => {
   const autoVoter = voters.find(
     (v) => v.voter.toLowerCase() === AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
@@ -370,7 +350,12 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
-  const delegators = await getDelegators(AUTO_VOTER_DELEGATION_ADDRESS, table, proposal.created, space);
+  const delegators = await getDelegators(
+    AUTO_VOTER_DELEGATION_ADDRESS,
+    table,
+    proposal.created,
+    space
+  );
   if (delegators.length === 0) {
     return voters;
   }

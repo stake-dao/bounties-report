@@ -4,6 +4,8 @@ import path from "path";
 import { createPublicClient, http, formatUnits } from "viem";
 import { mainnet } from "viem/chains";
 import { getAddress } from "viem";
+import moment from "moment";
+import { WEEK } from "./utils/constants";
 
 const REPO_PATH = "stake-dao/pendle-merkle-script";
 const DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
@@ -25,6 +27,7 @@ interface LatestRewards {
 
 interface CSVRow {
   Protocol: string;
+  Period: string;
   "Gauge Name": string;
   "Gauge Address": string;
   "Reward Token": string;
@@ -76,6 +79,8 @@ async function getLatestJson(
 }
 
 async function main() {
+  const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+
   try {
     // Fetch the repartition of rewards from Pendle scripts repo
     const latestRewards = await getLatestJson(REPO_PATH, DIRECTORY_PATH);
@@ -115,7 +120,8 @@ async function main() {
           const share = Number(reward) / Number(totalVoterRewards);
 
           newData.push({
-            Protocol: `${PROTOCOL}-${period}`,
+            Protocol: `${PROTOCOL}`,
+            "Period": period,
             "Gauge Name": gaugeInfo.name,
             "Gauge Address": address,
             "Reward Token": "WETH",
@@ -158,10 +164,10 @@ async function main() {
 
     // Generate CSV content
     const csvContent = [
-      "Protocol;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+      "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
       ...newData.map(
         (row) =>
-          `${row.Protocol};` +
+          `${row["Period"]};` +
           `${row["Gauge Name"]};` +
           `${row["Gauge Address"]};` +
           `${row["Reward Token"]};` +
@@ -172,36 +178,23 @@ async function main() {
       ),
     ].join("\n");
 
-    // Retrieve min period and max period (for folder name)
-    let minPeriod = Number(Object.keys(latestRewards.resultsByPeriod)[0]);
-    let maxPeriod = minPeriod;
-
-    for (const period of Object.keys(latestRewards.resultsByPeriod)) {
-      if (Number(period) < minPeriod) {
-        minPeriod = Number(period);
-      }
-      if (Number(period) > maxPeriod) {
-        maxPeriod = Number(period);
-      }
-    }
-    const dateMin = new Date(minPeriod * 1000);
-    const dateMax = new Date(maxPeriod * 1000);
-
-    function formatDate(date: Date): string {
-      const year = date.getFullYear();
-      const month = (date.getMonth() + 1).toString().padStart(2, "0");
-      const day = date.getDate().toString().padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    }
-
-    const formattedFileName = `${formatDate(dateMin)}_${formatDate(dateMax)}`;
-
     // Write to file
-    const dirPath = path.join(__dirname, "..", "bounties-reports", "pendle");
+    const projectRoot = path.resolve(__dirname, "..");
+    const dirPath = path.join(
+      projectRoot,
+      "bounties-reports",
+      currentPeriod.toString()
+    );
     fs.mkdirSync(dirPath, { recursive: true });
-    const filePath = path.join(dirPath, `${formattedFileName}.csv`);
+
+    const filePath = path.join(dirPath, "pendle.csv");
     fs.writeFileSync(filePath, csvContent);
-    console.log(`Report generated for ${PROTOCOL}: ${filePath}`);
+
+    const formattedDate = new Date(currentPeriod * 1000).toLocaleDateString(
+      "en-GB"
+    );
+    console.log(`Report generated for Pendle for the week of: ${formattedDate}`);
+    console.log(`File saved at: ${filePath}`);
   } catch (error) {
     console.error("An error occurred:", error);
   }

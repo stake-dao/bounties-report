@@ -56,6 +56,11 @@ const PROTOCOLS_TOKENS = {
     decimals: 18,
     botmarket: BOTMARKETS[SPACE_TO_NETWORK[LABELS_TO_SPACE.fxn]],
   },
+  pendle: {
+    sdToken: SPACES_TOKENS[LABELS_TO_SPACE.pendle],
+    decimals: 18,
+    botmarket: BOTMARKETS[SPACE_TO_NETWORK[LABELS_TO_SPACE.pendle]],
+  },
 } as const;
 
 type ProtocolKey = keyof typeof PROTOCOLS_TOKENS;
@@ -94,6 +99,16 @@ async function processProtocol(protocol: string): Promise<ProtocolData> {
     currentPeriodTimestamp.toString(),
     `${protocol}.csv`
   );
+
+  if (!fs.existsSync(filePath)) {
+    console.warn(`Warning: No report found for protocol "${protocol}" for the current period.`);
+    return {
+      sdTokenRepartition: {},
+      totalReportAmount: 0,
+      rewardTokenCount: {},
+    };
+  }
+
   const fileContent = fs.readFileSync(filePath, "utf-8");
   const records = parse(fileContent, {
     columns: true,

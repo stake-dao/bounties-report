@@ -268,6 +268,11 @@ async function main() {
     for (const swap of [...swapInFiltered, ...swapOutFiltered]) {
       if (!swapsData[key][swap.blockNumber]) continue;
 
+      if (swap.token.toLowerCase() === "0x97efFB790f2fbB701D88f89DB4521348A2B77be8".toLowerCase()) {
+        console.log(swap)
+        continue
+      }
+
       const isNative =
         swap.token.toLowerCase() === protocolInfos.native.toLowerCase();
       const isWeth = swap.token.toLowerCase() === WETH_ADDRESS.toLowerCase();
