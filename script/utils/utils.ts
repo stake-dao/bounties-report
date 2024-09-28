@@ -75,6 +75,7 @@ export const extractCSV = async (
 
   const response: ExtractCSVType = {};
   let total = 0;
+  const totalPerToken: Record<string, number> = {};
 
   for (const row of records) {
     const gaugeAddress = row["gauge address"];
@@ -92,22 +93,46 @@ export const extractCSV = async (
         pendleResponse[period][gaugeAddress] = 0;
       }
 
-      total += parseFloat(row["reward sd value"]);
-      pendleResponse[period][gaugeAddress] += parseFloat(
-        row["reward sd value"]
-      );
+      if (row["reward sd value"]) {
+        total += parseFloat(row["reward sd value"]);
+        pendleResponse[period][gaugeAddress] += parseFloat(
+          row["reward sd value"]
+        );
+      }
+    } else if (space === CVX_SPACE) {
+      const cvxResponse = response as CvxCSVType;
+      const rewardAddress = row["reward address"].toLowerCase();
+      const rewardAmount = parseFloat(row["reward amount"]);
+
+      if (!cvxResponse[gaugeAddress]) {
+        cvxResponse[gaugeAddress] = { rewardAddress, rewardAmount };
+      } else {
+        cvxResponse[gaugeAddress].rewardAmount += rewardAmount;
+      }
+
+      if (!totalPerToken[rewardAddress]) {
+        totalPerToken[rewardAddress] = 0;
+      }
+      totalPerToken[rewardAddress] += rewardAmount;
     } else {
       const otherResponse = response as OtherCSVType;
       if (!otherResponse[gaugeAddress]) {
         otherResponse[gaugeAddress] = 0;
       }
-      const rewardValue = parseFloat(row["reward sd value"]);
-      total += rewardValue;
-      otherResponse[gaugeAddress] += rewardValue;
+      if (row["reward sd value"]) {
+        const rewardValue = parseFloat(row["reward sd value"]);
+        total += rewardValue;
+        otherResponse[gaugeAddress] += rewardValue;
+      }
     }
   }
 
-  console.log(`Total reward for ${space}: ${total}`);
+  if (space === CVX_SPACE) {
+    console.log(`Total reward per token for ${space}:`, totalPerToken);
+  } else {
+    console.log(`Total sdToken reward for ${space}: ${total}`);
+  }
+
   return response;
 };
 

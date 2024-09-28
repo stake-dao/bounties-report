@@ -97,8 +97,7 @@ function writeReportToCSV(rows: CSVRow[]) {
     "..",
     "..",
     "bounties-reports",
-    currentPeriod.toString(),
-    "vlCVX"
+    currentPeriod.toString()
   );
   fs.mkdirSync(dirPath, { recursive: true });
 
@@ -111,7 +110,7 @@ function writeReportToCSV(rows: CSVRow[]) {
     ),
   ].join("\n");
 
-  const fileName = `curve_convex.csv`;
+  const fileName = `vlCVX.csv`;
   fs.writeFileSync(path.join(dirPath, fileName), csvContent);
   console.log(`Report generated for Curve Convex: ${fileName}`);
 }

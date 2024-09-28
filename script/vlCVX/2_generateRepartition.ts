@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
-import { AGNOSTIC_MAINNET_TABLE, CVX_SPACE, WEEK } from "../utils/constants";
+import { AGNOSTIC_MAINNET_TABLE, CVX_SPACE, WEEK, DELEGATION_ADDRESS } from "../utils/constants";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
@@ -9,14 +9,11 @@ import {
   getVotingPower,
 } from "../utils/snapshot";
 import { getDelegators } from "../utils/agnostic";
-import { extractCSV, ExtractCSVType } from "../utils/utils";
-//import { DELEGATION_ADDRESS } from "../utils/constants";
+import { extractCSV } from "../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
 
 dotenv.config();
-
-const DELEGATION_ADDRESS = "0x5180db0237291a6449dda9ed33ad90a38787621c";
 
 type CvxCSVType = Record<
   string,
@@ -246,34 +243,50 @@ const main = async () => {
       // Distribute to delegators
       voter.delegation.forEach((delegator: { voter: string; vp: number }) => {
         const amount = ((delegator.vp * vpShare) / 100) * rewardPerOneVp;
-        if (!distribution[delegator.voter]) {
-          distribution[delegator.voter] = {
-            isStakeDelegator: stakeDaoDelegators.includes(
-              delegator.voter.toLowerCase()
-            ),
-            tokens: {},
-          };
+        if (amount > 0) {
+          if (!distribution[delegator.voter]) {
+            distribution[delegator.voter] = {
+              isStakeDelegator: stakeDaoDelegators.includes(
+                delegator.voter.toLowerCase()
+              ),
+              tokens: {},
+            };
+          }
+          distribution[delegator.voter].tokens[rewardInfo.rewardAddress] =
+            (distribution[delegator.voter].tokens[rewardInfo.rewardAddress] ||
+              0) + amount;
         }
-        distribution[delegator.voter].tokens[rewardInfo.rewardAddress] =
-          (distribution[delegator.voter].tokens[rewardInfo.rewardAddress] ||
-            0) + amount;
       });
 
       // Distribute to main voter
       const amount =
         ((voter.vp_without_delegation * vpShare) / 100) * rewardPerOneVp;
-      if (!distribution[voter.voter]) {
-        distribution[voter.voter] = {
-          isStakeDelegator: stakeDaoDelegators.includes(
-            voter.voter.toLowerCase()
-          ),
-          tokens: {},
-        };
+      if (amount > 0) {
+        if (!distribution[voter.voter]) {
+          distribution[voter.voter] = {
+            isStakeDelegator: stakeDaoDelegators.includes(
+              voter.voter.toLowerCase()
+            ),
+            tokens: {},
+          };
+        }
+        distribution[voter.voter].tokens[rewardInfo.rewardAddress] =
+          (distribution[voter.voter].tokens[rewardInfo.rewardAddress] || 0) +
+          amount;
       }
-      distribution[voter.voter].tokens[rewardInfo.rewardAddress] =
-        (distribution[voter.voter].tokens[rewardInfo.rewardAddress] || 0) +
-        amount;
     });
+  });
+
+  // Remove any entries with zero amounts
+  Object.keys(distribution).forEach((voter) => {
+    const nonZeroTokens = Object.entries(distribution[voter].tokens).filter(
+      ([, amount]) => amount > 0
+    );
+    if (nonZeroTokens.length === 0) {
+      delete distribution[voter];
+    } else {
+      distribution[voter].tokens = Object.fromEntries(nonZeroTokens);
+    }
   });
 
   // Validate distribution

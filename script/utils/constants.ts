@@ -58,6 +58,7 @@ export const LABELS_TO_SPACE: Record<string, string> = {
   pendle: SDPENDLE_SPACE,
   cake: SDCAKE_SPACE,
   fxn: SDFXN_SPACE,
+  cvx: CVX_SPACE,
 };
 
 export const SPACE_TO_NETWORK: Record<string, string> = {

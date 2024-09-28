@@ -47,6 +47,25 @@ async function generateDelegatorMerkleTree(
   distribution: Distribution,
   previousMerkleData: MerkleData
 ): Promise<MerkleData> {
+  // Check if there are any delegators in the current distribution
+  let delegatorCount = 0;
+  Object.values(distribution.distribution).forEach((data) => {
+    if (typeof data === "object" && "isStakeDelegator" in data && data.isStakeDelegator) {
+      delegatorCount++;
+    }
+  });
+
+  console.log(`Number of Stake Dao delegators in current distribution: ${delegatorCount}`);
+
+  // If there are no delegators, return the previous merkle data for delegators
+  if (delegatorCount === 0) {
+    console.log("No Stake Dao delegators found in current distribution. Using previous merkle data for delegators.");
+    return previousMerkleData;
+  }
+
+  // If there are delegators, proceed with generating new merkle tree
+  console.log("Generating new merkle tree for delegators...");
+
   // Step 1: Get the total sdCRV transfer amount and block number
   const sdCrvTransfer = await getSdCrvTransfer(minBlock, maxBlock);
   const totalSdCrv = sdCrvTransfer.amount;

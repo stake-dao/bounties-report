@@ -107,7 +107,7 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
   };
 
   // Create 'weekly-bounties' folder at the root of the project if it doesn't exist
-  const rootDir = path.resolve(__dirname, ".."); // Go up one level from the script directory
+  const rootDir = path.resolve(__dirname, "../.."); // Go up two level from the script directory
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
