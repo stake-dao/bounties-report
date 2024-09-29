@@ -78,7 +78,7 @@ jobs:
         if: contains(steps.set-actions.outputs.actions, 'Generate OTC BSC reports')
         run: |
           cd ${{ env.AUTOMATION_DEVOPS_DIR }}
-          python script/bounties/sdTkns/otc/report_bsc.py
+          python script/bounties/otc/report_bsc.py
         env:
           BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
           PYTHONPATH: script/
