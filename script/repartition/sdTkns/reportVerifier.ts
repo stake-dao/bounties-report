@@ -155,9 +155,17 @@ async function main() {
       0
     );
 
-    for (const [token, amount] of Object.entries(data.sdTokenRepartition)) {
-      const share = (amount / total) * 100;
-      const bountyCount = data.rewardTokenCount[token] || 0;
+    // Create an array of [token, share, bountyCount] tuples and sort it
+    const sortedShares = Object.entries(data.sdTokenRepartition)
+      .map(([token, amount]) => {
+        const share = (amount / total) * 100;
+        const bountyCount = data.rewardTokenCount[token] || 0;
+        return { token, share, bountyCount };
+      })
+      .sort((a, b) => b.share - a.share); // Sort by share in descending order
+
+    // Output the sorted shares
+    for (const { token, share, bountyCount } of sortedShares) {
       message += `  <b>${token}:</b> ${share.toFixed(2)}% <i>(${bountyCount} bounties)</i>\n`;
     }
 
