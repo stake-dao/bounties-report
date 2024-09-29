@@ -94,33 +94,43 @@ jobs:
 
           # Function to merge CSV files
           merge_csv() {
-            if [ -f "$1" ] && [ -f "$2" ]; then
-              # Both files exist, merge them
-              head -n 1 "$1" > "$OUTPUT_FILE"
-              tail -n +2 "$1" >> "$OUTPUT_FILE"
-              tail -n +2 "$2" >> "$OUTPUT_FILE"
-            elif [ -f "$1" ]; then
-              # Only first file exists
-              cp "$1" "$OUTPUT_FILE"
-            elif [ -f "$2" ]; then
-              # Only second file exists
-              cp "$2" "$OUTPUT_FILE"
+            local temp_file=$(mktemp)
+
+            # If OUTPUT_FILE exists, start with its content
+            if [ -f "$OUTPUT_FILE" ]; then
+              cp "$OUTPUT_FILE" "$temp_file"
             else
-              echo "No input files found"
-              exit 1
+              touch "$temp_file"
             fi
+
+            # Function to append unique lines from a file
+            append_unique() {
+              if [ -f "$1" ]; then
+                # If temp_file is empty, copy the entire file
+                if [ ! -s "$temp_file" ]; then
+                  cp "$1" "$temp_file"
+                else
+                  # Append unique lines, preserving the header
+                  head -n 1 "$temp_file" > "${temp_file}.tmp"
+                  tail -n +2 "$temp_file" > "${temp_file}.body"
+                  tail -n +2 "$1" >> "${temp_file}.body"
+                  sort -u "${temp_file}.body" >> "${temp_file}.tmp"
+                  mv "${temp_file}.tmp" "$temp_file"
+                  rm "${temp_file}.body"
+                fi
+              fi
+            }
+
+            # Append unique lines from both input files
+            append_unique "$1"
+            append_unique "$2"
+
+            # Move the result to OUTPUT_FILE
+            mv "$temp_file" "$OUTPUT_FILE"
           }
 
           # Merge the CSV files
           merge_csv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv"
-
-          # If OUTPUT_FILE already exists, merge with its content
-          if [ -f "$OUTPUT_FILE" ]; then
-            TEMP_FILE=$(mktemp)
-            head -n 1 "$OUTPUT_FILE" > "$TEMP_FILE"
-            tail -n +2 "$OUTPUT_FILE" | sort -u >> "$TEMP_FILE"
-            mv "$TEMP_FILE" "$OUTPUT_FILE"
-          fi
 
           # Clean up
           rm -rf ${{ env.AUTOMATION_DEVOPS_DIR }}
