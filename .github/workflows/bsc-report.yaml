@@ -1,7 +1,16 @@
-name: Generate Bi-Weekly BSC Report
+name: Generate Bi-Weekly and OTC BSC Report
 
 on:
   workflow_dispatch:
+    inputs:
+      actions:
+        description: "Actions to perform"
+        required: true
+        type: choice
+        options:
+          - Generate BSC reports
+          - Generate OTC BSC reports
+        default: "BSC"
 
   schedule:
     - cron: "0 0 * * 0" # Runs every Sunday at 00:00 UTC
@@ -25,7 +34,7 @@ jobs:
   generate-bsc-report:
     runs-on: ubuntu-latest
     needs: check-week
-    if: ${{ needs.check-week.outputs.isOdd == 'true' || github.event_name == 'dispatch' }}
+    if: ${{ needs.check-week.outputs.isOdd == 'true' || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout main repository
@@ -38,6 +47,15 @@ jobs:
           path: ${{ env.AUTOMATION_DEVOPS_DIR }}
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
 
+      - name: Set actions
+        id: set-actions
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "actions=Generate BSC reports" >> $GITHUB_OUTPUT
+          else
+            echo "actions=${{ github.event.inputs.actions }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -48,6 +66,7 @@ jobs:
         shell: bash
 
       - name: Run BSC report script
+        if: contains(steps.set-actions.outputs.actions, 'Generate BSC reports')
         run: |
           cd ${{ env.AUTOMATION_DEVOPS_DIR }}
           python script/bounties/bsc/report.py
@@ -55,13 +74,55 @@ jobs:
           BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
           PYTHONPATH: script/
 
-      - name: Move and rename report
+      - name: Run OTC BSC report script
+        if: contains(steps.set-actions.outputs.actions, 'Generate OTC BSC reports')
+        run: |
+          cd ${{ env.AUTOMATION_DEVOPS_DIR }}
+          python script/bounties/sdTkns/otc/report_bsc.py
+        env:
+          BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
+          PYTHONPATH: script/
+
+      - name: Merge CSV files
         run: |
           WEEK=604800
           CURRENT_TIMESTAMP=$(date +%s)
           WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
-          mkdir -p "bounties-reports/$WEEK_TIMESTAMP"
-          mv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "bounties-reports/$WEEK_TIMESTAMP/cake.csv"
+          OUTPUT_DIR="bounties-reports/$WEEK_TIMESTAMP"
+          OUTPUT_FILE="$OUTPUT_DIR/cake.csv"
+          mkdir -p "$OUTPUT_DIR"
+
+          # Function to merge CSV files
+          merge_csv() {
+            if [ -f "$1" ] && [ -f "$2" ]; then
+              # Both files exist, merge them
+              head -n 1 "$1" > "$OUTPUT_FILE"
+              tail -n +2 "$1" >> "$OUTPUT_FILE"
+              tail -n +2 "$2" >> "$OUTPUT_FILE"
+            elif [ -f "$1" ]; then
+              # Only first file exists
+              cp "$1" "$OUTPUT_FILE"
+            elif [ -f "$2" ]; then
+              # Only second file exists
+              cp "$2" "$OUTPUT_FILE"
+            else
+              echo "No input files found"
+              exit 1
+            fi
+          }
+
+          # Merge the CSV files
+          merge_csv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv"
+
+          # If OUTPUT_FILE already exists, merge with its content
+          if [ -f "$OUTPUT_FILE" ]; then
+            TEMP_FILE=$(mktemp)
+            head -n 1 "$OUTPUT_FILE" > "$TEMP_FILE"
+            tail -n +2 "$OUTPUT_FILE" | sort -u >> "$TEMP_FILE"
+            mv "$TEMP_FILE" "$OUTPUT_FILE"
+          fi
+
+          # Clean up
           rm -rf ${{ env.AUTOMATION_DEVOPS_DIR }}
         shell: bash
 
