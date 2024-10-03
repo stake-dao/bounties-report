@@ -1,6 +1,11 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
-import { AGNOSTIC_MAINNET_TABLE, CVX_SPACE, WEEK, DELEGATION_ADDRESS } from "../utils/constants";
+import {
+  AGNOSTIC_MAINNET_TABLE,
+  CVX_SPACE,
+  WEEK,
+  DELEGATION_ADDRESS,
+} from "../utils/constants";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
@@ -43,17 +48,51 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
       (totalsReport[rewardAddress.toLowerCase()] || 0) + rewardAmount;
   });
 
-  // Compare totals
+  // Compare totals and normalize small differences
   Object.entries(totalsDistribution).forEach(
     ([tokenAddress, distributionAmount]) => {
       const reportAmount = totalsReport[tokenAddress.toLowerCase()] || 0;
-      if (distributionAmount > reportAmount) {
+      const diff = Math.abs(distributionAmount - reportAmount);
+
+      if (diff > 0 && diff < 0.00000000001) {
+        console.log(`Small difference found for ${tokenAddress}: ${diff}`);
+        console.log(
+          `Normalizing distribution amount from ${distributionAmount} to ${reportAmount}`
+        );
+
+        // Find the voter with the largest amount for this token and adjust their amount
+        let maxVoter = "";
+        let maxAmount = 0;
+
+        Object.entries(distribution).forEach(([voter, { tokens }]) => {
+          if (
+            tokens[tokenAddress] &&
+            tokens[tokenAddress] > maxAmount
+          ) {
+            maxVoter = voter;
+            maxAmount = tokens[tokenAddress];
+          }
+        });
+
+        if (maxVoter) {
+          const adjustment = reportAmount - distributionAmount;
+          distribution[maxVoter].tokens[tokenAddress] += adjustment;
+          console.log(
+            `Adjusted ${maxVoter}'s amount by ${adjustment}`
+          );
+        }
+
+        totalsDistribution[tokenAddress] = reportAmount;
+      } else if (distributionAmount > reportAmount) {
         throw new Error(
           `Distribution exceeds report for ${tokenAddress}: ${distributionAmount} distributed vs ${reportAmount} reported`
         );
       }
     }
   );
+
+  console.log("Distribution totals:", totalsDistribution);
+  console.log("Report totals:", totalsReport);
 };
 
 const main = async () => {
@@ -131,9 +170,15 @@ const main = async () => {
           proposal.created,
           CVX_SPACE
         );
-        const delegator_for: Record<string, { delegator: string; delegate: string }> = {};
+        const delegator_for: Record<
+          string,
+          { delegator: string; delegate: string }
+        > = {};
         _delegators.forEach((d) => {
-          delegator_for[d.toLowerCase()] = { delegator: d.toLowerCase(), delegate: vote.voter.toLowerCase() };
+          delegator_for[d.toLowerCase()] = {
+            delegator: d.toLowerCase(),
+            delegate: vote.voter.toLowerCase(),
+          };
         });
         delegators = { ...delegators, ...delegator_for };
       }
@@ -189,6 +234,12 @@ const main = async () => {
       vote.choice as Record<string, number>
     ).reduce((acc, weight) => acc + weight, 0);
   });
+
+  // TODO : Temp
+  fs.writeFileSync(
+    `bounties-reports/${currentPeriodTimestamp}/vlCVX/votes.json`,
+    JSON.stringify({ votes }, null, 2)
+  );
 
   // Distribute rewards
   console.log("Distributing rewards...");

@@ -110,7 +110,7 @@ function writeReportToCSV(rows: CSVRow[]) {
     ),
   ].join("\n");
 
-  const fileName = `vlCVX.csv`;
+  const fileName = `cvx.csv`;
   fs.writeFileSync(path.join(dirPath, fileName), csvContent);
   console.log(`Report generated for Curve Convex: ${fileName}`);
 }
