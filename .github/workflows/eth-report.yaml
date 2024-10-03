@@ -41,20 +41,29 @@ jobs:
             echo "actions=${{ github.event.inputs.actions }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Run generateWeeklyReport script
+      - name: Run generateWeeklyReport (all except Pendle) script
         if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
         run: |
           npx ts-node script/reports/generateReport.ts
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
+
+      - name: Run generatePendleReport script
+        if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
+        run: |
           npx ts-node script/reports/generatePendleReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
 
       - name: Run generateOTCReport script
         if: contains(steps.set-actions.outputs.actions, 'Generate OTCS reports')
         run: |
-          npx ts-node script/generateOTCReport.ts
+          npx ts-node script/reports/generateOTCReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
 
       - name: Commit and push if changed
         run: |
