@@ -478,7 +478,7 @@ const fetchWardenClaimedBounties = async (
 
           if (
             decodedLog.args.account &&
-            getAddress(decodedLog.args.account) != BOTMARKET
+            getAddress(decodedLog.args.account.toLowerCase()) != getAddress(BOTMARKET.toLowerCase())
           ) {
             continue;
           }
@@ -509,7 +509,7 @@ const fetchWardenClaimedBounties = async (
         if (
           quest.questId === bounty.questID &&
           quest.period === bounty.period &&
-          quest.distributor == bounty.distributor
+          getAddress(quest.distributor.toLowerCase()) == getAddress(bounty.distributor.toLowerCase())
         ) {
           if (!protocolBounties[protocol]) {
             protocolBounties[protocol] = [];
@@ -520,7 +520,6 @@ const fetchWardenClaimedBounties = async (
       });
     }
   });
-
   return protocolBounties;
 };
 
