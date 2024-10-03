@@ -58,7 +58,11 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     blockNumber1,
     blockNumber2
   );
-  const warden = await fetchWardenClaimedBounties(blockNumber1, blockNumber2);
+  const wardenBounties = await fetchWardenClaimedBounties(
+    blockNumber1,
+    blockNumber2
+  );
+
   const hiddenhand = await fetchHiddenHandClaimedBounties(
     publicClient,
     currentPeriod,
@@ -67,12 +71,11 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
   );
 
   // Replace keys in warden bounties by protocol
-  for (const path of Object.keys(warden)) {
-    const protocol = path_to_protocols[path];
-    if (protocol) {
-      warden[protocol] = warden[path];
-      delete warden[path];
-    }
+  const warden: { [key: string]: any } = {};
+  for (const path of Object.keys(wardenBounties)) {
+    console.log("path", path);
+    const protocol = path_to_protocols[path] || path;
+    warden[protocol] = wardenBounties[path];
   }
 
   const weeklyBounties = {

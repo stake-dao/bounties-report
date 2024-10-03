@@ -1,8 +1,8 @@
 {
   "timestamp1": 1727913600,
-  "timestamp2": 1727982367,
+  "timestamp2": 1727990476,
   "blockNumber1": 20881262,
-  "blockNumber2": 20886961,
+  "blockNumber2": 20887632,
   "votemarket": {
     "balancer": {
       "0": {
@@ -157,7 +157,18 @@
       }
     }
   },
-  "warden": {},
+  "warden": {
+    "fxn": {
+      "0": {
+        "amount": "177164155692707003676",
+        "rewardToken": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+        "gauge": "0xf0A3ECed42Dbd8353569639c0eaa833857aA0A75",
+        "questID": "22",
+        "period": "1727308800",
+        "distributor": "0x8964c76B6f0253A77129D58cBA5D184d414d7C9a"
+      }
+    }
+  },
   "hiddenhand": {
     "balancer": {
       "0": {
