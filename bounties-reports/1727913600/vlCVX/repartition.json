@@ -1,0 +1,5050 @@
+{
+  "distribution": {
+    "0xb1748c79709f4ba2dd82834b8c82d4a505003f27": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 112.5339750078218
+      }
+    },
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0035223966132574805
+      }
+    },
+    "0x0de046423099cfd8c2fe02c7e1155b018cdc9992": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000012312148936451239
+      }
+    },
+    "0x5dcd83cf2dd90a4c7e1c189e74ec7dc072ad78e1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.169111102790365e-7
+      }
+    },
+    "0x544b4979263846cbc2bebf0b99d3812536964da5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00005008728769220624
+      }
+    },
+    "0x090e1fdc0cb866317751f0621884a203a8d797aa": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008828776142283929
+      }
+    },
+    "0x9808cf542dc77cb111b9d5ce51f530b032714df8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007408328031182983
+      }
+    },
+    "0x16668854dd35b25d3b219db372cb256eb9898b98": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009798662149388864
+      }
+    },
+    "0xd334533980c201c1b93e39bbe6bd1e04be5c0f5d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002690847951709369
+      }
+    },
+    "0x8a2e722c2f167283e38ffee0ee5f1a035596915f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.579493641165099e-7
+      }
+    },
+    "0x99697e5c8fcc8601531c348e54f39a6cc3ddfece": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000027170620301130326
+      }
+    },
+    "0x6aed19abab347eb07a2c8b264fc5c4c1b002210b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00018319414294394037
+      }
+    },
+    "0x8a72c47f190f2118227a83da784a2ce45c54f484": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009265292082775575
+      }
+    },
+    "0x33498977491c9a5c5a9f0a0c978a75b734a2e2ca": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002791439258296366
+      }
+    },
+    "0x62151c0e69d03e2fb1f16b7657d12e0f4eff1cee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000017647445513871497
+      }
+    },
+    "0xbbc3981cb8116477b7ba26f347cf6b07e09edf6c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003308269162780015
+      }
+    },
+    "0x9663a4cf47174c02add34a60d9bac5252f59bf0c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002281303046408928
+      }
+    },
+    "0x8844657af9b631cefd5686b514b00d8a6f332189": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000018952699041611622
+      }
+    },
+    "0x24c31d3195250a03272d20e7c7a052b82e424637": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011293899642960695
+      }
+    },
+    "0xd6c23e2c0e19dfdf8638b076f1d076f7b29b74e1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.6236664604728137e-7
+      }
+    },
+    "0x5658f4b362e95c0bc32d5ce0051457882db92ee5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.186685170713499e-7
+      }
+    },
+    "0x296fc536f85209d6965dd04128d2dbe484c27ec9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000027673069798419607
+      }
+    },
+    "0xb7d49adb031d6dbdf3e8e28f21c6dd3b6f231cd5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011009902507064855
+      }
+    },
+    "0xb502102c55618c07a13b7670d586c4ef1f64c9e4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017220560542040115
+      }
+    },
+    "0x9b22f3051cd8a86bf51d5477e69f9b54a1e2151b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.0852368948881986e-7
+      }
+    },
+    "0x9dd84044bd2704ca0929295ad902ecca1b029a82": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002696217190763603
+      }
+    },
+    "0x3ccd8642b8c3a969be55c4575717c46dfb5c7663": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000012801518422588603
+      }
+    },
+    "0xa1d509af0ab2e2c2fbff2ac5bb1fad50ba16c65d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001411594453304113
+      }
+    },
+    "0xb8b3aa3e5785e9f17333c106273984f1356901ff": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.828633394888693e-7
+      }
+    },
+    "0xd18327bb6d6de9241bed63bb5e78459325fbbd70": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00011734744666122426
+      }
+    },
+    "0x89b8b20ae90328692cd367f75aafadf55fd33e8b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008828633394888692
+      }
+    },
+    "0x863a3dc56a345ea43610e7a840b264fec3ca4c09": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007612833032716652
+      }
+    },
+    "0x721792a27797a8f286fcb40d5f644c52bfc1ddbd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.414316697444347e-7
+      }
+    },
+    "0x20cc6cf5b44ff68b6ffbb95f8b21e876d4611c20": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00003113571354211046
+      }
+    },
+    "0xffb509135d9f3b3dd5621c291d0f7c9a08d3e2b4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008861176342912187
+      }
+    },
+    "0x9b616ac1d31f17be9b23560d93699ca7732e2808": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.9575921872877123e-7
+      }
+    },
+    "0xd2357fffbcdc3780835ceff1447c357c413ddd65": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001989633603010209
+      }
+    },
+    "0x4f9dc145c00fa2a2036770e39a71566b1d3f6b97": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00004414338862505696
+      }
+    },
+    "0x5a78917b84d3946f7e093ad4d9944fffffb451a9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.536485773026146e-7
+      }
+    },
+    "0xf6be5b79f2c702506dfb6f304974d25571e4a6aa": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005576508925285379
+      }
+    },
+    "0xda106baeecefd4c94f7d7d11a4f8be492e5d265b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000015116220145242666
+      }
+    },
+    "0x6465281912a942e695180a1892e1d2aa5c011f75": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005564857186851834
+      }
+    },
+    "0xc61a14453e2fe2a00843d8441eb7d26bc4f06107": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017657266789777387
+      }
+    },
+    "0x66c90bace2b68955c875fda89ba2c5a94e672440": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.155966794639843e-7
+      }
+    },
+    "0x8ac4c0630c5ed1636537924ec9b037fc652adee8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012312161709082272
+      }
+    },
+    "0x77299cf68685b96a529d392c7d8edfc94cbdcc15": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006360467285008892
+      }
+    },
+    "0x4b908f3d5e46b89c0d8a6478f86c80b88aa277d3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011502241145359466
+      }
+    },
+    "0xc9f6d94d22eb9444bbdbe79d27d48ad6815d1ae0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000021370003286119266
+      }
+    },
+    "0xad522b2abf3be0cbc9204d75a11affc3b35c4249": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000051467802935586885
+      }
+    },
+    "0x0f33f35c19768d8ea50080ea8cbed943599f7612": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.410638015356406e-7
+      }
+    },
+    "0x02b6e3488b382c93f3f80abb237eb9fef16283be": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.412133107084206e-7
+      }
+    },
+    "0x327ae09aeffc9a276529b61870e896e733933801": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.35528324727065e-7
+      }
+    },
+    "0xa963dbd200549f264e3b5d673c8f8cf044508c7d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.442866416876664e-7
+      }
+    },
+    "0x4402d49b32689f0b30a9a707f0ec914b25d94e1d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.7602406079206025e-7
+      }
+    },
+    "0x6df21fc1a7460ffef2de50c7cc94e167085ae70c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006701446902195766
+      }
+    },
+    "0xd180dd68759a1570a66439548319b94240f309c0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003586400446268078
+      }
+    },
+    "0x4849726d23bf5fec06e97ed58b1684129b35c5ba": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010246953378321078
+      }
+    },
+    "0xa0b6253d7787ae282749b71fd4ef5d5c9d8a9e87": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006794097526427054
+      }
+    },
+    "0xaabd5fbcb8ad62d4fbbb02a2e9769a9f2ee7e883": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001839401610337284
+      }
+    },
+    "0xffd3da76203642d4ee112893f33749a0df7ea7fd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001386467106378272
+      }
+    },
+    "0xe5a8c0b301dd80c10756788051f2cf084b0a1707": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017323900057260546
+      }
+    },
+    "0xd869bd3aaf156ca1c2a19eeecf598427a2bca6bd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002041952188760286
+      }
+    },
+    "0x3ac892a09165516d98ec9c02b95ff840ab4badae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.297180036933216e-7
+      }
+    },
+    "0x2e7543fa844354f17ece9ae7049bf77745e460b1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.902255960540803e-7
+      }
+    },
+    "0x690cd3b56759835a7244dd1c9caebc32a43a8da6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006270018905026716
+      }
+    },
+    "0xb8fd76f90d2569a29574c603620aaac70c64f805": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005036993668015848
+      }
+    },
+    "0x2d61e2147e2d279dffab5811c6b63ae458a18c7a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006283311561338308
+      }
+    },
+    "0xba03ba802059269f7edc976f008d2e8eaa7edd9f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000014180983882413668
+      }
+    },
+    "0x5898c3e139f24458cfee6a2d56c16e59f6ace9b5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.0124724048230603e-7
+      }
+    },
+    "0x66143d695baff44a3c8549bbdb16098d55674f9d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.687450990747327e-7
+      }
+    },
+    "0xc89c3e79f4cf81c7f4038f20d009d19bc986e6f0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.067908000009156e-7
+      }
+    },
+    "0x34cdfeb92f7dd096ebb8c618875b8eca8fd50d83": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.762951553709364e-7
+      }
+    },
+    "0x744905311c3b20378c6f95ca0afa6ee3729a7a23": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.7275285185876893e-7
+      }
+    },
+    "0x8869e198016ec59c6dc6e06d37e2ffe651192dc3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0295960757628193e-7
+      }
+    },
+    "0x7207b2b2e4bc5c24f1ee44c4ad56fd31c63db471": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000014732277902241145
+      }
+    },
+    "0xe53befb50c7a5d8392246506ff3e5a8e66eb5100": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.828633394888693e-7
+      }
+    },
+    "0xcb442c04b4f097365fc164f9199a828fa1926526": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000028355526156426225
+      }
+    },
+    "0x37e06ba4b0403d33bbabafd63662b1f0fbfdf2cd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002540508641980634
+      }
+    },
+    "0xc575b5e473ef412c78deacf11ad57e33e5c2639b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000015650465864973836
+      }
+    },
+    "0x1243e7ad51eda47e580c20e751acaa0b8863c17c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000014680876733710098
+      }
+    },
+    "0xee620a0991d57f464aad452789a4564ba51245e8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.236570181248623e-7
+      }
+    },
+    "0x5e91d547a6f279e6d59086e30e25c964efe4b463": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012843740360377357
+      }
+    },
+    "0xc857283243e3367da2c79e6127b25b8f96e276ff": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.4628385960284442e-7
+      }
+    },
+    "0x18c1ff758ae2c5f6b59e06e4e0cc7d6578d3d50c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002132155479625347
+      }
+    },
+    "0x98925015551455e94710524c11c3678eb5424069": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.019478702693816e-7
+      }
+    },
+    "0x539438a890a678dd1d9e7ab92c403c97e787132b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.4261476797706945e-7
+      }
+    },
+    "0xf4e262a2165527727cb51e6ecc0b103f14ac4cfc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000014790607868861995
+      }
+    },
+    "0xff597632d59c49e918fe26cda385f37a0db8a713": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000042259525823280576
+      }
+    },
+    "0x6b0ce027e14e5d7fd4b07db1c39a5a9ef0199b78": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000010669459804222567
+      }
+    },
+    "0xc06057acf5c722e961184d3eb751d93bada7d72c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004005495393873628
+      }
+    },
+    "0x7905c68385b6919d8ae2ffb90fbf2c3c5c218de4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000045458935956746315
+      }
+    },
+    "0xf87b531cd7d3f63ef5c21e29d530fb6dd86056fe": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001449405739820863
+      }
+    },
+    "0x641d99580f6cf034e1734287a9e8dae4356641ca": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000066545171156398655
+      }
+    },
+    "0x2968bd1a20f99d64fd6db2e32af4ca68d197d3dd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.231362442407226e-7
+      }
+    },
+    "0x5c7c6d069ba232718f37c27a9549b547c359e31c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00003069987128949745
+      }
+    },
+    "0x5c160d106be874649e114617b3de197f936a3a70": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.824392642428345e-7
+      }
+    },
+    "0xadfc26b6520a35c37af3ac5af174249737ec612c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.263595968190126e-7
+      }
+    },
+    "0x5de4ca716bc806c79286ee0bab92a585da214043": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008510851150012279
+      }
+    },
+    "0xc16abc70d9c6e869f00ecff397e7652b1847c570": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000032132761788943423
+      }
+    },
+    "0xc7b6dfc5e43e9fdcefc742de308370abbd485962": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000010249337080794183
+      }
+    },
+    "0x1b51cce51e2531c478daa9b68eb80d47247dcbec": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000022656422743229264
+      }
+    },
+    "0x7fa40786cd0923a83e165daaa748b10123fa74c0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007355675843148427
+      }
+    },
+    "0xb460336e8850ba79c56cfa6e47de2fcd3d2d3d63": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.618917634705856e-7
+      }
+    },
+    "0x11d0d47177abba34a72128e5b54013500de48850": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000020007146122727207
+      }
+    },
+    "0xf49440c1f012d041802b25a73e5b0b9166a75c02": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000012654615196287997
+      }
+    },
+    "0x65d8098ea2223d13788a00c7145f997037f535a6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000020545377673689344
+      }
+    },
+    "0xf960a6adc4ea8e2d3c873dc3116cfdb8a5d9c883": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007555442194399862
+      }
+    },
+    "0x21f59001e8543fbd84fcacade38b1a06274f0ca3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000024194795339133968
+      }
+    },
+    "0x9e6f98de1bc2e28663492057552c5323c93a0996": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.27111825892251e-7
+      }
+    },
+    "0x62898156796d73a26685b5a81775cb1a9f7c671b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.425785300757122e-7
+      }
+    },
+    "0x86d9dc0fc8bc5ad48373eeefaff4826a081db114": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003923999718571938
+      }
+    },
+    "0x5b5cfc5d48a33b1ae2c733a765411c8804c246a3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004225955677988043
+      }
+    },
+    "0xb8946202d3af2856ee5b05fd834dbdf37404a853": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001087205203662868
+      }
+    },
+    "0x32ef5f780084d647b21bf997e10d15f699f528be": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.827816127680179e-7
+      }
+    },
+    "0x0771190e59e8fc016506ac49c2db580cd84d866f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.89067942729118e-8
+      }
+    },
+    "0xcc03fcede7be0783f9c9eb00d5d781ddb73dafeb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.218016651201218e-7
+      }
+    },
+    "0xd6f82502f20647dd8d78dffb6ad7f8d8193d5e29": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006930555199327999
+      }
+    },
+    "0x686e3520e5a28e8ff9693eced99daa3efab4b50c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001682126980527402
+      }
+    },
+    "0x92f5d472bb5018e858e23453641850bfeac30e7d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0001397789648612752
+      }
+    },
+    "0x3b82d2e900fe62d5ef2a928ee134d0fef6baccf3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.812063182205115e-7
+      }
+    },
+    "0x2a036b355fcfe50d9e1aef058b97190b74d47b63": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.5163709552380866e-8
+      }
+    },
+    "0x29c7b44e0584624c1e877d3ee0856520e2851ba6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004704048504013723
+      }
+    },
+    "0x3dd7ba8d639370efdc9a7ce7b4392cebd83572e7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000014268359772597632
+      }
+    },
+    "0x252f519e47e3fa46dc34eafd910b1bd914f0d4a5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.701611342964996e-8
+      }
+    },
+    "0xfc4b2a62a06cb2e1c6a743e9ae327bb16977e4c1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000069162690759273045
+      }
+    },
+    "0x4e99eb15a362d1e0154d3f07dbaeb37b635b5788": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000657529377302488
+      }
+    },
+    "0x90a0e857d61500dbeef4cfa08e0b0abcf7b870e1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000035314533579554774
+      }
+    },
+    "0xdd65384034e71c7f1a16813f6fd4f060480852ea": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002397282751154251
+      }
+    },
+    "0x10027d8f80c1b33a07c94f79780c1d5d72a985b6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017451173930455345
+      }
+    },
+    "0xfae8b4004fc0678dec7ab043288955095a6b9a86": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001937669395999996
+      }
+    },
+    "0x06d45164a9065931692fe8b454e332ed8cc2ee17": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000124539418228514
+      }
+    },
+    "0x87a12688667f43f764dc508d3061c9b65bfe8b8a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.879921024930926e-7
+      }
+    },
+    "0x83ba980794a7c4a3f3d7c4401bf89695380164e0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005564814697858467
+      }
+    },
+    "0x3d91fc43561520df06b74715a0976133a8fdf6c9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000020842865330125635
+      }
+    },
+    "0x8149dc18d39fdba137e43c871e7801e7cf566d41": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.139106780019123e-10
+      }
+    },
+    "0x6ffc40e41897421f381abf343301fdd01cccec34": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000024764164398019654
+      }
+    },
+    "0x362c5ff2046ccf299fc8773a77d586c826d12f25": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.409330324898369e-7
+      }
+    },
+    "0xa7b946eaa6e8948b4168986021e93878285efc4a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.5691969324204872e-7
+      }
+    },
+    "0x781fea3353d6efbbabc9fac0b4725eff3c77dba7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00011005734687502112
+      }
+    },
+    "0x7fcae1802e6c6106dc561674502569535d903709": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.699276605199306e-7
+      }
+    },
+    "0xdbd5e81eb31a210459f5d4c057651ffce5f742aa": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001147722555800476
+      }
+    },
+    "0x8b7026dc260dc47637a4b0f9e1c660f65d5eba2f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.928902991560211e-8
+      }
+    },
+    "0x965b30b56f8a00a5c5a4c0c6e32592546374ae6e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0369207638632507e-7
+      }
+    },
+    "0x20288c00bff0a616a1ec9e7d351948f1ef77b974": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017984141519567368
+      }
+    },
+    "0x2067c2ce64dcdef7c6bd195a7ee190d734c13fc8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004036481014544402
+      }
+    },
+    "0xe868b8c09fd2c8c3f74d54f34f7325ab1c94c71f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.379155634639611e-7
+      }
+    },
+    "0xc6a82e72156a11a2e1634633af5e4517b451f0d9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.458127764754162e-7
+      }
+    },
+    "0xc1c79c6378e5a72895c8ea15fc6dd59ffddc8dee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.5333736780229673e-7
+      }
+    },
+    "0xfd049161e80f5e665af09e4e23b8e78ac44f11d8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000024088265171681734
+      }
+    },
+    "0xa2c9ff37cd8053a901fcfbfb0d8e053d1dc56532": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000035500041613466263
+      }
+    },
+    "0xb91694fe76ace753372fb19a1c997850e1a5feff": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000016495534049604551
+      }
+    },
+    "0x1d66a32de869247df231776d425a324df2699050": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006198548330874946
+      }
+    },
+    "0x54a2ac5bec44deb48261ba69870e0cf60e69b7cd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.683840904020053e-7
+      }
+    },
+    "0x27080caf73e9703b28996f26cf620ecf9a568b11": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.014741365266725e-7
+      }
+    },
+    "0xdc5ad17a7b8da976cc4a9b2b266f72fbc711b849": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.9073243870574975e-7
+      }
+    },
+    "0x8e454d42ea869e608868dda4daeb31a236fda61f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000063286611398048065
+      }
+    },
+    "0x1125917201ed36700f86c3cecec8c5dafae280d1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.813438180122074e-7
+      }
+    },
+    "0x37b20eda6118ee68110cc34132342c0504e9e359": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.8029103320952045e-7
+      }
+    },
+    "0xbfe8838de25ad36d106fd600f24471baf31e3ff3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.3185224059478804e-7
+      }
+    },
+    "0xf5659d33af64b5b987f048a4ba7cfca1c96f7f7a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.4259880634814623e-7
+      }
+    },
+    "0x7d32940a646e48591a4cc3cb54f67cbe1dd16670": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007327955782498711
+      }
+    },
+    "0xe800dc31d4bc3cfa3971aa4444a0efdd88cb72d2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000046928198554497795
+      }
+    },
+    "0xcaa7eb561bd75d1a8d23234eb915bbcd3844ee23": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001203356342262831
+      }
+    },
+    "0x0034daf2e65f6ef82bc6f893dbbfd7c232a0e59c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010200868782655148
+      }
+    },
+    "0x4fda9979a0719c003e664171a446d80feafde921": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.7052118455792113e-7
+      }
+    },
+    "0x734e80667a9f7e5ba1862c7c048790ae82f99d1a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002187188013873875
+      }
+    },
+    "0x860405aed29d99e47d5df9377590d1a9a9c596ae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001504741782165404
+      }
+    },
+    "0x11ea7888c0020d34cb37e89ac8bd544120bb16ec": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000019845081374371672
+      }
+    },
+    "0xd58dcd4594087c2758717a59f44a5ac09db65105": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000016814065279846887
+      }
+    },
+    "0xabdd378fce2b9dd721fa86bd91668482ac1aa816": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.11857981620653e-8
+      }
+    },
+    "0xc6c2a697e27242b3ba5a393f304b64a27040e006": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000027072489283574993
+      }
+    },
+    "0x15f76bc8510b6573d4db6dbfe95eb337ac482578": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.0058216477416013e-7
+      }
+    },
+    "0x3293e1958cc0275f76449426896740b20ea74cd7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000027416087686824495
+      }
+    },
+    "0xf5be55cbbb102ed3403a6907dacd1f90ea584e7c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.65359220817984e-7
+      }
+    },
+    "0x6451905dbe5f7c037bed289dabca69ab8e715e9a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00007039359452224434
+      }
+    },
+    "0x09d9f10a0958a7a8c11990d2ed436b5e79aca7ee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000013712306255143195
+      }
+    },
+    "0xcb693f25d01eea9853a03ce164e1308f9e4651c3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.968911208684906e-7
+      }
+    },
+    "0x4d640d6d2cae44c3192a70dc1179aa890484cc7e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.4917684659634458e-7
+      }
+    },
+    "0x686dfebf95ec7fab763a8f1ef66f67faca5803a9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.80504441142139e-7
+      }
+    },
+    "0x2e9bdece5db845063b4d7a666b6d9a4099093c32": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012526365248906255
+      }
+    },
+    "0x78e96be52e38b3fc3445a2ed34a6e586ffab9631": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00005780519236349702
+      }
+    },
+    "0x5ce0fa14f2b6a23ae9ba1f3148b3d33c0de1d29c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000013616678559515953
+      }
+    },
+    "0xb18dacf8937dcd595ac19f3ca4390e5a411b2eae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.158025612544294e-7
+      }
+    },
+    "0xc1f3ebe56fe3a32adac585e7379882cf0e5a6d87": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000025363594467028146
+      }
+    },
+    "0xb5091c991e776a0d3acf543b5e6517b7136e4f47": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.936917133697473e-7
+      }
+    },
+    "0x7338afb07db145220849b04a45243956f20b14d9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00002279946761532612
+      }
+    },
+    "0xade9e51c9e23d64e538a7a38656b78ab6bcc349e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000907695576695301
+      }
+    },
+    "0x53ba7e59533a9e7b63b2265491695739c648d70d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000030811930548161538
+      }
+    },
+    "0xf47fd47c6241efd6e5a6c03be3fe3f8e45f0325b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000662147504616652
+      }
+    },
+    "0x28ea10ba9a02527b1e276f8ac600bc3ee9ad7278": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004488744564565236
+      }
+    },
+    "0x0acb169093665dfdd69af8ef1314499fce7e0edd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000017810649284575395
+      }
+    },
+    "0x91544e0d0ee6361152f06891b52e778b3614d253": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002257716076217086
+      }
+    },
+    "0x51f13c84b49b64ba6b1615e7d91b11066908bf3c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.980598002747458e-7
+      }
+    },
+    "0x384201c99804e737cfad24065d05fa24ce721e30": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.373326643541257e-7
+      }
+    },
+    "0x9f2f1e3dedeea341c479d3bd5d5775de4448d8bb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007945711319895605
+      }
+    },
+    "0xca3d58033c40a5f649fd1123871385d82fe47b65": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.816675129907166e-7
+      }
+    },
+    "0x20016b43c4af919a1547c3f690cca1a751f0c360": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000019061625889295527
+      }
+    },
+    "0xdb9f34d96ccf206d2f07c59f03f382ea4250d8ee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010095582336650596
+      }
+    },
+    "0x1f24fbc913436488894c79bf3df624d3add579fc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017636970815278634
+      }
+    },
+    "0xaad4a4a165ac449b59ea68d81b97f1eaf314d501": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.0011032475759524e-8
+      }
+    },
+    "0x08cbf077180d45868cc04d8c053ec37025545933": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003105475229367913
+      }
+    },
+    "0x3830f1290da3fdb91a337a1458aa34f60c49ffcc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000019848203379684145
+      }
+    },
+    "0x8b030e85f86a7665a55922ac688ac112cd18f906": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.325560353049021e-7
+      }
+    },
+    "0x59a84850f71407ad4f412da065511e7b1f47130f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.4408319801620517e-7
+      }
+    },
+    "0xf3ebe56e4745968b8df3491911d270f5dd59f896": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001785365345208197
+      }
+    },
+    "0x81d98c8fda0410ee3e9d7586cb949cd19fa4cf38": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.7657266789777389e-7
+      }
+    },
+    "0xfc93d167c5ca38a0b76134a7d0afd9488abe2505": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000026671242272187086
+      }
+    },
+    "0xdaa070d909e010211606144ede5b2ca6864c2c1c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000631898288760933
+      }
+    },
+    "0xc85408ddfa3ab48911d4c301a0b723d3151fcdfb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1926566018543887e-7
+      }
+    },
+    "0x3ced6a5b8e7801a3cc961dc9bfbbb64830a7a450": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.797039323117955e-7
+      }
+    },
+    "0x500da24eb4a9222854fcde19e4bbc522e0644a2c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011180771873600558
+      }
+    },
+    "0x871a30f835e293304c153c2ea619316c02658e61": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000014904323696206104
+      }
+    },
+    "0x6bed2a4c9673c990fa28fbf39488b1d3c92360f7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.4899154326249015e-7
+      }
+    },
+    "0xaa2e24709c11d3fa1d692e2fc000afbc7dacec4a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000025254827009271
+      }
+    },
+    "0x1bd1e0b7b7c4a3431ba3dde8ea4a78af1f789927": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.479729024229706e-7
+      }
+    },
+    "0xd5972eb267792c21bb76728301a8b0eaa0a75b26": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.356801961744251e-7
+      }
+    },
+    "0x267f8581b39f95fc89faf155806bc7f25892885e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011875386986336927
+      }
+    },
+    "0xc2c07b84b01650b295300fe525039d64b17267ba": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.433384334378198e-8
+      }
+    },
+    "0xfbf16b1d64231fa8e397855dc8d92fb97b104861": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00008873342759009974
+      }
+    },
+    "0xc0f9a07125825e8e804ca5d44d6881081f906810": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000330954075366089
+      }
+    },
+    "0x63fb86d77783c2e093ba3394831b8faf3c1d241f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.748888329584672e-7
+      }
+    },
+    "0x220c2a7d2ef1937b041ac1dcf530ea258d6e60b7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.2890770645167373e-7
+      }
+    },
+    "0x65983d2dc2de433082486048b5b139d52d23f435": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.9835986654139294e-7
+      }
+    },
+    "0x3777a16e7fe9e92ed600452352ac6ddf618ffc80": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1893681567810896e-7
+      }
+    },
+    "0xb8ddbc7331308f796888b0dc72b35e112a2949dc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.587849139944909e-8
+      }
+    },
+    "0x13cbf9895e68fe79ce34b59ba7eedec58e025971": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000011069891840692483
+      }
+    },
+    "0x80d678d9075cb6054b9b8de4c58a1bc3ff6e1d9c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002221978874630083
+      }
+    },
+    "0x0895adcb0876d33bd3a9867ce388740492129d37": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00002099123914559416
+      }
+    },
+    "0x081de4f903ec473f6e59cc8b896b1d3991869830": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.6902236514066225e-7
+      }
+    },
+    "0x73051a64044fea61a6100eb0b55c9087be32cca3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001236008675284417
+      }
+    },
+    "0xf5f2eb90fbcb3f97d93b06bedc6ead3cb1e6f5a6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.728561693088955e-7
+      }
+    },
+    "0xa3b86c148bf890be2badd347bf0b52dd4ae5e6f1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.149956551050737e-7
+      }
+    },
+    "0x3da7402ec78e72923f2e0346f421deec60418779": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.2048508048605612e-7
+      }
+    },
+    "0xa47af4174e109b7eccd182729f067b6d8d3d91d9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011705562288876989
+      }
+    },
+    "0x387849986a57f558233a7ff0e94a9ebb74f6182e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000011309968984009756
+      }
+    },
+    "0x0fad7d34c8749ede15072dcab78c4023bd981125": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.130474805320493e-7
+      }
+    },
+    "0x3c37c0738c273756d508ebef1010a77f9a1bd181": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001103582344085931
+      }
+    },
+    "0xe7c7870de03a42ae915f06af8c48d1d52d63ae6d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000016179471926645428
+      }
+    },
+    "0x31afc6b1edc22e5883124f0ed3830b36ac645ec4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005905326329241436
+      }
+    },
+    "0xcc22308d8598052e026578c4cfe370b7f971367c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.829276114103735e-7
+      }
+    },
+    "0x2b145ec5f531d3bc836389453b8a3b8348c4ea23": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012259201600278158
+      }
+    },
+    "0xd3853c71c057622f189536857937f1785448f7cc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000014382451557519413
+      }
+    },
+    "0x9b58ded134e2e9967a8fecb2acdad0c7adb52f3f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000013297516679629006
+      }
+    },
+    "0x120a265fbb08c07579264f825a536bec683dcd8c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.110315579162484e-7
+      }
+    },
+    "0x9c5083dd4838e120dbeac44c052179692aa5dac5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0008828633394888755
+      }
+    },
+    "0x8485a648b4a5cfa33f727be2f9dc2d79a461c60d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.7816121313837337e-7
+      }
+    },
+    "0x168032fb586f8d9a2568dcd7c19582cdcab52df3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001766847744104689
+      }
+    },
+    "0x09a3eda5c932e2922060082bf1addb8db1653977": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002109220576330425
+      }
+    },
+    "0x74b94932f7220d13c8c3f1b41d3123b2141dca8d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003741651786197692
+      }
+    },
+    "0x8a7f162daac546997cc36b6b7c528a21800507b9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017658280315407687
+      }
+    },
+    "0x5bcad5638d4b90d0f8e645b3874c94d1ee9fdedb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.3501061538575155e-7
+      }
+    },
+    "0x65877be34c0c3c3a317d97028fd91bd261410026": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003023944753795216
+      }
+    },
+    "0xf49e4d4e89cefd8e6e33c58dc9e48719c6a9439c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000021994873160507347
+      }
+    },
+    "0x443a547b3a9c3415bc1cd86dbf0bbc9a0c54cbce": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001858966149427656
+      }
+    },
+    "0x5162a3fbb50dc3add1e7addd35a1ee39b06302c5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000028951339858379606
+      }
+    },
+    "0x435903249daa169b4c67dc16dc63234cdf0e701a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.846457994749655e-7
+      }
+    },
+    "0x0c5fbea19877a43ea900c981cb012c28ed739b1d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.733165342694649e-7
+      }
+    },
+    "0x32b8f48a8c09acde0d066c2a9fb3bf367b9ee2ed": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.396537697801664e-7
+      }
+    },
+    "0x9b54264d7502f80163ea949038aad771eae67e38": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000034897488325458567
+      }
+    },
+    "0xec15fbebd5dc1438eb54fb7c0e28bf2cbd79cf87": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.6354554778659153e-7
+      }
+    },
+    "0xb14130755bdc32f3540b8ff1ab417304c80d0eef": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.1723047719364283e-7
+      }
+    },
+    "0xce3f0eedaf0868d1d504c957e2e854c4d22e08a1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.579480656468401e-8
+      }
+    },
+    "0xd8295412222e846e62bac0681fb680ae4febcb80": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002207158348722173
+      }
+    },
+    "0xb119ea8e7ed6bf2e30baec725d36393d60a9d057": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.810697884351386e-7
+      }
+    },
+    "0xdb8c4615877d9c0572fe2e6e20ca13c92a977feb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011400559418482417
+      }
+    },
+    "0x9a0a7ac2320882cf721a3c847fed25fd6589e93b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005303870889651422
+      }
+    },
+    "0x9211f08cbd738d5da676d4cc3cc631069b5affb0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000740023307073276
+      }
+    },
+    "0xa4cbe661ac2305960d6495572d3e10c87d2a2c92": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.9298814258995481e-7
+      }
+    },
+    "0x189cf1073372a98ed96f1facab4ab7d4d01c7d12": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000035382184878243965
+      }
+    },
+    "0x4aab9e6eb125cdd378671188255f19325e3a804f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000045761238635077015
+      }
+    },
+    "0xf64b0e267943efd53a8f83ef5831675f0b474dc5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000013791462579341599
+      }
+    },
+    "0x9fc4001133d3825b7ce4b05bcfbe227fb3cd5fdf": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000015432208289970707
+      }
+    },
+    "0x6c0c260f63273a73d4d0852079099b453ac3a8c5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.082549696706258e-7
+      }
+    },
+    "0xf88bd8ae20dab0ec2c92db12f3ab79add118ba63": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003525354632747657
+      }
+    },
+    "0xcdcf6f4fc5947d0b420bf22568a52a8480c56f8f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000020807835467182618
+      }
+    },
+    "0xbbbb5872733ccd20fa79ff8d7a7a94ac9adf6220": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.952313799034272e-7
+      }
+    },
+    "0xcbee81ef354480853cc21165930d265ba1326266": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000017657272072468715
+      }
+    },
+    "0x8c95638ce53c630f600667b5c21fba12885ba042": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.575152124474098e-7
+      }
+    },
+    "0x73b169075b417aebb749fb0fc5e6ff69c2a7f6c2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.213079335216065e-7
+      }
+    },
+    "0x2231b8855dac098dbb491b4961e7e2db29bb891c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000027974933223918332
+      }
+    },
+    "0xbdb4d0599ed427a7312489af77d205edf3c2854d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000038414866430053634
+      }
+    },
+    "0x9bbb5476491bbc5c052c8a8c67d0c07fb077f978": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000029312428246667355
+      }
+    },
+    "0x9658902337a7244a245abc3a3ddb0d09b6f7bb21": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.2357235999217508e-7
+      }
+    },
+    "0x40c9c76cbd948694459974b2ad41128a9583b6c7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.363678252037116e-7
+      }
+    },
+    "0xb7bb5eb5e654fb784854e32a62752507d887b33b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000022498444745297682
+      }
+    },
+    "0x7aeedccd91e4470aad39faa7535faaa43dc9ea43": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009474710892526865
+      }
+    },
+    "0x181d01893f369fe418b08a4dc495310d620b44f8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003712887602750398
+      }
+    },
+    "0x5e53ce97fcd3abe46f1ab45abb3e9a9c5e19f193": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.0493517442307845e-7
+      }
+    },
+    "0xbba7f4fa59362e68cd4081f5a098e1d9c01fc552": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.514098629736298e-7
+      }
+    },
+    "0xc2322d5d740a31e2c59f1e7b7b0c50c9e6af58e8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.822239192652123e-7
+      }
+    },
+    "0xa995daaa0e0d85ca20bea73621b644b0da4d44f4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000026754058935597435
+      }
+    },
+    "0x48d93dabf29aa5d86424a90ee60f419f1837649f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0005173063625521794
+      }
+    },
+    "0x0065ec16a5eb2a291dc6f7076e1255a418c52ffd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.8713068529871594e-7
+      }
+    },
+    "0xad8b3eaa1e249776237218b210aa162798add162": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.604639747591702e-7
+      }
+    },
+    "0xfde34a676aa8d44b66d5ced822831a5b1454f8b0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.9804515624918306e-8
+      }
+    },
+    "0xabb5fed8a72b3344f73a609792da0c1fbd82f4c8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000014323026977692058
+      }
+    },
+    "0xfc27f64b651713cfa34c596be2f6f7b48375f045": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.315133874004814e-7
+      }
+    },
+    "0x20798fd64a342d1ee640348e42c14181fdc842d8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007944087553416112
+      }
+    },
+    "0xe867cc15f6d6839d1e479041fda51ffc6db764e6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002709848225372316
+      }
+    },
+    "0xc67d3beb5e9c80095a3f773af25ea36b20b95965": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000353337558275574
+      }
+    },
+    "0x8a2ec1337217dc52de95230a2979a408e7b4d78e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008072769876545573
+      }
+    },
+    "0x23865507f6e9d94fdebb3d61a0fbc70885d23852": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000019930121191429523
+      }
+    },
+    "0x8e269d9c2804aaf5521f869026d551109774f93a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.770902521874271e-7
+      }
+    },
+    "0x2c6d68cf5fb48a7446220cd4806c4c64ce5105c0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.858170638294847e-8
+      }
+    },
+    "0xfb4c70e90cd872175cef8f4609ea4d5ab53faa3c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.052114455573328e-7
+      }
+    },
+    "0xe115e8c83698fd8e51f4d8fb9b1a923234ca43e4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000027803382675339373
+      }
+    },
+    "0xf2b8c142edcf2f3cc22665cce863a7c9a3e9f156": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000456824321093562
+      }
+    },
+    "0x44aad281ee6d8ac715d9d059a704546888638284": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003518800900559863
+      }
+    },
+    "0x9345270ed73a69110c7f7466960775e1faea111c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.8883562128338083e-7
+      }
+    },
+    "0xd570bac3bc97aea2537e1c1cf0f0317a1a35c5cb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.7673327548732258e-7
+      }
+    },
+    "0x6eaf25b1b3670dfc17690adfc001cc6da65c2293": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000013082318106994737
+      }
+    },
+    "0x9e8c646220613d68eaf2b947f46c2b4f52bf3f45": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006661617156988499
+      }
+    },
+    "0xa0896145ade9481af8bdee471dde87d9a70da3e6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004440425397839753
+      }
+    },
+    "0xb97ade36185a07343ffa89b9595280f021977cb7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000573861170667765
+      }
+    },
+    "0xea536f226ec8b6b34dc4e3ba80a0756b61039bf8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000058619918199814246
+      }
+    },
+    "0x27b5491b519e72ce52f0dc9ccc9d7dc3d1e7b964": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004157673888327998
+      }
+    },
+    "0x6d8743d7ed5db4f6896de7a6e2fe391c66de6ca8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000029198368055703835
+      }
+    },
+    "0xf2c40b86e6292b52dbedf861a8b60ee82cdb0412": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000010736007025647745
+      }
+    },
+    "0xf94176af4a3698eb667b32ea61a3a0ec2003bf74": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003060838598060176
+      }
+    },
+    "0xb4192ab96664248c260f9b7e3ef5d55b55b55384": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003595614562143377
+      }
+    },
+    "0x597f540bb63381ffa267027d2d479984825057a8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0009272582732785848
+      }
+    },
+    "0x4f8461b7d3bf8e28c05072b2938db3a72dc52a78": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000026691242800519638
+      }
+    },
+    "0x212344aaaf6425a1e223e6ae7bd2590c8167ebf1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000013245895031738825
+      }
+    },
+    "0x0a5fb8fe3e08bfd43c67581433850271dc2648d0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000014095949343555083
+      }
+    },
+    "0xd853ea096b3cd49f0abe9585ac3eefd2ff2500e0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.380619134031385e-7
+      }
+    },
+    "0xc4d59742bd702e92e746d44b3aa2b7c99a780325": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.1388534555322487e-7
+      }
+    },
+    "0x0633f1692dab82f6f253ef571c769861cf90ecb6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.5036122081702014e-7
+      }
+    },
+    "0x1fc68efbc126034d135c6a53cb991ff7e122b3d9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006844416896655172
+      }
+    },
+    "0x3816e1ada945f0a4495036d8f7e852a82495f4f4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.319838917365967e-7
+      }
+    },
+    "0xd262042ac40f29084e5dbe76e25c050db4c7cecd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.49915162705174e-7
+      }
+    },
+    "0x6891922246edeb713e33d0e6817ffe2d216e34fd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000024248650839053934
+      }
+    },
+    "0x8654a995426e775f3ef023cd6e1b5681e774ffa1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.023762567006231e-7
+      }
+    },
+    "0xd7e3400f7b113ddff18c92f4850cec3572be3b45": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.815309512540635e-7
+      }
+    },
+    "0x8cc1547f2aebbbaa9466310355110427449a937f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.089735864448562e-7
+      }
+    },
+    "0xeefbcc7054b2b0c1bb61fc178369f4888aec7872": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000022559776664552253
+      }
+    },
+    "0xae96e864851b763b562d0f34605b0ab47969ff71": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00010177156416363054
+      }
+    },
+    "0x0c20e9958e4eb2d9c112d1469e17ab6c830cde09": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000013146932194028323
+      }
+    },
+    "0xb820d495fb9a76be0088e06b871aa1b074c42c4b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00006502295736684634
+      }
+    },
+    "0xade7f9e2c809309547df9b4215b93f70d7759a87": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000019000607050723787
+      }
+    },
+    "0x4bd4f6fb857d26185b38ba6be7d3b4a6b91de1f5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1192914496654631e-7
+      }
+    },
+    "0x70eef8a3a90324d12e099c4c2f8e2f984a0f2277": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.8453735424502e-7
+      }
+    },
+    "0xf1a67d67cc97e9755e2c8b13a6ee3e538bf830d9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000028024616370428128
+      }
+    },
+    "0xb21731d830b7e8460e5d6c66dc1ccc0a5d0a6b87": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.107324469971847e-7
+      }
+    },
+    "0x6b6724cbbdfe0d4c0ed61f5ec8ab38d704d14186": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.325561615955909e-7
+      }
+    },
+    "0x3de48a996a5abd38f6c94c127d5439a29d56978c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.734642381149918e-7
+      }
+    },
+    "0x3c07ed368da82bab96c5cef545c91072f03bdcb6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.86698305004353e-8
+      }
+    },
+    "0xa578725a917a89edb20ea4e9d070c45f04da7290": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005367055551743066
+      }
+    },
+    "0x3dc606ce9cca12196917a3267a8ae7008e018958": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000028500118474610136
+      }
+    },
+    "0x0c5ad5bf624fd2a76264583d55161e1f24e8da4f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.025043043210721e-7
+      }
+    },
+    "0xac060d259542832bebed2bcb575f813ea9977fe8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002202720308596468
+      }
+    },
+    "0x6f9883681643daf8704ecbc7351c7f0d7282a685": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.2334668911740686e-7
+      }
+    },
+    "0x8c9a1431dac49a2c0a8778eddc334edda44dc8de": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000021171439357263242
+      }
+    },
+    "0x8f611742f42ede7de5300c71f0fbb253ebb6b39a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003483156904347429
+      }
+    },
+    "0xf22d732bcdf768d9c6c7a431630d83719388f61f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.262071056327863e-7
+      }
+    },
+    "0xeae9fed78b7e616b8a9802ab50a4467fc9570341": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.480120861660293e-7
+      }
+    },
+    "0x283266045ab2ab0793a62cadc21d55f685636ae0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.203486699341591e-7
+      }
+    },
+    "0xe01523770e5d00c61ccfa1c6a7f4cbdedc3c187d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003091023018558912
+      }
+    },
+    "0x6c1333b30c53f132dd2d928d27892d89f110cbf8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.8875575190467306e-7
+      }
+    },
+    "0x4037108bed31f34820f0bdb790dab0a4741c6fd2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005490708419857618
+      }
+    },
+    "0xda7d36970aec53c337962ad0f1da5225e2911fbf": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012436685153856972
+      }
+    },
+    "0x31e015c62e5cc7a4bf17a3fa6f91e88dbcdb0a52": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.228639982917668e-7
+      }
+    },
+    "0x5f82c97e9b1755237692a946ae814998bc0e2124": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000023249323689683777
+      }
+    },
+    "0x8f649fe750340a295dddbbd7e1ec8f378cf24b42": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.826765351426707e-7
+      }
+    },
+    "0x8915896b58a80d1cfe983ded77ecbea7f8d80cb4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.598805986773162e-7
+      }
+    },
+    "0x2331801dd3cf7a43952c94276319be4b3571c129": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006018791940970237
+      }
+    },
+    "0xd26b4f36f3784ff6481b0f0cfaba1fa2ca941c40": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000019674458296400788
+      }
+    },
+    "0x0d0db6402196fb090cd251a1503b5688a30a6116": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000014893021673837739
+      }
+    },
+    "0x3fe97bd7b1a5ac53069f2824c0118a4d66870d46": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.277928420652077e-8
+      }
+    },
+    "0x5b50cc7c09afab8c188595f7ede61113115611b8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017667941740406724
+      }
+    },
+    "0x413642cafe68f1fe718d46ec32136e209fd7ee5b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.580325377685076e-7
+      }
+    },
+    "0xb37c90207d0274eb4e33f1949f8e0a169f9531c8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.1855729408235023e-7
+      }
+    },
+    "0xd0a9c2a0fd3930e7972f2bdea8db1649ae167170": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.510345516737774e-7
+      }
+    },
+    "0x8f5e97e1e3d47a2f223a67e06de21f067b7779db": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005950304000691782
+      }
+    },
+    "0x7c8dc754feccf61fb338a934794fab8a7a5cb174": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.939759844798639e-7
+      }
+    },
+    "0xf2397c0aa16408c894b6f9f699cbce858f1055b9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.8079513758480276e-7
+      }
+    },
+    "0x073a774b6fec5031a0da4d9665345ab94af3857d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001378183778207031
+      }
+    },
+    "0x7423fab4f4835ebdaa204c1e439792c7a75cb3f9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001316566021058736
+      }
+    },
+    "0xbcdb22127f203b89cec7c86d6d55041258c3da64": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.859892734081945e-7
+      }
+    },
+    "0xfcbb477ec276476b6029ed0467f28f5ac1712884": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.180734657408647e-8
+      }
+    },
+    "0x5177bf52c594f98bf0370d1cb6576da766914f08": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.489230724010762e-7
+      }
+    },
+    "0x7606ccf1c5f2a908423eb8dd2fa5d82a12255700": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.849770223165111e-7
+      }
+    },
+    "0x129b027960b6d15b2c235fc04ac17caaa1d910e0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000040935406979503145
+      }
+    },
+    "0xe21c74125d6915dc1042dac140f5acc2931f4793": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008162821438366682
+      }
+    },
+    "0x0105b8006f62190fd4b8b8ef1ec0f1fcfdcbfb4d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.612657400645638e-7
+      }
+    },
+    "0xac0f76a8c30e23bc197d26465e7be319713c5224": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.974563940407479e-7
+      }
+    },
+    "0xb5f9b11d7738d64f737964061f9827d701853629": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.063989184431582e-7
+      }
+    },
+    "0xe7a41ae3e37f5df4beb7513519b46946ec82f6c5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.3783648761419408e-7
+      }
+    },
+    "0x45d742a488392e2888523d12c5fd3c20f05d65b5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000018898408385110889
+      }
+    },
+    "0x9c570be42ad43c251a1997fe9e231d742358c386": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006295505396365459
+      }
+    },
+    "0x813f98977a00ca98b453e3d963294bef326c40dd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.6705434635787553e-7
+      }
+    },
+    "0x35fb598a156a57773c8d24bc3d0ab61178d8bcea": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.165260197280063e-7
+      }
+    },
+    "0xea9f2e31ad16636f4e1af0012db569900401248a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000026750985309879435
+      }
+    },
+    "0xb8cd34ca73035ed73ca6be2c7befb363dad54f68": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.281258124405595e-7
+      }
+    },
+    "0xe2b02b41e529b9f1ff757ae251e494c47c53943e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.633239213614038e-7
+      }
+    },
+    "0x095cbf84f149f12ce5625ea023ad0133cd84a503": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.800863112716091e-8
+      }
+    },
+    "0x68ef140d3dff71a579daac2bb9fbc5c16448ae33": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.5563988967555505e-7
+      }
+    },
+    "0x52ad8bd27747597c44814220e69cf2f5c57039e2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000020627503765807325
+      }
+    },
+    "0x53f0a8420474a1e05383096b9f6560c115cdd7fd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.651937663745394e-7
+      }
+    },
+    "0x418e78939dc368196669a5a58da6934d4be6144b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.149819800635518e-7
+      }
+    },
+    "0xa31c53454e867f0beab985cab91966bd8792f632": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.9470971422073252e-8
+      }
+    },
+    "0xb97f255b37eef7d47dbe1debbecd1f2ecfc37abe": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.5261449490705488e-7
+      }
+    },
+    "0x3523481702186c04740e50396d0e1c807ce36c57": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000037615276352984905
+      }
+    },
+    "0xfa713713b1acd89a00e6b35512161630d5ea90de": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.542447645926846e-7
+      }
+    },
+    "0x370da0a1480451d3e38fa7668a9ba7873fc8ac08": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.2468036974981494e-7
+      }
+    },
+    "0xcf0c43037e3a96f3c86c43cb90185359a7be3055": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.167194891731294e-7
+      }
+    },
+    "0x87813492f5365cf0b0c39943f5d5b69e5b283172": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003009253225345152
+      }
+    },
+    "0xab478baf33a661c5b8f463e9953beaabd075526d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.736548860914327e-8
+      }
+    },
+    "0xcab2f01222bb861b8473230d4a943eba86c1d30b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.531372285071577e-7
+      }
+    },
+    "0xf498a39716aa1a45630a49054149cd4af78818fc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.5271391390749924e-7
+      }
+    },
+    "0xa669070d106e96cc2390523e9745b425a1b3a0e0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000016663610025341086
+      }
+    },
+    "0xea7c60ba79508855dc3c869dae5b407e6f9fc307": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00002833394823507366
+      }
+    },
+    "0x32cfaeb8e0c5991e760ddbaf23e28b3ce5d4eee6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.943949946062294e-7
+      }
+    },
+    "0xe0e1ee69825ab69ee82ba59c95ebf6f66a7a13c9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000035320261455643244
+      }
+    },
+    "0x861fab101086c5564bcc23b31243a44af42e7594": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.543091457557047e-8
+      }
+    },
+    "0xb01e1183563acc3d71d67376b154ba5bb7d8ec39": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.0068122510881494e-7
+      }
+    },
+    "0x2a8a933a5f0a4026f3308ecf51e4c9dc590b97df": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.3824170799036534e-8
+      }
+    },
+    "0xb91d22ade0225992834f8427e55a1e1c78412d19": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.772404017818986e-8
+      }
+    },
+    "0xad7a593f7ea7730f437accadc1846115eb9a2993": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001389400466419108
+      }
+    },
+    "0xb1ef81e3f581a2a1f1d663dc45a56794d711826f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017755902997913387
+      }
+    },
+    "0x8729f995bc9fd28e95c78d747f7750c49bb83361": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009028538508679794
+      }
+    },
+    "0x7e1ff06fc9adaca7383560f3d674c6b686aef67e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017920318904246077
+      }
+    },
+    "0xa3ae519321a48d5d62f05bd45a88f71d412009d1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.557051445850189e-7
+      }
+    },
+    "0x3d78ace36ab76eae6dbfda33e2835873bccc095d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000032858365640360963
+      }
+    },
+    "0x0bf281ee2a899004fbd564e819626a7fcaad273f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004682757727820015
+      }
+    },
+    "0x2fc751eecadb4de30c72d237944def66e4451a39": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.4961388243759233e-7
+      }
+    },
+    "0xd315f7ce9d3675a6ce3e13b71edce6615e135ff2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003279462793018687
+      }
+    },
+    "0x38484f74afed5fb86b6fa3517e7ff91ceeb6ae7e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000329643513698354
+      }
+    },
+    "0x65a350ea5f4545e09a270a98f5252bf743d087e2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.9820024287710853e-7
+      }
+    },
+    "0xbd48146e6786326ab3f8abfc46d892db69eb11e9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.355970110850671e-7
+      }
+    },
+    "0x10ecd1d529f1d3c35c3dec91547e249a4b080e3f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000060747433123271995
+      }
+    },
+    "0xed8056e619a1c7f6305d888630aaa2e447235d80": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.034599969649164e-7
+      }
+    },
+    "0x12158ec38b398631fbed34a8faedb988527e5323": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.033025683985901e-7
+      }
+    },
+    "0x42b28e5df3ab955dc385fdb75a02cf9f1bcf728d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.315219585466936e-7
+      }
+    },
+    "0x46d6d5a5c0cc589abddad248835e608bc6520a1f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.887959051107225e-7
+      }
+    },
+    "0x81945fadb05d5e95e2e045254866b1fe3d3b2466": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00007163552120238967
+      }
+    },
+    "0xafd068b8a2b1f7e841c1fc2f42208c9ee4fb42ec": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.4801202989785307e-7
+      }
+    },
+    "0x7803ab56769dda5432cdbd63749a6beeb3180008": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001932482686097978
+      }
+    },
+    "0x1b71cf59302b63fa79127d24e5927c71c68ef1d1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000028428637579756706
+      }
+    },
+    "0x80eba6761f3fc3359131439fa359b5b44b912d4f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000035030019785114698
+      }
+    },
+    "0x0f16a1fa31419f74ce350909b9bd6864331c6299": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000018041645124044573
+      }
+    },
+    "0xfa4843c82789f00311e6ae1b67f35849b6a9f7fd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005133369186547754
+      }
+    },
+    "0x225c4cfc17d5ee7bf3e682396b12c0f6a7709d7d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.551031193586616e-7
+      }
+    },
+    "0xb888f9f40f6007c06681306bba976f5e25691e1b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010309227830157877
+      }
+    },
+    "0x16d56e22268eae7d4ec11506a152b5a7fc7ad69b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.035070155089241e-8
+      }
+    },
+    "0x61d9f932d32e80e7dfde716a58e6fa8decfa1fb5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000026485900184666084
+      }
+    },
+    "0x6bd0b461ae0427f12b09897fc390f77fe2b51f8e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.049712974019562e-7
+      }
+    },
+    "0xabd8a8741f70174076a41bb70b0781e04fe5dc17": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1096130951009609e-8
+      }
+    },
+    "0x9dfbcb6898a760611ddacdc498680e45064f9190": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1612639946363156e-8
+      }
+    },
+    "0x1d691412b21f0d5cd969e4d3437a0a3d6acc875a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.451237895082774e-7
+      }
+    },
+    "0x48d18a882b0be145606a11fce6f8a301256b93fa": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000015716895177757796
+      }
+    },
+    "0x852e45ed1a6502406af4c409df4e0eef3cc0a0e3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002314319106800931
+      }
+    },
+    "0xa0769aadb2cce61db65afb75f7b405c8fcb763d7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011318101820445164
+      }
+    },
+    "0x31959a06eb19f18e504d1cb78d418fbb96b60a56": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017678401016418305
+      }
+    },
+    "0x73ef9bc307327fc231ffbf37350a56c0a691d750": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.142891882522976e-7
+      }
+    },
+    "0xf8dd824b97dc66b38a8a96688a9b378f3d36132d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.783851260319514e-8
+      }
+    },
+    "0x21c95d1853e010f62532074c6ffeec568a84409f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008491020105137692
+      }
+    },
+    "0x1ec9c8b70b7473dd04a82afc5930dd0a34ab3eb9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003651097939060593
+      }
+    },
+    "0xc29fc038cd055842d466281f609c319bde595017": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000046387541997613775
+      }
+    },
+    "0xcdd2ce87b7a8b6521fed1fd1b42247499dcfa7b3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000027120354340510707
+      }
+    },
+    "0xe2a09516ed875ae2504c5293b9d881a04e41561c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001915677889614366
+      }
+    },
+    "0xe9a14ef5a818fd27b636695ac34dd4f63de88350": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0001684034091464902
+      }
+    },
+    "0xca0073964efe7f9422ceb16901018b1db0cc4785": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017657266789777387
+      }
+    },
+    "0x8d7498befde4a426997efdf81701a3670e53ca17": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.57326662122078e-8
+      }
+    },
+    "0xb13e36f9ba843c0b63738678128df4ec9b8761de": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.4528026837745567e-7
+      }
+    },
+    "0x4bad2833c44424423518194f07c4917be28d7363": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003307718096545051
+      }
+    },
+    "0x55d3d12deaf9b7b4f2727ce539b6bacac9d86126": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.551206411923204e-7
+      }
+    },
+    "0xe1d620fc6ed5bba9c3e734313ce73c128726df90": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.4800004505316815e-7
+      }
+    },
+    "0x68db10416d0f983d43a593d0b340ebf308ca9883": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.593223419302875e-7
+      }
+    },
+    "0x9437e277c8ee0815943dabf393179e0dbd9b0739": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007763141548849698
+      }
+    },
+    "0x5231e31c3ca39dd94ff56becb662ea50bc4da7d1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000501344425269322
+      }
+    },
+    "0xd0b2a7dff2a32c706988292f6eaae5aee7a4cb24": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.027693416438712e-7
+      }
+    },
+    "0x4e13b4e63ee85df37565eff8df35bc326477591f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.552874636849615e-7
+      }
+    },
+    "0xee1a44f0849776a213090a6eeb41e0fcf005d7a0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.347212428716587e-7
+      }
+    },
+    "0x9bb64b8ffbc99c10c53496fc1f0cb48314149fc7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006180096787435764
+      }
+    },
+    "0x7ab5386c78c73b10d04c470315948a2983ad7b68": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.414657221757697e-7
+      }
+    },
+    "0x1102a2a0953bfae7591be5d2f084b7d97b5c99b7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.3015251965845235e-7
+      }
+    },
+    "0x6ec8161e36b5e6caf7055953869753aec71f1bee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.3422428285278442e-7
+      }
+    },
+    "0x5d4d3fae4d0282fd8a558b5f42ba700974cbfd1a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.8193004739962664e-7
+      }
+    },
+    "0x7e3750018216e2f3f750fd3c103d242a17f508ea": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.8446681923615946e-7
+      }
+    },
+    "0xde5bf4031258060f4ad4e2aa77e6303a644fc147": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.850662910566193e-7
+      }
+    },
+    "0xbcb892cc201ee8630233c608c065242687f18cad": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.032016006141147e-7
+      }
+    },
+    "0x7c61dd66048d6dbfcb94ec7bb08b41cccc8e2926": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001710882812795447
+      }
+    },
+    "0x438a9f6b404c5cc93649ab240e6b337915569ca0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.986202230300508e-7
+      }
+    },
+    "0x660b669317631b12474fece072c76a9c5e6b9463": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005297180036933217
+      }
+    },
+    "0x43374d5289509c7fc9673799f9eb95dd9afbebe8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000026908508985692886
+      }
+    },
+    "0x3805b4bcc59cea2cf91b742bd30a84f2772b2a17": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010252665230400038
+      }
+    },
+    "0x3dad39724bf424ea26d29a5bb543ad690490e437": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.090367891220143e-7
+      }
+    },
+    "0x8e29a644a71b1c9cac1c46a5d9099d17301c08f4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.9928323009391626e-8
+      }
+    },
+    "0x2831172a2ea3d56d54e03689f354904d9ff04d44": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.818651078199823e-7
+      }
+    },
+    "0x53b015573630d248a32b11b21e5443efb92d9cfb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.037953286443367e-9
+      }
+    },
+    "0xf6d1e6c202318c0e19e0601a45034f8e97c3cb2a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000013251367600483478
+      }
+    },
+    "0xc498096db67641395b36599fe4b97e26aa4f9f34": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.8366774303159217e-7
+      }
+    },
+    "0x86ab5e397cdf40327bc2662ba69f989836ffc0ab": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001561926371834771
+      }
+    },
+    "0x53fc8954cad03b73217d8124ed25f80d6d43553b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.94015841900363e-8
+      }
+    },
+    "0xfcdedf1ef27a557c98949758d07420164f445810": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.109703999055643e-8
+      }
+    },
+    "0xf9cb2a5944654b0c9b07d2311715728e30d3ee82": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003535076335374797
+      }
+    },
+    "0xd1827cf4590019c4ee72bd18f73ef40effe7a639": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00005645296175495135
+      }
+    },
+    "0x6c89c435082fec970f4a04b25fc972c95dec05bb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001794001029011727
+      }
+    },
+    "0x464fd6b8e4dde4352117940a07d7cc93269a77bb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.5890021569964567e-7
+      }
+    },
+    "0xeaa1de6e6c31a4e54196c2b8542410ac7d281a3c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000015764545251342786
+      }
+    },
+    "0x5ee7253fbef24cf4718d60d7b9622ec70f343f8f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.111354031419983e-7
+      }
+    },
+    "0xfc4c137b3f9076d397e5dfe094b89cd7da578590": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.8515610655508447e-7
+      }
+    },
+    "0x417882a0769ac2f46cb8971d92fbac0fd95adcec": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001915462972894485
+      }
+    },
+    "0x20a05ae8efe1eb91be0cd07356bc20eda9c2e298": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.692501659744142e-7
+      }
+    },
+    "0x40b92e3e7476c3fe1b3bbe17204c2ad1c5dd73ef": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000053575788708619415
+      }
+    },
+    "0xe9cc16b79e7ea3cbc8124afb7b547826bc3dca28": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001038491056726157
+      }
+    },
+    "0x0a689bf794bf08df9eccc475116d87315c22b9b4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.4206540088496243e-7
+      }
+    },
+    "0xd785a0b9393f8280e1da72c81b8e6d18eda81db6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.249629085988806e-9
+      }
+    },
+    "0x5888977bcbe21341e1ca55e20e6b3de03ffae8f8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.879246658879101e-7
+      }
+    },
+    "0x278a8453ecf2f477a5ab3cd9b0ea410b7b2c4182": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.979265684868466e-8
+      }
+    },
+    "0xc5c7e30d0df864eb281e5398416e47db5e16d887": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012550244798057679
+      }
+    },
+    "0x0999a13d74291eab3a3f7c1b57434004cd6a464a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.941091119915199e-8
+      }
+    },
+    "0x694b94b43290bdfb8c0c45020e9c0a6b5374d564": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007062931686390155
+      }
+    },
+    "0x2389817bd285e7ba3cfe5f9d9b3543eb2ac89a2e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.995277652509281e-7
+      }
+    },
+    "0x2b8a1effd3c88d198fbda470efbab253817f9361": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000013257371778054548
+      }
+    },
+    "0xc7ac422595da7c1aef9e2f1119a015272c27faf7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.385977164121859e-7
+      }
+    },
+    "0xaf1f459738f427247617e139c3c0ca4311daf14a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.828633394888693e-7
+      }
+    },
+    "0x27e8465f40cec66882b5535c5c291987187d6f82": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.843063747464526e-8
+      }
+    },
+    "0xb732f19eb5c4e71aeafefed725507573565092d2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000013488921524250113
+      }
+    },
+    "0x89f580da9852b1b5f34bf35ce9402db8af7e17b6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000032429536936883415
+      }
+    },
+    "0xca40e5d0321a67bea2f2cf0c24848673f5c38279": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00006454813604759774
+      }
+    },
+    "0xc89f54e7dee2d45ec11fca623cf7f772c6f34a19": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.446779112216038e-7
+      }
+    },
+    "0xb0b975ac6a2a8c8d6829880be6a9f2b209311827": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.459565877465736e-8
+      }
+    },
+    "0x5cfb72603775e64a3444271af03d7cbb455a4673": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012024060661213187
+      }
+    },
+    "0xee1d31617a74da027b5f8e02e4f3400d49dafb4f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000012829647433320094
+      }
+    },
+    "0x26c75beef8d7439de376c716aa732d1a070e6267": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.7780536115805098e-7
+      }
+    },
+    "0xb2fbf923588764859c3a7ad2ddf90e4d24ed3005": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000030793823085548954
+      }
+    },
+    "0xd683ca4ee6327cf09cb51adc8236aafea9493cd1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007772283023660939
+      }
+    },
+    "0x712a81b587abcaa64ea8ff2f0201f2379bf120e7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001211920130688468
+      }
+    },
+    "0x3c1f89de9834b6c2f5a98e0bc2540439256656e5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00004054963920133563
+      }
+    },
+    "0x019947394428cd14f11facfe2b22c9421315887d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002327204056246268
+      }
+    },
+    "0x487af989c7a5aa39316f9b7c35ed97888d04aa33": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001264382468819735
+      }
+    },
+    "0x336a076fdc2ef18afb87bdc7ab7ed9e1ffb73141": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003290729593731938
+      }
+    },
+    "0xcda91e47846553e26ab5c36eecddb66917a6808b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00002329738675546288
+      }
+    },
+    "0x9a9ab4d9f84d9c6797a963445d0a369a4796e0ff": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000013957687231608083
+      }
+    },
+    "0x70e5d9ae0f87ffe5a4fe3f0084aa5a9886adb7ae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000018490107954478582
+      }
+    },
+    "0x9f63d8c42cd762c36bb3a63a13fdc3b7eeefa853": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017657266789777387
+      }
+    },
+    "0x94179ae15a5b1fa66377043f2ce9a00de9cff573": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000017053849177621674
+      }
+    },
+    "0x7afdd1ba1145e583fba788cc21da686e736a311c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000010435201138559543
+      }
+    },
+    "0x0961f86626e297450073048a2c2ad9657fe56fbe": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000034692047538411206
+      }
+    },
+    "0x51c444af0abea20714d0137ee777090bcfa8065f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.944344246484268e-7
+      }
+    },
+    "0xd14f076044414c255d2e82cceb1cb00fb1bba64c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007190907071053013
+      }
+    },
+    "0x01df7176b3a77559d18c841072913761224d831e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.6862689784237407e-7
+      }
+    },
+    "0xa7a7e108a88e137ff754306a9501e65c980a65e6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000026509202015506017
+      }
+    },
+    "0xc344f940332d3aa76e4f20d7352aaf086480111f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005630163707069457
+      }
+    },
+    "0xf16d62012ee210af984b816a6c8c0cc47eeb65e4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010757133352218512
+      }
+    },
+    "0x9648b93cd94b6ff50892a511769705497c3ce65c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00009013715942278307
+      }
+    },
+    "0x86b35160f20d0fa04661f13b452ed8b0f584893a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1787039480469555e-7
+      }
+    },
+    "0x484ddd992f99132cfe1301494d33aa47aff80166": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.75396669934853e-7
+      }
+    },
+    "0x4b6623af245864f7e298b8be0f905930404d5938": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.54869898656485e-7
+      }
+    },
+    "0x19deeaf8a55d9850a44592b0a00c5822ee440f66": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000023562269417444686
+      }
+    },
+    "0xdfb52a0578a9405ce1610616cbc234713ba046ca": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000021910778022305554
+      }
+    },
+    "0x1cd396623ec64e45be3a81f7847cebd996066383": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012517768670123138
+      }
+    },
+    "0x0add4eccfed27fbadcbc62d8166439b596a1f1a0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.648590018466608e-7
+      }
+    },
+    "0xdbe6993db924b4784bc18fbd19cf4c24bdd68a95": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003226605499961968
+      }
+    },
+    "0x9ef0e0d7a0a940f4a518c88bc62183412961a124": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.213881977453477e-7
+      }
+    },
+    "0xcf4e2dd60d3e30f25a08f3cabe18f7dafa3642ee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.9564998781965392e-7
+      }
+    },
+    "0x5d5c3b3b27f1ec10602a2efe2a2c5228feb902f2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000015712518596930723
+      }
+    },
+    "0x58f2a95b7df5498b45a7a25a9946f6f48c25558e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006195522660796011
+      }
+    },
+    "0x84ae5fb8125065ead4bb4a0ab020b28e023f8f38": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00009777996352493924
+      }
+    },
+    "0x6c5e7948139b217e0d626dc213e5279ab4c62248": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005016968186170749
+      }
+    },
+    "0x5e04f9ee037338b535659d61e9da5b2c942c084e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009303187127127703
+      }
+    },
+    "0x0c06b7438195b51d9065f32d055f50e8e66bbd21": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000024045188253656823
+      }
+    },
+    "0x96f235b899fe1f149c139394a6cddb0666d2ae33": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001360698492392158
+      }
+    },
+    "0x8ccbf4a7be2c6d6c167998cdad6593a2a06c1995": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008263902672042552
+      }
+    },
+    "0x50eda043e154848d5c78f3800851afa524aa589d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.458403146565341e-7
+      }
+    },
+    "0xae1976195422829bd51eb921e3539f37bf8ae54d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000025117866974389525
+      }
+    },
+    "0x348b3ccac1f8b763b19e91f5fba71b85dc305655": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000031871366555548185
+      }
+    },
+    "0xead60bc986a541d570381688d3cfed7439231533": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.6000488018389482e-7
+      }
+    },
+    "0x14b1b3ff91525dd00e8fb8ce000097ce7d1cb251": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000026939541328470664
+      }
+    },
+    "0xe023d9ead98a431a88e913629599884839cdf92f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.7340011329433065e-7
+      }
+    },
+    "0x8f2e7cb62bf84645f96ba251389a00f7002930d1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.2071583487221734e-7
+      }
+    },
+    "0xdfe7ad3e0cc6fb0798e66c67c72927c49fc42478": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017008088992030434
+      }
+    },
+    "0x5688aadc2c1c989bda1086e1f0a7558ef00c3cbe": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008413122715852305
+      }
+    },
+    "0xcceda976bfca65600f84f7a9f078de3a9c75c88f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.240409027521468e-8
+      }
+    },
+    "0x2dbedd2632d831e61eb3fcc6720f072eef9d522d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000028105137360450928
+      }
+    },
+    "0x4a4037e53306f284cf214b733e9a54d6a5939818": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007843293458995332
+      }
+    },
+    "0x1f7cc419c3076bd8d5d9e3c8b4aec3ef1800a825": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000022844570119958773
+      }
+    },
+    "0x72f01e94c94a7ddf11a0e9ceedc19b6763032a9e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000014384195828158463
+      }
+    },
+    "0xe855de1ce141be3803b79e982f2afa0db05265ae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1227105476524365e-7
+      }
+    },
+    "0x3e5e68cc7cf9f1ac5ed19e59c9796e43dfb901b3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000033567306026795616
+      }
+    },
+    "0xa9ba89910ca702d5d97026a9cf117e7a9bd72999": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009997493831060848
+      }
+    },
+    "0x987b20f3f14e48418fde4407bd58c2d04c0a0d3e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012690008820176154
+      }
+    },
+    "0x32e96b5bed39dafc53d1d2d0dbfd7f62956f9951": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000018395272910650273
+      }
+    },
+    "0x5f1b00e98923fd2b78766eb3aecd9f74ddf9f439": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000016479976095934373
+      }
+    },
+    "0xf3564e585ab5deaae1f73cb01047c61b615a46f9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004961691967927446
+      }
+    },
+    "0x247bc6556b5d14416332575ebc6a2e65d9db3109": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.324295009233304e-7
+      }
+    },
+    "0x4d86c5866fd80f202d62323778b2fc5ba7d6e1c4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000027215528278896726
+      }
+    },
+    "0x59a661f1c909ca13ba3e9114bfdd81e5a420705d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0005913462673607441
+      }
+    },
+    "0x6c2693f5a936f37ed03cfa8465bf2d8beff19a0f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004206412220765559
+      }
+    },
+    "0x81375bf451f04ba603512c26a002efea5d4c6f2d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.7328019463549234e-8
+      }
+    },
+    "0xfcc02be09628a0a5e69d349e3a6f98d9aa18e707": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00005369060769187315
+      }
+    },
+    "0x554ef7d3c2e629ab3dd4f3d22717741f22d3b2d7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00015236391669923457
+      }
+    },
+    "0xb390593bbb06f6ef4b1b4a5a42757b847bda26ae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011093096577708378
+      }
+    },
+    "0x2dbcbdb6ed8df05ddc859bd9e06a53e93e1c9561": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000037080260258532516
+      }
+    },
+    "0x9830ba180953516741594188fdcaef80c51db48b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001563188987956282
+      }
+    },
+    "0x143f59c155e2d932957c3f942611dba4216b070b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.4288158446715814e-8
+      }
+    },
+    "0x1578a50910f1850c046f66191818401d8be45fb5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007058250428623849
+      }
+    },
+    "0x3d0f0eb70ea95ebb216ade632fc424d5cdbc5561": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.497464102681778e-7
+      }
+    },
+    "0x182053604e90a43df72e03bab3e72e58833cbfd4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.3321368284346405e-7
+      }
+    },
+    "0x43e49750a2ac66dce8d35bb4be8cbd458dc91736": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.5629149553223448e-8
+      }
+    },
+    "0x02f25debe80274a846c14483ac686bc4b2a85663": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.513409590144374e-7
+      }
+    },
+    "0xb8f305617ac00a9404cafa82226ee5bd0c85f914": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.0926332578079624e-7
+      }
+    },
+    "0x6c942de7a4abb37efe89a16a2b872d79b0e5a4ed": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007347727260614273
+      }
+    },
+    "0xd9c66eda83440944351d4d6c5dddec2f7e045985": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.038193079386524e-7
+      }
+    },
+    "0x9fc1ad48b84381777f984b026e751fc505328b1d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009091328879089026
+      }
+    },
+    "0x80c2b53a872abf17f789a75fc62060f76a642046": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.4572406150816076e-7
+      }
+    },
+    "0xb1ccf81af23c05b99d5aaea9f521a5e912e17767": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00007757329462430547
+      }
+    },
+    "0xfd98dddaa0089b4932637d24e741207228bcdcfd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.3234328955981073e-7
+      }
+    },
+    "0xf3c672522ce50e704a342eca4a9b78321dcb20a9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.427645862052293e-8
+      }
+    },
+    "0x3d842130b194169cbb40b4a2d5544c35f9399d3d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004536740502175987
+      }
+    },
+    "0x38d71596a0971a25416bb5b05a03797181a74877": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010577294325514113
+      }
+    },
+    "0xff0b6ffc4507812f5380062d91a79e464508bde1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000005073685257955102
+      }
+    },
+    "0x90c0bf8d71369d21f8addf0da33d21dcb0b1c384": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.87469310852697e-7
+      }
+    },
+    "0xafdd17c215bd68b8c6fbc10ace11831f811c50ee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008874923878322126
+      }
+    },
+    "0x7ecd857741dde6acffbd64dab5ca26fa034a5a23": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006901153662355749
+      }
+    },
+    "0x402904e954aebee2e78b7b09595393cf05571333": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003956703947911533
+      }
+    },
+    "0x446e810faec418fcecb66ad47fa7693fe070b32a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004356517081377711
+      }
+    },
+    "0x7ca194866db202926d6b08cacddbb7d866234f18": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011415947199318074
+      }
+    },
+    "0xa380d05ddd16f2a8fb67cac535fe0b2e400f0133": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.25440526841423e-7
+      }
+    },
+    "0xde13a331adf3b9b6f32017bc63dff2f61a926a5a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006204269669306756
+      }
+    },
+    "0x7c24d0177101c0171b8d91b0d02710c3d7d252de": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012466691297943363
+      }
+    },
+    "0xf73da202f727a41959f3f7b1fc83a91a271fcc3f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.798034644353794e-8
+      }
+    },
+    "0xc960338b529e0353f570f62093fd362b8fb55f0b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.920993298787472e-7
+      }
+    },
+    "0xa26576bfad375440f5748a9ec9c071db905dc7d8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000014837441589920672
+      }
+    },
+    "0xd3519420007d6ceef1948df489262bc963808ca4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00007485224320065148
+      }
+    },
+    "0x7991206ab3bdd97e2ea307d3f1d4dcefb77889c6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004750063696181365
+      }
+    },
+    "0x51b0b7ab0af8ba0e689299f00a733de2f7080569": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000023815233115000518
+      }
+    },
+    "0x7a70eca937f10234c42b4daed0970fae6f88df15": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000032997451570389023
+      }
+    },
+    "0x245e0e7882c58a1154afb963c170b2fc02f1a846": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000040181059326740955
+      }
+    },
+    "0x972132eb3642d47842c837a68c5bb18521a9ad38": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000023072784496926552
+      }
+    },
+    "0x3da232a0c0a5c59918d7b5ff77bf1c8fc93aee1b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0006597609176332787
+      }
+    },
+    "0xcb397b4e2612ee99a1591cb40db3c837bc1b2c35": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003565084859518833
+      }
+    },
+    "0x3ab6122981242edbf693ec6cb0ae5d1eddce15a1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000014758036095496443
+      }
+    },
+    "0xfdbf498f552e712bbdcaa404ce5d94c93f4c6021": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009922628799052655
+      }
+    },
+    "0xbae3b46e29e7cfd2bba8164765d592ce9802ec70": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006621888623170126
+      }
+    },
+    "0x334a213fb70d12ec597514e57da2535e0335078c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.813612216580757e-7
+      }
+    },
+    "0xa22eb3338dfd69458513a1f6d4742ab29f7ef333": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0008828633418263947
+      }
+    },
+    "0x33d221877d161b0b46c248c697fc831d55bbb0cc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004748121007792913
+      }
+    },
+    "0x9a7ff70a1a726a5cea5a7686c463e8a230fe7f44": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000069258979954122404
+      }
+    },
+    "0x5216c01894f76f0930c5beaaac615217da236c98": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.071858081638802e-7
+      }
+    },
+    "0xa8eaca2c40d20832a77f4f757564246640cb57fb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008577820802099063
+      }
+    },
+    "0x6604b79b688a2e78414f1b91d9a4f2ee4bd51cf6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.9506109231825248e-7
+      }
+    },
+    "0xf16679064d5e8ddf5af2ac09ca85ce1cdbc1ff93": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000031181379102627774
+      }
+    },
+    "0x43a996fa50d2f378d707aca9ddcde1c30cb68f63": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1007974172163758e-9
+      }
+    },
+    "0x3bed0248aa7a83e2c26d5e6160323d061d569c5c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.878149098617951e-7
+      }
+    },
+    "0x20dfeed4bd0a027b31240a25dd257e85a42bffaf": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.4059069419193834e-9
+      }
+    },
+    "0x53dc31c7ce645c1af41ebf43a461c590adc0df3a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.347070291288789e-7
+      }
+    },
+    "0x6c922a24fa53fc655a305f3fe3d34994b5dd74d2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000018411353103604324
+      }
+    },
+    "0xa22228287f733e13c15d1ff47cc9e6b95d49c788": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000007541457396171987
+      }
+    },
+    "0xac844ada82f3d0241533d827ebf84deb89617792": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.36510768872915e-8
+      }
+    },
+    "0x90c71f8ff8903f02c24b39f950bcfb72e3dc49b1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.816262035605764e-7
+      }
+    },
+    "0x6c2426083043d6432de1f93d0d0f8275009c276b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000011879299053650917
+      }
+    },
+    "0xc0c21f1ae0c7c194a76168288dd251e0cd551ac4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.75161218363778e-7
+      }
+    },
+    "0xf376feea3272a93fc2c76a279cb4a850f8b79740": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.721653530178127e-7
+      }
+    },
+    "0x9422a6ea401863b0099f55ba1e8991c10d7758da": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.500356886209396e-7
+      }
+    },
+    "0x4f266f295bad85436ecea51e0ae2afe82b11553b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.8518422819313932e-7
+      }
+    },
+    "0xf8412d18ee43e303767d0660056d420a273a941a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000016888291215015662
+      }
+    },
+    "0xbfce71b736968c20d58397f5d4eab86299dc7ebc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000068379626241640436
+      }
+    },
+    "0xb5235bb9ec03353da455d742dd09cbc3817fe3fa": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000017489015519820524
+      }
+    },
+    "0x41b846cacfa3549ad0bd9b3b91461a59afa77207": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.4537319678634015e-7
+      }
+    },
+    "0x69873461b8f29f3a3d35449e2173040e0aa1571d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00010385802787251863
+      }
+    },
+    "0x0852e46539c056ca1a01bfb9d7feef0bf1b245bd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00004279837001897732
+      }
+    },
+    "0x9e22d88191846e9c591bf4902ff8415d2d4f0361": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.655548526746024e-7
+      }
+    },
+    "0xa14ed585b6a4745caa6cc94952379853d93cb3d6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000013158432164637235
+      }
+    },
+    "0x75daa3b4352a14ce408d57471d53544819efa096": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012735847349259466
+      }
+    },
+    "0xfb9e5f5874565a6ef8fcf1debc4975501331a8ca": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.487671433763746e-7
+      }
+    },
+    "0xe0a09b49721fbd8b23c67a3a9fde44be4412b8fd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000013670997475426795
+      }
+    },
+    "0x489639b0a384fe7bced7ba275f48c70780681011": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000026485900184666084
+      }
+    },
+    "0x5d1d614e1996b00c4e390d77c5c3cf04f65527ff": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006435804813003375
+      }
+    },
+    "0x4b5a952b13b92a4ed6e46697dee206fe9cb00576": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000038040712710373882
+      }
+    },
+    "0x886969be23b1a38008021c418aae5df8b0efeab9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.798005242329284e-7
+      }
+    },
+    "0x727c062d0f33bf31af1589fb10661cc6fb444a8c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006650098706710419
+      }
+    },
+    "0x4ffc5f22770ab6046c8d66dabae3a9cd1e7a03e7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.67709639987736e-7
+      }
+    },
+    "0x004537fcd9095489ebe38180a382341b962b501d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.004617958840717e-8
+      }
+    },
+    "0x7b0507e0b2feb81b3fd618ac13e85c3f1980738a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.883170186566887e-7
+      }
+    },
+    "0xca1d1a11074b1d86ac3fbd44771c7043126839c9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008846729347581429
+      }
+    },
+    "0xdfe7772e8647cf105c15da6319efd64c8d4fb12d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002166111386141572
+      }
+    },
+    "0xeab0a2297e5e8d73294dd0138c8fa48ebf896a90": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.6893529183362975e-7
+      }
+    },
+    "0x650cb11e1c95fe3ba96b115bd1d8bc5c0e12baea": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000314214386074288
+      }
+    },
+    "0x3664070bf64987deea4866c0d42b44905ecb4fe7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.353439928995765e-8
+      }
+    },
+    "0xa52b2b3a918effe74f02ffa3c166742af0b36ea7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0003889701745626685
+      }
+    },
+    "0x3f95f88de6209f28eb153dd532392391254e918c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000018266442494024706
+      }
+    },
+    "0x31bc74806e7d7ab8571d94b2dafa5d6734a6d1e9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0002112209779467108
+      }
+    },
+    "0x168da01bfa06e64ac3872d4e0835959d476d367c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008828633394888692
+      }
+    },
+    "0x7c94289d9dbb36db66508e936719bc96c2492b94": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.002371968610778e-8
+      }
+    },
+    "0xf4f19e0896ed2f275945514b93c9115d5d2630a5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000026924589944376502
+      }
+    },
+    "0x844850092711b0ebbb75f6fa8b65561d4811d61d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001986442513849956
+      }
+    },
+    "0xe797a575b7827a1b3ffa93e471cbb0af4a5bb930": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00004429060955189501
+      }
+    },
+    "0x097ccdce5d7400861b7b014118427cf550766a47": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0002648590018466608
+      }
+    },
+    "0xef0c7668af2e04bc8cb8dfa321e5f9159f4bafe4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000015948645128564958
+      }
+    },
+    "0xe290459e93e7eae5330c74c74abc48fcdfe9ddee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001316771940866587
+      }
+    },
+    "0xa9bdadce387700b18a3d5c2a668395bdadc7b76b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000009411854586795277
+      }
+    },
+    "0x31bcc9778e554d2340ca4d3bea7bc6a06311d9f6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001896975757361075
+      }
+    },
+    "0x7274faefce1e8ff0991054e68a2eb293dfe1abb9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000030764144108551393
+      }
+    },
+    "0x00000069abbb0b1ad6975bcf753eee15d318a0bf": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0001438945907197914
+      }
+    },
+    "0x3db516c58ac880667dd3ed044e663c349ac7d01f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000020319876526762384
+      }
+    },
+    "0x5d3266e87e5818a3ea2994d6917dcda0443e12c3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000037538044946631755
+      }
+    },
+    "0xce87b45a6b54d7f5bcf8270ab27c0582c479dd8b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004312673327082083
+      }
+    },
+    "0x96bc85cd1b4c5b56944894d1f273c8905d9a2cb5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.326372842776601e-7
+      }
+    },
+    "0xa1e8e27e5191782f5ceff2bd43f7b36607d3efe2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.202321448880655e-7
+      }
+    },
+    "0x0800b39ff292330d76d7f292adc396290cc53877": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002634437045876087
+      }
+    },
+    "0x446dddf859495f34c7adf15aa2508d3446301a49": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.2944646774550422e-7
+      }
+    },
+    "0xb7d8ddeb5c7f9c81352ff232d8afce95f32f33e3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00014411597024316744
+      }
+    },
+    "0x1b7b962b18b6503f212e3628c0be9040f5278c25": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000034127752762495192
+      }
+    },
+    "0x6c30b5471e42e2d47c18b98df187f35edbab8357": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.5836266657070873e-7
+      }
+    },
+    "0x69fe352bfaf84dc328451b2c179302a96de17852": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000291094994073689
+      }
+    },
+    "0xfa9d539cbfd05303daa74c7fcb5b3977962b61cd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000066697482984722195
+      }
+    },
+    "0xf8b45cfdb23c09de4a5a9ef0f60c65f80221ebba": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.247802265359574e-10
+      }
+    },
+    "0x5d7edc0450bb454c18db074bd5ea3c07b1bb4652": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.3663200483077437e-7
+      }
+    },
+    "0x278bf38b560386ea5407909f48e30d73c26727b8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000032740278605753964
+      }
+    },
+    "0xa24aaf98e6b2801654b072677835303fceba14a0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000071858374018128945
+      }
+    },
+    "0xdf982320791aee9ef491505d9e66b9ccace57d4b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012350161987465536
+      }
+    },
+    "0xdbef9b0a75732966c61b014e8471d5dd7c215e0f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.4061481768976915e-7
+      }
+    },
+    "0xb136d7643a612447eb603c051c193fdead1e0e37": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.36178419112e-7
+      }
+    },
+    "0x7aa61e5fdef15599d2e8cba9b8900d2152e3d3e9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000054431841029390054
+      }
+    },
+    "0x9891aeeddaedf7f66c951badbf4160d5f640c79e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006189174341723721
+      }
+    },
+    "0x9690fb3b90909472e867bda10e4d8713bc4b2103": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0001208439402258e-7
+      }
+    },
+    "0xc174ac018b0f41d42b02d33d191192f6028c2148": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010755753797999827
+      }
+    },
+    "0xca615fd3bc3c1bbdd421c1385e44b63b28841514": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00009819651334109539
+      }
+    },
+    "0x3ee407e90cbf42dd72ab7c3dd1c62e1d87b57a60": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001390467566402309
+      }
+    },
+    "0xc2b2dd3a61d377ba1b8b0300a8c6cde1b6472fc2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003449851151493787
+      }
+    },
+    "0xbc4e065e0b74a6784fc0d5ee7a2946c547436b30": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011565818751768453
+      }
+    },
+    "0xcb392a0b3420c051a68e33ea2c67504a9d571890": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000017275244657622696
+      }
+    },
+    "0x2892a51e071c266d05f13497b979117a9a978de7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000020268178374932756
+      }
+    },
+    "0x4d4ef453cf782926825f5768499c7e02daa3a9e7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.844899265282875e-7
+      }
+    },
+    "0x70144e5b5bbf464cff98d689254dc7c7223e01ab": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00003552667600016479
+      }
+    },
+    "0xd7eb7094380642bbe71cd55ccac9d8299eb5d484": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000020276471213288042
+      }
+    },
+    "0xc99917e12b24b087877c73db9cf1d13186f63e84": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000006496394655894157
+      }
+    },
+    "0x5cf9d7c17cffab541e7aa6af8e7fbd409f6cb9d5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.3593869016485127e-7
+      }
+    },
+    "0x7777a96cb9b12aae5203bbd28edf1e8a61cc7777": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001324295009233304
+      }
+    },
+    "0xc696481349f868f720fa40af1514362ee87b7458": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000015812624161693884
+      }
+    },
+    "0xb6af7c04f67b5eb61f0dc7ac4a760888ec3e3887": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000019087505399749354
+      }
+    },
+    "0xee195294053998d024aa9292bc7cfd5a9f89398d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004043571314385627
+      }
+    },
+    "0x2e2afafbeeaa08d6883dcdebee84a2d623a9ceee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004180104258226008
+      }
+    },
+    "0x794a15f93ced01f1b0be5b184344f0b811851bc0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.350022507043513e-7
+      }
+    },
+    "0xc3ffc73012ffebf9794e411871275b70fa8ac3f1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.648590018466608e-7
+      }
+    },
+    "0xa5cd3bc3f3d34b3a716111643e19db88bfa649c7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000024409734293145432
+      }
+    },
+    "0xf0cd49b902ff1c377561515e60a65ca2f6a55b37": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.200347116022563e-7
+      }
+    },
+    "0x4515957daf1c5a1cd2e24d000e909a0ff6be1975": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000004414316697444346
+      }
+    },
+    "0x5e793db73fd18285f73d31f639cd3401eef8b66a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.509501122813025e-8
+      }
+    },
+    "0x9ad96fc95b72ca0ba0237cf803c6885e6e2aa58c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.5291450475194797e-7
+      }
+    },
+    "0xb53d014ff74c58787649604002fc6af7f8d179d8": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000032792336746212837
+      }
+    },
+    "0x577c8a8c86a6616fe691d58035061e165ad4daef": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000023448895492195762
+      }
+    },
+    "0x426b8e480704bc743f6bc430c837f912462f3a66": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000010222010381176638
+      }
+    },
+    "0x0c713c9803a0514fd5be4ceec8192d6a39ea9034": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000024822840821498024
+      }
+    },
+    "0xdfd24769ed77f254959e79ee47e78ae7a21ef4ee": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.406895283417277e-8
+      }
+    },
+    "0xfdec357f13b8cc6802a770a57190710ee12257f9": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.348904605038967e-8
+      }
+    },
+    "0xcb76bddbbb87ba2bf76460aa177924cd1e9524b5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0500618620571609e-7
+      }
+    },
+    "0x8b1eac83dd92a135e11c4afda3d51b3bd7d8c8d4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.060313396584607e-9
+      }
+    },
+    "0x7acfc2e872e0797986478b064aa1cf80b7ba8c53": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.390015053682196e-8
+      }
+    },
+    "0x46038e1051dfe73f3b0727e6c2538ffa2c6eae34": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0026905328176717e-7
+      }
+    },
+    "0xf0d48f76b9fc797bdf255136ae6f22bb47a34c35": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5.9951472194045e-8
+      }
+    },
+    "0x97ef15c5edfdbafb283289f338d437e8e6c9d25f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002374462404942601
+      }
+    },
+    "0x92ebae8a03aaccd0e5d2c5ea8667c1da7f53df2b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.094993264412486e-7
+      }
+    },
+    "0x7d7c4daba895fa235e71307bbc190d8325b8ca41": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.55478055810631e-8
+      }
+    },
+    "0x19d4f26fb746e15e9a075c9e9180e1342bd7680b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000002732876098624271
+      }
+    },
+    "0xbaf0d6338b26681171a6e6eed59904f41bb5ae44": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.124113852139596e-8
+      }
+    },
+    "0xabfcbd33c33040639f0cf08d77925767df87fbc3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00003499192706004696
+      }
+    },
+    "0xaa68ad0bfeee7d0feba2d9d606e62e24a68a4252": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001804607701280092
+      }
+    },
+    "0xf2d3a7ed6eae607dbc47614f2db7cb3676dce6cf": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0668893871761797e-7
+      }
+    },
+    "0x402fc615b80a4048c12b3f6369fa74a36e71c285": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.828633394888694e-8
+      }
+    },
+    "0x1ffdc62608b3ebc6df458afa48d488047f3636ca": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.4170568135768284e-7
+      }
+    },
+    "0x8bf171f5c090181ce769c18f87102d9df7c967c0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000008840104268722427
+      }
+    },
+    "0xa5b13c0b896110d1decd69e8c214989213902339": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000618485960606924
+      }
+    },
+    "0xdb6b9c3439a326ce8f816971d540e18089743a5d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0281326702271378e-7
+      }
+    },
+    "0x2d1bdc590cb736097bc5577c8974e28dc48f5ecc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000012324558200607997
+      }
+    },
+    "0x6ee5bef0c49154f89749ab4057683da6f4429331": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00000138373575084882
+      }
+    },
+    "0x0319cd0ac071abcb479c0bee32ad6b28d8a79083": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00001770956679287182
+      }
+    },
+    "0x04239c89be7b407fa49bb6f9464b8454f69d3f46": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.3287141413527242e-7
+      }
+    },
+    "0x299d7c375add719fb6d0412895439aaca810029a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.043741552630343e-8
+      }
+    },
+    "0x4f22b4562647b5b63433cebddf28dfe42fcf2c2d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0510011357046847e-7
+      }
+    },
+    "0xc88b55a947b42bab0b75c133def68cee5b8e450e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0279998884230157e-7
+      }
+    },
+    "0xe3295c57cbe8ff490decc4af8a32e1cbe7f5291f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.019591155132039e-7
+      }
+    },
+    "0x4607a9b0553afd468cf847324764184edc17ad5c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.071743054734702e-8
+      }
+    },
+    "0xc4fdde0e46f266367bfab19f662265ab8e341842": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.687686772182243e-8
+      }
+    },
+    "0x425d97d186357d596b5b0b9b36a361aacb20337d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.637838799285979e-8
+      }
+    },
+    "0xfd90eb8fa533c9608037dea32784f1f9656606c0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.602645666717932e-8
+      }
+    },
+    "0x359fc0ec3f26cb7242ab362e9bf1db9e79ac0698": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.876990109742976e-8
+      }
+    },
+    "0x6a7ab8341fd0e4eec27693c41858d7e8819444fa": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001482716006871187
+      }
+    },
+    "0x25f4dc74bbe727c2bb416d88ca4ec5fab142c7ce": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.1999343194468055e-7
+      }
+    },
+    "0xfa2dc8a07b5e823cd5c50d8b601ef5e79e1f5a11": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.94001760748754e-10
+      }
+    },
+    "0x112288618f15beab43a7c63479d03070b23c59b3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.2828619670950596e-7
+      }
+    },
+    "0x3b53f177d0e40f3051c28a579390bf9579eca80a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.582469674208486e-8
+      }
+    },
+    "0xf8cbde834e9fed2c4baf4926a174868234ebdd9b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.785448900880277e-8
+      }
+    },
+    "0xc37450bf7adf8ca2d501e121189c6423b0dab3b4": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.6848422865524056e-7
+      }
+    },
+    "0xcad5334ac97b0a58cfe8012e7dd2589f0c302ab5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00008572792626945522
+      }
+    },
+    "0xe4dcfd4c0f4bd177b5a0df7f13f400add78f47a5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00004281065983534636
+      }
+    },
+    "0x2a23b10ad7298070e266bc351e41e9dfb40bf68c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.075537674797112e-8
+      }
+    },
+    "0x4493142c2a9f3f74692cfa4a99a3bf696ce09bcc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000060963174306608385
+      }
+    },
+    "0x7b9294a3de8d4787f21d2ef6725034eb2f807a82": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.0459226472384774e-7
+      }
+    },
+    "0x820a2943762236e27a3a2c6ea1024117518895a5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003575596524929921
+      }
+    },
+    "0xfedcaa011c9fc474d8cb063cef1b8d1772b40f28": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000042100789267228585
+      }
+    },
+    "0x74287a882bb68f679ba44725d0f70aaf3b44dd4a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000014152300804488337
+      }
+    },
+    "0x6f9dfe31762ced736e42f7013b1729e8e8e821ca": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000032912318207967537
+      }
+    },
+    "0x5f9a86aedfc988f65046b21d745e5767623e355b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 6.259415501032588e-7
+      }
+    },
+    "0x87dc77d21624aabedb43fb11984218933094da23": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000003110084787457276
+      }
+    },
+    "0xe5ebcde141e98c23c150bc350b72c23fdcb747c1": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000037506417439677805
+      }
+    },
+    "0xde41501a3da3e3b086fd7ef6242af17013cd2cfd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000012242401932074922
+      }
+    },
+    "0xee33e09ae46d84587a8a89bb7a74e70f8961058b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000012469237308027003
+      }
+    },
+    "0x86ccf8f139feffa849cf2796eb8adf517da17d87": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000021415749514428587
+      }
+    },
+    "0xb95614d0aa2491ff20e3d47342be01e6be79aa5c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.219462617723503e-9
+      }
+    },
+    "0x70de19a22da2dbba335ad91102883d3c3a04f834": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.611915448588097e-8
+      }
+    },
+    "0x67d92b30010c7d3251693de96fd6d57d485dcd67": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.828633394888694e-9
+      }
+    },
+    "0x159c4dc02cd8bcef3f503953abef6bb61028b329": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 3.462724649731275e-7
+      }
+    },
+    "0x139d602458a7aaf3243bc9ac9d09cc9b18da5fcd": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000017563145706484195
+      }
+    },
+    "0x880100ef7828fcfc005fcffec7a3d8d31accbf0b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.6485900184666077e-9
+      }
+    },
+    "0x5275817b74021e97c980e95ede6bbac0d0d6f3a2": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000011811857185748705
+      }
+    },
+    "0x08c6c666e23454a9e1b514922a5ce08bf43c561b": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000045821429328577835
+      }
+    },
+    "0x1ca8d7a4ccebe9c80237072088d55db77fd190ae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000011640744116232916
+      }
+    },
+    "0xbbf3c0db973283464982d68b496767571a878cad": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.6715376659714286e-7
+      }
+    },
+    "0xa3296f732311a386d15bc384335219239f3b85cb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.676334585156969e-8
+      }
+    },
+    "0x00da1e6b8569db53df7bbbdae10cdcc507a7ebd7": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.582047284192675e-8
+      }
+    },
+    "0xe4be64c1d64670481d2c16d6599be078c15b721a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.814576514719541e-8
+      }
+    },
+    "0x10a7524a5a5b4d8b0e5faaae38b81704fc44c28f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.474514180390022e-8
+      }
+    },
+    "0x4736ed3240284d41b6bc94f749297ef3f880d720": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 8.874075826647558e-8
+      }
+    },
+    "0xf74a74516a7f1546b7f51b6fb0e2c5041a2d6a41": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.192119973089356e-7
+      }
+    },
+    "0x070c85ef4626dae657e94fb0143d399c62b58757": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.1871454687284847e-7
+      }
+    },
+    "0xa68be02a2b7ebecac84a6f33f2dda63b05911b95": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000001942326544903262
+      }
+    },
+    "0xeae86acea6e5010ccf8f55dd5e6ea1287b5db46d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.0590816308839135e-7
+      }
+    },
+    "0x88efe0fb4b29ed77166326b21e5743c53a3d5ca3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.58725994936389e-7
+      }
+    },
+    "0xff2f29d728dd2ec97b848817a3f15568f0a3bd5d": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 1.264092254140581e-7
+      }
+    },
+    "0x87597baa423c8f7857d57cdf060d69720825379a": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000022346174791986853
+      }
+    },
+    "0xc4296970cc917f2d2f3e518112a130652c4a25fe": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000016881814928485046
+      }
+    },
+    "0x9781f72f15ff9d961f5b0aaf1d93b40c23905f05": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 4.633015101299498e-7
+      }
+    },
+    "0xb4360bca1cca802793cc87d49b3af0162f595346": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.436725558145069e-7
+      }
+    },
+    "0xb19f6698d63d51cfa0d6eb4490ca83fcd640f462": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 9.109736588910798e-7
+      }
+    },
+    "0x6db2c81f1619fb18f40d4467cd663f0a28e5ec18": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.164771200730699e-8
+      }
+    },
+    "0x4271d22292aa37e13cd0c68b8210a7a6af194407": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000078550313085589
+      }
+    },
+    "0x20d0b0f053bb74348eeb7387d78cf9ce0294e903": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 7.182405437187851e-9
+      }
+    },
+    "0x66c7e59b927b6197b42b02d8559a2ad3a4ee3da5": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 2.7110739826855284e-7
+      }
+    },
+    "0xA78ef43Ac39681d62c61B575E3c65660E9043626": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00010076813143129148
+      }
+    },
+    "0x13C9b9403993a04809C1Ad911c4522f608959821": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0000676094698378212
+      }
+    },
+    "0x2D8304750A8AC17DC1B9A5Da1c85c0a55f12c3D3": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00024083108478088427
+      }
+    },
+    "0x96958d02Ff299D9843e9c850332FB2D7d8481e62": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0005529265568920378
+      }
+    },
+    "0x90231231E84225DC7e408875697845759fD90F08": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00006644879938548832
+      }
+    },
+    "0xC294240B9381485E3Fdf13C7e89fa0E8345E2Fb0": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00006166669663967225
+      }
+    },
+    "0xbdeeca88ea1c490c59e104e486de5702bfd38601": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0010773346625359082
+      }
+    },
+    "0xf8c2903d903774bbc543d5cdbe15396e60d7760f": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.0010772055070850932
+      }
+    },
+    "0xa1f0aee15a81aa288d7f3d2c225b4e6b98efb748": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.000819375017646319
+      }
+    },
+    "0xc11169f4881dBd0fb0BE6C09C4652Cd22305F10c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.00011661093890367282
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "timestamp1": 1727913600,
+  "timestamp2": 1727944741,
+  "blockNumber1": 20881262,
+  "blockNumber2": 20883847,
+  "votemarket": {
+    "curve": {
+      "0": {
+        "bountyId": "16",
+        "gauge": "0xa40C1E9aA3781c74c437212cd0353eAAB3EBBa6F",
+        "amount": "112533975007821988441",
+        "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F"
+      },
+      "1": {
+        "bountyId": "27",
+        "gauge": "0xd8b712d29381748dB89c36BCa0138d7c75866ddF",
+        "amount": "18834951008374676",
+        "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F"
+      }
+    }
+  },
+  "warden": {},
+  "hiddenhand": {}
+}
