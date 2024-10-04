@@ -3,3 +3,7 @@ tmp
 .DS_Store
 .env
 .vscode/settings.json
+venv/
+.nodeenv/
+temp/
+*lock*
