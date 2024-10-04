@@ -1,4 +1,4 @@
-name: Generate Bi-Weekly and OTC BSC Report
+name: "[sdTokens] Generate bi-weekly and OTC BSC report"
 
 on:
   workflow_dispatch:

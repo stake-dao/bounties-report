@@ -235,12 +235,6 @@ const main = async () => {
     ).reduce((acc, weight) => acc + weight, 0);
   });
 
-  // TODO : Temp
-  fs.writeFileSync(
-    `bounties-reports/${currentPeriodTimestamp}/vlCVX/votes.json`,
-    JSON.stringify({ votes }, null, 2)
-  );
-
   // Distribute rewards
   console.log("Distributing rewards...");
   const distribution: Distribution = {};

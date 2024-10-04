@@ -3,7 +3,7 @@
   "timestamp2": 1728051374,
   "blockNumber1": 20881262,
   "blockNumber2": 20892696,
-  "votemarketStakeBounties": {
+  "votemarket": {
     "curve": {
       "0": {
         "bountyId": "127",

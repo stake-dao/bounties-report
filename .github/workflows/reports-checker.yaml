@@ -1,4 +1,4 @@
-name: Reports Checker
+name: "[sdTokens] Reports checker"
 
 on:
   workflow_dispatch:

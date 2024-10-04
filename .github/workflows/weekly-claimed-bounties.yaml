@@ -1,4 +1,4 @@
-name: Generate Weekly Bounties
+name: "[sdTokens + vlCVX] Weekly claimed bounties"
 
 on:
   workflow_dispatch:

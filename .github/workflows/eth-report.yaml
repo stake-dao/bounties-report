@@ -1,4 +1,4 @@
-name: Generate Weekly and OTC Reports
+name: "[sdTokens] Generate weekly and OTC reports"
 
 on:
   workflow_dispatch:

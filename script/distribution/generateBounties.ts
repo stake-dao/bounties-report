@@ -94,7 +94,7 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     timestamp2,
     blockNumber1,
     blockNumber2,
-    votemarketStakeBounties,
+    votemarket: votemarketStakeBounties,
     warden,
     hiddenhand,
   };
