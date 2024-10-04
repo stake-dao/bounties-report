@@ -13,6 +13,7 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
+	@$(PNPM) add -D tsx
 
 run-weekly: setup install-deps
 	@echo "Running weekly bounty generation..."
