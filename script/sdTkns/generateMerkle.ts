@@ -247,15 +247,11 @@ const main = async () => {
   logData["DelegationsAPRs"] = path.join(
     __dirname,
     "..",
+    "..",
     "delegationsAPRs.json"
   );
 
-  fs.writeFileSync(
-    path.join(__dirname, "..", "log.json"),
-    JSON.stringify(logData)
-  );
-
-  const logPath = path.join(__dirname, "..", "log.json");
+  const logPath = path.join(__dirname, "..", "..", "log.json");
   fs.writeFileSync(logPath, JSON.stringify(logData));
   console.log(logPath);
 };
