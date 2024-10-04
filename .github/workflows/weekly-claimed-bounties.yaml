@@ -7,6 +7,13 @@ on:
         description: "Number of weeks in the past (0 for current week)"
         required: true
         default: "0"
+      chain:
+        description: "Chain to check for claimed bounties"
+        required: true
+        type: choice
+        options:
+          - mainnet
+          - bsc
   schedule:
     - cron: "0 19 * * 4" # Runs every Thursday at 19:00 UTC
 
@@ -40,7 +47,8 @@ jobs:
       - name: Install node dependencies
         run: yarn install
 
-      - name: Run generateWeeklyBounties script
+      - name: Run generateWeeklyBounties script$
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.chain == 'mainnet' }}
         run: |
           npx ts-node script/distribution/generateBounties.ts ${{ github.event.inputs.pastWeek || '0' }}
           npx ts-node script/distribution/generateBSCBounties.ts ${{ github.event.inputs.pastWeek || '0' }}
@@ -48,9 +56,9 @@ jobs:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 
       - name: Run generateBSCBounties script (odd weeks only)
-        if: ${{ github.event.inputs.pastWeek == '' && needs.check-week.outputs.isOdd == 'true' }}
+        if: ${{ github.event.inputs.pastWeek == '' && needs.check-week.outputs.isOdd == 'true' || github.event_name == 'workflow_dispatch' && github.event.inputs.chain == 'bsc' }}
         run: |
-          npx ts-node script/generateBSCBounties.ts ${{ github.event.inputs.pastWeek || '0' }}
+          npx ts-node script/distribution/generateBSCBounties.ts ${{ github.event.inputs.pastWeek || '0' }}
         env:
           BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN}}
 
