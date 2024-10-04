@@ -3,7 +3,7 @@ name: "[vlCVX] Report and repartition"
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 17 * * 5" # Runs every Friday at 17:00 UTC
+    - cron: "0 20 * * 6" # Runs every Saturday at 20:00 UTC
 
 jobs:
   generate-report-and-repartition:
@@ -20,18 +20,13 @@ jobs:
         with:
           python-version: "3.10.13"
 
-      - name: Run report generation
-        run: make -f automation/vlCVX/repartition.mk run-report
-        env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-
-      - name: Run repartition generation
-        run: make -f automation/vlCVX/repartition.mk run-repartition
+      - name: Run merkles generation
+        run: make -f automation/vlCVX/merkles.mk run-merkles
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
       - name: Commit and push changes
-        run: make -f automation/vlCVX/repartition.mk commit-and-push
+        run: make -f automation/vlCVX/merkles.mk commit-and-push
 
       - name: Clean up
         if: always()
