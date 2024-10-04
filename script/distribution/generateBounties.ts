@@ -1,15 +1,17 @@
 // generateWeeklyBounties.ts
 
-import { getTimestampsBlocks } from "./utils/reportUtils";
+import { getTimestampsBlocks } from "../utils/reportUtils";
 import {
-  fetchVotemarketClaimedBounties,
+  fetchVotemarketStakeDaoLockerClaimedBounties,
+  fetchVotemarketConvexLockerClaimedBounties,
   fetchWardenClaimedBounties,
   fetchHiddenHandClaimedBounties,
-} from "./utils/claimedBountiesUtils";
+} from "../utils/claimedBountiesUtils";
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, http, pad } from "viem";
 import { mainnet } from "viem/chains";
+import { STAKE_DAO_LOCKER, CONVEX_LOCKER } from "../utils/constants";
 
 const WEEK = 604800; // One week in seconds
 
@@ -53,11 +55,20 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
   const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
     await getTimestampsBlocks(publicClient, pastWeek);
 
-  const votemarket = await fetchVotemarketClaimedBounties(
+  // Fetch bounties for standard locker
+  const votemarketStakeBounties = await fetchVotemarketStakeDaoLockerClaimedBounties(
     publicClient,
     blockNumber1,
-    blockNumber2
+    blockNumber2,
   );
+
+  // Fetch bounties for Convex locker
+  const votemarketConvexBounties = await fetchVotemarketConvexLockerClaimedBounties(
+    publicClient,
+    blockNumber1,
+    blockNumber2,
+  );
+
   const wardenBounties = await fetchWardenClaimedBounties(
     blockNumber1,
     blockNumber2
@@ -83,15 +94,23 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     timestamp2,
     blockNumber1,
     blockNumber2,
-    votemarket,
+    votemarketStakeBounties,
     warden,
     hiddenhand,
   };
 
-  console.log(JSON.stringify(weeklyBounties, customReplacer, 2));
+  const weeklyBountiesConvex = {
+    timestamp1,
+    timestamp2,
+    blockNumber1,
+    blockNumber2,
+    votemarket: votemarketConvexBounties,
+    warden: {}, // Convex doesn't use Warden
+    hiddenhand: {}, // Convex doesn't use Hidden Hand
+  };
 
   // Create 'weekly-bounties' folder at the root of the project if it doesn't exist
-  const rootDir = path.resolve(__dirname, ".."); // Go up one level from the script directory
+  const rootDir = path.resolve(__dirname, "../.."); // Go up two level from the script directory
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
@@ -103,10 +122,24 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     fs.mkdirSync(periodFolder, { recursive: true });
   }
 
-  const fileName = path.join(periodFolder, "claimed_bounties.json");
-  const jsonString = JSON.stringify(weeklyBounties, customReplacer, 2);
-  fs.writeFileSync(fileName, jsonString);
-  console.log(`Weekly bounties saved to ${fileName}`);
+  // Save Stake Dao locker bounties
+  const fileNameStandard = path.join(periodFolder, "claimed_bounties.json");
+  const jsonStringStandard = JSON.stringify(weeklyBounties, customReplacer, 2);
+  fs.writeFileSync(fileNameStandard, jsonStringStandard);
+  console.log(`Standard locker weekly bounties saved to ${fileNameStandard}`);
+
+  // Save Convex locker bounties
+  const fileNameConvex = path.join(
+    periodFolder,
+    "claimed_bounties_convex.json"
+  );
+  const jsonStringConvex = JSON.stringify(
+    weeklyBountiesConvex,
+    customReplacer,
+    2
+  );
+  fs.writeFileSync(fileNameConvex, jsonStringConvex);
+  console.log(`Convex locker weekly bounties saved to ${fileNameConvex}`);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;

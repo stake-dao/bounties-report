@@ -1,35 +1,13 @@
 import { formatUnits, parseEther } from "viem";
+import { BigNumber, utils } from "ethers";
 import { getAllAccountClaimedSinceLastFreezeWithAgnostic, getDelegators } from "./agnostic";
 import { AUTO_VOTER_DELEGATION_ADDRESS, BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
-import { getProposal, getVoters, getVoterVotingPower } from "./snapshot";
-import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower, getTokenPrice } from "./utils";
-import { BigNumber, utils } from "ethers";
+import { formatVotingPowerResult, getProposal, getVoters, getVotingPower } from "./snapshot";
+import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower } from "./utils";
+import { Log, MerkleStat } from "./types";
 import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 
-export type LogId = "TotalReported" | "Concentrator" | "sdCAKE";
-
-export interface Log {
-    id: LogId;
-    content: string[];
-}
-
-export interface MerkleStat {
-    apr: number;
-    merkle: Merkle;
-    logs: Log[];
-}
-
-export interface Merkle {
-    symbol: string;
-    address: string;
-    image: string;
-    merkle: any;
-    root: string;
-    total: BigNumber;
-    chainId: number;
-    merkleContract: string;
-}
 
 const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
 const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet_v1";
@@ -64,8 +42,9 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         // Here, we should have delegation voter + all other voters
         // Object with vp property
         let voters = await getVoters(id);
+        const vps = await getVotingPower(proposal, voters.map((v) => v.voter), SPACE_TO_CHAIN_ID[space]);
+        voters = formatVotingPowerResult(voters, vps);
 
-        voters = await getVoterVotingPower(proposal, voters, SPACE_TO_CHAIN_ID[space]);
         voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice, table);
 
         // Should be already done but remove the autovoter address again to be sure

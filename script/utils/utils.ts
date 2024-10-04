@@ -3,28 +3,37 @@ import {
   abi,
   AUTO_VOTER_CONTRACT,
   AUTO_VOTER_DELEGATION_ADDRESS,
+  BSC,
+  CVX_SPACE,
+  ETHEREUM,
   LABELS_TO_SPACE,
   SDBAL_SPACE,
   SDPENDLE_SPACE,
 } from "./constants";
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http, PublicClient } from "viem";
+import {
+  createPublicClient,
+  http,
+} from "viem";
 import { bsc, mainnet } from "viem/chains";
 import { getDelegators } from "./agnostic";
-
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
 export type PendleCSVType = Record<string, Record<string, number>>;
-export type OtherCSVType = Record<string, number>;
-export type ExtractCSVType = OtherCSVType | PendleCSVType;
+type OtherCSVType = Record<string, number>;
+type CvxCSVType = Record<
+  string,
+  { rewardAddress: string; rewardAmount: number }
+>;
+export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType;
 
 export const extractCSV = async (
   currentPeriodTimestamp: number,
   space: string
-) => {
-  let csvFilePath: undefined | string = undefined;
+): Promise<ExtractCSVType | undefined> => {
+  let csvFilePath: string | undefined;
 
   let nameSpace: undefined | string = undefined;
 
@@ -48,7 +57,6 @@ export const extractCSV = async (
     return undefined;
   }
 
-  // Read the CSV file from the file system
   const csvFile = fs.readFileSync(csvFilePath, "utf8");
 
   let records = parse(csvFile, {
@@ -57,53 +65,72 @@ export const extractCSV = async (
     delimiter: ";",
   });
 
-  const newRecords: any[] = [];
-  for (const row of records) {
-    let obj: any = {};
-    for (const key of Object.keys(row)) {
-      obj[key.toLowerCase()] = row[key];
-    }
-    newRecords.push(obj);
-  }
+  const newRecords = records.map((row: Record<string, string>) =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [key.toLowerCase(), value])
+    )
+  );
 
   records = newRecords;
 
   const response: ExtractCSVType = {};
   let total = 0;
+  const totalPerToken: Record<string, number> = {};
+
   for (const row of records) {
-    const gaugeAddress = row["Gauge Address".toLowerCase()];
+    const gaugeAddress = row["gauge address"];
     if (!gaugeAddress) {
       throw new Error("can't find gauge address for " + space);
     }
 
-    // Pendle case : Period passed in protocol
     if (space === SDPENDLE_SPACE) {
       const period = row["period"];
       const pendleResponse = response as PendleCSVType;
       if (!pendleResponse[period]) {
         pendleResponse[period] = {};
       }
-
       if (!pendleResponse[period][gaugeAddress]) {
         pendleResponse[period][gaugeAddress] = 0;
       }
 
-      total += parseFloat(row["reward sd value"]);
-      pendleResponse[period][gaugeAddress] += parseFloat(
-        row["reward sd value"]
-      );
+      if (row["reward sd value"]) {
+        total += parseFloat(row["reward sd value"]);
+        pendleResponse[period][gaugeAddress] += parseFloat(
+          row["reward sd value"]
+        );
+      }
+    } else if (space === CVX_SPACE) {
+      const cvxResponse = response as CvxCSVType;
+      const rewardAddress = row["reward address"].toLowerCase();
+      const rewardAmount = parseFloat(row["reward amount"]);
+
+      if (!cvxResponse[gaugeAddress]) {
+        cvxResponse[gaugeAddress] = { rewardAddress, rewardAmount };
+      } else {
+        cvxResponse[gaugeAddress].rewardAmount += rewardAmount;
+      }
+
+      if (!totalPerToken[rewardAddress]) {
+        totalPerToken[rewardAddress] = 0;
+      }
+      totalPerToken[rewardAddress] += rewardAmount;
     } else {
       const otherResponse = response as OtherCSVType;
       if (!otherResponse[gaugeAddress]) {
         otherResponse[gaugeAddress] = 0;
       }
-
-      total += parseFloat(row["Reward sd Value".toLowerCase()]);
-
-      let previousTotal = otherResponse[gaugeAddress] as number;
-      previousTotal += parseFloat(row["Reward sd Value".toLowerCase()]);
-      otherResponse[gaugeAddress] = previousTotal;
+      if (row["reward sd value"]) {
+        const rewardValue = parseFloat(row["reward sd value"]);
+        total += rewardValue;
+        otherResponse[gaugeAddress] += rewardValue;
+      }
     }
+  }
+
+  if (space === CVX_SPACE) {
+    console.log(`Total reward per token for ${space}:`, totalPerToken);
+  } else {
+    console.log(`Total sdToken reward for ${space}: ${total}`);
   }
 
   return response;
@@ -629,35 +656,4 @@ export const getAllAccountClaimedSinceLastFreezeOnBSC = async (
   }
 
   return resp;
-};
-
-export const balanceOf = async (
-  publicClient: PublicClient,
-  token: string,
-  address: string
-): Promise<bigint> => {
-  try {
-    const balance = await publicClient.readContract({
-      address: token as `0x${string}`,
-      abi: [
-        {
-          name: "balanceOf",
-          type: "function",
-          stateMutability: "view",
-          inputs: [{ name: "account", type: "address" }],
-          outputs: [{ name: "", type: "uint256" }],
-        },
-      ],
-      functionName: "balanceOf",
-      args: [address as `0x${string}`],
-    });
-
-    return balance;
-  } catch (error) {
-    console.error(
-      `Error fetching balance for ${address} on token ${token}:`,
-      error
-    );
-    throw error;
-  }
 };

@@ -1,11 +1,12 @@
 import * as dotenv from "dotenv";
-import { parseAbi } from 'viem';
+import { parseAbi } from "viem";
 
 dotenv.config();
 
 export const MERKLE_ADDRESS = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
 export const MERKLE_BSC_ADDRESS = "0xd65cE3d391318A35bF6e24A300359eB5436b6A40";
-export const STASH_CONTROLLER_ADDRESS = "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
+export const STASH_CONTROLLER_ADDRESS =
+  "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
 
 export const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 
@@ -18,7 +19,8 @@ export const AUTO_VOTER_CONTRACT = "0x619eDEF2d18Ec9758E96D8FF2c7DcbFb58DD5A5C";
 export const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 
 // Agnostic
-export const AGNOSTIC_ENDPOINT = "https://proxy.eu-02.agnostic.engineering/query";
+export const AGNOSTIC_ENDPOINT =
+  "https://proxy.eu-02.agnostic.engineering/query";
 export const AGNOSTIC_API_KEY = "Fr2LXSVvKCfmXse8JQJiJBLHY9ujU3YZf8Kr6TDDh4Sw";
 
 // Networks
@@ -34,6 +36,9 @@ export const SDANGLE_SPACE = "sdangle.eth";
 export const SDPENDLE_SPACE = "sdpendle.eth";
 export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
+export const CVX_SPACE = "cvx.eth";
+
+export const VLCVX_RECIPIENT = "0xAe86A3993D13C8D77Ab77dBB8ccdb9b7Bc18cd09";
 
 export const SPACES: string[] = [
   SDCRV_SPACE,
@@ -53,6 +58,7 @@ export const LABELS_TO_SPACE: Record<string, string> = {
   pendle: SDPENDLE_SPACE,
   cake: SDCAKE_SPACE,
   fxn: SDFXN_SPACE,
+  cvx: CVX_SPACE,
 };
 
 export const SPACE_TO_NETWORK: Record<string, string> = {
@@ -144,3 +150,11 @@ export const abi = parseAbi([
 ]);
 
 export const WEEK = 604800;
+
+export const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
+export const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet";
+
+// Stake DAO locker
+export const STAKE_DAO_LOCKER = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";
+// Convex locker
+export const CONVEX_LOCKER = "0x989AEb4d175e16225E39E87d0D97A3360524AD80";

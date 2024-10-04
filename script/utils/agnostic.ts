@@ -83,7 +83,6 @@ export const getDelegators = async (delegationAddress: string, table: string, sn
     let delegationRows: string[] = [];
 
     do {
-        
         const rows = await agnosticFetch(DELEGATION_QUERY(delegationAddress, table, limit, offset, snapshotStartTimestamp, formatBytes32String(space)));
         if (rows.length === limit) {
             offset += limit;
