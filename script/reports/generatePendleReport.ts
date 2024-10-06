@@ -178,7 +178,7 @@ async function main() {
     ].join("\n");
 
     // Write to file
-    const projectRoot = path.resolve(__dirname, "..");
+    const projectRoot = path.resolve(__dirname, "..", "..");
     const dirPath = path.join(
       projectRoot,
       "bounties-reports",
