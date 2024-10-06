@@ -4,7 +4,7 @@ import path from "path";
 import { createPublicClient, http, formatUnits } from "viem";
 import { mainnet } from "viem/chains";
 import { getAddress } from "viem";
-import { WEEK } from "./utils/constants";
+import { WEEK } from "../utils/constants";
 
 const REPO_PATH = "stake-dao/pendle-merkle-script";
 const DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
@@ -38,7 +38,7 @@ interface CSVRow {
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http(`https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`)
+  transport: http("https://rpc.ankr.com/eth"),
 });
 
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
