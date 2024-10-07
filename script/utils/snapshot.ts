@@ -47,8 +47,9 @@ export const fetchLastProposalsIds = async (
     let regex: RegExp;
 
     try {
-      // Create a RegExp object from the filter string
-      regex = new RegExp(filter);
+      // Modify the filter string to make it a valid regex pattern
+      const modifiedFilter = filter.replace(/^\*/, ".*");
+      regex = new RegExp(modifiedFilter);
     } catch (error) {
       throw new Error(`Invalid regex pattern provided for filter: "${filter}"`);
     }
@@ -346,7 +347,7 @@ export const associateGaugesPerId = (
 ): Record<string, number> => {
   // Create a map gauge address => choice id
   const gaugePerChoiceId: Record<string, number> = {};
-  
+
   for (let i = 0; i < proposal.choices.length; i++) {
     const choice = proposal.choices[i];
 
@@ -355,7 +356,7 @@ export const associateGaugesPerId = (
       gaugePerChoiceId[choice] = i + 1;
       continue;
     }
-    
+
     // Try to find the gauge object in curve api based on shortName
     let curveGauge = curveGauges.find(
       (curveGauge) =>
@@ -363,27 +364,43 @@ export const associateGaugesPerId = (
     );
 
     if (!curveGauge) {
-      console.log("Can't find the correct gauge in the api for choice, searching with short address " + choice);
+      console.log(
+        "Can't find the correct gauge in the api for choice, searching with short address " +
+          choice
+      );
 
       // Extract the short address from the choice string
       const shortAddressMatch = choice.match(/\((0x[a-fA-F0-9]{4})…\)/);
-      const shortAddress = shortAddressMatch ? shortAddressMatch[1].toLowerCase() : null;
+      const shortAddress = shortAddressMatch
+        ? shortAddressMatch[1].toLowerCase()
+        : null;
 
       if (shortAddress) {
         curveGauge = curveGauges.find((gauge) => {
-          const curveShortAddressMatch = gauge.shortName.match(/\((0x[a-fA-F0-9]{4})…\)/);
-          const curveShortAddress = curveShortAddressMatch ? curveShortAddressMatch[1].toLowerCase() : null;
+          const curveShortAddressMatch = gauge.shortName.match(
+            /\((0x[a-fA-F0-9]{4})…\)/
+          );
+          const curveShortAddress = curveShortAddressMatch
+            ? curveShortAddressMatch[1].toLowerCase()
+            : null;
           return curveShortAddress === shortAddress;
         });
 
         if (curveGauge) {
-          console.log("Found the correct gauge in the api for choice " + choice + ' ==> ' + curveGauge.shortName);
+          console.log(
+            "Found the correct gauge in the api for choice " +
+              choice +
+              " ==> " +
+              curveGauge.shortName
+          );
         }
       }
     }
 
     if (!curveGauge) {
-      throw new Error("Can't find the correct gauge in the api for choice " + choice);
+      throw new Error(
+        "Can't find the correct gauge in the api for choice " + choice
+      );
     }
 
     gaugePerChoiceId[curveGauge.gauge] = i + 1; // + 1 because when you vote for the first gauge, id starts at 1 and not 0

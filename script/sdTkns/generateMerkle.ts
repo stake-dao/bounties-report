@@ -29,7 +29,7 @@ const main = async () => {
       axios.get(
         "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
       ),
-      fetchLastProposalsIds(SPACES, now),
+      fetchLastProposalsIds(SPACES, now, filter),
       axios.get(
         "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
       ),
