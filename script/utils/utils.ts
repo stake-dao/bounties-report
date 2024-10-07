@@ -126,13 +126,6 @@ export const extractCSV = async (
       }
     }
   }
-
-  if (space === CVX_SPACE) {
-    console.log(`Total reward per token for ${space}:`, totalPerToken);
-  } else {
-    console.log(`Total sdToken reward for ${space}: ${total}`);
-  }
-
   return response;
 };
 
