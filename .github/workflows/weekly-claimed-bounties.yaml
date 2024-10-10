@@ -45,14 +45,14 @@ jobs:
           python-version: "3.10.13"
 
       - name: Run generateWeeklyBounties script
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.chain == 'mainnet' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.chain == 'mainnet' || github.event_name == 'schedule' }}
         run: |
           make -f automation/weekly-bounties.mk run-mainnet PAST_WEEK=${{ github.event.inputs.pastWeek || '0' }}
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 
       - name: Run generateBSCBounties script (odd weeks only)
-        if: ${{ github.event.inputs.pastWeek == '' && needs.check-week.outputs.isOdd == 'true' || github.event_name == 'workflow_dispatch' && github.event.inputs.chain == 'bsc' }}
+        if: ${{ github.event_name == 'schedule' && needs.check-week.outputs.isOdd == 'true' || github.event_name == 'workflow_dispatch' && github.event.inputs.chain == 'bsc' }}
         run: |
           make -f automation/weekly-bounties.mk run-bsc PAST_WEEK=${{ github.event.inputs.pastWeek || '0' }}
         env:
