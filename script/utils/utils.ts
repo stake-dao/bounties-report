@@ -5,6 +5,9 @@ import {
   AUTO_VOTER_DELEGATION_ADDRESS,
   BSC,
   CVX_SPACE,
+  DELEGATE_REGISTRY,
+  DELEGATE_REGISTRY_CREATION_BLOCK_BSC,
+  DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
   ETHEREUM,
   LABELS_TO_SPACE,
   SDBAL_SPACE,
@@ -14,10 +17,17 @@ import fs from "fs";
 import path from "path";
 import {
   createPublicClient,
+  encodePacked,
+  getAddress,
   http,
+  keccak256,
+  pad,
 } from "viem";
 import { bsc, mainnet } from "viem/chains";
 import { getDelegators } from "./agnostic";
+import { createBlockchainExplorerUtils } from "./explorerUtils";
+import { formatBytes32String } from "ethers/lib/utils";
+import { DelegatorData } from "./types";
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
@@ -650,3 +660,269 @@ export const getAllAccountClaimedSinceLastFreezeOnBSC = async (
 
   return resp;
 };
+
+/* Using Etherscan / BscScan API */
+export const getAllAccountClaimedSinceLastFreeze = async (
+  merkleContract: string,
+  tokenAddress: string,
+  chainId: string
+): Promise<Record<string, boolean>> => {
+  const resp: Record<string, boolean> = {};
+
+  const explorerUtils = createBlockchainExplorerUtils(
+    Number(chainId) === mainnet.id ? "ethereum" : "bsc"
+  );
+
+  // Create viem client
+  const publicClient = createPublicClient({
+    chain: Number(chainId) === mainnet.id ? mainnet : bsc,
+    transport: http(),
+  });
+
+  const merkleEventSignature = "MerkleRootUpdated(address,bytes32,uint256)";
+  const merkleEventHash = keccak256(
+    encodePacked(["string"], [merkleEventSignature])
+  );
+
+  const claimedEventSignature =
+    "Claimed(address,uint256,uint256,address,uint256)";
+  const claimedEventHash = keccak256(
+    encodePacked(["string"], [claimedEventSignature])
+  );
+
+  const currentBlock = await publicClient.getBlock();
+
+  const twoWeeksAgo = currentBlock.timestamp - BigInt(2 * 7 * 24 * 60 * 60);
+
+  const blockTwoWeeksAgo = await explorerUtils.getBlockNumberByTimestamp(
+    Number(twoWeeksAgo),
+    "before"
+  );
+
+  const paddedToken = pad(tokenAddress as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  const latestsMerkleUpdates = await explorerUtils.getLogsByAddressAndTopics(
+    getAddress(merkleContract),
+    blockTwoWeeksAgo,
+    Number(currentBlock.number),
+    {
+      "0": merkleEventHash,
+      "1": paddedToken,
+    }
+  );
+
+  // Take the latest merkle update
+  const latestMerkleUpdate =
+    latestsMerkleUpdates.result[latestsMerkleUpdates.result.length - 1];
+
+  // Use the latest merkle update timestamp as start to get all claimed until now
+  const startBlock = Number(latestMerkleUpdate.blockNumber);
+
+  const allClaimedLogs = await explorerUtils.getLogsByAddressAndTopics(
+    getAddress(merkleContract),
+    startBlock,
+    Number(currentBlock.number),
+    {
+      "0": claimedEventHash,
+      "1": paddedToken,
+    }
+  );
+
+  // Decode user address from logs
+  for (const log of allClaimedLogs.result) {
+    const paddedUserAddress = log.topics[2];
+    // Extract the last 40 characters (20 bytes) and add '0x' prefix
+    const userAddress = getAddress("0x" + paddedUserAddress.slice(-40));
+    resp[userAddress.toLowerCase()] = true;
+  }
+
+  return resp;
+};
+
+
+function readJSONFile(filePath: string): DelegatorData[] {
+  if (!fs.existsSync(filePath)) {
+    return [];
+  }
+  const fileContent = fs.readFileSync(filePath, "utf8");
+  return JSON.parse(fileContent);
+}
+
+function writeJSONFile(filePath: string, data: DelegatorData[]): void {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+
+export const fetchDelegators = async (
+  delegationAddress: string,
+  startBlock: number,
+  endBlock: number,
+  explorerUtils: any,
+  spacesIds: string[]
+): Promise<DelegatorData[]> => {
+  const chunkSize = 100_000;
+  const allDelegators: DelegatorData[] = [];
+
+  while (startBlock < endBlock) {
+    const chunkEndBlock = Math.min(startBlock + chunkSize, endBlock);
+
+    const setDelegateSignature = "SetDelegate(address,bytes32,address)";
+    const setDelegateHash = keccak256(
+      encodePacked(["string"], [setDelegateSignature])
+    );
+
+    const clearDelegateSignature = "ClearDelegate(address,bytes32,address)";
+    const clearDelegateHash = keccak256(
+      encodePacked(["string"], [clearDelegateSignature])
+    );
+
+    const paddedDelegationAddress = pad(delegationAddress as `0x${string}`, {
+      size: 32,
+    }).toLowerCase();
+
+    const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(DELEGATE_REGISTRY),
+      startBlock,
+      chunkEndBlock,
+      {
+        "0": setDelegateHash,
+        "3": paddedDelegationAddress,
+      }
+    );
+
+    const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(DELEGATE_REGISTRY),
+      startBlock,
+      chunkEndBlock,
+      {
+        "0": clearDelegateHash,
+        "3": paddedDelegationAddress,
+      }
+    );
+
+    const allLogs = [...setDelegateLogs.result, ...clearDelegateLogs.result];
+    const delegators: DelegatorData[] = [];
+
+    for (const log of allLogs) {
+      const event = log.topics[0];
+      const paddedDelegator = log.topics[1];
+      const spaceId = log.topics[2];
+      const delegator = getAddress("0x" + paddedDelegator.slice(-40));
+      if (
+        spacesIds.map((id) => id.toLowerCase()).includes(spaceId.toLowerCase())
+      ) {
+        delegators.push({
+          event: event === setDelegateHash ? "Set" : "Clear",
+          user: delegator.toLowerCase(),
+          spaceId: spaceId.toLowerCase(),
+          timestamp: Number(log.timeStamp),
+        });
+      }
+    }
+
+    allDelegators.push(...delegators);
+    startBlock = chunkEndBlock + 1;
+  }
+
+  return allDelegators;
+};
+
+export const getAllDelegators = async (
+  delegationAddress: string,
+  chainId: string,
+  spaces: string[]
+): Promise<DelegatorData[]> => {
+  const cacheDir = path.join(__dirname, "../../cache/delegations");
+  const cacheFile = path.join(cacheDir, `delegators_${chainId}_${delegationAddress.toLowerCase()}.json`);
+
+  let cachedData = readJSONFile(cacheFile);
+  let startBlock: number;
+
+  const explorerUtils = createBlockchainExplorerUtils(
+    Number(chainId) === mainnet.id ? "ethereum" : "bsc"
+  );
+
+  if (cachedData.length > 0) {
+    const latestTimestamp = cachedData[cachedData.length - 1].timestamp;
+    startBlock = await explorerUtils.getBlockNumberByTimestamp(
+      latestTimestamp,
+      "before"
+    );
+  } else {
+    startBlock =
+      Number(chainId) === mainnet.id
+        ? DELEGATE_REGISTRY_CREATION_BLOCK_ETH
+        : DELEGATE_REGISTRY_CREATION_BLOCK_BSC;
+  }
+
+  const publicClient = createPublicClient({
+    chain: Number(chainId) === mainnet.id ? mainnet : bsc,
+    transport: http(),
+  });
+
+  const currentBlock = await publicClient.getBlock();
+
+  const spacesIds = spaces.map((space) => formatBytes32String(space));
+
+  const newDelegators = await fetchDelegators(
+    delegationAddress,
+    startBlock,
+    Number(currentBlock.number),
+    explorerUtils,
+    spacesIds
+  );
+
+  // Combine cached data with new data
+  const allDelegators = [...cachedData, ...newDelegators];
+
+  // Sort by timestamp
+  allDelegators.sort((a, b) => a.timestamp - b.timestamp);
+
+  // Save to JSON file
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+  writeJSONFile(cacheFile, allDelegators);
+
+  return allDelegators;
+};
+
+
+
+export const processAllDelegators = (delegators: DelegatorData[], space: string, timestamp: number) : string[] => {
+  const users : string[] = [];
+
+  const spaceBytes = formatBytes32String(space);
+
+
+  let processedData: DelegatorData[] = [];
+
+  // Get all until timestamp
+  for (const delegator of delegators) {
+    if (delegator.timestamp > timestamp || delegator.spaceId.toLowerCase() !== spaceBytes.toLowerCase()) {
+      continue;
+    }
+    processedData.push(delegator);
+  }
+
+  // Group entries by user
+  const userEntries: Record<string, DelegatorData[]> = {};
+  for (const entry of processedData) {
+    if (entry.spaceId.toLowerCase() !== spaceBytes.toLowerCase()) continue;
+    if (!userEntries[entry.user]) {
+      userEntries[entry.user] = [];
+    }
+    userEntries[entry.user].push(entry);
+  }
+
+  // For each user, check if their last entry is a "Set" event
+  for (const [user, entries] of Object.entries(userEntries)) {
+    entries.sort((a, b) => b.timestamp - a.timestamp); // Sort in descending order
+    if (entries[0].event === "Set") {
+      users.push(user);
+    }
+  }
+  return users;
+}
