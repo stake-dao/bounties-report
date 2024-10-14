@@ -8,7 +8,6 @@ import {
   DELEGATE_REGISTRY,
   DELEGATE_REGISTRY_CREATION_BLOCK_BSC,
   DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
-  ETHEREUM,
   LABELS_TO_SPACE,
   SDBAL_SPACE,
   SDPENDLE_SPACE,
@@ -24,7 +23,6 @@ import {
   pad,
 } from "viem";
 import { bsc, mainnet } from "viem/chains";
-import { getDelegators } from "./agnostic";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { formatBytes32String } from "ethers/lib/utils";
 import { DelegatorData } from "./types";
@@ -369,7 +367,7 @@ export const addVotersFromAutoVoter = async (
   proposal: any,
   voters: Voter[],
   addressesPerChoice: Record<string, number>,
-  table: string
+  allDelegationLogsAutoVoter: DelegatorData[]
 ): Promise<Voter[]> => {
   const autoVoter = voters.find(
     (v) => v.voter.toLowerCase() === AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
@@ -378,6 +376,7 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
+  /*
   const delegators = await getDelegators(
     AUTO_VOTER_DELEGATION_ADDRESS,
     table,
@@ -387,6 +386,26 @@ export const addVotersFromAutoVoter = async (
   if (delegators.length === 0) {
     return voters;
   }
+  */
+
+  // Fetch delegators weight registered in the auto voter contract
+  const publicClient = createPublicClient({
+    chain: mainnet,
+    transport: http(
+      "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9"
+    ),
+    batch: {
+      multicall: true,
+    },
+  });
+
+  // Process
+  const delegators = processAllDelegators(allDelegationLogsAutoVoter, space, proposal.created);
+
+  // Sort alphabetically
+  const sortedDelegators = delegators.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+  fs.writeFileSync("auto" + space + ".json", JSON.stringify(sortedDelegators, null, 2));
 
   const { data } = await axios.post("https://score.snapshot.org/api/scores", {
     params: {
@@ -422,17 +441,6 @@ export const addVotersFromAutoVoter = async (
   if (delegatorAddresses.length === 0) {
     return voters;
   }
-
-  // Fetch delegators weight registered in the auto voter contract
-  const publicClient = createPublicClient({
-    chain: mainnet,
-    transport: http(
-      "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9"
-    ),
-    batch: {
-      multicall: true,
-    },
-  });
 
   const results = await publicClient.multicall({
     contracts: delegatorAddresses.map((delegatorAddress) => {

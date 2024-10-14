@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as dotenv from "dotenv";
 import { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods } from '../utils/snapshot';
-import { abi, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from '../utils/constants';
+import { abi, AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from '../utils/constants';
 import * as moment from 'moment';
 import { checkSpace, extractCSV, getAllDelegators, PendleCSVType } from '../utils/utils';
 import { createMerkle } from '../utils/createMerkle';
@@ -48,9 +48,10 @@ const main = async () => {
   const toSet: Record<string, string[]> = {};
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
-  // Get all delegators for both chains
+  // Get all delegators for both chains + auto voter
   const allDelegationLogsEth = await getAllDelegators(DELEGATION_ADDRESS, "1", Object.keys(proposalIdPerSpace).filter(space => space !== 'sdcake.eth'));
   const allDelegationLogsBSC = await getAllDelegators(DELEGATION_ADDRESS, "56", ['sdcake.eth']);
+  const allDelegationLogsAutoVoter = await getAllDelegators(AUTO_VOTER_DELEGATION_ADDRESS, "1", Object.keys(proposalIdPerSpace).filter(space => space !== 'sdcake.eth'));
 
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
@@ -141,7 +142,8 @@ const main = async () => {
       pendleRewards,
       sdFXSWorkingData,
       allDelegationLogsEth,
-      allDelegationLogsBSC
+      allDelegationLogsBSC,
+      allDelegationLogsAutoVoter
     );
 
     newMerkles.push(merkleStat.merkle);
