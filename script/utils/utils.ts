@@ -695,7 +695,7 @@ export const getAllAccountClaimedSinceLastFreeze = async (
 
   const currentBlock = await publicClient.getBlock();
 
-  const twoWeeksAgo = currentBlock.timestamp - BigInt(2 * 7 * 24 * 60 * 60);
+  const twoWeeksAgo = currentBlock.timestamp - BigInt(3 * 7 * 24 * 60 * 60);
 
   const blockTwoWeeksAgo = await explorerUtils.getBlockNumberByTimestamp(
     Number(twoWeeksAgo),
