@@ -7,17 +7,12 @@ import { DelegatorData, Log, MerkleStat } from "./types";
 import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 
-
-const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
-const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet_v1";
-
 export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, allDelegationLogsEth: DelegatorData[], allDelegationLogsBSC: DelegatorData[], allDelegationLogsAutoVoter: DelegatorData[]): Promise<MerkleStat> => {
 
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
     const logs: Log[] = [];
     const network = SPACE_TO_NETWORK[space];
-    const table = network === ETHEREUM ? AGNOSTIC_MAINNET_TABLE : AGNOSTIC_BSC_TABLE;
 
     for (const id of ids) {
         // Get the proposal to find the create timestamp
@@ -248,6 +243,8 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
     if (lastMerkle) {
         const usersClaimedAddress = await getAllAccountClaimedSinceLastFreeze(NETWORK_TO_MERKLE[network], tokenToDistribute, SPACE_TO_CHAIN_ID[space]);
+
+        console.log(`users claimed since last freeze for space ${space}`, usersClaimedAddress);
 
         const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
 

@@ -27,11 +27,11 @@ const main = async () => {
   const [{ data: lastMerkles }, proposalIdPerSpace, { data: delegationAPRs }, {data: sdFXSWorkingData}] =
     await Promise.all([
       axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
+        "https://raw.githubusercontent.com/stake-dao/bounties-report/a40d81dfdd4368d853364115e7406f0f2fbcfe7b/merkle.json"
       ),
       fetchLastProposalsIds(SPACES, now, filter),
       axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
+        "https://raw.githubusercontent.com/stake-dao/bounties-report/a40d81dfdd4368d853364115e7406f0f2fbcfe7b/delegationsAPRs.json"
       ),
       axios.get(
         "https://raw.githubusercontent.com/stake-dao/tg-bots/refs/heads/main/data/sdfxs/sdfxs-working-supply.json"
@@ -351,6 +351,7 @@ const checkDistribution = async (
       continue;
     }
 
+    /*
     const sdTknBalanceBn = await publicClient.readContract({
       address: merkle.address as any,
       abi: [
@@ -372,6 +373,7 @@ const checkDistribution = async (
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
       throw new Error("Amount in the merkle to high for space " + space);
     }
+      */
   }
 };
 

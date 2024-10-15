@@ -9,6 +9,8 @@ import {
   DELEGATE_REGISTRY_CREATION_BLOCK_BSC,
   DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
   LABELS_TO_SPACE,
+  MERKLE_CREATION_BLOCK_BSC,
+  MERKLE_CREATION_BLOCK_ETH,
   SDBAL_SPACE,
   SDPENDLE_SPACE,
 } from "./constants";
@@ -400,7 +402,11 @@ export const addVotersFromAutoVoter = async (
   });
 
   // Process
-  const delegators = processAllDelegators(allDelegationLogsAutoVoter, space, proposal.created);
+  const delegators = processAllDelegators(
+    allDelegationLogsAutoVoter,
+    space,
+    proposal.created
+  );
 
   const { data } = await axios.post("https://score.snapshot.org/api/scores", {
     params: {
@@ -664,7 +670,6 @@ export const getAllAccountClaimedSinceLastFreezeOnBSC = async (
   return resp;
 };
 
-/* Using Etherscan / BscScan API */
 export const getAllAccountClaimedSinceLastFreeze = async (
   merkleContract: string,
   tokenAddress: string,
@@ -676,11 +681,12 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     Number(chainId) === mainnet.id ? "ethereum" : "bsc"
   );
 
-  // Create viem client
   const publicClient = createPublicClient({
     chain: Number(chainId) === mainnet.id ? mainnet : bsc,
     transport: http(),
   });
+
+  const currentBlock = await publicClient.getBlock();
 
   const merkleEventSignature = "MerkleRootUpdated(address,bytes32,uint256)";
   const merkleEventHash = keccak256(
@@ -693,57 +699,65 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     encodePacked(["string"], [claimedEventSignature])
   );
 
-  const currentBlock = await publicClient.getBlock();
-
-  const twoWeeksAgo = currentBlock.timestamp - BigInt(3 * 7 * 24 * 60 * 60);
-
-  const blockTwoWeeksAgo = await explorerUtils.getBlockNumberByTimestamp(
-    Number(twoWeeksAgo),
-    "before"
-  );
-
   const paddedToken = pad(tokenAddress as `0x${string}`, {
     size: 32,
   }).toLowerCase();
 
-  const latestsMerkleUpdates = await explorerUtils.getLogsByAddressAndTopics(
-    getAddress(merkleContract),
-    blockTwoWeeksAgo,
-    Number(currentBlock.number),
-    {
-      "0": merkleEventHash,
-      "1": paddedToken,
+  // Process decreasing until we found the latest merkle update
+  let latestMerkleUpdate;
+  let toFetchBlock = Number(currentBlock.number) - 10_000;
+  while (!latestMerkleUpdate && toFetchBlock > (Number(chainId) == mainnet.id ? MERKLE_CREATION_BLOCK_ETH : MERKLE_CREATION_BLOCK_BSC)) {
+    // Fetch the last valid MerkleRootUpdated event
+    const merkleUpdates = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(merkleContract),
+      toFetchBlock,
+      Number(currentBlock.number),
+      {
+        "0": merkleEventHash,
+        "1": paddedToken,
+      }
+    );
+
+    for (let i = merkleUpdates.result.length - 1; i >= 0; i--) {
+      if (
+        merkleUpdates.result[i].topics[2] !==
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ) {
+        latestMerkleUpdate = merkleUpdates.result[i];
+        break;
+      }
     }
-  );
 
-  // Take the latest merkle update
-  const latestMerkleUpdate =
-    latestsMerkleUpdates.result[latestsMerkleUpdates.result.length - 1];
+    if (!latestMerkleUpdate) {
+      toFetchBlock -= 10_000;
+      continue;
+    }
+  }
 
-  // Use the latest merkle update timestamp as start to get all claimed until now
+
   const startBlock = Number(latestMerkleUpdate.blockNumber);
+
+  const endBlock = (Number(currentBlock.number));
 
   const allClaimedLogs = await explorerUtils.getLogsByAddressAndTopics(
     getAddress(merkleContract),
     startBlock,
-    Number(currentBlock.number),
+    endBlock,
     {
       "0": claimedEventHash,
       "1": paddedToken,
     }
   );
 
-  // Decode user address from logs
+  // Decode user address from logs and update the cached data
   for (const log of allClaimedLogs.result) {
     const paddedUserAddress = log.topics[2];
-    // Extract the last 40 characters (20 bytes) and add '0x' prefix
     const userAddress = getAddress("0x" + paddedUserAddress.slice(-40));
     resp[userAddress.toLowerCase()] = true;
   }
 
   return resp;
 };
-
 
 function readJSONFile(filePath: string): DelegatorData[] {
   if (!fs.existsSync(filePath)) {
@@ -756,7 +770,6 @@ function readJSONFile(filePath: string): DelegatorData[] {
 function writeJSONFile(filePath: string, data: DelegatorData[]): void {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
-
 
 export const fetchDelegators = async (
   delegationAddress: string,
@@ -838,7 +851,10 @@ export const getAllDelegators = async (
   spaces: string[]
 ): Promise<DelegatorData[]> => {
   const cacheDir = path.join(__dirname, "../../cache/delegations");
-  const cacheFile = path.join(cacheDir, `delegators_${chainId}_${delegationAddress.toLowerCase()}.json`);
+  const cacheFile = path.join(
+    cacheDir,
+    `delegators_${chainId}_${delegationAddress.toLowerCase()}.json`
+  );
 
   let cachedData = readJSONFile(cacheFile);
   let startBlock: number;
@@ -892,19 +908,23 @@ export const getAllDelegators = async (
   return allDelegators;
 };
 
-
-
-export const processAllDelegators = (delegators: DelegatorData[], space: string, timestamp: number) : string[] => {
-  const users : string[] = [];  
+export const processAllDelegators = (
+  delegators: DelegatorData[],
+  space: string,
+  timestamp: number
+): string[] => {
+  const users: string[] = [];
 
   const spaceBytes = formatBytes32String(space);
-
 
   let processedData: DelegatorData[] = [];
 
   // Get all until timestamp
   for (const delegator of delegators) {
-    if (delegator.timestamp > timestamp || delegator.spaceId.toLowerCase() !== spaceBytes.toLowerCase()) {
+    if (
+      delegator.timestamp > timestamp ||
+      delegator.spaceId.toLowerCase() !== spaceBytes.toLowerCase()
+    ) {
       continue;
     }
     processedData.push(delegator);
@@ -928,4 +948,4 @@ export const processAllDelegators = (delegators: DelegatorData[], space: string,
     }
   }
   return users;
-}
+};
