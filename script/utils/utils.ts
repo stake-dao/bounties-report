@@ -402,11 +402,6 @@ export const addVotersFromAutoVoter = async (
   // Process
   const delegators = processAllDelegators(allDelegationLogsAutoVoter, space, proposal.created);
 
-  // Sort alphabetically
-  const sortedDelegators = delegators.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-
-  fs.writeFileSync("auto" + space + ".json", JSON.stringify(sortedDelegators, null, 2));
-
   const { data } = await axios.post("https://score.snapshot.org/api/scores", {
     params: {
       network: "1",
@@ -900,7 +895,7 @@ export const getAllDelegators = async (
 
 
 export const processAllDelegators = (delegators: DelegatorData[], space: string, timestamp: number) : string[] => {
-  const users : string[] = [];
+  const users : string[] = [];  
 
   const spaceBytes = formatBytes32String(space);
 

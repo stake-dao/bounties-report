@@ -11,7 +11,7 @@ import keccak256 from "keccak256";
 const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
 const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet_v1";
 
-export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, allDelegationLogsEth: DelegatorData[], allDelegationLogsBSC: DelegatorData[]): Promise<MerkleStat> => {
+export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, allDelegationLogsEth: DelegatorData[], allDelegationLogsBSC: DelegatorData[], allDelegationLogsAutoVoter: DelegatorData[]): Promise<MerkleStat> => {
 
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
@@ -44,7 +44,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         const vps = await getVotingPower(proposal, voters.map((v) => v.voter), SPACE_TO_CHAIN_ID[space]);
         voters = formatVotingPowerResult(voters, vps);
 
-        voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice, table);
+        voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice, allDelegationLogsAutoVoter);
 
         // Should be already done but remove the autovoter address again to be sure
         voters = voters
