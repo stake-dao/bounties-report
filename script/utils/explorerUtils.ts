@@ -1,18 +1,19 @@
 import axios from "axios";
 import dotenv from "dotenv";
 
+// Load the .env file from the project root
 dotenv.config();
 
-const ETHERSCAN_KEY = process.env.ETHERSCAN_API_KEY || "";
-const BSCSCAN_KEY = process.env.BSCSCAN_API_KEY || "";
+const ETHERSCAN_KEY = process.env.ETHERSCAN_TOKEN || "";
+const BSCSCAN_KEY = process.env.BSCSCAN_TOKEN || "";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class RateLimiter {
-  private queue: (() => Promise<void>)[] = [];
+  private readonly queue: (() => Promise<void>)[] = [];
   private running = 0;
 
-  constructor(private maxConcurrent: number) {}
+  constructor(private readonly maxConcurrent: number) {}
 
   async add<T>(fn: () => Promise<T>): Promise<T> {
     while (this.running >= this.maxConcurrent) {
@@ -38,8 +39,8 @@ const rateLimiter = new RateLimiter(5);
 export type NetworkType = "ethereum" | "bsc";
 
 class BlockchainExplorerUtils {
-  private baseUrl: string;
-  private apiKey: string;
+  private readonly baseUrl: string;
+  private readonly apiKey: string;
 
   constructor(network: NetworkType) {
     if (network === "ethereum") {

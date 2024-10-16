@@ -244,8 +244,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     if (lastMerkle) {
         const usersClaimedAddress = await getAllAccountClaimedSinceLastFreeze(NETWORK_TO_MERKLE[network], tokenToDistribute, SPACE_TO_CHAIN_ID[space]);
 
-        console.log(`users claimed since last freeze for space ${space}`, usersClaimedAddress);
-
         const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
 
         for (const userAddress of userAddressesLastMerkle) {

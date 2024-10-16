@@ -3,7 +3,6 @@ import {
   abi,
   AUTO_VOTER_CONTRACT,
   AUTO_VOTER_DELEGATION_ADDRESS,
-  BSC,
   CVX_SPACE,
   DELEGATE_REGISTRY,
   DELEGATE_REGISTRY_CREATION_BLOCK_BSC,
@@ -626,55 +625,31 @@ export const getAllAccountClaimed = async (
   return resp;
 };
 
-export const getAllAccountClaimedSinceLastFreezeOnBSC = async (
-  lastMerkle: any,
-  merkleContract: string
-): Promise<Record<string, boolean>> => {
-  const resp: Record<string, boolean> = {};
-
-  const wagmiContract = {
-    address: merkleContract,
-    abi: abi,
-  };
-
-  const publicClient = createPublicClient({
-    chain: bsc,
-    transport: http(),
-  });
-
-  const calls: any[] = [];
-  for (const userAddress of Object.keys(lastMerkle.merkle)) {
-    const index = lastMerkle.merkle[userAddress].index;
-    calls.push({
-      ...wagmiContract,
-      functionName: "isClaimed",
-      args: [lastMerkle.address, index],
-    });
-  }
-
-  const results = await publicClient.multicall({
-    contracts: calls,
-  });
-
-  for (const userAddress of Object.keys(lastMerkle.merkle)) {
-    const result = results.shift();
-    if (!result) {
-      continue;
-    }
-
-    if (result.result === true) {
-      resp[userAddress.toLowerCase()] = true;
-    }
-  }
-
-  return resp;
-};
-
 export const getAllAccountClaimedSinceLastFreeze = async (
   merkleContract: string,
   tokenAddress: string,
   chainId: string
 ): Promise<Record<string, boolean>> => {
+  const cacheDir = path.join(__dirname, "../../cache/merkle_updates");
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+  const chainDir = path.join(cacheDir, chainId);
+  if (!fs.existsSync(chainDir)) {
+    fs.mkdirSync(chainDir);
+  }
+  const merkleDir = path.join(chainDir, merkleContract.toLowerCase());
+  if (!fs.existsSync(merkleDir)) {
+    fs.mkdirSync(merkleDir);
+  }
+  const cacheFile = path.join(merkleDir, `${tokenAddress.toLowerCase()}.json`);
+
+  let cachedMerkleUpdate: { blockNumber: number; timestamp: number } | null = null;
+  if (fs.existsSync(cacheFile)) {
+    const fileContent = fs.readFileSync(cacheFile, "utf8");
+    cachedMerkleUpdate = JSON.parse(fileContent);
+  }
+
   const resp: Record<string, boolean> = {};
 
   const explorerUtils = createBlockchainExplorerUtils(
@@ -703,41 +678,48 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     size: 32,
   }).toLowerCase();
 
-  // Process decreasing until we found the latest merkle update
-  let latestMerkleUpdate;
-  let toFetchBlock = Number(currentBlock.number) - 10_000;
-  while (!latestMerkleUpdate && toFetchBlock > (Number(chainId) == mainnet.id ? MERKLE_CREATION_BLOCK_ETH : MERKLE_CREATION_BLOCK_BSC)) {
-    // Fetch the last valid MerkleRootUpdated event
-    const merkleUpdates = await explorerUtils.getLogsByAddressAndTopics(
-      getAddress(merkleContract),
-      toFetchBlock,
-      Number(currentBlock.number),
-      {
-        "0": merkleEventHash,
-        "1": paddedToken,
-      }
-    );
+  // Start from the cached block number or the creation block
+  let startBlock = cachedMerkleUpdate
+    ? cachedMerkleUpdate.blockNumber
+    : (Number(chainId) === mainnet.id ? MERKLE_CREATION_BLOCK_ETH : MERKLE_CREATION_BLOCK_BSC);
 
-    for (let i = merkleUpdates.result.length - 1; i >= 0; i--) {
-      if (
-        merkleUpdates.result[i].topics[2] !==
-        "0x0000000000000000000000000000000000000000000000000000000000000000"
-      ) {
-        latestMerkleUpdate = merkleUpdates.result[i];
-        break;
-      }
+  const merkleUpdates = await explorerUtils.getLogsByAddressAndTopics(
+    getAddress(merkleContract),
+    startBlock,
+    Number(currentBlock.number),
+    {
+      "0": merkleEventHash,
+      "1": paddedToken,
     }
+  );
 
-    if (!latestMerkleUpdate) {
-      toFetchBlock -= 10_000;
-      continue;
+  let latestMerkleUpdate: any = null;
+  for (let i = merkleUpdates.result.length - 1; i >= 0; i--) {
+    if (
+      merkleUpdates.result[i].topics[2] !==
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ) {
+      latestMerkleUpdate = merkleUpdates.result[i];
+      break;
     }
   }
 
+  if (latestMerkleUpdate) {
+    // Update the cache
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    fs.writeFileSync(cacheFile, JSON.stringify({
+      blockNumber: Number(latestMerkleUpdate.blockNumber),
+      timestamp: Number(latestMerkleUpdate.timeStamp)
+    }, null, 2));
 
-  const startBlock = Number(latestMerkleUpdate.blockNumber);
+    startBlock = Number(latestMerkleUpdate.blockNumber);
+  } else if (cachedMerkleUpdate) {
+    startBlock = cachedMerkleUpdate.blockNumber;
+  }
 
-  const endBlock = (Number(currentBlock.number));
+  const endBlock = Number(currentBlock.number);
 
   const allClaimedLogs = await explorerUtils.getLogsByAddressAndTopics(
     getAddress(merkleContract),
