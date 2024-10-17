@@ -1,11 +1,11 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
 import {
-  AGNOSTIC_MAINNET_TABLE,
   CVX_SPACE,
   WEEK,
   DELEGATION_ADDRESS,
 } from "../utils/constants";
+import { getAllDelegators_desc, getAllDelegators_vlCVX, processAllDelegators } from "../utils/utils";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
@@ -13,10 +13,14 @@ import {
   getVoters,
   getVotingPower,
 } from "../utils/snapshot";
-import { getDelegators } from "../utils/agnostic";
 import { extractCSV } from "../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
+import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
+
+import { AGNOSTIC_MAINNET_TABLE } from "../utils/constants";
+import { getDelegators } from "../utils/agnostic";
+
 
 dotenv.config();
 
@@ -101,6 +105,11 @@ const main = async () => {
 
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
+  const explorerUtils = createBlockchainExplorerUtils(
+    "ethereum"
+  );
+
+
   let stakeDaoDelegators: string[] = [];
 
   // Fetch Curve gauges
@@ -164,12 +173,23 @@ const main = async () => {
         {};
 
       for (const vote of votesWithDelegation) {
+
+        const allDelegators = await getAllDelegators_vlCVX(
+          vote.voter,
+          CVX_SPACE
+        );
+
+        const _delegators = processAllDelegators(allDelegators, CVX_SPACE, proposal.created);
+
+       /*
         const _delegators = await getDelegators(
           vote.voter,
           AGNOSTIC_MAINNET_TABLE,
           proposal.created,
           CVX_SPACE
         );
+        */
+
         const delegator_for: Record<
           string,
           { delegator: string; delegate: string }

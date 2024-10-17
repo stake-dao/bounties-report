@@ -117,3 +117,10 @@ export interface Merkle {
   chainId: number;
   merkleContract: string;
 }
+
+export interface DelegatorData {
+  event: string;
+  user: string;
+  spaceId: string;
+  timestamp: number;
+}

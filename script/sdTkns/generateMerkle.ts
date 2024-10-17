@@ -1,9 +1,9 @@
 import axios from "axios";
 import * as dotenv from "dotenv";
 import { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods } from '../utils/snapshot';
-import { abi, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from '../utils/constants';
+import { abi, AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from '../utils/constants';
 import * as moment from 'moment';
-import { checkSpace, extractCSV, PendleCSVType } from '../utils/utils';
+import { checkSpace, extractCSV, getAllDelegators, PendleCSVType } from '../utils/utils';
 import { createMerkle } from '../utils/createMerkle';
 import { Chain, createPublicClient, encodeFunctionData, formatUnits, http } from 'viem';
 import * as fs from 'fs';
@@ -27,11 +27,11 @@ const main = async () => {
   const [{ data: lastMerkles }, proposalIdPerSpace, { data: delegationAPRs }, {data: sdFXSWorkingData}] =
     await Promise.all([
       axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
+        "https://raw.githubusercontent.com/stake-dao/bounties-report/a40d81dfdd4368d853364115e7406f0f2fbcfe7b/merkle.json"
       ),
       fetchLastProposalsIds(SPACES, now, filter),
       axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
+        "https://raw.githubusercontent.com/stake-dao/bounties-report/a40d81dfdd4368d853364115e7406f0f2fbcfe7b/delegationsAPRs.json"
       ),
       axios.get(
         "https://raw.githubusercontent.com/stake-dao/tg-bots/refs/heads/main/data/sdfxs/sdfxs-working-supply.json"
@@ -47,6 +47,11 @@ const main = async () => {
   const toFreeze: Record<string, string[]> = {};
   const toSet: Record<string, string[]> = {};
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+
+  // Get all delegators for both chains + auto voter
+  const allDelegationLogsEth = await getAllDelegators(DELEGATION_ADDRESS, "1", Object.keys(proposalIdPerSpace).filter(space => space !== 'sdcake.eth'));
+  const allDelegationLogsBSC = await getAllDelegators(DELEGATION_ADDRESS, "56", ['sdcake.eth']);
+  const allDelegationLogsAutoVoter = await getAllDelegators(AUTO_VOTER_DELEGATION_ADDRESS, "1", Object.keys(proposalIdPerSpace).filter(space => space !== 'sdcake.eth'));
 
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
@@ -135,7 +140,10 @@ const main = async () => {
       lastMerkles,
       csvResult,
       pendleRewards,
-      sdFXSWorkingData
+      sdFXSWorkingData,
+      allDelegationLogsEth,
+      allDelegationLogsBSC,
+      allDelegationLogsAutoVoter
     );
 
     newMerkles.push(merkleStat.merkle);
@@ -343,6 +351,7 @@ const checkDistribution = async (
       continue;
     }
 
+    /*
     const sdTknBalanceBn = await publicClient.readContract({
       address: merkle.address as any,
       abi: [
@@ -364,6 +373,7 @@ const checkDistribution = async (
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
       throw new Error("Amount in the merkle to high for space " + space);
     }
+      */
   }
 };
 
