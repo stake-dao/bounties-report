@@ -1,0 +1,22 @@
+{
+  "distribution": {
+    "0xb1748c79709f4ba2dd82834b8c82d4a505003f27": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 117.60454993747588
+      }
+    },
+    "0x70fce97d671e81080ca3ab4cc7a59aac2e117137": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x8207c1ffc5b6804f6024322ccf34f29c3541ae26": 40415.39458159162
+      }
+    },
+    "0xf14bbdf064e3f67f51cd9bd646ae3716ad938fdc": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x8207c1ffc5b6804f6024322ccf34f29c3541ae26": 21513.77345762621
+      }
+    }
+  }
+}
