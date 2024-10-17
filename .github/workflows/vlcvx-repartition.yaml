@@ -3,7 +3,7 @@ name: "[vlCVX] Report and repartition"
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 17 * * 5" # Runs every Friday at 17:00 UTC
+    - cron: "0 20 * * 4" # Runs every Thursday at 20:00 UTC
 
 jobs:
   generate-report-and-repartition:

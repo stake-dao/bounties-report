@@ -3,7 +3,7 @@ name: "[vlCVX] Merkles"
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 20 * * 6" # Runs every Saturday at 20:00 UTC
+    - cron: "0 20 * * 5" # Runs every Friday at 20:00 UTC
 
 jobs:
   generate-report-and-repartition:
