@@ -4,9 +4,8 @@ import {
   CVX_SPACE,
   WEEK,
   DELEGATION_ADDRESS,
-  DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
 } from "../utils/constants";
-import { fetchDelegators, processAllDelegators } from "../utils/utils";
+import { getAllDelegators_desc, getAllDelegators_vlCVX, processAllDelegators } from "../utils/utils";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
@@ -18,6 +17,10 @@ import { extractCSV } from "../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
+
+import { AGNOSTIC_MAINNET_TABLE } from "../utils/constants";
+import { getDelegators } from "../utils/agnostic";
+
 
 dotenv.config();
 
@@ -106,10 +109,6 @@ const main = async () => {
     "ethereum"
   );
 
-  const startBlock = await explorerUtils.getBlockNumberByTimestamp(
-    now,
-    "after"
-  );
 
   let stakeDaoDelegators: string[] = [];
 
@@ -174,25 +173,23 @@ const main = async () => {
         {};
 
       for (const vote of votesWithDelegation) {
-        // Retrieve directly without cache, because can have a lot of delegators
-        const allDelegators = await fetchDelegators(
+
+        const allDelegators = await getAllDelegators_vlCVX(
           vote.voter,
-          DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
-          startBlock,
-          explorerUtils,
-          [CVX_SPACE]
+          CVX_SPACE
         );
 
-        // Process
         const _delegators = processAllDelegators(allDelegators, CVX_SPACE, proposal.created);
 
-        /*const _delegators = await getDelegators(
+       /*
+        const _delegators = await getDelegators(
           vote.voter,
           AGNOSTIC_MAINNET_TABLE,
           proposal.created,
           CVX_SPACE
         );
         */
+
         const delegator_for: Record<
           string,
           { delegator: string; delegate: string }

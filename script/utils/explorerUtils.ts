@@ -80,7 +80,6 @@ class BlockchainExplorerUtils {
     Object.entries(topics).forEach(([key, value]) => {
       url += `&topic${key}_${parseInt(key) + 1}_opr=and&topic${key}=${value}`;
     });
-
     const maxRetries = 5;
     let retries = 0;
 

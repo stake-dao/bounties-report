@@ -801,6 +801,7 @@ export const fetchDelegators = async (
     );
 
     const allLogs = [...setDelegateLogs.result, ...clearDelegateLogs.result];
+
     const delegators: DelegatorData[] = [];
 
     for (const log of allLogs) {
@@ -930,4 +931,93 @@ export const processAllDelegators = (
     }
   }
   return users;
+};
+
+// TODO : RPC and parquet
+export const getAllDelegators_vlCVX = async (
+  delegationAddress: string,
+  space: string
+): Promise<DelegatorData[]> => {
+  const explorerUtils = createBlockchainExplorerUtils("ethereum");
+
+  const publicClient = createPublicClient({
+    chain: mainnet,
+    transport: http(),
+  });
+
+  const currentBlock = await publicClient.getBlock();
+  let endBlock = Number(currentBlock.number);
+  const chunkSize = 1_000_000;
+  const creationBlock = DELEGATE_REGISTRY_CREATION_BLOCK_ETH
+
+  const setDelegateSignature = "SetDelegate(address,bytes32,address)";
+  const setDelegateHash = keccak256(
+    encodePacked(["string"], [setDelegateSignature])
+  );
+
+  const clearDelegateSignature = "ClearDelegate(address,bytes32,address)";
+  const clearDelegateHash = keccak256(
+    encodePacked(["string"], [clearDelegateSignature])
+  );
+
+  const paddedDelegationAddress = pad(delegationAddress as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  const spaceId = formatBytes32String(space);
+
+  const delegators: DelegatorData[] = [];
+  const processedDelegators = new Set<string>();
+
+  while (endBlock > creationBlock) {
+    const startBlock = Math.max(endBlock - chunkSize, creationBlock);
+
+    const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(DELEGATE_REGISTRY),
+      startBlock,
+      endBlock,
+      {
+        "0": setDelegateHash,
+        "2": spaceId,
+        "3": paddedDelegationAddress,
+      }
+    );
+
+    const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(DELEGATE_REGISTRY),
+      startBlock,
+      endBlock,
+      {
+        "0": clearDelegateHash,
+        "2": spaceId,
+        "3": paddedDelegationAddress,
+      }
+    );
+
+    const allLogs = [...setDelegateLogs.result, ...clearDelegateLogs.result];
+    allLogs.sort((a, b) => Number(b.timeStamp) - Number(a.timeStamp));
+
+    for (const log of allLogs) {
+      const event = log.topics[0];
+      const paddedDelegator = log.topics[1];
+      const delegator = getAddress("0x" + paddedDelegator.slice(-40)).toLowerCase();
+
+      if (!processedDelegators.has(delegator)) {
+        delegators.push({
+          event: event === setDelegateHash ? "Set" : "Clear",
+          user: delegator,
+          spaceId: spaceId.toLowerCase(),
+          timestamp: Number(log.timeStamp),
+        });
+        processedDelegators.add(delegator);
+      }
+    }
+
+    endBlock = startBlock - 1;
+  }
+
+  // Sort delegators by timestamp in descending order
+  delegators.sort((a, b) => b.timestamp - a.timestamp);
+
+  return delegators;
 };
