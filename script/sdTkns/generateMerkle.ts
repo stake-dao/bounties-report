@@ -351,7 +351,6 @@ const checkDistribution = async (
       continue;
     }
 
-    /*
     const sdTknBalanceBn = await publicClient.readContract({
       address: merkle.address as any,
       abi: [
@@ -373,7 +372,7 @@ const checkDistribution = async (
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
       throw new Error("Amount in the merkle to high for space " + space);
     }
-      */
+
   }
 };
 

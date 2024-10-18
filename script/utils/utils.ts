@@ -832,32 +832,13 @@ export const getAllDelegators = async (
   delegationAddress: string,
   chainId: string,
   spaces: string[]
-): Promise<DelegatorData[]> => {
-  const cacheDir = path.join(__dirname, "../../cache/delegations");
-  const cacheFile = path.join(
-    cacheDir,
-    `delegators_${chainId}_${delegationAddress.toLowerCase()}.json`
-  );
-
-  let cachedData = readJSONFile(cacheFile);
-  let startBlock: number;
+): Promise<Record<string, DelegatorData[]>> => {
+  const cacheDir = path.join(__dirname, "../../cache/delegations", delegationAddress.toLowerCase());
+  const result: Record<string, DelegatorData[]> = {};
 
   const explorerUtils = createBlockchainExplorerUtils(
     Number(chainId) === mainnet.id ? "ethereum" : "bsc"
   );
-
-  if (cachedData.length > 0) {
-    const latestTimestamp = cachedData[cachedData.length - 1].timestamp;
-    startBlock = await explorerUtils.getBlockNumberByTimestamp(
-      latestTimestamp,
-      "before"
-    );
-  } else {
-    startBlock =
-      Number(chainId) === mainnet.id
-        ? DELEGATE_REGISTRY_CREATION_BLOCK_ETH
-        : DELEGATE_REGISTRY_CREATION_BLOCK_BSC;
-  }
 
   const publicClient = createPublicClient({
     chain: Number(chainId) === mainnet.id ? mainnet : bsc,
@@ -866,29 +847,50 @@ export const getAllDelegators = async (
 
   const currentBlock = await publicClient.getBlock();
 
-  const spacesIds = spaces.map((space) => formatBytes32String(space));
+  for (const space of spaces) {
+    const cacheFile = path.join(cacheDir, `${space}.json`);
+    let cachedData = readJSONFile(cacheFile);
+    let startBlock: number;
 
-  const newDelegators = await fetchDelegators(
-    delegationAddress,
-    startBlock,
-    Number(currentBlock.number),
-    explorerUtils,
-    spacesIds
-  );
+    if (cachedData.length > 0) {
+      const latestTimestamp = cachedData[cachedData.length - 1].timestamp;
+      startBlock = await explorerUtils.getBlockNumberByTimestamp(
+        latestTimestamp,
+        "before"
+      );
+    } else {
+      startBlock =
+        Number(chainId) === mainnet.id
+          ? DELEGATE_REGISTRY_CREATION_BLOCK_ETH
+          : DELEGATE_REGISTRY_CREATION_BLOCK_BSC;
+    }
 
-  // Combine cached data with new data
-  const allDelegators = [...cachedData, ...newDelegators];
+    const spaceId = formatBytes32String(space);
 
-  // Sort by timestamp
-  allDelegators.sort((a, b) => a.timestamp - b.timestamp);
+    const newDelegators = await fetchDelegators(
+      delegationAddress,
+      startBlock,
+      Number(currentBlock.number),
+      explorerUtils,
+      [spaceId]
+    );
 
-  // Save to JSON file
-  if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
+    // Combine cached data with new data
+    const allDelegators = [...cachedData, ...newDelegators];
+
+    // Sort by timestamp
+    allDelegators.sort((a, b) => a.timestamp - b.timestamp);
+
+    // Save to JSON file
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    writeJSONFile(cacheFile, allDelegators);
+
+    result[space] = allDelegators;
   }
-  writeJSONFile(cacheFile, allDelegators);
 
-  return allDelegators;
+  return result;
 };
 
 export const processAllDelegators = (
@@ -897,26 +899,17 @@ export const processAllDelegators = (
   timestamp: number
 ): string[] => {
   const users: string[] = [];
-
   const spaceBytes = formatBytes32String(space);
 
-  let processedData: DelegatorData[] = [];
-
-  // Get all until timestamp
-  for (const delegator of delegators) {
-    if (
-      delegator.timestamp > timestamp ||
-      delegator.spaceId.toLowerCase() !== spaceBytes.toLowerCase()
-    ) {
-      continue;
-    }
-    processedData.push(delegator);
-  }
+  // Filter delegators by timestamp and space
+  const processedData = delegators.filter(
+    delegator => delegator.timestamp <= timestamp &&
+                 delegator.spaceId.toLowerCase() === spaceBytes.toLowerCase()
+  );
 
   // Group entries by user
   const userEntries: Record<string, DelegatorData[]> = {};
   for (const entry of processedData) {
-    if (entry.spaceId.toLowerCase() !== spaceBytes.toLowerCase()) continue;
     if (!userEntries[entry.user]) {
       userEntries[entry.user] = [];
     }
@@ -931,93 +924,4 @@ export const processAllDelegators = (
     }
   }
   return users;
-};
-
-// TODO : RPC and parquet
-export const getAllDelegators_vlCVX = async (
-  delegationAddress: string,
-  space: string
-): Promise<DelegatorData[]> => {
-  const explorerUtils = createBlockchainExplorerUtils("ethereum");
-
-  const publicClient = createPublicClient({
-    chain: mainnet,
-    transport: http(),
-  });
-
-  const currentBlock = await publicClient.getBlock();
-  let endBlock = Number(currentBlock.number);
-  const chunkSize = 1_000_000;
-  const creationBlock = DELEGATE_REGISTRY_CREATION_BLOCK_ETH
-
-  const setDelegateSignature = "SetDelegate(address,bytes32,address)";
-  const setDelegateHash = keccak256(
-    encodePacked(["string"], [setDelegateSignature])
-  );
-
-  const clearDelegateSignature = "ClearDelegate(address,bytes32,address)";
-  const clearDelegateHash = keccak256(
-    encodePacked(["string"], [clearDelegateSignature])
-  );
-
-  const paddedDelegationAddress = pad(delegationAddress as `0x${string}`, {
-    size: 32,
-  }).toLowerCase();
-
-  const spaceId = formatBytes32String(space);
-
-  const delegators: DelegatorData[] = [];
-  const processedDelegators = new Set<string>();
-
-  while (endBlock > creationBlock) {
-    const startBlock = Math.max(endBlock - chunkSize, creationBlock);
-
-    const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
-      getAddress(DELEGATE_REGISTRY),
-      startBlock,
-      endBlock,
-      {
-        "0": setDelegateHash,
-        "2": spaceId,
-        "3": paddedDelegationAddress,
-      }
-    );
-
-    const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
-      getAddress(DELEGATE_REGISTRY),
-      startBlock,
-      endBlock,
-      {
-        "0": clearDelegateHash,
-        "2": spaceId,
-        "3": paddedDelegationAddress,
-      }
-    );
-
-    const allLogs = [...setDelegateLogs.result, ...clearDelegateLogs.result];
-    allLogs.sort((a, b) => Number(b.timeStamp) - Number(a.timeStamp));
-
-    for (const log of allLogs) {
-      const event = log.topics[0];
-      const paddedDelegator = log.topics[1];
-      const delegator = getAddress("0x" + paddedDelegator.slice(-40)).toLowerCase();
-
-      if (!processedDelegators.has(delegator)) {
-        delegators.push({
-          event: event === setDelegateHash ? "Set" : "Clear",
-          user: delegator,
-          spaceId: spaceId.toLowerCase(),
-          timestamp: Number(log.timeStamp),
-        });
-        processedDelegators.add(delegator);
-      }
-    }
-
-    endBlock = startBlock - 1;
-  }
-
-  // Sort delegators by timestamp in descending order
-  delegators.sort((a, b) => b.timestamp - a.timestamp);
-
-  return delegators;
 };
