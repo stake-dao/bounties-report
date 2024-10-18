@@ -27,11 +27,11 @@ const main = async () => {
   const [{ data: lastMerkles }, proposalIdPerSpace, { data: delegationAPRs }, {data: sdFXSWorkingData}] =
     await Promise.all([
       axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/a40d81dfdd4368d853364115e7406f0f2fbcfe7b/merkle.json"
+        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
       ),
       fetchLastProposalsIds(SPACES, now, filter),
       axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/a40d81dfdd4368d853364115e7406f0f2fbcfe7b/delegationsAPRs.json"
+        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
       ),
       axios.get(
         "https://raw.githubusercontent.com/stake-dao/tg-bots/refs/heads/main/data/sdfxs/sdfxs-working-supply.json"
