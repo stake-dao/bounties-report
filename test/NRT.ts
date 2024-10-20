@@ -18,7 +18,7 @@ const setupTest = async () => {
   );
 
   // Get the token contract instance
-  const tokenContract = await hre.viem.getContractAt("ERC20", sdTokens[0]);
+  const tokenContract = await hre.viem.getContractAt("IERC20", sdTokens[0]);
 
   // Impersonate the owner account
   await hre.network.provider.request({
