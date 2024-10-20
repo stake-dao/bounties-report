@@ -8,17 +8,17 @@
     "sd-merkle": "npx ts-node script/sdTkns/generateMerkle.ts",
     "vlcvx-repartition": "npx ts-node script/vlCVX/generatevlCVXRepartition.ts",
     "report": "npx ts-node script/generateWeeklyReport.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "fork": "npx hardhat node --fork https://eth-mainnet.alchemyapi.io/v2/C9kzXL-6HwtqvidRZrFS51UX-XC_Nxho",
-    "localhostTest": "npx hardhat test --network localhost"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@covalenthq/client-sdk": "^1.0.2",
+    "@openzeppelin/contracts": "^5.1.0",
     "@types/lodash": "^4.17.7",
     "axios": "^1.7.7",
     "blockstore-core": "^5.0.2",
+    "chai": "^4.3.7",
     "csv-parse": "^5.5.6",
     "dotenv": "^16.3.1",
     "ethers": "^5.6.8",
@@ -37,6 +37,9 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "hardhat": "^2.22.13",
     "tsx": "^4.19.1"
   }
 }
