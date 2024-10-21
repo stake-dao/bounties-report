@@ -12,6 +12,7 @@ import {
 import { extractCSV } from "../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
+import { DelegatorData } from "../utils/types";
 
 dotenv.config();
 
@@ -189,7 +190,18 @@ const main = async () => {
     console.log("Delegation address is one of the voters, fetching StakeDAO delegators");
     const allDelegators = await getAllDelegators(DELEGATION_ADDRESS, "1", [CVX_SPACE]);
     const cvxDelegators = allDelegators[CVX_SPACE];
-    stakeDaoDelegators = processAllDelegators(cvxDelegators, CVX_SPACE, currentPeriodTimestamp);
+    const cvxDelegatorsData: Record<string, DelegatorData[]> = {
+      'cvx.eth': cvxDelegators
+    };
+    stakeDaoDelegators = processAllDelegators(cvxDelegatorsData, CVX_SPACE, currentPeriodTimestamp);
+
+    // If one of the delegators vote by himself, we need to remove him from the list
+    for (const delegator of stakeDaoDelegators) {
+      if (votes.some((voter) => voter.voter.toLowerCase() === delegator.toLowerCase())) {
+        stakeDaoDelegators = stakeDaoDelegators.filter((d) => d.toLowerCase() !== delegator.toLowerCase());
+      }
+    }
+
   } else {
     console.log("Delegation address is not one of the voters, skipping StakeDAO delegators computation");
   }

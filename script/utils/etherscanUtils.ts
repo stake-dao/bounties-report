@@ -68,7 +68,7 @@ export const getLogsByAddressAndTopics = async (
         response.data.status === "0" &&
         response.data.message === "No records found"
       ) {
-        console.log(
+        console.warn(
           `No records found for address ${address} from block ${fromBlock} to ${toBlock}`
         );
         return { result: [] };
@@ -78,7 +78,7 @@ export const getLogsByAddressAndTopics = async (
           response.data.result ==
             "Max calls per sec rate limit reached (5/sec)")
       ) {
-        console.log("Rate limit reached, retrying after delay...");
+        console.warn("Rate limit reached, retrying after delay...");
         await delay(1000); // Wait for 1 second before retrying
         retries++;
       } else {
@@ -88,7 +88,7 @@ export const getLogsByAddressAndTopics = async (
       }
     } catch (error: any) {
       if (error.response && error.response.status === 429) {
-        console.log("Rate limit reached, retrying after delay...");
+        console.warn("Rate limit reached, retrying after delay...");
         await delay(1000); // Wait for 1 second before retrying
         retries++;
       } else {

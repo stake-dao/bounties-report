@@ -7,7 +7,7 @@ import { DelegatorData, Log, MerkleStat } from "./types";
 import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 
-export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, allDelegationLogsEth: DelegatorData[], allDelegationLogsBSC: DelegatorData[], allDelegationLogsAutoVoter: DelegatorData[]): Promise<MerkleStat> => {
+export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, allDelegationLogsEth: DelegatorData[]): Promise<MerkleStat> => {
 
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
@@ -39,13 +39,13 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         const vps = await getVotingPower(proposal, voters.map((v) => v.voter), SPACE_TO_CHAIN_ID[space]);
         voters = formatVotingPowerResult(voters, vps);
 
-        voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice, allDelegationLogsAutoVoter);
+        voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice);
 
         // Should be already done but remove the autovoter address again to be sure
         voters = voters
             .filter((voter) => voter.voter.toLowerCase() !== AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase());
 
-        const delegators = processAllDelegators(SPACE_TO_CHAIN_ID[space] === "56" ? allDelegationLogsBSC : allDelegationLogsEth, space, proposal.created);
+        const delegators = await processAllDelegators(space, proposal.created, DELEGATION_ADDRESS);
 
         // Get voting power for all delegator
         // Map of address => VotingPower

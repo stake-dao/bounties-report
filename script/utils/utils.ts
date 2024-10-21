@@ -12,6 +12,7 @@ import {
   MERKLE_CREATION_BLOCK_ETH,
   SDBAL_SPACE,
   SDPENDLE_SPACE,
+  SPACE_TO_CHAIN_ID,
 } from "./constants";
 import fs from "fs";
 import path from "path";
@@ -367,8 +368,7 @@ export const addVotersFromAutoVoter = async (
   space: string,
   proposal: any,
   voters: Voter[],
-  addressesPerChoice: Record<string, number>,
-  allDelegationLogsAutoVoter: DelegatorData[]
+  addressesPerChoice: Record<string, number>
 ): Promise<Voter[]> => {
   const autoVoter = voters.find(
     (v) => v.voter.toLowerCase() === AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
@@ -377,17 +377,12 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
-  /*
-  const delegators = await getDelegators(
-    AUTO_VOTER_DELEGATION_ADDRESS,
-    table,
+  // Get all delegators until proposal creation
+  const delegators = await processAllDelegators(
+    space,
     proposal.created,
-    space
+    AUTO_VOTER_DELEGATION_ADDRESS
   );
-  if (delegators.length === 0) {
-    return voters;
-  }
-  */
 
   // Fetch delegators weight registered in the auto voter contract
   const publicClient = createPublicClient({
@@ -399,13 +394,6 @@ export const addVotersFromAutoVoter = async (
       multicall: true,
     },
   });
-
-  // Process
-  const delegators = processAllDelegators(
-    allDelegationLogsAutoVoter,
-    space,
-    proposal.created
-  );
 
   const { data } = await axios.post("https://score.snapshot.org/api/scores", {
     params: {
@@ -644,7 +632,8 @@ export const getAllAccountClaimedSinceLastFreeze = async (
   }
   const cacheFile = path.join(merkleDir, `${tokenAddress.toLowerCase()}.json`);
 
-  let cachedMerkleUpdate: { blockNumber: number; timestamp: number } | null = null;
+  let cachedMerkleUpdate: { blockNumber: number; timestamp: number } | null =
+    null;
   if (fs.existsSync(cacheFile)) {
     const fileContent = fs.readFileSync(cacheFile, "utf8");
     cachedMerkleUpdate = JSON.parse(fileContent);
@@ -681,7 +670,9 @@ export const getAllAccountClaimedSinceLastFreeze = async (
   // Start from the cached block number or the creation block
   let startBlock = cachedMerkleUpdate
     ? cachedMerkleUpdate.blockNumber
-    : (Number(chainId) === mainnet.id ? MERKLE_CREATION_BLOCK_ETH : MERKLE_CREATION_BLOCK_BSC);
+    : Number(chainId) === mainnet.id
+    ? MERKLE_CREATION_BLOCK_ETH
+    : MERKLE_CREATION_BLOCK_BSC;
 
   const merkleUpdates = await explorerUtils.getLogsByAddressAndTopics(
     getAddress(merkleContract),
@@ -709,10 +700,17 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }
-    fs.writeFileSync(cacheFile, JSON.stringify({
-      blockNumber: Number(latestMerkleUpdate.blockNumber),
-      timestamp: Number(latestMerkleUpdate.timeStamp)
-    }, null, 2));
+    fs.writeFileSync(
+      cacheFile,
+      JSON.stringify(
+        {
+          blockNumber: Number(latestMerkleUpdate.blockNumber),
+          timestamp: Number(latestMerkleUpdate.timeStamp),
+        },
+        null,
+        2
+      )
+    );
 
     startBlock = Number(latestMerkleUpdate.blockNumber);
   } else if (cachedMerkleUpdate) {
@@ -741,15 +739,104 @@ export const getAllAccountClaimedSinceLastFreeze = async (
   return resp;
 };
 
-function readJSONFile(filePath: string): DelegatorData[] {
+interface CacheData {
+  latestBlock: number;
+  delegators: DelegatorData[];
+}
+
+export const getAllDelegators = async (
+  delegationAddress: string,
+  chainId: string,
+  spaces: string[],
+  endBlock?: number
+): Promise<Record<string, DelegatorData[]>> => {
+  const cacheDir = path.join(
+    __dirname,
+    "../../cache/delegations",
+    delegationAddress.toLowerCase()
+  );
+  const result: Record<string, DelegatorData[]> = {};
+
+  const explorerUtils = createBlockchainExplorerUtils(
+    Number(chainId) === mainnet.id ? "ethereum" : "bsc"
+  );
+
+  const publicClient = createPublicClient({
+    chain: Number(chainId) === mainnet.id ? mainnet : bsc,
+    transport: http(),
+  });
+
+  if (!endBlock) {
+    const currentBlock = await publicClient.getBlock();
+    endBlock = Number(currentBlock.number);
+  }
+
+  for (const space of spaces) {
+    const cacheFile = path.join(cacheDir, `${space}.json`);
+    let cachedData: CacheData = readJSONFile(cacheFile);
+    let startBlock: number;
+
+    if (cachedData.latestBlock && cachedData.latestBlock >= endBlock) {
+      // If the cache is up-to-date, use it without fetching new data
+      console.warn(
+        `Using cached data for ${space}, and delegation address ${delegationAddress}`
+      );
+      result[space] = cachedData.delegators;
+      continue;
+    }
+
+    if (cachedData.latestBlock) {
+      startBlock = cachedData.latestBlock + 1;
+    } else {
+      startBlock =
+        Number(chainId) === mainnet.id
+          ? DELEGATE_REGISTRY_CREATION_BLOCK_ETH
+          : DELEGATE_REGISTRY_CREATION_BLOCK_BSC;
+    }
+
+    const spaceId = formatBytes32String(space);
+
+    const newDelegators = await fetchDelegators(
+      delegationAddress,
+      startBlock,
+      endBlock,
+      explorerUtils,
+      [spaceId]
+    );
+
+    // Combine cached data with new data
+    const allDelegators = [...(cachedData.delegators || []), ...newDelegators];
+
+    // Sort by timestamp
+    allDelegators.sort((a, b) => a.timestamp - b.timestamp);
+
+    // Update cache with new data and latest block
+    const updatedCacheData: CacheData = {
+      latestBlock: endBlock,
+      delegators: allDelegators,
+    };
+
+    // Save to JSON file
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    writeJSONFile(cacheFile, updatedCacheData);
+
+    result[space] = allDelegators;
+  }
+
+  return result;
+};
+
+function readJSONFile(filePath: string): CacheData {
   if (!fs.existsSync(filePath)) {
-    return [];
+    return { latestBlock: 0, delegators: [] };
   }
   const fileContent = fs.readFileSync(filePath, "utf8");
   return JSON.parse(fileContent);
 }
 
-function writeJSONFile(filePath: string, data: DelegatorData[]): void {
+function writeJSONFile(filePath: string, data: CacheData): void {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
@@ -828,83 +915,39 @@ export const fetchDelegators = async (
   return allDelegators;
 };
 
-export const getAllDelegators = async (
-  delegationAddress: string,
-  chainId: string,
-  spaces: string[]
-): Promise<Record<string, DelegatorData[]>> => {
-  const cacheDir = path.join(__dirname, "../../cache/delegations", delegationAddress.toLowerCase());
-  const result: Record<string, DelegatorData[]> = {};
-
-  const explorerUtils = createBlockchainExplorerUtils(
-    Number(chainId) === mainnet.id ? "ethereum" : "bsc"
-  );
-
-  const publicClient = createPublicClient({
-    chain: Number(chainId) === mainnet.id ? mainnet : bsc,
-    transport: http(),
-  });
-
-  const currentBlock = await publicClient.getBlock();
-
-  for (const space of spaces) {
-    const cacheFile = path.join(cacheDir, `${space}.json`);
-    let cachedData = readJSONFile(cacheFile);
-    let startBlock: number;
-
-    if (cachedData.length > 0) {
-      const latestTimestamp = cachedData[cachedData.length - 1].timestamp;
-      startBlock = await explorerUtils.getBlockNumberByTimestamp(
-        latestTimestamp,
-        "before"
-      );
-    } else {
-      startBlock =
-        Number(chainId) === mainnet.id
-          ? DELEGATE_REGISTRY_CREATION_BLOCK_ETH
-          : DELEGATE_REGISTRY_CREATION_BLOCK_BSC;
-    }
-
-    const spaceId = formatBytes32String(space);
-
-    const newDelegators = await fetchDelegators(
-      delegationAddress,
-      startBlock,
-      Number(currentBlock.number),
-      explorerUtils,
-      [spaceId]
-    );
-
-    // Combine cached data with new data
-    const allDelegators = [...cachedData, ...newDelegators];
-
-    // Sort by timestamp
-    allDelegators.sort((a, b) => a.timestamp - b.timestamp);
-
-    // Save to JSON file
-    if (!fs.existsSync(cacheDir)) {
-      fs.mkdirSync(cacheDir, { recursive: true });
-    }
-    writeJSONFile(cacheFile, allDelegators);
-
-    result[space] = allDelegators;
-  }
-
-  return result;
-};
-
-export const processAllDelegators = (
-  delegators: DelegatorData[],
+export const processAllDelegators = async (
   space: string,
-  timestamp: number
-): string[] => {
+  timestamp: number,
+  delegationAddress: string
+): Promise<string[]> => {
   const users: string[] = [];
   const spaceBytes = formatBytes32String(space);
 
+  const explorerUtils = createBlockchainExplorerUtils(
+    Number(SPACE_TO_CHAIN_ID[space]) === mainnet.id ? "ethereum" : "bsc"
+  );
+
+  // End block based on timestamp
+  const endBlock = await explorerUtils.getBlockNumberByTimestamp(
+    timestamp,
+    "before"
+  );
+
+  const allDelegators = await getAllDelegators(
+    delegationAddress,
+    SPACE_TO_CHAIN_ID[space],
+    [space],
+    endBlock
+  );
+
+  // Get the delegators for the specific space
+  const spaceDelegators = allDelegators[space] || [];
+
   // Filter delegators by timestamp and space
-  const processedData = delegators.filter(
-    delegator => delegator.timestamp <= timestamp &&
-                 delegator.spaceId.toLowerCase() === spaceBytes.toLowerCase()
+  const processedData = spaceDelegators.filter(
+    (delegator) =>
+      delegator.timestamp <= timestamp &&
+      delegator.spaceId.toLowerCase() === spaceBytes.toLowerCase()
   );
 
   // Group entries by user

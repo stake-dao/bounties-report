@@ -48,10 +48,12 @@ const main = async () => {
   const toSet: Record<string, string[]> = {};
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
+  /*
   // Get all delegators for both chains + auto voter
   const allDelegationLogsEth = await getAllDelegators(DELEGATION_ADDRESS, "1", Object.keys(proposalIdPerSpace).filter(space => space !== 'sdcake.eth'));
   const allDelegationLogsBSC = await getAllDelegators(DELEGATION_ADDRESS, "56", ['sdcake.eth']);
   const allDelegationLogsAutoVoter = await getAllDelegators(AUTO_VOTER_DELEGATION_ADDRESS, "1", Object.keys(proposalIdPerSpace).filter(space => space !== 'sdcake.eth'));
+  */
 
   // All except Pendle
   for (const space of Object.keys(proposalIdPerSpace)) {
@@ -141,9 +143,6 @@ const main = async () => {
       csvResult,
       pendleRewards,
       sdFXSWorkingData,
-      allDelegationLogsEth,
-      allDelegationLogsBSC,
-      allDelegationLogsAutoVoter
     );
 
     newMerkles.push(merkleStat.merkle);
