@@ -645,9 +645,27 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     Number(chainId) === mainnet.id ? "ethereum" : "bsc"
   );
 
+  let chain: any;
+  let rpcUrl = "";
+  switch (Number(chainId)) {
+    case mainnet.id:
+      chain = mainnet;
+      rpcUrl =
+        "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+      break;
+    case bsc.id:
+      chain = bsc;
+      rpcUrl =
+        "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+      break;
+    default:
+      throw new Error("Chain not found");
+  }
+
+
   const publicClient = createPublicClient({
-    chain: Number(chainId) === mainnet.id ? mainnet : bsc,
-    transport: http(),
+    chain,
+    transport: http(rpcUrl),
   });
 
   const currentBlock = await publicClient.getBlock();
