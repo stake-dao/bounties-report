@@ -154,9 +154,6 @@ export const abi = parseAbi([
 
 export const WEEK = 604800;
 
-export const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
-export const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet";
-
 // Stake DAO locker
 export const STAKE_DAO_LOCKER = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";
 // Convex locker
