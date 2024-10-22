@@ -26,11 +26,6 @@ export const DELEGATE_REGISTRY_CREATION_BLOCK_ETH = 11225329;
 export const DELEGATE_REGISTRY_CREATION_BLOCK_BSC = 10963355;
 
 
-// Agnostic
-export const AGNOSTIC_ENDPOINT =
-  "https://proxy.eu-02.agnostic.engineering/query";
-export const AGNOSTIC_API_KEY = "Fr2LXSVvKCfmXse8JQJiJBLHY9ujU3YZf8Kr6TDDh4Sw";
-
 // Networks
 export const ETHEREUM = "ethereum";
 export const ETH_CHAIN_ID = "1";
