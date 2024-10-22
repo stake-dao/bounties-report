@@ -4,8 +4,8 @@ import dotenv from "dotenv";
 // Load the .env file from the project root
 dotenv.config();
 
-const ETHERSCAN_KEY = process.env.ETHERSCAN_TOKEN || "";
-const BSCSCAN_KEY = process.env.BSCSCAN_TOKEN || "";
+const ETHERSCAN_KEY = process.env.ETHERSCAN_API_KEY || "";
+const BSCSCAN_KEY = process.env.BSCSCAN_API_KEY || "";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
