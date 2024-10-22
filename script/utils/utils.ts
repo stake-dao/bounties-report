@@ -3,21 +3,31 @@ import {
   abi,
   AUTO_VOTER_CONTRACT,
   AUTO_VOTER_DELEGATION_ADDRESS,
-  BSC,
   CVX_SPACE,
-  ETHEREUM,
+  DELEGATE_REGISTRY,
+  DELEGATE_REGISTRY_CREATION_BLOCK_BSC,
+  DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
   LABELS_TO_SPACE,
+  MERKLE_CREATION_BLOCK_BSC,
+  MERKLE_CREATION_BLOCK_ETH,
   SDBAL_SPACE,
   SDPENDLE_SPACE,
+  SPACE_TO_CHAIN_ID,
 } from "./constants";
 import fs from "fs";
 import path from "path";
 import {
   createPublicClient,
+  encodePacked,
+  getAddress,
   http,
+  keccak256,
+  pad,
 } from "viem";
 import { bsc, mainnet } from "viem/chains";
-import { getDelegators } from "./agnostic";
+import { createBlockchainExplorerUtils } from "./explorerUtils";
+import { formatBytes32String } from "ethers/lib/utils";
+import { DelegatorData } from "./types";
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
@@ -358,8 +368,7 @@ export const addVotersFromAutoVoter = async (
   space: string,
   proposal: any,
   voters: Voter[],
-  addressesPerChoice: Record<string, number>,
-  table: string
+  addressesPerChoice: Record<string, number>
 ): Promise<Voter[]> => {
   const autoVoter = voters.find(
     (v) => v.voter.toLowerCase() === AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
@@ -368,15 +377,23 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
-  const delegators = await getDelegators(
-    AUTO_VOTER_DELEGATION_ADDRESS,
-    table,
+  // Get all delegators until proposal creation
+  const delegators = await processAllDelegators(
+    space,
     proposal.created,
-    space
+    AUTO_VOTER_DELEGATION_ADDRESS
   );
-  if (delegators.length === 0) {
-    return voters;
-  }
+
+  // Fetch delegators weight registered in the auto voter contract
+  const publicClient = createPublicClient({
+    chain: mainnet,
+    transport: http(
+      "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9"
+    ),
+    batch: {
+      multicall: true,
+    },
+  });
 
   const { data } = await axios.post("https://score.snapshot.org/api/scores", {
     params: {
@@ -412,17 +429,6 @@ export const addVotersFromAutoVoter = async (
   if (delegatorAddresses.length === 0) {
     return voters;
   }
-
-  // Fetch delegators weight registered in the auto voter contract
-  const publicClient = createPublicClient({
-    chain: mainnet,
-    transport: http(
-      "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9"
-    ),
-    batch: {
-      multicall: true,
-    },
-  });
 
   const results = await publicClient.multicall({
     contracts: delegatorAddresses.map((delegatorAddress) => {
@@ -607,46 +613,358 @@ export const getAllAccountClaimed = async (
   return resp;
 };
 
-export const getAllAccountClaimedSinceLastFreezeOnBSC = async (
-  lastMerkle: any,
-  merkleContract: string
+export const getAllAccountClaimedSinceLastFreeze = async (
+  merkleContract: string,
+  tokenAddress: string,
+  chainId: string
 ): Promise<Record<string, boolean>> => {
+  const cacheDir = path.join(__dirname, "../../cache/merkle_updates");
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+  const chainDir = path.join(cacheDir, chainId);
+  if (!fs.existsSync(chainDir)) {
+    fs.mkdirSync(chainDir);
+  }
+  const merkleDir = path.join(chainDir, merkleContract.toLowerCase());
+  if (!fs.existsSync(merkleDir)) {
+    fs.mkdirSync(merkleDir);
+  }
+  const cacheFile = path.join(merkleDir, `${tokenAddress.toLowerCase()}.json`);
+
+  let cachedMerkleUpdate: { blockNumber: number; timestamp: number } | null =
+    null;
+  if (fs.existsSync(cacheFile)) {
+    const fileContent = fs.readFileSync(cacheFile, "utf8");
+    cachedMerkleUpdate = JSON.parse(fileContent);
+  }
+
   const resp: Record<string, boolean> = {};
 
-  const wagmiContract = {
-    address: merkleContract,
-    abi: abi,
-  };
+  const explorerUtils = createBlockchainExplorerUtils(
+    Number(chainId) === mainnet.id ? "ethereum" : "bsc"
+  );
 
   const publicClient = createPublicClient({
-    chain: bsc,
+    chain: Number(chainId) === mainnet.id ? mainnet : bsc,
     transport: http(),
   });
 
-  const calls: any[] = [];
-  for (const userAddress of Object.keys(lastMerkle.merkle)) {
-    const index = lastMerkle.merkle[userAddress].index;
-    calls.push({
-      ...wagmiContract,
-      functionName: "isClaimed",
-      args: [lastMerkle.address, index],
-    });
+  const currentBlock = await publicClient.getBlock();
+
+  const merkleEventSignature = "MerkleRootUpdated(address,bytes32,uint256)";
+  const merkleEventHash = keccak256(
+    encodePacked(["string"], [merkleEventSignature])
+  );
+
+  const claimedEventSignature =
+    "Claimed(address,uint256,uint256,address,uint256)";
+  const claimedEventHash = keccak256(
+    encodePacked(["string"], [claimedEventSignature])
+  );
+
+  const paddedToken = pad(tokenAddress as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  // Start from the cached block number or the creation block
+  let startBlock = cachedMerkleUpdate
+    ? cachedMerkleUpdate.blockNumber
+    : Number(chainId) === mainnet.id
+    ? MERKLE_CREATION_BLOCK_ETH
+    : MERKLE_CREATION_BLOCK_BSC;
+
+  const merkleUpdates = await explorerUtils.getLogsByAddressAndTopics(
+    getAddress(merkleContract),
+    startBlock,
+    Number(currentBlock.number),
+    {
+      "0": merkleEventHash,
+      "1": paddedToken,
+    }
+  );
+
+  let latestMerkleUpdate: any = null;
+  for (let i = merkleUpdates.result.length - 1; i >= 0; i--) {
+    if (
+      merkleUpdates.result[i].topics[2] !==
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ) {
+      latestMerkleUpdate = merkleUpdates.result[i];
+      break;
+    }
   }
 
-  const results = await publicClient.multicall({
-    contracts: calls,
-  });
-
-  for (const userAddress of Object.keys(lastMerkle.merkle)) {
-    const result = results.shift();
-    if (!result) {
-      continue;
+  if (latestMerkleUpdate) {
+    // Update the cache
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
     }
+    fs.writeFileSync(
+      cacheFile,
+      JSON.stringify(
+        {
+          blockNumber: Number(latestMerkleUpdate.blockNumber),
+          timestamp: Number(latestMerkleUpdate.timeStamp),
+        },
+        null,
+        2
+      )
+    );
 
-    if (result.result === true) {
-      resp[userAddress.toLowerCase()] = true;
+    startBlock = Number(latestMerkleUpdate.blockNumber);
+  } else if (cachedMerkleUpdate) {
+    startBlock = cachedMerkleUpdate.blockNumber;
+  }
+
+  const endBlock = Number(currentBlock.number);
+
+  const allClaimedLogs = await explorerUtils.getLogsByAddressAndTopics(
+    getAddress(merkleContract),
+    startBlock,
+    endBlock,
+    {
+      "0": claimedEventHash,
+      "1": paddedToken,
     }
+  );
+
+  // Decode user address from logs and update the cached data
+  for (const log of allClaimedLogs.result) {
+    const paddedUserAddress = log.topics[2];
+    const userAddress = getAddress("0x" + paddedUserAddress.slice(-40));
+    resp[userAddress.toLowerCase()] = true;
   }
 
   return resp;
+};
+
+interface CacheData {
+  latestBlock: number;
+  delegators: DelegatorData[];
+}
+
+export const getAllDelegators = async (
+  delegationAddress: string,
+  chainId: string,
+  spaces: string[],
+  endBlock?: number
+): Promise<Record<string, DelegatorData[]>> => {
+  const cacheDir = path.join(
+    __dirname,
+    "../../cache/delegations",
+    delegationAddress.toLowerCase()
+  );
+  const result: Record<string, DelegatorData[]> = {};
+
+  const explorerUtils = createBlockchainExplorerUtils(
+    Number(chainId) === mainnet.id ? "ethereum" : "bsc"
+  );
+
+  const publicClient = createPublicClient({
+    chain: Number(chainId) === mainnet.id ? mainnet : bsc,
+    transport: http(),
+  });
+
+  if (!endBlock) {
+    const currentBlock = await publicClient.getBlock();
+    endBlock = Number(currentBlock.number);
+  }
+
+  for (const space of spaces) {
+    const cacheFile = path.join(cacheDir, `${space}.json`);
+    let cachedData: CacheData = readJSONFile(cacheFile);
+    let startBlock: number;
+
+    if (cachedData.latestBlock && cachedData.latestBlock >= endBlock) {
+      // If the cache is up-to-date, use it without fetching new data
+      console.warn(
+        `Using cached data for ${space}, and delegation address ${delegationAddress}`
+      );
+      result[space] = cachedData.delegators;
+      continue;
+    }
+
+    if (cachedData.latestBlock) {
+      startBlock = cachedData.latestBlock + 1;
+    } else {
+      startBlock =
+        Number(chainId) === mainnet.id
+          ? DELEGATE_REGISTRY_CREATION_BLOCK_ETH
+          : DELEGATE_REGISTRY_CREATION_BLOCK_BSC;
+    }
+
+    const spaceId = formatBytes32String(space);
+
+    const newDelegators = await fetchDelegators(
+      delegationAddress,
+      startBlock,
+      endBlock,
+      explorerUtils,
+      [spaceId]
+    );
+
+    // Combine cached data with new data
+    const allDelegators = [...(cachedData.delegators || []), ...newDelegators];
+
+    // Sort by timestamp
+    allDelegators.sort((a, b) => a.timestamp - b.timestamp);
+
+    // Update cache with new data and latest block
+    const updatedCacheData: CacheData = {
+      latestBlock: endBlock,
+      delegators: allDelegators,
+    };
+
+    // Save to JSON file
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    writeJSONFile(cacheFile, updatedCacheData);
+
+    result[space] = allDelegators;
+  }
+
+  return result;
+};
+
+function readJSONFile(filePath: string): CacheData {
+  if (!fs.existsSync(filePath)) {
+    return { latestBlock: 0, delegators: [] };
+  }
+  const fileContent = fs.readFileSync(filePath, "utf8");
+  return JSON.parse(fileContent);
+}
+
+function writeJSONFile(filePath: string, data: CacheData): void {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+export const fetchDelegators = async (
+  delegationAddress: string,
+  startBlock: number,
+  endBlock: number,
+  explorerUtils: any,
+  spacesIds: string[]
+): Promise<DelegatorData[]> => {
+  const chunkSize = 100_000;
+  const allDelegators: DelegatorData[] = [];
+
+  while (startBlock < endBlock) {
+    const chunkEndBlock = Math.min(startBlock + chunkSize, endBlock);
+
+    const setDelegateSignature = "SetDelegate(address,bytes32,address)";
+    const setDelegateHash = keccak256(
+      encodePacked(["string"], [setDelegateSignature])
+    );
+
+    const clearDelegateSignature = "ClearDelegate(address,bytes32,address)";
+    const clearDelegateHash = keccak256(
+      encodePacked(["string"], [clearDelegateSignature])
+    );
+
+    const paddedDelegationAddress = pad(delegationAddress as `0x${string}`, {
+      size: 32,
+    }).toLowerCase();
+
+    const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(DELEGATE_REGISTRY),
+      startBlock,
+      chunkEndBlock,
+      {
+        "0": setDelegateHash,
+        "3": paddedDelegationAddress,
+      }
+    );
+
+    const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(DELEGATE_REGISTRY),
+      startBlock,
+      chunkEndBlock,
+      {
+        "0": clearDelegateHash,
+        "3": paddedDelegationAddress,
+      }
+    );
+
+    const allLogs = [...setDelegateLogs.result, ...clearDelegateLogs.result];
+
+    const delegators: DelegatorData[] = [];
+
+    for (const log of allLogs) {
+      const event = log.topics[0];
+      const paddedDelegator = log.topics[1];
+      const spaceId = log.topics[2];
+      const delegator = getAddress("0x" + paddedDelegator.slice(-40));
+      if (
+        spacesIds.map((id) => id.toLowerCase()).includes(spaceId.toLowerCase())
+      ) {
+        delegators.push({
+          event: event === setDelegateHash ? "Set" : "Clear",
+          user: delegator.toLowerCase(),
+          spaceId: spaceId.toLowerCase(),
+          timestamp: Number(log.timeStamp),
+        });
+      }
+    }
+
+    allDelegators.push(...delegators);
+    startBlock = chunkEndBlock + 1;
+  }
+
+  return allDelegators;
+};
+
+export const processAllDelegators = async (
+  space: string,
+  timestamp: number,
+  delegationAddress: string
+): Promise<string[]> => {
+  const users: string[] = [];
+  const spaceBytes = formatBytes32String(space);
+
+  const explorerUtils = createBlockchainExplorerUtils(
+    Number(SPACE_TO_CHAIN_ID[space]) === mainnet.id ? "ethereum" : "bsc"
+  );
+
+  // End block based on timestamp
+  const endBlock = await explorerUtils.getBlockNumberByTimestamp(
+    timestamp,
+    "before"
+  );
+
+  const allDelegators = await getAllDelegators(
+    delegationAddress,
+    SPACE_TO_CHAIN_ID[space],
+    [space],
+    endBlock
+  );
+
+  // Get the delegators for the specific space
+  const spaceDelegators = allDelegators[space] || [];
+
+  // Filter delegators by timestamp and space
+  const processedData = spaceDelegators.filter(
+    (delegator) =>
+      delegator.timestamp <= timestamp &&
+      delegator.spaceId.toLowerCase() === spaceBytes.toLowerCase()
+  );
+
+  // Group entries by user
+  const userEntries: Record<string, DelegatorData[]> = {};
+  for (const entry of processedData) {
+    if (!userEntries[entry.user]) {
+      userEntries[entry.user] = [];
+    }
+    userEntries[entry.user].push(entry);
+  }
+
+  // For each user, check if their last entry is a "Set" event
+  for (const [user, entries] of Object.entries(userEntries)) {
+    entries.sort((a, b) => b.timestamp - a.timestamp); // Sort in descending order
+    if (entries[0].event === "Set") {
+      users.push(user);
+    }
+  }
+  return users;
 };

@@ -1,16 +1,11 @@
 import { formatUnits, parseEther } from "viem";
 import { BigNumber, utils } from "ethers";
-import { getAllAccountClaimedSinceLastFreezeWithAgnostic, getDelegators } from "./agnostic";
-import { AUTO_VOTER_DELEGATION_ADDRESS, BSC, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
+import { AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, ETHEREUM, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
 import { formatVotingPowerResult, getProposal, getVoters, getVotingPower } from "./snapshot";
-import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower } from "./utils";
-import { Log, MerkleStat } from "./types";
+import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getAllAccountClaimedSinceLastFreeze, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower, processAllDelegators } from "./utils";
+import { DelegatorData, Log, MerkleStat } from "./types";
 import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
-
-
-const AGNOSTIC_MAINNET_TABLE = "evm_events_ethereum_mainnet";
-const AGNOSTIC_BSC_TABLE = "evm_events_bsc_mainnet_v1";
 
 export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any): Promise<MerkleStat> => {
 
@@ -18,7 +13,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     const aprs: any[] = [];
     const logs: Log[] = [];
     const network = SPACE_TO_NETWORK[space];
-    const table = network === ETHEREUM ? AGNOSTIC_MAINNET_TABLE : AGNOSTIC_BSC_TABLE;
 
     for (const id of ids) {
         // Get the proposal to find the create timestamp
@@ -45,14 +39,13 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         const vps = await getVotingPower(proposal, voters.map((v) => v.voter), SPACE_TO_CHAIN_ID[space]);
         voters = formatVotingPowerResult(voters, vps);
 
-        voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice, table);
+        voters = await addVotersFromAutoVoter(space, proposal, voters, allAddressesPerChoice);
 
         // Should be already done but remove the autovoter address again to be sure
         voters = voters
             .filter((voter) => voter.voter.toLowerCase() !== AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase());
 
-        // Get all delegator addresses
-        const delegators = await getDelegators(DELEGATION_ADDRESS, table, proposal.created, space)
+        const delegators = await processAllDelegators(space, proposal.created, DELEGATION_ADDRESS);
 
         // Get voting power for all delegator
         // Map of address => VotingPower
@@ -249,18 +242,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     const lastMerkle = lastMerkles.find((m: any) => m.address.toLowerCase() === tokenToDistribute.toLowerCase());
 
     if (lastMerkle) {
-
-        let usersClaimedAddress: Record<string, boolean> = {};
-        switch (network) {
-            case ETHEREUM:
-                usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, AGNOSTIC_MAINNET_TABLE, NETWORK_TO_MERKLE[network]);
-                break;
-            case BSC:
-                usersClaimedAddress = await getAllAccountClaimedSinceLastFreezeWithAgnostic(tokenToDistribute, AGNOSTIC_BSC_TABLE, NETWORK_TO_MERKLE[network]);
-                break;
-            default:
-                throw new Error("network unknow");
-        }
+        const usersClaimedAddress = await getAllAccountClaimedSinceLastFreeze(NETWORK_TO_MERKLE[network], tokenToDistribute, SPACE_TO_CHAIN_ID[space]);
 
         const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
 
