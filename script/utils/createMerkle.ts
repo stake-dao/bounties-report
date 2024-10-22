@@ -7,7 +7,7 @@ import { DelegatorData, Log, MerkleStat } from "./types";
 import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 
-export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, allDelegationLogsEth: DelegatorData[]): Promise<MerkleStat> => {
+export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any): Promise<MerkleStat> => {
 
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];

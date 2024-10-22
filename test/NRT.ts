@@ -77,7 +77,7 @@ const setupTest = async () => {
 
   const holder = "0xbcfE5c47129253C6B8a9A00565B3358b488D42E0"
 
-  const amount = 692011090079197; // Missing that on the merkle for sdFXN
+  const amount = 5000000000000000; // Missing that on the merkle for sdFXN
 
   // Impersonate and send to merkle
   await hre.network.provider.request({
