@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const ETHERSCAN_KEY = process.env.ETHERSCAN_API_KEY || "";
+const ETHERSCAN_KEY = process.env.ETHERSCAN_API_KEY || process.env.ETHERSCAN_TOKEN || "";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
