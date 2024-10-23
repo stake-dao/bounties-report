@@ -15,26 +15,17 @@ install-deps:
 	@$(PNPM) install
 	@$(PNPM) add -D tsx
 
-run-weekly: setup install-deps
-	@echo "Running weekly bounty generation..."
-	@$(PNPM) tsx script/distribution/generateBounties.ts 0
-	@$(PNPM) tsx script/distribution/generateBSCBounties.ts 0
-
-run-mainnet: setup install-deps
-	@echo "Running mainnet bounty generation..."
-	@$(PNPM) tsx script/distribution/generateBounties.ts $(PAST_WEEK)
-
-run-bsc: setup install-deps
-	@echo "Running BSC bounty generation..."
-	@$(PNPM) tsx script/distribution/generateBSCBounties.ts $(PAST_WEEK)
+get-delegators: setup install-deps
+	@echo "Running weekly delegation data collection..."
+	@$(PNPM) tsx script/indexer/delegators.ts
 
 commit-and-push:
 	@echo "Committing and pushing changes..."
 	@git add .
 	@git config --global user.name 'GitHub Action'
 	@git config --global user.email 'action@github.com'
-	@git add weekly-bounties
-	@git commit -m "Update weekly bounties" || true
+	@git add data/delegations_*
+	@git commit -m "Update delegation data" || true
 	@git push
 
 clean:

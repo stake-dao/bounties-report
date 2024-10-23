@@ -1,7 +1,6 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
 import { CVX_SPACE, WEEK, DELEGATION_ADDRESS } from "../utils/constants";
-import { getAllDelegators, processAllDelegators } from "../utils/utils";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
@@ -12,7 +11,7 @@ import {
 import { extractCSV } from "../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
-import { DelegatorData } from "../utils/types";
+import { processAllDelegators } from "../utils/cacheUtils";
 
 dotenv.config();
 

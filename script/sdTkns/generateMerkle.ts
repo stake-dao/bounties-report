@@ -3,7 +3,7 @@ import * as dotenv from "dotenv";
 import { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods } from '../utils/snapshot';
 import { abi, AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from '../utils/constants';
 import * as moment from 'moment';
-import { checkSpace, extractCSV, getAllDelegators, PendleCSVType } from '../utils/utils';
+import { checkSpace, extractCSV, PendleCSVType } from '../utils/utils';
 import { createMerkle } from '../utils/createMerkle';
 import { Chain, createPublicClient, encodeFunctionData, formatUnits, http } from 'viem';
 import * as fs from 'fs';
