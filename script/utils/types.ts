@@ -123,4 +123,5 @@ export interface DelegatorData {
   user: string;
   spaceId: string;
   timestamp: number;
+  blockNumber: number;
 }

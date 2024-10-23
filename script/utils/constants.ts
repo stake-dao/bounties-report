@@ -30,6 +30,7 @@ export const DELEGATE_REGISTRY_CREATION_BLOCK_BSC = 10963355;
 export const ETHEREUM = "ethereum";
 export const ETH_CHAIN_ID = "1";
 export const BSC = "bsc";
+
 export const BSC_CHAIN_ID = "56";
 
 export const SDCRV_SPACE = "sdcrv.eth";
