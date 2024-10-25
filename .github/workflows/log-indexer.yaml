@@ -1,0 +1,33 @@
+name: "[Indexer] Get and push logs"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 20 * * 5" # Runs every Friday at 20:00 UTC
+
+jobs:
+  generate-report-and-repartition:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        env:
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
+
+      - name: Run report generation
+        run: make -f automation/indexer.mk get-delegators
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+
+      - name: Commit and push changes
+        run: make -f automation/indexer.mk commit-and-push
+
+      - name: Clean up
+        if: always()
+        run: make -f automation/indexer.mk clean

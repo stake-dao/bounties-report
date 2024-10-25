@@ -1,7 +1,6 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
 import { CVX_SPACE, WEEK, DELEGATION_ADDRESS } from "../utils/constants";
-import { getAllDelegators, processAllDelegators } from "../utils/utils";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
@@ -12,7 +11,7 @@ import {
 import { extractCSV } from "../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
-import { DelegatorData } from "../utils/types";
+import { processAllDelegators } from "../utils/cacheUtils";
 
 dotenv.config();
 
@@ -188,12 +187,7 @@ const main = async () => {
 
   if (isDelegationAddressVoter) {
     console.log("Delegation address is one of the voters, fetching StakeDAO delegators");
-    const allDelegators = await getAllDelegators(DELEGATION_ADDRESS, "1", [CVX_SPACE]);
-    const cvxDelegators = allDelegators[CVX_SPACE];
-    const cvxDelegatorsData: Record<string, DelegatorData[]> = {
-      'cvx.eth': cvxDelegators
-    };
-    stakeDaoDelegators = processAllDelegators(cvxDelegatorsData, CVX_SPACE, currentPeriodTimestamp);
+    stakeDaoDelegators = await processAllDelegators(CVX_SPACE, currentPeriodTimestamp, DELEGATION_ADDRESS);
 
     // If one of the delegators vote by himself, we need to remove him from the list
     for (const delegator of stakeDaoDelegators) {
