@@ -1,0 +1,31 @@
+{
+  "delegators": {
+    "merkleRoot": "",
+    "claims": {}
+  },
+  "nonDelegators": {
+    "merkleRoot": "0x0751928140645b160a59b5c421cf13611ff496f9b88fa4948e09f68c91ae9f80",
+    "claims": {
+      "0x5180db0237291A6449DdA9ed33aD90a38787621c": {
+        "tokens": {
+          "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": {
+            "amount": "572852439662713322832",
+            "proof": [
+              "0x5630d5cb38826ba3921f9fe7dd4f3afc5bdcdeb2d8b615af1a29f442fc65a2d5"
+            ]
+          }
+        }
+      },
+      "0xC1aa82499Da8d37383F1E6d95De417ecF7514e7C": {
+        "tokens": {
+          "0x8207c1ffc5b6804f6024322ccf34f29c3541ae26": {
+            "amount": "118581364406418171711266",
+            "proof": [
+              "0xd07b6b5485ec223a77ebaf93a50acc653784a4814337ce558c0b94655b00ed1f"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
