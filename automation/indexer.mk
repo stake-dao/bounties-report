@@ -6,7 +6,7 @@ include automation/setup/node.mk
 # Define the default target
 .DEFAULT_GOAL := all
 
-all: setup install-deps run-weekly
+all: setup install-deps get-delegators
 
 setup: setup-node
 
