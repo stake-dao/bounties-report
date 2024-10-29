@@ -383,7 +383,13 @@ async function storeDelegatorsAsParquet(
   // Write the merged data to a new file
   const writer = await parquet.ParquetWriter.openFile(schema, filePath);
   for (const delegator of mergedDelegators) {
-    await writer.appendRow(delegator);
+    await writer.appendRow({
+      event: delegator.event,
+      user: delegator.user,
+      spaceId: delegator.spaceId,
+      timestamp: delegator.timestamp,
+      blockNumber: delegator.blockNumber,
+    });
   }
   await writer.close();
 
