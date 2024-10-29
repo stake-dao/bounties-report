@@ -26,6 +26,7 @@ import {
 } from "viem";
 import { bsc, mainnet } from "viem/chains";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
+import { processAllDelegators } from "./cacheUtils";
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
