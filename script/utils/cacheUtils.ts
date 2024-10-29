@@ -18,7 +18,6 @@ import {
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { bsc, mainnet } from "viem/chains";
 import * as parquet from "parquetjs";
-import { asyncBufferFromFile, parquetRead } from "hyparquet";
 import { formatBytes32String } from "ethers/lib/utils";
 
 const DATA_DIR = path.join(__dirname, "../../data");
@@ -105,13 +104,7 @@ export const processAllDelegators = async (
 
   let delegators: any[] = [];
 
-  await parquetRead({
-    file: await asyncBufferFromFile(existingFile),
-    rowFormat: "object",
-    onComplete: (data: any[]) => {
-      delegators = data;
-    },
-  });
+  await readParquetFile(existingFile);
 
   // Filter by space and timestamp
   delegators = delegators.filter(
@@ -244,15 +237,8 @@ async function getLatestProcessedBlock(
 
     let latestBlock = 0;
 
-    await parquetRead({
-      file: await asyncBufferFromFile(existingFile),
-      rowFormat: "object",
-      onComplete: (data: any[]) => {
-        if (data.length > 0) {
-          latestBlock = data[data.length - 1].blockNumber;
-        }
-      },
-    });
+    await readParquetFile(existingFile);
+
     return latestBlock;
   } catch (error) {
     console.error(
@@ -327,13 +313,7 @@ async function storeDelegatorsAsParquet(
   let existingDelegators: DelegatorData[] = [];
   if (fs.existsSync(filePath)) {
     try {
-      await parquetRead({
-        file: await asyncBufferFromFile(filePath),
-        rowFormat: "object",
-        onComplete: (data: any[]) => {
-          existingDelegators = data;
-        },
-      });
+      await readParquetFile(filePath);
     } catch (error) {
       console.error(
         `Error reading existing Parquet file for ${delegationAddress}:`,
@@ -396,4 +376,18 @@ async function storeDelegatorsAsParquet(
   console.log(
     `Stored ${newDelegators.length} delegators for ${delegationAddress} in ${filePath}`
   );
+}
+
+async function readParquetFile(filePath: string) {
+  const { asyncBufferFromFile, parquetRead } = await import("hyparquet");
+
+  let data: any[] = [];
+  await parquetRead({
+    file: await asyncBufferFromFile(filePath),
+    rowFormat: "object",
+    onComplete: (result: any[]) => {
+      data = result;
+    },
+  });
+  return data;
 }
