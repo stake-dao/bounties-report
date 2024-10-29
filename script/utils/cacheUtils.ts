@@ -100,34 +100,31 @@ export const processAllDelegators = async (
     throw new Error(`No existing file found for ${delegationAddress}.`);
   }
 
-  console.log(`Reading ${existingFile}`);
-
-  let delegators: any[] = [];
-
-  await readParquetFile(existingFile);
+  // Read the Parquet file and store its contents
+  const delegators = await readParquetFile(existingFile);
 
   // Filter by space and timestamp
-  delegators = delegators.filter(
+  const filteredByTimestamp = delegators.filter(
     (d) =>
       d.spaceId.toLowerCase() === spaceBytes32.toLowerCase() &&
       d.timestamp <= currentPeriodTimestamp
   );
 
-  let filteredDelegators: DelegatorData[] = [];
   let usersEvents: { [key: string]: string[] } = {};
 
   // Retrieve all events for each user
-  for (const delegator of delegators) {
+  for (const delegator of filteredByTimestamp) {
     if (!usersEvents[delegator.user]) {
       usersEvents[delegator.user] = [];
     }
     usersEvents[delegator.user].push(delegator.event);
   }
 
+  let filteredDelegators: DelegatorData[] = [];
   // Drop users whose latest event is "Clear"
   for (const [user, events] of Object.entries(usersEvents)) {
     if (events[events.length - 1] !== "Clear") {
-      filteredDelegators.push(delegators.find((d) => d.user === user)!);
+      filteredDelegators.push(filteredByTimestamp.find((d) => d.user === user)!);
     }
   }
 
