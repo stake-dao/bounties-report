@@ -23,12 +23,12 @@ jobs:
       - name: Run report generation
         run: make -f automation/vlCVX/repartition.mk run-report
         env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
       - name: Run repartition generation
         run: make -f automation/vlCVX/repartition.mk run-repartition
         env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
       - name: Commit and push changes
         run: make -f automation/vlCVX/repartition.mk commit-and-push

@@ -23,7 +23,7 @@ jobs:
       - name: Run merkles generation
         run: make -f automation/vlCVX/merkles.mk run-merkles
         env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
       - name: Commit and push changes
         run: make -f automation/vlCVX/merkles.mk commit-and-push

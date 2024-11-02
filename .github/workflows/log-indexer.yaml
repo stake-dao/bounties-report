@@ -6,7 +6,7 @@ on:
     - cron: "0 20 * * 5" # Runs every Friday at 20:00 UTC
 
 jobs:
-  generate-report-and-repartition:
+  index-logs:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,10 +20,10 @@ jobs:
         with:
           python-version: "3.10.13"
 
-      - name: Run report generation
+      - name: Run indexer
         run: make -f automation/indexer.mk get-delegators
         env:
-          EXPLORER_KEY: ${{ secrets.EXPLORER_KEY }}
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
       - name: Commit and push changes
         run: make -f automation/indexer.mk commit-and-push
