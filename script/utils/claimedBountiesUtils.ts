@@ -171,7 +171,7 @@ const fetchVotemarketStakeDaoLockerClaimedBounties = async (
   fromBlock: number,
   toBlock: number,
 ) => {
-  const ethUtils = createBlockchainExplorerUtils("ethereum");
+  const ethUtils = createBlockchainExplorerUtils();
 
   const eventSignature =
     "Claimed(address,address,uint256,uint256,uint256,uint256)";
@@ -196,7 +196,7 @@ const fetchVotemarketStakeDaoLockerClaimedBounties = async (
           ethUtils.getLogsByAddressAndTopics(platform, fromBlock, toBlock, {
             "0": claimedEventHash,
             "1": paddedLocker,
-          })
+          }, 1)
         )
       );
 
@@ -255,7 +255,7 @@ const fetchVotemarketConvexLockerClaimedBounties = async (
   fromBlock: number,
   toBlock: number,
 ) => {
-  const ethUtils = createBlockchainExplorerUtils("ethereum");
+  const ethUtils = createBlockchainExplorerUtils();
 
   const eventSignature =
     "Claimed(address,address,uint256,uint256,uint256,uint256)";
@@ -281,7 +281,8 @@ const fetchVotemarketConvexLockerClaimedBounties = async (
     {
       "0": claimedEventHash,
       "1": paddedLocker,
-    }
+    },
+    1
   );
 
   if (response && response.result && response.result.length > 0) {
@@ -321,7 +322,7 @@ export const fetchVotemarketBSCBounties = async (
   fromBlock: number,
   toBlock: number
 ): Promise<{ cake: VotemarketBounty[] }> => {
-  const bscUtils = createBlockchainExplorerUtils("bsc");
+  const bscUtils = createBlockchainExplorerUtils();
 
   const eventSignature =
     "Claimed(address,address,uint256,uint256,uint256,uint256)";
@@ -344,7 +345,8 @@ export const fetchVotemarketBSCBounties = async (
     {
       "0": claimedEventHash,
       "1": paddedLocker,
-    }
+    },
+    56
   );
 
   const filteredBounties: VotemarketBounty[] = [];
@@ -391,7 +393,7 @@ const fetchWardenClaimedBounties = async (
   block_min: number,
   block_max: number
 ) => {
-  const ethUtils = createBlockchainExplorerUtils("ethereum");
+  const ethUtils = createBlockchainExplorerUtils();
 
   // Fetch all bounties data from Warden API
   const wardenApiBase = "https://api.paladin.vote/quest/v2/copilot/claims/";
@@ -456,7 +458,8 @@ const fetchWardenClaimedBounties = async (
           distributor,
           block_min,
           block_max,
-          { "0": claimedEventHash, "3": paddedBotmarket }
+          { "0": claimedEventHash, "3": paddedBotmarket },
+          1
         );
 
         if (
@@ -533,7 +536,7 @@ const fetchHiddenHandClaimedBounties = async (
   block_min: number,
   block_max: number
 ) => {
-  const ethUtils = createBlockchainExplorerUtils("ethereum");
+  const ethUtils = createBlockchainExplorerUtils();
 
   const rewardClaimedSig = "RewardClaimed(bytes32,address,address,uint256)";
   const rewardClaimedHash = keccak256(
@@ -550,7 +553,8 @@ const fetchHiddenHandClaimedBounties = async (
     getAddress("0xa9b08B4CeEC1EF29EdEC7F9C94583270337D6416"),
     block_min,
     block_max,
-    { "0": rewardClaimedHash }
+    { "0": rewardClaimedHash },
+    1
   );
 
   if (
@@ -605,7 +609,8 @@ const fetchHiddenHandClaimedBounties = async (
       getAddress("0xE00fe722e5bE7ad45b1A16066E431E47Df476CeC"),
       block_min,
       block_max,
-      { "0": depositBribeHash }
+      { "0": depositBribeHash },
+      1
     );
 
     if (

@@ -4,8 +4,7 @@ import dotenv from "dotenv";
 // Load the .env file from the project root
 dotenv.config();
 
-const ETHERSCAN_KEY = process.env.ETHERSCAN_API_KEY || process.env.ETHERSCAN_TOKEN || "";
-const BSCSCAN_KEY = process.env.BSCSCAN_API_KEY || process.env.BSCSCAN_TOKEN || "";
+const EXPLORER_KEY = process.env.EXPLORER_KEY || "";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -36,28 +35,17 @@ class RateLimiter {
 
 const rateLimiter = new RateLimiter(5);
 
-export type NetworkType = "ethereum" | "bsc";
-
 class BlockchainExplorerUtils {
   private readonly baseUrl: string;
   private readonly apiKey: string;
 
-  constructor(network: NetworkType) {
-    if (network === "ethereum") {
-      this.baseUrl = "https://api.etherscan.io/api";
-      this.apiKey = ETHERSCAN_KEY;
-    } else if (network === "bsc") {
-      this.baseUrl = "https://api.bscscan.com/api";
-      this.apiKey = BSCSCAN_KEY;
-    } else {
-      throw new Error("Unsupported network type");
-    }
+  constructor() {
+    this.baseUrl = "https://api.etherscan.io/v2/api";
+    this.apiKey = EXPLORER_KEY;
   }
 
-  createBlockchainExplorerUtils = (
-    network: NetworkType
-  ): BlockchainExplorerUtils => {
-    return new BlockchainExplorerUtils(network);
+  createBlockchainExplorerUtils = (): BlockchainExplorerUtils => {
+    return new BlockchainExplorerUtils();
   };
 
   /**
@@ -72,9 +60,10 @@ class BlockchainExplorerUtils {
     address: string,
     fromBlock: number,
     toBlock: number,
-    topics: { [key: string]: string }
+    topics: { [key: string]: string },
+    chain_id: number
   ) {
-    let url = `${this.baseUrl}?module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${address}&apikey=${this.apiKey}`;
+    let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${address}&apikey=${this.apiKey}`;
 
     // Add topics to the URL
     Object.entries(topics).forEach(([key, value]) => {
@@ -139,12 +128,13 @@ class BlockchainExplorerUtils {
     addresses: string[],
     fromBlock: number,
     toBlock: number,
-    topics: { [key: string]: string }
+    topics: { [key: string]: string },
+    chain_id: number
   ) {
     let allResults: any[] = [];
 
     for (const address of addresses) {
-      let url = `${this.baseUrl}?module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${address}&apikey=${this.apiKey}`;
+      let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${address}&apikey=${this.apiKey}`;
 
       // Add topics to the URL
       Object.entries(topics).forEach(([key, value]) => {
@@ -212,9 +202,10 @@ class BlockchainExplorerUtils {
    */
   async getBlockNumberByTimestamp(
     timestamp: number,
-    closest: 'before' | 'after' = 'before'
+    closest: "before" | "after" = "before",
+    chain_id: number
   ): Promise<number> {
-    const url = `${this.baseUrl}?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=${closest}&apikey=${this.apiKey}`;
+    const url = `${this.baseUrl}?chainid=${chain_id}&module=block&action=getblocknobytime&timestamp=${timestamp}&closest=${closest}&apikey=${this.apiKey}`;
 
     const maxRetries = 5;
     let retries = 0;
@@ -225,9 +216,12 @@ class BlockchainExplorerUtils {
 
         if (response.data.status === "1") {
           return parseInt(response.data.result);
-        } else if (response.data.message === "NOTOK" && 
-                  (response.data.result === "Max rate limit reached" ||
-                   response.data.result === "Max calls per sec rate limit reached (5/sec)")) {
+        } else if (
+          response.data.message === "NOTOK" &&
+          (response.data.result === "Max rate limit reached" ||
+            response.data.result ===
+              "Max calls per sec rate limit reached (5/sec)")
+        ) {
           console.warn("Rate limit reached, retrying after delay...");
           await delay(1000); // Wait for 1 second before retrying
           retries++;
@@ -253,5 +247,5 @@ class BlockchainExplorerUtils {
   }
 }
 
-export const createBlockchainExplorerUtils = (network: NetworkType) =>
-  new BlockchainExplorerUtils(network);
+export const createBlockchainExplorerUtils = () =>
+  new BlockchainExplorerUtils();

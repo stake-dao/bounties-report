@@ -5,17 +5,14 @@ import {
   keccak256,
   pad,
 } from "viem";
-import {
-  createBlockchainExplorerUtils,
-  NetworkType,
-} from "../utils/explorerUtils";
+import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import { ALL_MIGHT, WETH_ADDRESS } from "../utils/reportUtils";
 import { VLCVX_RECIPIENT } from "../utils/constants";
 import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
 
 export async function getSdCrvTransfer(minBlock: number, maxBlock: number) {
-  const explorerUtils = createBlockchainExplorerUtils("ethereum");
+  const explorerUtils = createBlockchainExplorerUtils();
   const sdCrvAddress = getAddress("0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5");
 
   const transferSig = "Transfer(address,address,uint256)";
@@ -38,7 +35,8 @@ export async function getSdCrvTransfer(minBlock: number, maxBlock: number) {
     [sdCrvAddress],
     minBlock,
     maxBlock,
-    topics
+    topics,
+    1
   );
 
   if (response.result.length === 0) {
@@ -58,11 +56,11 @@ export async function getSdCrvTransfer(minBlock: number, maxBlock: number) {
 }
 
 export async function getTokenTransfersOut(
-  chain: NetworkType,
+  chainId: number,
   token: string,
   blockNumber: number
 ) {
-  const explorerUtils = createBlockchainExplorerUtils(chain);
+  const explorerUtils = createBlockchainExplorerUtils();
 
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
@@ -80,7 +78,8 @@ export async function getTokenTransfersOut(
     [token],
     blockNumber,
     blockNumber,
-    topics
+    topics,
+    chainId
   );
 
   return response.result.map((log) => {
@@ -93,10 +92,10 @@ export async function getTokenTransfersOut(
 }
 
 export async function getWethTransfersIn(
-  chain: NetworkType,
+  chainId: number,
   blockNumber: number
 ) {
-  const explorerUtils = createBlockchainExplorerUtils(chain);
+  const explorerUtils = createBlockchainExplorerUtils();
 
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
@@ -114,7 +113,8 @@ export async function getWethTransfersIn(
     [WETH_ADDRESS],
     blockNumber,
     blockNumber,
-    topics
+    topics,
+    chainId
   );
 
   return response.result.map((log) => {

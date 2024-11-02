@@ -124,7 +124,9 @@ export const processAllDelegators = async (
   // Drop users whose latest event is "Clear"
   for (const [user, events] of Object.entries(usersEvents)) {
     if (events[events.length - 1] !== "Clear") {
-      filteredDelegators.push(filteredByTimestamp.find((d) => d.user === user)!);
+      filteredDelegators.push(
+        filteredByTimestamp.find((d) => d.user === user)!
+      );
     }
   }
 
@@ -156,9 +158,7 @@ function initializeChainData(chainId: string) {
       throw new Error(`Unsupported chain ID: ${chainId}`);
   }
 
-  const explorerUtils = createBlockchainExplorerUtils(
-    Number(chainId) === mainnet.id ? "ethereum" : "bsc"
-  );
+  const explorerUtils = createBlockchainExplorerUtils();
 
   return {
     rpcUrl,
@@ -199,7 +199,8 @@ async function fetchDelegatorsForAddress(
       explorerUtils,
       currentBlock,
       chunkEndBlock,
-      paddedDelegationAddress
+      paddedDelegationAddress,
+      Number(chainId)
     );
 
     for (const log of logs) {
@@ -251,7 +252,8 @@ async function fetchLogs(
   explorerUtils: any,
   startBlock: number,
   endBlock: number,
-  paddedDelegationAddress: string
+  paddedDelegationAddress: string,
+  chainId: number
 ) {
   const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
     getAddress(DELEGATE_REGISTRY),
@@ -260,7 +262,8 @@ async function fetchLogs(
     {
       "0": setDelegateHash,
       "3": paddedDelegationAddress,
-    }
+    },
+    chainId
   );
 
   const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
@@ -270,7 +273,8 @@ async function fetchLogs(
     {
       "0": clearDelegateHash,
       "3": paddedDelegationAddress,
-    }
+    },
+    chainId
   );
 
   return [...setDelegateLogs.result, ...clearDelegateLogs.result];

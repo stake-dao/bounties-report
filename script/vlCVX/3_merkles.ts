@@ -88,10 +88,10 @@ async function generateDelegatorMerkleTree(
   // Step 3: Get token transfers out and WETH transfers in at the transfer block
   const tokenTransfers = await Promise.all(
     Array.from(uniqueTokens).map((token) =>
-      getTokenTransfersOut(publicClient, token, transferBlock)
+      getTokenTransfersOut(1, token, transferBlock)
     )
   );
-  const wethTransfers = await getWethTransfersIn(publicClient, transferBlock);
+  const wethTransfers = await getWethTransfersIn(1, transferBlock);
 
   // Step 4: Match token transfers with WETH transfers to get WETH values
   const flattenedTokenTransfers = tokenTransfers.flat();

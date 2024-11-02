@@ -1,7 +1,7 @@
 import fs from "fs";
 import { parse } from "csv-parse/sync";
 import path from "path";
-import { getLogsByAddressAndTopics } from "../utils/etherscanUtils";
+import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import {
   createPublicClient,
   formatUnits,
@@ -40,6 +40,9 @@ const publicClient = createPublicClient({
   chain: mainnet,
   transport: http("https://rpc.flashbots.net"),
 });
+
+const explorerUtils = createBlockchainExplorerUtils();
+
 
 interface OTCWithdrawal {
   protocol: string;
@@ -91,11 +94,12 @@ async function fetchOTCWithdrawals(
     block: number;
   }[] = [];
 
-  const response = await getLogsByAddressAndTopics(
+  const response = await explorerUtils.getLogsByAddressAndTopics(
     OTC_REGISTRY,
     fromBlock,
     toBlock,
-    { "0": otcWithdrawnHash }
+    { "0": otcWithdrawnHash },
+    1
   );
 
   if (!response || !response.result || response.result.length === 0) {

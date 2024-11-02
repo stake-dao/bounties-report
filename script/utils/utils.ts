@@ -640,9 +640,7 @@ export const getAllAccountClaimedSinceLastFreeze = async (
 
   const resp: Record<string, boolean> = {};
 
-  const explorerUtils = createBlockchainExplorerUtils(
-    Number(chainId) === mainnet.id ? "ethereum" : "bsc"
-  );
+  const explorerUtils = createBlockchainExplorerUtils();
 
   let chain: any;
   let rpcUrl = "";
@@ -698,7 +696,8 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     {
       "0": merkleEventHash,
       "1": paddedToken,
-    }
+    },
+    Number(chainId)
   );
 
   let latestMerkleUpdate: any = null;
@@ -743,7 +742,8 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     {
       "0": claimedEventHash,
       "1": paddedToken,
-    }
+    },
+    Number(chainId)
   );
 
   // Decode user address from logs and update the cached data

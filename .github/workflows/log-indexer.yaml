@@ -23,7 +23,7 @@ jobs:
       - name: Run report generation
         run: make -f automation/indexer.mk get-delegators
         env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          EXPLORER_KEY: ${{ secrets.EXPLORER_KEY }}
 
       - name: Commit and push changes
         run: make -f automation/indexer.mk commit-and-push
