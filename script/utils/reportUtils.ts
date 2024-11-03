@@ -9,7 +9,7 @@ import {
 import { gql, request } from "graphql-request";
 import { getContract, formatUnits, PublicClient, Address } from "viem";
 import { erc20Abi } from "viem";
-import { createBlockchainExplorerUtils, NetworkType } from "./explorerUtils";
+import { createBlockchainExplorerUtils } from "./explorerUtils";
 
 const WEEK = 604800; // One week in seconds
 
@@ -366,13 +366,13 @@ export async function getGaugeWeight(
 }
 
 export async function fetchSwapInEvents(
-  chain: NetworkType,
+  chainId: number,
   blockMin: number,
   blockMax: number,
   rewardTokens: string[],
   contractAddress: string
 ): Promise<SwapEvent[]> {
-  const explorerUtils = createBlockchainExplorerUtils(chain);
+  const explorerUtils = createBlockchainExplorerUtils();
 
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
@@ -390,7 +390,8 @@ export async function fetchSwapInEvents(
     rewardTokens,
     blockMin,
     blockMax,
-    topics
+    topics,
+    chainId
   );
 
   const swapEvents: SwapEvent[] = response.result.map((log) => {
@@ -413,13 +414,13 @@ export async function fetchSwapInEvents(
 }
 
 export async function fetchSwapOutEvents(
-  chain: NetworkType,
+  chainId: number,
   blockMin: number,
   blockMax: number,
   rewardTokens: string[],
   contractAddress: string
 ): Promise<SwapEvent[]> {
-  const explorerUtils = createBlockchainExplorerUtils(chain);
+  const explorerUtils = createBlockchainExplorerUtils();
 
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
@@ -437,7 +438,8 @@ export async function fetchSwapOutEvents(
     rewardTokens,
     blockMin,
     blockMax,
-    topics
+    topics,
+    chainId
   );
 
   const swapEvents: SwapEvent[] = response.result.map((log) => {

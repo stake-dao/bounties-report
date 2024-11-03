@@ -234,14 +234,14 @@ async function main() {
   };
 
   const swapIn = await fetchSwapInEvents(
-    "ethereum",
+    1,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
     ALL_MIGHT
   );
   const swapOut = await fetchSwapOutEvents(
-    "ethereum",
+    1,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
