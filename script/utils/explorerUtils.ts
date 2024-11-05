@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 // Load the .env file from the project root
 dotenv.config();
 
-const EXPLORER_KEY = process.env.EXPLORER_KEY || "";
+const EXPLORER_KEY = process.env.EXPLORER_KEY || process.env.ETHERSCAN_API_KEY || "";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
