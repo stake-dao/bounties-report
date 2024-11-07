@@ -1,17 +1,9 @@
 {
   "timestamp1": 1730937600,
-  "timestamp2": 1731006387,
+  "timestamp2": 1731009875,
   "blockNumber1": 21132051,
-  "blockNumber2": 21137750,
+  "blockNumber2": 21138038,
   "votemarket": {
-    "balancer": {
-      "0": {
-        "bountyId": "11",
-        "gauge": "0xDc2Df969EE5E66236B950F5c4c5f8aBe62035df2",
-        "amount": "803386467074879728104",
-        "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F"
-      }
-    },
     "curve": {
       "0": {
         "bountyId": "127",
@@ -148,6 +140,14 @@
         "gauge": "0x6f82A6551cc351Bc295602C3ea99C78EdACF590C",
         "amount": "62407539712747371998",
         "rewardToken": "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0"
+      }
+    },
+    "balancer": {
+      "0": {
+        "bountyId": "11",
+        "gauge": "0xDc2Df969EE5E66236B950F5c4c5f8aBe62035df2",
+        "amount": "803386467074879728104",
+        "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F"
       }
     }
   },
