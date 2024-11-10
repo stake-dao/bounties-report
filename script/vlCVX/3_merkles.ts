@@ -41,7 +41,6 @@ interface Distribution {
 }
 
 async function generateDelegatorMerkleTree(
-  publicClient: any,
   minBlock: number,
   maxBlock: number,
   distribution: Distribution,
@@ -360,8 +359,9 @@ async function generateMerkles() {
       (tokenAcc, [tokenAddress, amount]) => {
         if (typeof amount === "number") {
           const decimals = tokenInfo[tokenAddress]?.decimals || 18;
+          const adjustedAmount = Math.max(0, amount - 0.000000001);
           const formattedAmount = utils
-            .parseUnits(amount.toFixed(decimals), decimals)
+            .parseUnits(adjustedAmount.toFixed(decimals), decimals)
             .toString();
           tokenAcc[tokenAddress] = formattedAmount;
         } else {
@@ -381,7 +381,6 @@ async function generateMerkles() {
 
   // Step 6: Generate Merkle tree for delegators
   const delegatorMerkleData = await generateDelegatorMerkleTree(
-    publicClient,
     minBlock,
     currentBlock,
     currentDistribution,
