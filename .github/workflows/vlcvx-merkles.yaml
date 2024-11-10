@@ -2,11 +2,11 @@ name: "[vlCVX] Merkles"
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 20 * * 5" # Runs every Friday at 20:00 UTC
+  repository_dispatch:
+    types: [generate-vlcvx-merkles]
 
 jobs:
-  generate-report-and-repartition:
+  generate-merkles:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,7 +26,13 @@ jobs:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
       - name: Commit and push changes
-        run: make -f automation/vlCVX/merkles.mk commit-and-push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Update vlCVX merkles"
+          file_pattern: 'bounties-reports/*/vlCVX/*'
+          commit_author: GitHub Actions <actions@github.com>
+          status_options: '--untracked-files=no'
+          push_options: '--force'
 
       - name: Clean up
         if: always()
