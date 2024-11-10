@@ -29,7 +29,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: Update vlCVX merkles"
-          file_pattern: 'bounties-reports/*/vlCVX/*'
+          file_pattern: 'bounties-reports/*'
           commit_author: GitHub Actions <actions@github.com>
           status_options: '--untracked-files=no'
           push_options: '--force'
