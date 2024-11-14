@@ -274,6 +274,7 @@ export async function fetchProposalsIdsBasedOnPeriods(
     (proposal: Proposal) => proposal.title.indexOf("Gauge vote") > -1
   );
 
+
   let associated_timestamps: Timestamps = {};
 
   for (const proposal of proposals) {
@@ -294,7 +295,7 @@ export async function fetchProposalsIdsBasedOnPeriods(
       const timestamp_b = new Date(correctFormat_b).getTime() / 1000;
 
       // Associate if the period is between a and b
-      if (period >= timestamp_a && period <= timestamp_b) {
+      if (period + 82800 >= timestamp_a && period <= timestamp_b) {
         associated_timestamps[period] = proposal;
       }
     }
