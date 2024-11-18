@@ -74,17 +74,13 @@ async function generateReport() {
 
   for (const bounty of curveBounties) {
     const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
-    const formattedAmount = formatUnits(
-      BigInt(bounty.amount),
-      tokenInfo.decimals
-    );
 
     rows.push({
       gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "Unknown",
       gaugeAddress: bounty.gauge,
       rewardToken: tokenInfo.symbol,
       rewardAddress: bounty.rewardToken,
-      rewardAmount: formattedAmount,
+      rewardAmount: bounty.amount.toString(),
     });
   }
 

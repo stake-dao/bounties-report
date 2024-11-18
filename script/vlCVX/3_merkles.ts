@@ -35,7 +35,7 @@ interface Distribution {
   [address: string]: {
     isStakeDelegator: boolean;
     tokens: {
-      [tokenAddress: string]: number;
+      [tokenAddress: string]: bigint;
     };
   };
 }
@@ -138,9 +138,8 @@ async function generateDelegatorMerkleTree(
 
     Object.entries(tokens).forEach(([tokenAddress, amount]) => {
       if (tokenSdCrvShares[tokenAddress] && tokenTotals[tokenAddress]) {
-        const tokenShare = (amount * BigInt(1e18)) / tokenTotals[tokenAddress]; // Calculate share with 18 decimals precision
-        const sdCrvShare =
-          (tokenSdCrvShares[tokenAddress] * tokenShare) / BigInt(1e18);
+        const tokenShare = (amount) / tokenTotals[tokenAddress]; // Calculate share with 18 decimals precision
+        const sdCrvShare = tokenSdCrvShares[tokenAddress] * tokenShare;
         totalSdCrvShare += sdCrvShare;
       }
     });
@@ -238,8 +237,8 @@ async function generateMerkles() {
         };
         Object.entries((data as any).tokens).forEach(
           ([tokenAddress, amount]) => {
-            combinedNonDelegatorDistribution[address].tokens[tokenAddress] =
-              amount as number;
+            combinedNonDelegatorDistribution[address].tokens[tokenAddress] = 
+              BigInt(amount.toString());
           }
         );
       }
@@ -330,19 +329,11 @@ async function generateMerkles() {
           Object.entries(claimData.tokens).forEach(
             ([tokenAddress, tokenData]: [string, any]) => {
               if (tokenData && tokenData.amount) {
-                const decimals = tokenInfo[tokenAddress]?.decimals || 18;
-                if (
-                  !combinedNonDelegatorDistribution[address].tokens[
-                    tokenAddress
-                  ]
-                ) {
-                  combinedNonDelegatorDistribution[address].tokens[
-                    tokenAddress
-                  ] = 0;
+                if (!combinedNonDelegatorDistribution[address].tokens[tokenAddress]) {
+                  combinedNonDelegatorDistribution[address].tokens[tokenAddress] = 0n;
                 }
-                combinedNonDelegatorDistribution[address].tokens[
-                  tokenAddress
-                ] += parseFloat(utils.formatUnits(tokenData.amount, decimals));
+                combinedNonDelegatorDistribution[address].tokens[tokenAddress] += 
+                  BigInt(tokenData.amount);
               }
             }
           );
@@ -357,16 +348,11 @@ async function generateMerkles() {
   ).reduce((acc, [address, data]) => {
     acc[address] = Object.entries(data.tokens).reduce(
       (tokenAcc, [tokenAddress, amount]) => {
-        if (typeof amount === "number") {
-          const decimals = tokenInfo[tokenAddress]?.decimals || 18;
-          const adjustedAmount = Math.max(0, amount - 0.000000001);
-          const formattedAmount = utils
-            .parseUnits(adjustedAmount.toFixed(decimals), decimals)
-            .toString();
-          tokenAcc[tokenAddress] = formattedAmount;
+        if (amount !== undefined) {
+          tokenAcc[tokenAddress] = amount.toString();
         } else {
           console.warn(
-            `Amount for token ${tokenAddress} is not a number:`,
+            `Amount for token ${tokenAddress} is undefined:`,
             amount
           );
         }

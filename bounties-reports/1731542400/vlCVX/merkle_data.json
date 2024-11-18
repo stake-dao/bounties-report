@@ -1,0 +1,19 @@
+{
+  "delegators": {
+    "merkleRoot": "",
+    "claims": {}
+  },
+  "nonDelegators": {
+    "merkleRoot": "0x1cb7e21ea49ac1d1540a234f15a7d30fadfcd3a151008c4fe2f1cc6f20631596",
+    "claims": {
+      "0x5180db0237291A6449DdA9ed33aD90a38787621c": {
+        "tokens": {
+          "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": {
+            "amount": "119557984628480130000",
+            "proof": []
+          }
+        }
+      }
+    }
+  }
+}
