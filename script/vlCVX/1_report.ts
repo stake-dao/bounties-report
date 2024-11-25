@@ -18,7 +18,7 @@ const publicClient = createPublicClient({
 interface Bounty {
   bountyId: string;
   gauge: string;
-  amount: string;
+  amount: bigint;
   rewardToken: string;
 }
 
@@ -43,7 +43,13 @@ interface CSVRow {
 
 async function fetchClaimedBounties(): Promise<ClaimedBounties> {
   const claimedBountiesPath = `weekly-bounties/${currentPeriod}/claimed_bounties_convex.json`;
-  return JSON.parse(fs.readFileSync(claimedBountiesPath, "utf8"));
+  const rawData = fs.readFileSync(claimedBountiesPath, "utf8");
+  return JSON.parse(rawData, (key, value) => {
+    if (key === 'amount') {
+      return BigInt(value);
+    }
+    return value;
+  });
 }
 
 async function fetchAllTokenInfos(
