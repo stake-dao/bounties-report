@@ -17,16 +17,16 @@ install-deps:
 
 run-weekly: setup install-deps
 	@echo "Running weekly bounty generation..."
-	@$(PNPM) tsx script/distribution/generateBounties.ts 0
-	@$(PNPM) tsx script/distribution/generateBSCBounties.ts 0
+	@$(PNPM) tsx script/sdTkns/generateBounties.ts 0
+	@$(PNPM) tsx script/sdTkns/generateBSCBounties.ts 0
 
 run-mainnet: setup install-deps
 	@echo "Running mainnet bounty generation..."
-	@$(PNPM) tsx script/distribution/generateBounties.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/generateBounties.ts $(PAST_WEEK)
 
 run-bsc: setup install-deps
 	@echo "Running BSC bounty generation..."
-	@$(PNPM) tsx script/distribution/generateBSCBounties.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/generateBSCBounties.ts $(PAST_WEEK)
 
 commit-and-push:
 	@echo "Committing and pushing changes..."

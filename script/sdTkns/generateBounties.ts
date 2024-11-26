@@ -1,9 +1,6 @@
-// generateWeeklyBounties.ts
-
 import { getTimestampsBlocks } from "../utils/reportUtils";
 import {
   fetchVotemarketStakeDaoLockerClaimedBounties,
-  fetchVotemarketConvexLockerClaimedBounties,
   fetchWardenClaimedBounties,
   fetchHiddenHandClaimedBounties,
 } from "../utils/claimedBountiesUtils";
@@ -56,18 +53,12 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     await getTimestampsBlocks(publicClient, pastWeek);
 
   // Fetch bounties for standard locker
-  const votemarketStakeBounties = await fetchVotemarketStakeDaoLockerClaimedBounties(
-    publicClient,
-    blockNumber1,
-    blockNumber2,
-  );
-
-  // Fetch bounties for Convex locker
-  const votemarketConvexBounties = await fetchVotemarketConvexLockerClaimedBounties(
-    publicClient,
-    blockNumber1,
-    blockNumber2,
-  );
+  const votemarketStakeBounties =
+    await fetchVotemarketStakeDaoLockerClaimedBounties(
+      publicClient,
+      blockNumber1,
+      blockNumber2
+    );
 
   const wardenBounties = await fetchWardenClaimedBounties(
     blockNumber1,
@@ -99,18 +90,8 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     hiddenhand,
   };
 
-  const weeklyBountiesConvex = {
-    timestamp1,
-    timestamp2,
-    blockNumber1,
-    blockNumber2,
-    votemarket: votemarketConvexBounties,
-    warden: {}, // Convex doesn't use Warden
-    hiddenhand: {}, // Convex doesn't use Hidden Hand
-  };
-
   // Create 'weekly-bounties' folder at the root of the project if it doesn't exist
-  const rootDir = path.resolve(__dirname, "../.."); // Go up two level from the script directory
+  const rootDir = path.resolve(__dirname, "../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
@@ -127,19 +108,6 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
   const jsonStringStandard = JSON.stringify(weeklyBounties, customReplacer, 2);
   fs.writeFileSync(fileNameStandard, jsonStringStandard);
   console.log(`Standard locker weekly bounties saved to ${fileNameStandard}`);
-
-  // Save Convex locker bounties
-  const fileNameConvex = path.join(
-    periodFolder,
-    "claimed_bounties_convex.json"
-  );
-  const jsonStringConvex = JSON.stringify(
-    weeklyBountiesConvex,
-    customReplacer,
-    2
-  );
-  fs.writeFileSync(fileNameConvex, jsonStringConvex);
-  console.log(`Convex locker weekly bounties saved to ${fileNameConvex}`);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;

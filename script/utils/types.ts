@@ -10,6 +10,10 @@ export interface VotemarketBounty extends Bounty {
   bountyId: BigInt;
 }
 
+export interface VotemarketV2Bounty extends VotemarketBounty {
+  chainId: number;
+}
+
 export interface WardenBounty extends Bounty {
   questID: BigInt;
   period: BigInt;

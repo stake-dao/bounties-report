@@ -86,6 +86,7 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
 };
 
 
+// TODO : just compute vp for each stake dao delegator. And we will use that share for sdCRV repartition
 // For stake dao delegators, we want to distribute the rewards to the delegators, not to the voter
 const computeStakeDaoDelegation = async (proposal: any, stakeDaoDelegators: string[], tokens: Record<string, number>) => {
   const delegationDistribution: Distribution = {};
@@ -99,8 +100,8 @@ const computeStakeDaoDelegation = async (proposal: any, stakeDaoDelegators: stri
   const totalVpBigInt = BigInt(Math.floor(
     Object.values(vps).reduce((acc, vp) => acc + vp, 0) * 1e18
   ));
-  
-  // Process each token
+
+  // Process each token 
   Object.entries(tokens).forEach(([token, amount]) => {
     let remainingRewards = BigInt(Math.floor(amount));
     let processedDelegators = 0;
