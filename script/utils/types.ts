@@ -12,6 +12,7 @@ export interface VotemarketBounty extends Bounty {
 
 export interface VotemarketV2Bounty extends VotemarketBounty {
   chainId: number;
+  isWrapped: boolean;
 }
 
 export interface WardenBounty extends Bounty {

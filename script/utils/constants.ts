@@ -1,5 +1,6 @@
 import * as dotenv from "dotenv";
-import { parseAbi } from "viem";
+import { createPublicClient, parseAbi, http, PublicClient } from "viem";
+import { mainnet, bsc, optimism, fraxtal, base, polygon, arbitrum } from "viem/chains";
 
 dotenv.config();
 
@@ -152,6 +153,18 @@ export const abi = parseAbi([
   "function multiUpdateMerkleRoot(address[] tokens, bytes32[] roots) public",
   "function isClaimed(address token, uint256 index) public view returns (bool)",
 ]);
+
+
+export const clients: Record<number, PublicClient> = {
+  [1]: createPublicClient({ chain: mainnet, transport: http() }),
+  [56]: createPublicClient({ chain: bsc, transport: http() }),
+  [10]: createPublicClient({ chain: optimism, transport: http() }),
+  [1124]: createPublicClient({ chain: fraxtal, transport: http() }),
+  [8453]: createPublicClient({ chain: base, transport: http() }),
+  [137]: createPublicClient({ chain: polygon, transport: http() }),
+  [42161]: createPublicClient({ chain: arbitrum, transport: http() }),
+}
+
 
 export const WEEK = 604800;
 

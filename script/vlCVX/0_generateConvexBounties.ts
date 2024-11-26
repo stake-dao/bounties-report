@@ -7,10 +7,6 @@ import { mainnet } from "viem/chains";
 
 const WEEK = 604800; // One week in seconds
 
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
-});
 
 function customReplacer(key: string, value: any) {
   if (typeof value === "bigint") {
@@ -37,14 +33,10 @@ async function generateConvexWeeklyBounties(pastWeek: number = 0) {
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
-    await getTimestampsBlocks(publicClient, pastWeek);
-
   // Fetch bounties for Convex locker
   const votemarketConvexBounties = await fetchVotemarketConvexLockerClaimedBounties(
-    publicClient,
-    blockNumber1,
-    blockNumber2,
+    currentPeriod,
+    currentTimestamp,
   );
 
   const weeklyBountiesConvex = {
@@ -52,10 +44,10 @@ async function generateConvexWeeklyBounties(pastWeek: number = 0) {
     timestamp2,
     blockNumber1,
     blockNumber2,
-    votemarket: votemarketConvexBounties,
-    warden: {}, // Convex doesn't use Warden
-    hiddenhand: {}, // Convex doesn't use Hidden Hand
-  };
+      votemarket: votemarketConvexBounties,
+      warden: {}, // Convex doesn't use Warden
+      hiddenhand: {}, // Convex doesn't use Hidden Hand
+    };
 
   // Create 'weekly-bounties' folder at the root of the project if it doesn't exist
   const rootDir = path.resolve(__dirname, "../.."); 

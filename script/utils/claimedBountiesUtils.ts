@@ -29,7 +29,7 @@ import {
   VotemarketV2Bounty,
 } from "./types";
 import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
-import { CONVEX_LOCKER } from "./constants";
+import { clients, CONVEX_LOCKER } from "./constants";
 import { ContractRegistry } from "./contractRegistry";
 import { mainnet } from "viem/chains";
 
@@ -212,6 +212,8 @@ const fetchVotemarketStakeDaoLockerClaimedBounties = async (
         )
       );
 
+      console.log(responses);
+      /*
       for (const response of responses) {
         if (!response || !response.result || response.result.length === 0) {
           continue;
@@ -247,6 +249,7 @@ const fetchVotemarketStakeDaoLockerClaimedBounties = async (
           }
         }
       }
+      */
     }
   );
 
@@ -330,79 +333,66 @@ const fetchVotemarketConvexLockerClaimedBounties = async (
 };
 
 // Getting claimed bounties from Votemarket V2 on each chain
+// TODO : multi-platform
 const fetchVotemarketV2ClaimedBounties = async (
   fromTimestamp: number,
   toTimestamp: number,
   toAddress: `0x${string}`
 ) => {
   const explorerUtils = createBlockchainExplorerUtils();
-
-  // Using contract registry to get all available chains
   const chains = ContractRegistry.getChains("CURVE_VOTEMARKET_V2");
-
-  const eventSignature = "Claim(uint256,address,uint256,uint256,uint256)"; // campaignId, account, amount, fee, epoch
-  const claimedEventHash = keccak256(
-    encodePacked(["string"], [eventSignature])
-  );
-
-  let filteredLogs: { curve: VotemarketV2Bounty[] } = { curve: [] };
-
+  
   const claimAbi = parseAbi([
     "event Claim(uint256 indexed campaignId, address indexed account, uint256 amount, uint256 fee, uint256 epoch)",
   ]);
+  
+  const campaignAbi = parseAbi([
+    "function getCampaign(uint256 campaignId) public view returns (uint256 chainId, address gauge, address manager, address rewardToken, uint8 numberOfPeriods, uint256 maxRewardPerVote, uint256 totalRewardAmount, uint256 totalDistributed, uint256 startTimestamp, uint256 endTimestamp, address hook)",
+  ]);
 
-  // Assuming we have constants for Convex Locker and Votemarket platform
-  const paddedToAddress = pad(toAddress, {
-    size: 32,
-  }).toLowerCase();
+  const isWrappedAbi = parseAbi([
+    "function isWrapped(address token) public view returns (bool)",
+  ]);
 
-  // Get multiple public clients
+  // Get block numbers for all chains in parallel
+  const blockPromises = chains.map(async (chain) => ({
+    chain,
+    fromBlock: await explorerUtils.getBlockNumberByTimestamp(fromTimestamp, "before", chain),
+    toBlock: await explorerUtils.getBlockNumberByTimestamp(toTimestamp, "after", chain),
+  }));
+  
+  const blockNumbers = await Promise.all(blockPromises);
+  const blockMap = Object.fromEntries(
+    blockNumbers.map(({ chain, fromBlock, toBlock }) => [chain, { fromBlock, toBlock }])
+  );
 
-  // Get for each chain id the fromBlock and toBlock
-  let fromBlocks: { chainId: number; fromBlock: number }[] = [];
-  let toBlocks: { chainId: number; toBlock: number }[] = [];
+  const eventSignature = "Claim(uint256,address,uint256,uint256,uint256)";
+  const claimedEventHash = keccak256(encodePacked(["string"], [eventSignature]));
+  const paddedToAddress = pad(toAddress, { size: 32 }).toLowerCase();
 
-  for (const chain of chains) {
-    const fromBlock = await explorerUtils.getBlockNumberByTimestamp(
-      fromTimestamp,
-      "before",
-      chain
-    );
-    const toBlock = await explorerUtils.getBlockNumberByTimestamp(
-      toTimestamp,
-      "after",
-      chain
-    );
-    fromBlocks.push({ chainId: chain, fromBlock });
-    toBlocks.push({ chainId: chain, toBlock });
-  }
+  let filteredLogs: { curve: VotemarketV2Bounty[] } = { curve: [] };
 
-  console.log(fromBlocks);
-  console.log(toBlocks);
+  // Process each chain's logs
+  await Promise.all(
+    chains.map(async (chain) => {
+      const { fromBlock, toBlock } = blockMap[chain];
+      const vmAddress = ContractRegistry.getAddress("CURVE_VOTEMARKET_V2", chain);
+      const tokenFactoryAddress = ContractRegistry.getAddress("TOKEN_FACTORY", chain);
+      
+      const response = await explorerUtils.getLogsByAddressAndTopics(
+        vmAddress,
+        fromBlock,
+        toBlock,
+        {
+          "0": claimedEventHash,
+          "2": paddedToAddress,
+        },
+        chain
+      );
 
+      if (!response?.result?.length) return;
 
-
-  const publicClient = createPublicClient({
-    chain: mainnet,
-    transport: http(),
-  });
-
-  /*
-  const promises = chains.map(async (chain) => {
-    const response = await explorerUtils.getLogsByAddressAndTopics(
-      ContractRegistry.getAddress("CURVE_VOTEMARKET_V2", chain),
-      fromBlock,
-      toBlock,
-      {
-        "0": claimedEventHash,
-        "1": paddedToAddress,
-      },
-      chain
-    );
-
-    /*
-    if (response && response.result && response.result.length > 0) {
-      for (const log of response.result) {
+      const bountyPromises = response.result.map(async (log: any) => {
         const decodedLog = decodeEventLog({
           abi: claimAbi,
           data: log.data,
@@ -410,30 +400,34 @@ const fetchVotemarketV2ClaimedBounties = async (
           strict: true,
         });
 
-        if (getAddress(decodedLog.args.account) == getAddress(toAddress)) {
-          const bountyInfo = await publicClient.readContract({
-            address: ContractRegistry.getAddress("CURVE_VOTEMARKET_V2", chain),
-            abi: platformAbi,
-            functionName: "getBounty",
-            args: [decodedLog.args.campaignId],
-          });
+        const bountyInfo = await clients[chain].readContract({
+          address: getAddress(vmAddress),
+          abi: campaignAbi,
+          functionName: "getCampaign",
+          args: [decodedLog.args.campaignId],
+        });
 
-          const votemarketBounty: VotemarketV2Bounty = {
-            bountyId: decodedLog.args.campaignId,
-            gauge: bountyInfo.gauge,
-            amount: decodedLog.args.amount,
-            rewardToken: getAddress(decodedLog.args.rewardToken),
-            chainId: chain,
-          };
+        const isWrapped = await clients[chain].readContract({
+          address: tokenFactoryAddress,
+          abi: isWrappedAbi,
+          functionName: "isWrapped",
+          args: [bountyInfo[3]],
+        });
 
-          filteredLogs.curve.push(votemarketBounty);
-        }
-      }
-    }
-  });
+        return {
+          chainId: chain,
+          bountyId: decodedLog.args.campaignId,
+          gauge: bountyInfo[1],
+          amount: decodedLog.args.amount,
+          rewardToken: getAddress(bountyInfo[3]),
+          isWrapped,
+        } as VotemarketV2Bounty;
+      });
 
-  await Promise.all(promises);
-  */
+      const bounties = await Promise.all(bountyPromises);
+      filteredLogs.curve.push(...bounties);
+    })
+  );
 
   return filteredLogs;
 };
@@ -603,7 +597,7 @@ const fetchWardenClaimedBounties = async (
           if (
             decodedLog.args.account &&
             getAddress(decodedLog.args.account.toLowerCase()) !=
-              getAddress(BOTMARKET.toLowerCase())
+            getAddress(BOTMARKET.toLowerCase())
           ) {
             continue;
           }
@@ -635,7 +629,7 @@ const fetchWardenClaimedBounties = async (
           quest.questId === bounty.questID &&
           quest.period === bounty.period &&
           getAddress(quest.distributor.toLowerCase()) ==
-            getAddress(bounty.distributor.toLowerCase())
+          getAddress(bounty.distributor.toLowerCase())
         ) {
           if (!protocolBounties[protocol]) {
             protocolBounties[protocol] = [];

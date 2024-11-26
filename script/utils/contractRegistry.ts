@@ -49,6 +49,14 @@ export class ContractRegistry {
     137: "0x5e5C922a5Eeab508486eB906ebE7bDFFB05D81e5",
   } as const;
 
+  private static readonly TOKEN_FACTORY: ChainAddresses = {
+    1: "0x96006425Da428E45c282008b00004a00002B345e",
+    42161: "0x96006425Da428E45c282008b00004a00002B345e",
+    10: "0x96006425Da428E45c282008b00004a00002B345e",
+    8453: "0x96006425Da428E45c282008b00004a00002B345e",
+    137: "0x96006425Da428E45c282008b00004a00002B345e",
+  } as const;
+
   /**
    * Get contract address for specified chain
    * @param contractName Name of the contract
