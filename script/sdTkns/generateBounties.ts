@@ -9,7 +9,7 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http, pad } from "viem";
 import { mainnet } from "viem/chains";
-import { VOTEMARKET_PLATFORM_CONFIGS } from "../utils/constants";
+import { STAKE_DAO_LOCKER, VOTEMARKET_PLATFORM_CONFIGS } from "../utils/constants";
 
 const WEEK = 604800; // One week in seconds
 
@@ -54,10 +54,17 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     await getTimestampsBlocks(ethereumClient, pastWeek);
 
   // Fetch bounties for standard locker
-  const votemarketStakeBounties = await fetchVotemarketV1ClaimedBounties(
+  const votemarketBounties = await fetchVotemarketV1ClaimedBounties(
     timestamp1,
     timestamp2,
     VOTEMARKET_PLATFORM_CONFIGS
+  );
+
+  // TODO : Multiple protocols
+  const votemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
+    timestamp1,
+    timestamp2,
+    STAKE_DAO_LOCKER
   );
 
   const wardenBounties = await fetchWardenClaimedBounties(
@@ -85,7 +92,8 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     timestamp2,
     blockNumber1,
     blockNumber2,
-    votemarket: votemarketStakeBounties,
+    votemarket: votemarketBounties,
+    votemarket_v2: votemarketV2Bounties,
     warden,
     hiddenhand,
   };

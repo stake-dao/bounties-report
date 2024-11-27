@@ -1,10 +1,10 @@
 import { getTimestampsBlocks } from "../utils/reportUtils";
-import { fetchVotemarketV1ClaimedBounties } from "../utils/claimedBountiesUtils";
+import { fetchVotemarketV1ClaimedBounties, fetchVotemarketV2ClaimedBounties } from "../utils/claimedBountiesUtils";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
-import { VOTEMARKET_CONVEX_LOCKER_CONFIGS } from "../utils/constants";
+import { STAKE_DAO_LOCKER, VOTEMARKET_CONVEX_LOCKER_CONFIGS } from "../utils/constants";
 
 const WEEK = 604800; // One week in seconds
 
@@ -40,12 +40,19 @@ async function generateConvexWeeklyBounties(pastWeek: number = 0) {
     VOTEMARKET_CONVEX_LOCKER_CONFIGS
   );
 
+  const votemarketV2ConvexBounties = await fetchVotemarketV2ClaimedBounties(
+    currentPeriod,
+    currentTimestamp,
+    STAKE_DAO_LOCKER
+  );
+
   const weeklyBountiesConvex = {
     timestamp1: currentPeriod,
     timestamp2: currentTimestamp,
     blockNumber1: 0,
     blockNumber2: 0,
     votemarket: votemarketConvexBounties,
+    votemarket_v2: votemarketV2ConvexBounties,
     warden: {}, // Convex doesn't use Warden
     hiddenhand: {}, // Convex doesn't use Hidden Hand
   };
