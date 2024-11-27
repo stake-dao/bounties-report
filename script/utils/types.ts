@@ -130,3 +130,12 @@ export interface DelegatorData {
   timestamp: number;
   blockNumber: number;
 }
+
+export type PlatformConfig = {
+  platform: string;
+  toAddress: `0x${string}`;
+};
+
+export type PlatformConfigs = {
+  [protocol: string]: PlatformConfig[];
+};

@@ -1,6 +1,21 @@
 import * as dotenv from "dotenv";
-import { createPublicClient, parseAbi, http, PublicClient } from "viem";
-import { mainnet, bsc, optimism, fraxtal, base, polygon, arbitrum } from "viem/chains";
+import {
+  createPublicClient,
+  parseAbi,
+  http,
+  PublicClient,
+  getAddress,
+} from "viem";
+import {
+  mainnet,
+  bsc,
+  optimism,
+  fraxtal,
+  base,
+  polygon,
+  arbitrum,
+} from "viem/chains";
+import { PlatformConfigs } from "./types";
 
 dotenv.config();
 
@@ -21,11 +36,10 @@ export const AUTO_VOTER_CONTRACT = "0x619eDEF2d18Ec9758E96D8FF2c7DcbFb58DD5A5C";
 
 // Delegation
 export const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
-export const DELEGATE_REGISTRY = "0x469788fE6E9E9681C6ebF3bF78e7Fd26Fc015446"
+export const DELEGATE_REGISTRY = "0x469788fE6E9E9681C6ebF3bF78e7Fd26Fc015446";
 
 export const DELEGATE_REGISTRY_CREATION_BLOCK_ETH = 11225329;
 export const DELEGATE_REGISTRY_CREATION_BLOCK_BSC = 10963355;
-
 
 // Networks
 export const ETHEREUM = "ethereum";
@@ -43,7 +57,14 @@ export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
 export const CVX_SPACE = "cvx.eth";
 
-export const VLCVX_RECIPIENT = "0xAe86A3993D13C8D77Ab77dBB8ccdb9b7Bc18cd09";
+export const VLCVX_RECIPIENT = "0x0000000095310137125f82f37FBe5D2F99279947";
+
+export const WEEK = 604800;
+
+// Stake DAO locker
+export const STAKE_DAO_LOCKER = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";
+// Convex locker
+export const CONVEX_LOCKER = "0x989AEb4d175e16225E39E87d0D97A3360524AD80";
 
 export const SPACES: string[] = [
   SDCRV_SPACE,
@@ -154,7 +175,6 @@ export const abi = parseAbi([
   "function isClaimed(address token, uint256 index) public view returns (bool)",
 ]);
 
-
 export const clients: Record<number, PublicClient> = {
   [1]: createPublicClient({ chain: mainnet, transport: http() }),
   [56]: createPublicClient({ chain: bsc, transport: http() }),
@@ -163,12 +183,48 @@ export const clients: Record<number, PublicClient> = {
   [8453]: createPublicClient({ chain: base, transport: http() }),
   [137]: createPublicClient({ chain: polygon, transport: http() }),
   [42161]: createPublicClient({ chain: arbitrum, transport: http() }),
-}
+};
 
+export const VOTEMARKET_PLATFORM_CONFIGS: PlatformConfigs = {
+  curve: [
+    {
+      platform: "0x0000000895cB182E6f983eb4D8b4E0Aa0B31Ae4c",
+      toAddress: STAKE_DAO_LOCKER,
+    },
+    {
+      platform: "0x000000073D065Fc33a3050C2d0e19C393a5699ba",
+      toAddress: STAKE_DAO_LOCKER,
+    },
+  ],
+  balancer: [
+    {
+      platform: "0x0000000446b28e4c90DbF08Ead10F3904EB27606",
+      toAddress: getAddress("0xea79d1A83Da6DB43a85942767C389fE0ACf336A5"),
+    },
+  ],
+  frax: [
+    {
+      platform: "0x000000060e56DEfD94110C1a9497579AD7F5b254",
+      toAddress: getAddress("0xCd3a267DE09196C48bbB1d9e842D7D7645cE448f"),
+    },
+  ],
+  fxn: [
+    {
+      platform: "0x00000007D987c2Ea2e02B48be44EC8F92B8B06e8",
+      toAddress: getAddress("0x75736518075a01034fa72D675D36a47e9B06B2Fb"),
+    },
+  ],
+};
 
-export const WEEK = 604800;
-
-// Stake DAO locker
-export const STAKE_DAO_LOCKER = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";
-// Convex locker
-export const CONVEX_LOCKER = "0x989AEb4d175e16225E39E87d0D97A3360524AD80";
+export const VOTEMARKET_CONVEX_LOCKER_CONFIGS: PlatformConfigs = {
+  curve: [
+    {
+      platform: "0x0000000895cB182E6f983eb4D8b4E0Aa0B31Ae4c",
+      toAddress: CONVEX_LOCKER,
+    },
+    {
+      platform: "0x000000073D065Fc33a3050C2d0e19C393a5699ba",
+      toAddress: CONVEX_LOCKER,
+    },
+  ],
+};

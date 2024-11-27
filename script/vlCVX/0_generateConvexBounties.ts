@@ -1,12 +1,12 @@
 import { getTimestampsBlocks } from "../utils/reportUtils";
-import { fetchVotemarketConvexLockerClaimedBounties } from "../utils/claimedBountiesUtils";
+import { fetchVotemarketV1ClaimedBounties } from "../utils/claimedBountiesUtils";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+import { VOTEMARKET_CONVEX_LOCKER_CONFIGS } from "../utils/constants";
 
 const WEEK = 604800; // One week in seconds
-
 
 function customReplacer(key: string, value: any) {
   if (typeof value === "bigint") {
@@ -33,24 +33,25 @@ async function generateConvexWeeklyBounties(pastWeek: number = 0) {
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  // Fetch bounties for Convex locker
-  const votemarketConvexBounties = await fetchVotemarketConvexLockerClaimedBounties(
+  // Fetch bounties for Convex locker on Votemarket V1
+  const votemarketConvexBounties = await fetchVotemarketV1ClaimedBounties(
     currentPeriod,
     currentTimestamp,
+    VOTEMARKET_CONVEX_LOCKER_CONFIGS
   );
 
   const weeklyBountiesConvex = {
-    timestamp1,
-    timestamp2,
-    blockNumber1,
-    blockNumber2,
-      votemarket: votemarketConvexBounties,
-      warden: {}, // Convex doesn't use Warden
-      hiddenhand: {}, // Convex doesn't use Hidden Hand
-    };
+    timestamp1: currentPeriod,
+    timestamp2: currentTimestamp,
+    blockNumber1: 0,
+    blockNumber2: 0,
+    votemarket: votemarketConvexBounties,
+    warden: {}, // Convex doesn't use Warden
+    hiddenhand: {}, // Convex doesn't use Hidden Hand
+  };
 
   // Create 'weekly-bounties' folder at the root of the project if it doesn't exist
-  const rootDir = path.resolve(__dirname, "../.."); 
+  const rootDir = path.resolve(__dirname, "../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });

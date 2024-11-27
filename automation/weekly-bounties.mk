@@ -19,6 +19,7 @@ run-weekly: setup install-deps
 	@echo "Running weekly bounty generation..."
 	@$(PNPM) tsx script/sdTkns/generateBounties.ts 0
 	@$(PNPM) tsx script/sdTkns/generateBSCBounties.ts 0
+	@$(PNPM) tsx script/vlCVX/0_generateConvexBounties.ts 0
 
 run-mainnet: setup install-deps
 	@echo "Running mainnet bounty generation..."
