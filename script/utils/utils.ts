@@ -30,7 +30,7 @@ export type PendleCSVType = Record<string, Record<string, number>>;
 type OtherCSVType = Record<string, number>;
 type CvxCSVType = Record<
   string,
-  { rewardAddress: string; rewardAmount: bigint }
+  Array<{ rewardAddress: string; rewardAmount: bigint }>
 >;
 export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType;
 
@@ -107,19 +107,26 @@ export const extractCSV = async (
       }
     } else if (space === CVX_SPACE) {
       const cvxResponse = response as CvxCSVType;
-
       const rewardAddress = row["reward address"].toLowerCase();
-
       const rewardAmount = BigInt(row["reward amount"]);
+      const gaugeAddress = row["gauge address"].toLowerCase();
 
       if (!cvxResponse[gaugeAddress]) {
-        cvxResponse[gaugeAddress] = { rewardAddress, rewardAmount };
+        cvxResponse[gaugeAddress] = [{ rewardAddress, rewardAmount }];
       } else {
-        cvxResponse[gaugeAddress].rewardAmount += rewardAmount;
+        const existingRewardIndex = cvxResponse[gaugeAddress].findIndex(
+          reward => reward.rewardAddress === rewardAddress
+        );
+        
+        if (existingRewardIndex >= 0) {
+          cvxResponse[gaugeAddress][existingRewardIndex].rewardAmount += rewardAmount;
+        } else {
+          cvxResponse[gaugeAddress].push({ rewardAddress, rewardAmount });
+        }
       }
 
       if (!totalPerToken[rewardAddress]) {
-        totalPerToken[rewardAddress] = space === CVX_SPACE ? BigInt(0) : 0;
+        totalPerToken[rewardAddress] = BigInt(0);
       }
       totalPerToken[rewardAddress] = (totalPerToken[rewardAddress] as bigint) + rewardAmount;
     } else {

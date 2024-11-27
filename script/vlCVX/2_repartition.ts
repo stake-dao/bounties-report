@@ -8,7 +8,7 @@ import {
   getVoters,
   getVotingPower,
 } from "../utils/snapshot";
-import { extractCVXCSV } from "../utils/utils";
+import { extractCSV } from "../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
 import { processAllDelegators } from "../utils/cacheUtils";
@@ -167,24 +167,24 @@ const main = async () => {
 
   // Extract CSV report
   console.log("Extracting CSV report...");
-  const csvResult = (await extractCVXCSV(
+  const csvResult = (await extractCSV(
     currentPeriodTimestamp,
     CVX_SPACE
   )) as CvxCSVType;
   if (!csvResult) throw new Error("No CSV report found");
 
-  console.log("csvResult", csvResult);
-
-  /*
   // Log total rewards per token in CSV
   const totalPerToken = Object.values(csvResult).reduce(
-    (acc, { rewardAddress, rewardAmount }) => {
-      acc[rewardAddress] = (acc[rewardAddress] || BigInt(0)) + rewardAmount;
+    (acc, rewardArray) => {
+      rewardArray.forEach(({ rewardAddress, rewardAmount }) => {
+        acc[rewardAddress] = (acc[rewardAddress] || BigInt(0)) + rewardAmount;
+      });
       return acc;
     },
     {} as Record<string, bigint>
   );
   console.log("Total rewards per token in CSV:", totalPerToken);
+
 
   // Fetch proposal and votes
   console.log("Fetching proposal and votes...");
@@ -350,7 +350,6 @@ const main = async () => {
     `${dirPath}/repartition_bis.json`,
     JSON.stringify({ distribution }, null, 2)
   );
-  */
   console.log("vlCVX repartition generation completed successfully.");
 };
 
