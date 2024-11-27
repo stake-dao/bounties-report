@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 // Load the .env file from the project root
 dotenv.config();
 
-const EXPLORER_KEY = process.env.EXPLORER_KEY || process.env.ETHERSCAN_API_KEY || "";
+const EXPLORER_KEY =
+  process.env.EXPLORER_KEY || process.env.ETHERSCAN_API_KEY || "";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -48,14 +49,54 @@ class BlockchainExplorerUtils {
     return new BlockchainExplorerUtils();
   };
 
-  /**
-   * Fetches logs by address and topics from the blockchain explorer API.
-   * @param {string} address - The contract address to query logs from.
-   * @param {number} fromBlock - The starting block number to fetch logs.
-   * @param {number} toBlock - The ending block number to fetch logs.
-   * @param {Object} topics - An object containing topic filters.
-   * @returns {Promise<any>} The API response containing the logs.
-   */
+  private async makeRequest(url: string, retries = 5, delayMs = 5000) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await rateLimiter.add(() =>
+          fetch(url, {
+            timeout: 10000, // 10s timeout
+            signal: AbortSignal.timeout(10000),
+          })
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status === "1") {
+          return data;
+        } else if (data.status === "0" && data.message === "No records found") {
+          return { result: [] };
+        }
+
+        // Rate limit or other recoverable errors
+        if (attempt < retries - 1) {
+          console.warn(
+            `ExplorerUtils error (attempt ${attempt + 1}/${retries}):`,
+            data.message
+          );
+          await delay(delayMs);
+          continue;
+        }
+        return { result: [] }; // Return empty result after all retries
+      } catch (error) {
+        if (attempt < retries - 1) {
+          console.warn(
+            `Request failed (attempt ${attempt + 1}/${retries}):`,
+            error
+          );
+          await delay(delayMs);
+          continue;
+        }
+        console.error("All retries failed:", url, error);
+        return { result: [] }; // Return empty result after all retries
+      }
+    }
+    return { result: [] }; // Fallback empty result
+  }
+
   async getLogsByAddressAndTopics(
     address: string,
     fromBlock: number,
@@ -64,66 +105,13 @@ class BlockchainExplorerUtils {
     chain_id: number
   ) {
     let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${address}&apikey=${this.apiKey}`;
-
-    // Add topics to the URL
     Object.entries(topics).forEach(([key, value]) => {
       url += `&topic${key}_${parseInt(key) + 1}_opr=and&topic${key}=${value}`;
     });
-    const maxRetries = 5;
-    let retries = 0;
 
-    while (retries < maxRetries) {
-      try {
-        const response = await rateLimiter.add(() => axios.get(url));
-
-        if (response.data.status === "1") {
-          return response.data;
-        } else if (
-          response.data.status === "0" &&
-          response.data.message === "No records found"
-        ) {
-          console.warn(
-            `No records found for address ${address} from block ${fromBlock} to ${toBlock}`
-          );
-          return { result: [] };
-        } else if (
-          response.data.message === "NOTOK" &&
-          (response.data.result === "Max rate limit reached" ||
-            response.data.result ===
-              "Max calls per sec rate limit reached (5/sec)")
-        ) {
-          console.warn("Rate limit reached, retrying after delay...");
-          await delay(1000); // Wait for 1 second before retrying
-          retries++;
-        } else {
-          console.log(url);
-          console.error("Unexpected response:", response.data);
-          throw new Error(response.data.message || "Unknown error");
-        }
-      } catch (error: any) {
-        if (error.response && error.response.status === 429) {
-          console.warn("Rate limit reached, retrying after delay...");
-          await delay(1000); // Wait for 1 second before retrying
-          retries++;
-        } else {
-          console.error(url);
-          console.error(`Error fetching logs: ${error.message}`);
-          throw error;
-        }
-      }
-    }
-
-    throw new Error("Max retries reached");
+    return this.makeRequest(url);
   }
 
-  /**
-   * Fetches logs by multiple addresses and topics from the blockchain explorer API.
-   * @param {string[]} addresses - The contract addresses to query logs from.
-   * @param {number} fromBlock - The starting block number to fetch logs.
-   * @param {number} toBlock - The ending block number to fetch logs.
-   * @param {Object} topics - An object containing topic filters.
-   * @returns {Promise<any>} The API response containing the logs.
-   */
   async getLogsByAddressesAndTopics(
     addresses: string[],
     fromBlock: number,
@@ -131,75 +119,23 @@ class BlockchainExplorerUtils {
     topics: { [key: string]: string },
     chain_id: number
   ) {
-    let allResults: any[] = [];
+    const results = [];
 
     for (const address of addresses) {
       let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${address}&apikey=${this.apiKey}`;
-
-      // Add topics to the URL
       Object.entries(topics).forEach(([key, value]) => {
         url += `&topic${key}_${parseInt(key) + 1}_opr=and&topic${key}=${value}`;
       });
 
-      const maxRetries = 5;
-      let retries = 0;
-
-      while (retries < maxRetries) {
-        try {
-          const response = await rateLimiter.add(() => axios.get(url));
-
-          if (response.data.status === "1") {
-            allResults = allResults.concat(response.data.result);
-            break;
-          } else if (
-            response.data.status === "0" &&
-            response.data.message === "No records found"
-          ) {
-            console.warn(
-              `No records found for address ${address} from block ${fromBlock} to ${toBlock}`
-            );
-            break;
-          } else if (
-            response.data.message === "NOTOK" &&
-            (response.data.result === "Max rate limit reached" ||
-              response.data.result ===
-                "Max calls per sec rate limit reached (5/sec)")
-          ) {
-            console.warn("Rate limit reached, retrying after delay...");
-            await delay(1000); // Wait for 1 second before retrying
-            retries++;
-          } else {
-            console.warn(url);
-            console.error("Unexpected response:", response.data);
-            throw new Error(response.data.message || "Unknown error");
-          }
-        } catch (error: any) {
-          if (error.response && error.response.status === 429) {
-            console.warn("Rate limit reached, retrying after delay...");
-            await delay(1000); // Wait for 1 second before retrying
-            retries++;
-          } else {
-            console.warn(url);
-            console.error(`Error fetching logs: ${error.message}`);
-            throw error;
-          }
-        }
-      }
-
-      if (retries === maxRetries) {
-        throw new Error("Max retries reached");
+      const response = await this.makeRequest(url);
+      if (response?.result?.length) {
+        results.push(...response.result);
       }
     }
 
-    return { result: allResults };
+    return { result: results };
   }
 
-  /**
-   * Fetches the block number closest to a given timestamp.
-   * @param {number} timestamp - The Unix timestamp to query.
-   * @param {'before' | 'after'} closest - Whether to get the closest block before or after the timestamp.
-   * @returns {Promise<number>} The block number.
-   */
   async getBlockNumberByTimestamp(
     timestamp: number,
     closest: "before" | "after" = "before",
@@ -207,43 +143,18 @@ class BlockchainExplorerUtils {
   ): Promise<number> {
     const url = `${this.baseUrl}?chainid=${chain_id}&module=block&action=getblocknobytime&timestamp=${timestamp}&closest=${closest}&apikey=${this.apiKey}`;
 
-    const maxRetries = 5;
-    let retries = 0;
+    const response = await this.makeRequest(url);
 
-    while (retries < maxRetries) {
-      try {
-        const response = await rateLimiter.add(() => axios.get(url));
-
-        if (response.data.status === "1") {
-          return parseInt(response.data.result);
-        } else if (
-          response.data.message === "NOTOK" &&
-          (response.data.result === "Max rate limit reached" ||
-            response.data.result ===
-              "Max calls per sec rate limit reached (5/sec)")
-        ) {
-          console.warn("Rate limit reached, retrying after delay...");
-          await delay(1000); // Wait for 1 second before retrying
-          retries++;
-        } else {
-          console.log(url);
-          console.error("Unexpected response:", response.data);
-          throw new Error(response.data.message || "Unknown error");
-        }
-      } catch (error: any) {
-        if (error.response && error.response.status === 429) {
-          console.warn("Rate limit reached, retrying after delay...");
-          await delay(1000); // Wait for 1 second before retrying
-          retries++;
-        } else {
-          console.log(url);
-          console.error(`Error fetching block number: ${error.message}`);
-          throw error;
-        }
-      }
+    if (
+      !response?.result ||
+      response.result === "Error! No closest block found" ||
+      response.result === "0"
+    ) {
+      return 0;
     }
 
-    throw new Error("Max retries reached");
+    const blockNumber = parseInt(response.result);
+    return isNaN(blockNumber) ? 0 : blockNumber;
   }
 }
 

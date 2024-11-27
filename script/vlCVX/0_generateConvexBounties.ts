@@ -1,10 +1,13 @@
-import { getTimestampsBlocks } from "../utils/reportUtils";
-import { fetchVotemarketV1ClaimedBounties, fetchVotemarketV2ClaimedBounties } from "../utils/claimedBountiesUtils";
+import {
+  fetchVotemarketV1ClaimedBounties,
+  fetchVotemarketV2ClaimedBounties,
+} from "../utils/claimedBountiesUtils";
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http } from "viem";
-import { mainnet } from "viem/chains";
-import { STAKE_DAO_LOCKER, VOTEMARKET_CONVEX_LOCKER_CONFIGS } from "../utils/constants";
+import {
+  STAKE_DAO_LOCKER,
+  VOTEMARKET_CONVEX_LOCKER_CONFIGS,
+} from "../utils/constants";
 
 const WEEK = 604800; // One week in seconds
 
@@ -28,60 +31,65 @@ function customReplacer(key: string, value: any) {
 }
 
 async function generateConvexWeeklyBounties(pastWeek: number = 0) {
-  const currentDate = new Date();
-  const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
-  const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
-  const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
+  try {
+    const currentDate = new Date();
+    const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
+    const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
+    const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  // Fetch bounties for Convex locker on Votemarket V1
-  const votemarketConvexBounties = await fetchVotemarketV1ClaimedBounties(
-    currentPeriod,
-    currentTimestamp,
-    VOTEMARKET_CONVEX_LOCKER_CONFIGS
-  );
+    // Fetch bounties with error handling
+    let votemarketConvexBounties = {};
+    let votemarketV2ConvexBounties = {};
 
-  const votemarketV2ConvexBounties = await fetchVotemarketV2ClaimedBounties(
-    currentPeriod,
-    currentTimestamp,
-    STAKE_DAO_LOCKER
-  );
+    try {
+      votemarketConvexBounties = await fetchVotemarketV1ClaimedBounties(
+        currentPeriod,
+        currentTimestamp,
+        VOTEMARKET_CONVEX_LOCKER_CONFIGS
+      );
+    } catch (error) {
+      console.error('Error fetching V1 bounties:', error);
+    }
 
-  const weeklyBountiesConvex = {
-    timestamp1: currentPeriod,
-    timestamp2: currentTimestamp,
-    blockNumber1: 0,
-    blockNumber2: 0,
-    votemarket: votemarketConvexBounties,
-    votemarket_v2: votemarketV2ConvexBounties,
-    warden: {}, // Convex doesn't use Warden
-    hiddenhand: {}, // Convex doesn't use Hidden Hand
-  };
+    try {
+      votemarketV2ConvexBounties = await fetchVotemarketV2ClaimedBounties(
+        currentPeriod,
+        currentTimestamp,
+        STAKE_DAO_LOCKER
+      );
+    } catch (error) {
+      console.error('Error fetching V2 bounties:', error);
+    }
 
-  // Create 'weekly-bounties' folder at the root of the project if it doesn't exist
-  const rootDir = path.resolve(__dirname, "../..");
-  const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
-  if (!fs.existsSync(weeklyBountiesDir)) {
+    const weeklyBountiesConvex = {
+      timestamp1: currentPeriod,
+      timestamp2: currentTimestamp,
+      blockNumber1: 0,
+      blockNumber2: 0,
+      votemarket: votemarketConvexBounties,
+      votemarket_v2: votemarketV2ConvexBounties,
+      warden: {},
+      hiddenhand: {},
+    };
+
+    // Ensure directories exist
+    const rootDir = path.resolve(__dirname, "../..");
+    const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
-  }
 
-  // Create folder for the adjusted period inside 'weekly-bounties' if it doesn't exist
-  const periodFolder = path.join(weeklyBountiesDir, currentPeriod.toString());
-  if (!fs.existsSync(periodFolder)) {
+    const periodFolder = path.join(weeklyBountiesDir, currentPeriod.toString());
     fs.mkdirSync(periodFolder, { recursive: true });
-  }
 
-  // Save Convex locker bounties
-  const fileNameConvex = path.join(
-    periodFolder,
-    "claimed_bounties_convex.json"
-  );
-  const jsonStringConvex = JSON.stringify(
-    weeklyBountiesConvex,
-    customReplacer,
-    2
-  );
-  fs.writeFileSync(fileNameConvex, jsonStringConvex);
-  console.log(`Convex locker weekly bounties saved to ${fileNameConvex}`);
+    // Save results
+    const fileNameConvex = path.join(periodFolder, "claimed_bounties_convex.json");
+    const jsonStringConvex = JSON.stringify(weeklyBountiesConvex, customReplacer, 2);
+    fs.writeFileSync(fileNameConvex, jsonStringConvex);
+    
+    console.log(`Convex locker weekly bounties saved to ${fileNameConvex}`);
+  } catch (error) {
+    console.error('Error generating weekly bounties:', error);
+    process.exit(1);
+  }
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;

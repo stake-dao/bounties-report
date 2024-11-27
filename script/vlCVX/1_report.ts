@@ -4,6 +4,7 @@ import { createPublicClient, http, formatUnits } from "viem";
 import { mainnet } from "viem/chains";
 import dotenv from "dotenv";
 import { getTokenInfo, getGaugesInfos } from "../utils/reportUtils";
+import { VotemarketBounty, VotemarketV2Bounty } from "../utils/types";
 
 dotenv.config();
 
@@ -15,16 +16,12 @@ const publicClient = createPublicClient({
   transport: http("https://rpc.flashbots.net"),
 });
 
-interface Bounty {
-  bountyId: string;
-  gauge: string;
-  amount: bigint;
-  rewardToken: string;
-}
-
 interface ClaimedBounties {
   votemarket: {
-    curve: Record<string, Bounty>;
+    curve: VotemarketBounty[];
+  };
+  votemarket_v2: {
+    curve: VotemarketV2Bounty[];
   };
 }
 
@@ -34,6 +31,7 @@ interface TokenInfo {
 }
 
 interface CSVRow {
+  chainId: number;
   gaugeName: string;
   gaugeAddress: string;
   rewardToken: string;
@@ -65,9 +63,13 @@ async function fetchAllTokenInfos(
 async function generateReport() {
   const claimedBounties = await fetchClaimedBounties();
   const curveBounties = Object.values(claimedBounties.votemarket.curve);
+  const curveV2Bounties = Object.values(claimedBounties.votemarket_v2.curve);
 
   const allTokens = new Set<string>(
-    curveBounties.map((bounty) => bounty.rewardToken)
+    [
+      ...curveBounties.map((bounty) => bounty.rewardToken),
+      ...curveV2Bounties.map((bounty) => bounty.rewardToken),
+    ]
   );
   const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens));
 

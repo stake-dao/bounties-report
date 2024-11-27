@@ -1,8 +1,8 @@
 {
   "timestamp1": 1732147200,
-  "timestamp2": 1732215984,
-  "blockNumber1": 21232386,
-  "blockNumber2": 21238085,
+  "timestamp2": 1732722671,
+  "blockNumber1": 0,
+  "blockNumber2": 0,
   "votemarket": {
     "curve": {
       "0": {
@@ -12,6 +12,9 @@
         "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F"
       }
     }
+  },
+  "votemarket_v2": {
+    "curve": {}
   },
   "warden": {},
   "hiddenhand": {}

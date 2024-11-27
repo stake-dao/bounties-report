@@ -168,6 +168,15 @@ export const SPACES_UNDERLYING_TOKEN: Record<string, string> = {
   [SDFXN_SPACE]: "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09",
 };
 
+export const CHAINS_IDS_TO_SHORTS: Record<number, string> = {
+  1: "ethereum",
+  56: "bsc",
+  42161: "arbitrum",
+  10: "optimism",
+  8453: "base",
+  137: "polygon",
+};
+
 export const abi = parseAbi([
   "function multiFreeze(address[] tokens) public",
   "function multiSet(address[] tokens, bytes32[] roots) public",

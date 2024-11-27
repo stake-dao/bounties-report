@@ -1,5 +1,3 @@
-import { createBlockchainExplorerUtils } from "./explorerUtils";
-
 import {
   decodeEventLog,
   getAddress,
@@ -30,6 +28,8 @@ import {
 import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
 import { clients } from "./constants";
 import { ContractRegistry } from "./contractRegistry";
+import { getBlockNumberByTimestamp } from "./chainUtils";
+import { createBlockchainExplorerUtils } from "./explorerUtils";
 
 // TODO : move to abis/
 const platformAbi = [
@@ -192,16 +192,19 @@ const fetchVotemarketV1ClaimedBounties = async (
   let filteredLogs: { [protocol: string]: VotemarketBounty[] } = {};
 
   // Get block numbers
-  const fromBlock = await ethUtils.getBlockNumberByTimestamp(
+  const fromBlock = await getBlockNumberByTimestamp(
     fromTimestamp,
     "before",
     1
   );
-  const toBlock = await ethUtils.getBlockNumberByTimestamp(
+  const toBlock = await getBlockNumberByTimestamp(
     toTimestamp,
     "after",
     1
   );
+
+  console.log("fromBlock", fromBlock);
+  console.log("toBlock", toBlock);
 
   await Promise.all(
     Object.entries(platformConfigs).map(async ([protocol, configs]) => {
@@ -285,12 +288,12 @@ const fetchVotemarketV2ClaimedBounties = async (
   // Get block numbers for all chains in parallel
   const blockPromises = chains.map(async (chain) => ({
     chain,
-    fromBlock: await explorerUtils.getBlockNumberByTimestamp(
+    fromBlock: await getBlockNumberByTimestamp(
       fromTimestamp,
       "before",
       chain
     ),
-    toBlock: await explorerUtils.getBlockNumberByTimestamp(
+    toBlock: await getBlockNumberByTimestamp(
       toTimestamp,
       "after",
       chain
