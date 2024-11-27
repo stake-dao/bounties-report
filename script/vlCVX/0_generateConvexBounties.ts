@@ -48,7 +48,7 @@ async function generateConvexWeeklyBounties(pastWeek: number = 0) {
         VOTEMARKET_CONVEX_LOCKER_CONFIGS
       );
     } catch (error) {
-      console.error('Error fetching V1 bounties:', error);
+      console.error("Error fetching V1 bounties:", error);
     }
 
     try {
@@ -58,7 +58,7 @@ async function generateConvexWeeklyBounties(pastWeek: number = 0) {
         STAKE_DAO_LOCKER
       );
     } catch (error) {
-      console.error('Error fetching V2 bounties:', error);
+      console.error("Error fetching V2 bounties:", error);
     }
 
     const weeklyBountiesConvex = {
@@ -81,13 +81,20 @@ async function generateConvexWeeklyBounties(pastWeek: number = 0) {
     fs.mkdirSync(periodFolder, { recursive: true });
 
     // Save results
-    const fileNameConvex = path.join(periodFolder, "claimed_bounties_convex.json");
-    const jsonStringConvex = JSON.stringify(weeklyBountiesConvex, customReplacer, 2);
+    const fileNameConvex = path.join(
+      periodFolder,
+      "claimed_bounties_convex.json"
+    );
+    const jsonStringConvex = JSON.stringify(
+      weeklyBountiesConvex,
+      customReplacer,
+      2
+    );
     fs.writeFileSync(fileNameConvex, jsonStringConvex);
-    
+
     console.log(`Convex locker weekly bounties saved to ${fileNameConvex}`);
   } catch (error) {
-    console.error('Error generating weekly bounties:', error);
+    console.error("Error generating weekly bounties:", error);
     process.exit(1);
   }
 }

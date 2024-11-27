@@ -192,19 +192,8 @@ const fetchVotemarketV1ClaimedBounties = async (
   let filteredLogs: { [protocol: string]: VotemarketBounty[] } = {};
 
   // Get block numbers
-  const fromBlock = await getBlockNumberByTimestamp(
-    fromTimestamp,
-    "before",
-    1
-  );
-  const toBlock = await getBlockNumberByTimestamp(
-    toTimestamp,
-    "after",
-    1
-  );
-
-  console.log("fromBlock", fromBlock);
-  console.log("toBlock", toBlock);
+  const fromBlock = await getBlockNumberByTimestamp(fromTimestamp, "before", 1);
+  const toBlock = await getBlockNumberByTimestamp(toTimestamp, "after", 1);
 
   await Promise.all(
     Object.entries(platformConfigs).map(async ([protocol, configs]) => {
@@ -288,16 +277,8 @@ const fetchVotemarketV2ClaimedBounties = async (
   // Get block numbers for all chains in parallel
   const blockPromises = chains.map(async (chain) => ({
     chain,
-    fromBlock: await getBlockNumberByTimestamp(
-      fromTimestamp,
-      "before",
-      chain
-    ),
-    toBlock: await getBlockNumberByTimestamp(
-      toTimestamp,
-      "after",
-      chain
-    ),
+    fromBlock: await getBlockNumberByTimestamp(fromTimestamp, "before", chain),
+    toBlock: await getBlockNumberByTimestamp(toTimestamp, "after", chain),
   }));
 
   const blockNumbers = await Promise.all(blockPromises);

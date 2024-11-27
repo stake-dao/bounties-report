@@ -4,15 +4,11 @@ import {
   AUTO_VOTER_CONTRACT,
   AUTO_VOTER_DELEGATION_ADDRESS,
   CVX_SPACE,
-  DELEGATE_REGISTRY,
-  DELEGATE_REGISTRY_CREATION_BLOCK_BSC,
-  DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
   LABELS_TO_SPACE,
   MERKLE_CREATION_BLOCK_BSC,
   MERKLE_CREATION_BLOCK_ETH,
   SDBAL_SPACE,
   SDPENDLE_SPACE,
-  SPACE_TO_CHAIN_ID,
 } from "./constants";
 import fs from "fs";
 import path from "path";
@@ -111,7 +107,7 @@ export const extractCSV = async (
       }
     } else if (space === CVX_SPACE) {
       const cvxResponse = response as CvxCSVType;
-      
+
       const rewardAddress = row["reward address"].toLowerCase();
 
       const rewardAmount = BigInt(row["reward amount"]);

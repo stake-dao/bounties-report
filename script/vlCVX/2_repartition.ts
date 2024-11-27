@@ -8,7 +8,7 @@ import {
   getVoters,
   getVotingPower,
 } from "../utils/snapshot";
-import { extractCSV } from "../utils/utils";
+import { extractCVXCSV } from "../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../utils/curveApi";
 import { processAllDelegators } from "../utils/cacheUtils";
@@ -46,7 +46,8 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
   // Compare totals and normalize small differences
   Object.entries(totalsDistribution).forEach(
     ([tokenAddress, distributionAmount]) => {
-      const reportAmount = totalsReport[tokenAddress.toLowerCase()] || BigInt(0);
+      const reportAmount =
+        totalsReport[tokenAddress.toLowerCase()] || BigInt(0);
       const diff = distributionAmount - reportAmount;
 
       if (diff > 0 && diff < BigInt(0.00000000001)) {
@@ -85,23 +86,23 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
   console.log("Report totals:", totalsReport);
 };
 
-
 // TODO : just compute vp for each stake dao delegator. And we will use that share for sdCRV repartition
 // For stake dao delegators, we want to distribute the rewards to the delegators, not to the voter
-const computeStakeDaoDelegation = async (proposal: any, stakeDaoDelegators: string[], tokens: Record<string, number>) => {
+const computeStakeDaoDelegation = async (
+  proposal: any,
+  stakeDaoDelegators: string[],
+  tokens: Record<string, bigint>
+) => {
   const delegationDistribution: Distribution = {};
 
-  const vps = await getVotingPower(
-    proposal,
-    stakeDaoDelegators
-  );
+  const vps = await getVotingPower(proposal, stakeDaoDelegators);
 
   // Compute the total vp with 18 decimals precision
-  const totalVpBigInt = BigInt(Math.floor(
-    Object.values(vps).reduce((acc, vp) => acc + vp, 0) * 1e18
-  ));
+  const totalVpBigInt = BigInt(
+    Math.floor(Object.values(vps).reduce((acc, vp) => acc + vp, 0) * 1e18)
+  );
 
-  // Process each token 
+  // Process each token
   Object.entries(tokens).forEach(([token, amount]) => {
     let remainingRewards = BigInt(Math.floor(amount));
     let processedDelegators = 0;
@@ -119,7 +120,8 @@ const computeStakeDaoDelegation = async (proposal: any, stakeDaoDelegators: stri
         delegatorReward = remainingRewards;
       } else {
         // Calculate proportional amount
-        delegatorReward = (BigInt(Math.floor(amount)) * delegatorVpBigInt) / totalVpBigInt;
+        delegatorReward =
+          (BigInt(Math.floor(amount)) * delegatorVpBigInt) / totalVpBigInt;
         remainingRewards -= delegatorReward;
       }
 
@@ -131,7 +133,8 @@ const computeStakeDaoDelegation = async (proposal: any, stakeDaoDelegators: stri
           };
         }
         delegationDistribution[delegator].tokens[token] =
-          (delegationDistribution[delegator].tokens[token] || 0) + Number(delegatorReward);
+          (delegationDistribution[delegator].tokens[token] || 0) +
+          Number(delegatorReward);
       }
     });
   });
@@ -164,13 +167,15 @@ const main = async () => {
 
   // Extract CSV report
   console.log("Extracting CSV report...");
-  const csvResult = (await extractCSV(
+  const csvResult = (await extractCVXCSV(
     currentPeriodTimestamp,
     CVX_SPACE
   )) as CvxCSVType;
   if (!csvResult) throw new Error("No CSV report found");
 
+  console.log("csvResult", csvResult);
 
+  /*
   // Log total rewards per token in CSV
   const totalPerToken = Object.values(csvResult).reduce(
     (acc, { rewardAddress, rewardAmount }) => {
@@ -342,10 +347,10 @@ const main = async () => {
   const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX`;
   fs.mkdirSync(dirPath, { recursive: true });
   fs.writeFileSync(
-    `${dirPath}/repartition.json`,
+    `${dirPath}/repartition_bis.json`,
     JSON.stringify({ distribution }, null, 2)
   );
-
+  */
   console.log("vlCVX repartition generation completed successfully.");
 };
 
