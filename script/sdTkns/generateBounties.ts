@@ -1,9 +1,7 @@
-// generateWeeklyBounties.ts
-
-import { getTimestampsBlocks } from "../utils/reportUtils";
+import { getTimestampsBlocks, MAINNET_VM_PLATFORMS } from "../utils/reportUtils";
 import {
-  fetchVotemarketStakeDaoLockerClaimedBounties,
-  fetchVotemarketConvexLockerClaimedBounties,
+  fetchVotemarketV1ClaimedBounties,
+  fetchVotemarketV2ClaimedBounties,
   fetchWardenClaimedBounties,
   fetchHiddenHandClaimedBounties,
 } from "../utils/claimedBountiesUtils";
@@ -11,11 +9,11 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http, pad } from "viem";
 import { mainnet } from "viem/chains";
-import { STAKE_DAO_LOCKER, CONVEX_LOCKER } from "../utils/constants";
+import { STAKE_DAO_LOCKER, VOTEMARKET_PLATFORM_CONFIGS } from "../utils/constants";
 
 const WEEK = 604800; // One week in seconds
 
-const publicClient = createPublicClient({
+const ethereumClient = createPublicClient({
   chain: mainnet,
   transport: http("https://rpc.flashbots.net"),
 });
@@ -53,20 +51,20 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
   const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
-    await getTimestampsBlocks(publicClient, pastWeek);
+    await getTimestampsBlocks(ethereumClient, pastWeek);
 
   // Fetch bounties for standard locker
-  const votemarketStakeBounties = await fetchVotemarketStakeDaoLockerClaimedBounties(
-    publicClient,
-    blockNumber1,
-    blockNumber2,
+  const votemarketBounties = await fetchVotemarketV1ClaimedBounties(
+    timestamp1,
+    timestamp2,
+    VOTEMARKET_PLATFORM_CONFIGS
   );
 
-  // Fetch bounties for Convex locker
-  const votemarketConvexBounties = await fetchVotemarketConvexLockerClaimedBounties(
-    publicClient,
-    blockNumber1,
-    blockNumber2,
+  // TODO : Multiple protocols
+  const votemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
+    timestamp1,
+    timestamp2,
+    STAKE_DAO_LOCKER
   );
 
   const wardenBounties = await fetchWardenClaimedBounties(
@@ -75,7 +73,7 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
   );
 
   const hiddenhand = await fetchHiddenHandClaimedBounties(
-    publicClient,
+    ethereumClient,
     currentPeriod,
     blockNumber1,
     blockNumber2
@@ -94,23 +92,14 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
     timestamp2,
     blockNumber1,
     blockNumber2,
-    votemarket: votemarketStakeBounties,
+    votemarket: votemarketBounties,
+    votemarket_v2: votemarketV2Bounties,
     warden,
     hiddenhand,
   };
 
-  const weeklyBountiesConvex = {
-    timestamp1,
-    timestamp2,
-    blockNumber1,
-    blockNumber2,
-    votemarket: votemarketConvexBounties,
-    warden: {}, // Convex doesn't use Warden
-    hiddenhand: {}, // Convex doesn't use Hidden Hand
-  };
-
   // Create 'weekly-bounties' folder at the root of the project if it doesn't exist
-  const rootDir = path.resolve(__dirname, "../.."); // Go up two level from the script directory
+  const rootDir = path.resolve(__dirname, "../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
@@ -126,20 +115,7 @@ async function generateWeeklyBounties(pastWeek: number = 0) {
   const fileNameStandard = path.join(periodFolder, "claimed_bounties.json");
   const jsonStringStandard = JSON.stringify(weeklyBounties, customReplacer, 2);
   fs.writeFileSync(fileNameStandard, jsonStringStandard);
-  console.log(`Standard locker weekly bounties saved to ${fileNameStandard}`);
-
-  // Save Convex locker bounties
-  const fileNameConvex = path.join(
-    periodFolder,
-    "claimed_bounties_convex.json"
-  );
-  const jsonStringConvex = JSON.stringify(
-    weeklyBountiesConvex,
-    customReplacer,
-    2
-  );
-  fs.writeFileSync(fileNameConvex, jsonStringConvex);
-  console.log(`Convex locker weekly bounties saved to ${fileNameConvex}`);
+  console.log(`sdTkns lockers weekly claims saved to ${fileNameStandard}`);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;

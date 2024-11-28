@@ -10,6 +10,7 @@ import { gql, request } from "graphql-request";
 import { getContract, formatUnits, PublicClient, Address } from "viem";
 import { erc20Abi } from "viem";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
+import { getClosestBlockTimestamp } from "./chainUtils";
 
 const WEEK = 604800; // One week in seconds
 
@@ -125,22 +126,6 @@ export function isValidAddress(address: string): address is `0x${string}` {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
 
-export async function getClosestBlockTimestamp(
-  chain: string,
-  timestamp: number
-): Promise<number> {
-  const response = await axios.get(
-    `https://coins.llama.fi/block/${chain}/${timestamp}`
-  );
-
-  if (response.status !== 200) {
-    console.error(response.data);
-    throw new Error("Failed to get closest block timestamp");
-  }
-
-  const result = response.data;
-  return result.height;
-}
 
 export const MAINNET_VM_PLATFORMS: {
   [key: string]: { platforms: string[]; locker: string };

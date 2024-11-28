@@ -10,6 +10,11 @@ export interface VotemarketBounty extends Bounty {
   bountyId: BigInt;
 }
 
+export interface VotemarketV2Bounty extends VotemarketBounty {
+  chainId: number;
+  isWrapped: boolean;
+}
+
 export interface WardenBounty extends Bounty {
   questID: BigInt;
   period: BigInt;
@@ -125,3 +130,12 @@ export interface DelegatorData {
   timestamp: number;
   blockNumber: number;
 }
+
+export type PlatformConfig = {
+  platform: string;
+  toAddress: `0x${string}`;
+};
+
+export type PlatformConfigs = {
+  [protocol: string]: PlatformConfig[];
+};
