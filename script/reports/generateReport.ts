@@ -44,6 +44,7 @@ interface ClaimedBounties {
   blockNumber1: number;
   blockNumber2: number;
   votemarket: Record<string, Record<string, Bounty>>;
+  votemarket_v2: Record<string, Record<string, Bounty>>;
   warden: Record<string, Record<string, Bounty>>;
   hiddenhand: Record<string, Record<string, Bounty>>;
 }
@@ -139,6 +140,7 @@ function aggregateBounties(
   for (const protocol of protocols) {
     aggregated[protocol] = [
       ...Object.values(claimedBounties.votemarket[protocol] || {}),
+      ...Object.values(claimedBounties.votemarket_v2[protocol] || {}),
       ...Object.values(claimedBounties.warden[protocol] || {}),
       ...Object.values(claimedBounties.hiddenhand[protocol] || {}),
     ];

@@ -195,7 +195,7 @@ async function main() {
   }
 
   // Send the message to Telegram
-  await sendTelegramMessage(message, 'HTML');
+  //await sendTelegramMessage(message, "HTML");
 
   // Also log to console
   console.log(message.replace(/<\/?[^>]+(>|$)/g, "")); // Remove HTML tags for console output
