@@ -29,6 +29,11 @@ jobs:
         with:
           node-version: "20.5.1"
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.3
+
       - name: Install node dependencies
         run: pnpm install
 
