@@ -26,11 +26,16 @@ jobs:
         with:
           node-version: "20.5.1"
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.3
+
       - name: Install node dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: Run reportVerifier script
-        run: npx ts-node script/repartition/sdTkns/reportVerifier.ts
+        run: pnpm tsx script/repartition/sdTkns/reportVerifier.ts
         env:
           TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
