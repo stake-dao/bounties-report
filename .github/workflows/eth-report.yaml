@@ -65,7 +65,7 @@ jobs:
       - name: Run generateOTCReport script
         if: contains(steps.set-actions.outputs.actions, 'Generate OTCS reports')
         run: |
-          pnpm run tsx script/reports/generateOTCReport.ts
+          pnpm tsx script/reports/generateOTCReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
