@@ -30,7 +30,7 @@ jobs:
           node-version: "20.5.1"
 
       - name: Install node dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: Set actions
         id: set-actions
@@ -44,7 +44,7 @@ jobs:
       - name: Run generateWeeklyReport (all except Pendle) script
         if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
         run: |
-          npx ts-node script/reports/generateReport.ts
+          pnpm run tsx script/reports/generateReport.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
@@ -52,7 +52,7 @@ jobs:
       - name: Run generatePendleReport script
         if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
         run: |
-          npx ts-node script/reports/generatePendleReport.ts
+          pnpm run tsx script/reports/generatePendleReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
@@ -60,7 +60,7 @@ jobs:
       - name: Run generateOTCReport script
         if: contains(steps.set-actions.outputs.actions, 'Generate OTCS reports')
         run: |
-          npx ts-node script/reports/generateOTCReport.ts
+          pnpm run tsx script/reports/generateOTCReport.ts
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
