@@ -47,14 +47,6 @@ async function generateHiddenHandBounties(pastWeek: number = 0) {
     blockNumber2
   );
 
-  const weeklyBounties = {
-    timestamp1,
-    timestamp2,
-    blockNumber1,
-    blockNumber2,
-    hiddenhand,
-  };
-
   const rootDir = path.resolve(__dirname, "../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
@@ -67,7 +59,7 @@ async function generateHiddenHandBounties(pastWeek: number = 0) {
   }
 
   const fileName = path.join(periodFolder, "claimed_bounties.json");
-  const jsonString = JSON.stringify(weeklyBounties, customReplacer, 2);
+  const jsonString = JSON.stringify(hiddenhand, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
   console.log(`Hiddenhand weekly claims saved to ${fileName}`);
 }

@@ -49,15 +49,19 @@ class BlockchainExplorerUtils {
     return new BlockchainExplorerUtils();
   };
 
-  private async makeRequest(url: string, retries = 5, delayMs = 5000) {
+  private async makeRequest(url: string, retries = 5, delayMs = 10000) {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        const response = await rateLimiter.add(() =>
-          fetch(url, {
-            timeout: 10000, // 10s timeout
-            signal: AbortSignal.timeout(10000),
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        const response = await rateLimiter.add(() => 
+          fetch(url, { 
+            signal: controller.signal 
           })
         );
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -71,7 +75,6 @@ class BlockchainExplorerUtils {
           return { result: [] };
         }
 
-        // Rate limit or other recoverable errors
         if (attempt < retries - 1) {
           console.warn(
             `ExplorerUtils error (attempt ${attempt + 1}/${retries}):`,
@@ -80,21 +83,22 @@ class BlockchainExplorerUtils {
           await delay(delayMs);
           continue;
         }
-        return { result: [] }; // Return empty result after all retries
+        return { result: [] };
       } catch (error) {
-        if (attempt < retries - 1) {
+        if (error.name === 'AbortError') {
+          console.warn(`Request timed out (attempt ${attempt + 1}/${retries})`);
+        } else {
           console.warn(
             `Request failed (attempt ${attempt + 1}/${retries}):`,
             error
           );
-          await delay(delayMs);
-          continue;
         }
-        console.error("All retries failed:", url, error);
-        return { result: [] }; // Return empty result after all retries
+        
+        await delay(delayMs * Math.pow(2, attempt));
+        continue;
       }
     }
-    return { result: [] }; // Fallback empty result
+    return { result: [] };
   }
 
   async getLogsByAddressAndTopics(

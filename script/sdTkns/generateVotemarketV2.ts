@@ -46,12 +46,6 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
     STAKE_DAO_LOCKER
   );
 
-  const weeklyBounties = {
-    timestamp1,
-    timestamp2,
-    votemarket_v2: votemarketV2Bounties,
-  };
-
   const rootDir = path.resolve(__dirname, "../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
@@ -64,7 +58,7 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
   }
 
   const fileName = path.join(periodFolder, "claimed_bounties.json");
-  const jsonString = JSON.stringify(weeklyBounties, customReplacer, 2);
+  const jsonString = JSON.stringify(votemarketV2Bounties, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
   console.log(`Votemarket weekly claims saved to ${fileName}`);
 }

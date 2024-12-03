@@ -43,8 +43,10 @@ async function generateWardenBounties(pastWeek: number = 0) {
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  const { timestamp1, timestamp2, blockNumber1, blockNumber2 } = 
-    await getTimestampsBlocks(ethereumClient, pastWeek);
+  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
+    ethereumClient,
+    pastWeek
+  );
 
   const wardenBounties = await fetchWardenClaimedBounties(
     blockNumber1,
@@ -57,13 +59,7 @@ async function generateWardenBounties(pastWeek: number = 0) {
     warden[protocol] = wardenBounties[path];
   }
 
-  const weeklyBounties = {
-    timestamp1,
-    timestamp2,
-    blockNumber1,
-    blockNumber2,
-    warden,
-  };
+  const weeklyBounties = { warden };
 
   const rootDir = path.resolve(__dirname, "../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");

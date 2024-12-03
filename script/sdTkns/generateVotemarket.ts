@@ -38,7 +38,10 @@ async function generateVotemarketBounties(pastWeek: number = 0) {
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  const { timestamp1, timestamp2 } = await getTimestampsBlocks(ethereumClient, pastWeek);
+  const { timestamp1, timestamp2 } = await getTimestampsBlocks(
+    ethereumClient,
+    pastWeek
+  );
 
   const votemarketBounties = await fetchVotemarketV1ClaimedBounties(
     timestamp1,
@@ -46,28 +49,26 @@ async function generateVotemarketBounties(pastWeek: number = 0) {
     VOTEMARKET_PLATFORM_CONFIGS
   );
 
-  const weeklyBounties = {
-    timestamp1,
-    timestamp2,
-    votemarket: votemarketBounties,
-  };
-
   const rootDir = path.resolve(__dirname, "../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
   }
 
-  const periodFolder = path.join(weeklyBountiesDir, currentPeriod.toString(), 'votemarket');
+  const periodFolder = path.join(
+    weeklyBountiesDir,
+    currentPeriod.toString(),
+    "votemarket"
+  );
   if (!fs.existsSync(periodFolder)) {
     fs.mkdirSync(periodFolder, { recursive: true });
   }
 
   const fileName = path.join(periodFolder, "claimed_bounties.json");
-  const jsonString = JSON.stringify(weeklyBounties, customReplacer, 2);
+  const jsonString = JSON.stringify(votemarketBounties, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
   console.log(`Votemarket weekly claims saved to ${fileName}`);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
-generateVotemarketBounties(pastWeek); 
+generateVotemarketBounties(pastWeek);
