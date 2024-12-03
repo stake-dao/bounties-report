@@ -3,12 +3,12 @@ name: "Router for weekly bounties"
 on:
   repository_dispatch:
     types:
-      - update-votemarket-proofs
-      - update-votemarket-v2-proofs
-      - update-warden-proofs
-      - update-hiddenhand-proofs
-      - update-convex-proofs
-      - update-convex-v2-proofs
+      - update-votemarket-claims
+      - update-votemarket-v2-claims
+      - update-warden-claims
+      - update-hiddenhand-claims
+      - update-convex-claims
+      - update-convex-v2-claims
 
 jobs:
   process-bounties:
@@ -17,17 +17,17 @@ jobs:
       - name: Determine Bounty Type
         id: determine_bounty_type
         run: |
-          if [ "${{ github.event.action }}" == "update-votemarket-proofs" ]; then
+          if [ "${{ github.event.action }}" == "update-votemarket-claims" ]; then
             echo "bountyType=votemarket" >> $GITHUB_ENV
-          elif [ "${{ github.event.action }}" == "update-votemarket-v2-proofs" ]; then
+          elif [ "${{ github.event.action }}" == "update-votemarket-v2-claims" ]; then
             echo "bountyType=votemarket-v2" >> $GITHUB_ENV
-          elif [ "${{ github.event.action }}" == "update-warden-proofs" ]; then
+          elif [ "${{ github.event.action }}" == "update-warden-claims" ]; then
             echo "bountyType=warden" >> $GITHUB_ENV
-          elif [ "${{ github.event.action }}" == "update-hiddenhand-proofs" ]; then
+          elif [ "${{ github.event.action }}" == "update-hiddenhand-claims" ]; then
             echo "bountyType=hiddenhand" >> $GITHUB_ENV
-          elif [ "${{ github.event.action }}" == "update-convex-proofs" ]; then
+          elif [ "${{ github.event.action }}" == "update-convex-claims" ]; then
             echo "bountyType=convex" >> $GITHUB_ENV
-          elif [ "${{ github.event.action }}" == "update-convex-v2-proofs" ]; then
+          elif [ "${{ github.event.action }}" == "update-convex-v2-claims" ]; then
             echo "bountyType=convex-v2" >> $GITHUB_ENV
           fi
       - name: Run Bounties Workflow
