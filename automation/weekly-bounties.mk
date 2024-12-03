@@ -1,12 +1,12 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-weekly clean
+.PHONY: all setup install-deps run-all run-votemarket run-votemarket-v2 run-warden run-hiddenhand run-bsc clean commit-and-push
 
 # Define the default target
 .DEFAULT_GOAL := all
 
-all: setup install-deps run-weekly
+all: setup install-deps run-all
 
 setup: setup-node
 
@@ -15,23 +15,38 @@ install-deps:
 	@$(PNPM) install
 	@$(PNPM) add -D tsx
 
-run-weekly: setup install-deps
-	@echo "Running weekly bounty generation..."
-	@$(PNPM) tsx script/sdTkns/generateBounties.ts 0
-	@$(PNPM) tsx script/sdTkns/generateBSCBounties.ts 0
-	@$(PNPM) tsx script/vlCVX/0_generateConvexBounties.ts 0
+# Run all protocols
+run-all: run-votemarket run-votemarket-v2 run-warden run-hiddenhand
 
-run-mainnet: setup install-deps
-	@echo "Running mainnet bounty generation..."
-	@$(PNPM) tsx script/sdTkns/generateBounties.ts $(PAST_WEEK)
+# Individual protocol targets for mainnet
+run-votemarket: setup install-deps
+	@echo "Running Votemarket V1 bounty generation..."
+	@$(PNPM) tsx script/sdTkns/generateVotemarket.ts $(PAST_WEEK)
 
+run-votemarket-v2: setup install-deps
+	@echo "Running Votemarket V2 bounty generation..."
+	@$(PNPM) tsx script/sdTkns/generateVotemarketV2.ts $(PAST_WEEK)
+
+run-warden: setup install-deps
+	@echo "Running Warden bounty generation..."
+	@$(PNPM) tsx script/sdTkns/generateWarden.ts $(PAST_WEEK)
+
+run-hiddenhand: setup install-deps
+	@echo "Running Hidden Hand bounty generation..."
+	@$(PNPM) tsx script/sdTkns/generateHiddenHand.ts $(PAST_WEEK)
+
+# BSC specific target
 run-bsc: setup install-deps
 	@echo "Running BSC bounty generation..."
 	@$(PNPM) tsx script/sdTkns/generateBSCBounties.ts $(PAST_WEEK)
 
+# Legacy targets for backward compatibility
+run-weekly: run-all run-bsc
+
+run-mainnet: run-all
+
 commit-and-push:
 	@echo "Committing and pushing changes..."
-	@git add .
 	@git config --global user.name 'GitHub Action'
 	@git config --global user.email 'action@github.com'
 	@git add weekly-bounties

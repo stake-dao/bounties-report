@@ -1,0 +1,32 @@
+name: "Router for weekly bounties"
+
+on:
+  repository_dispatch:
+    types:
+      - update-votemarket-proofs
+      - update-votemarket-v2-proofs
+      - update-warden-proofs
+      - update-hiddenhand-proofs
+
+jobs:
+  process-bounties:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine Bounty Type
+        id: determine_bounty_type
+        run: |
+          if [ "${{ github.event.action }}" == "update-votemarket-proofs" ]; then
+            echo "bountyType=votemarket" >> $GITHUB_ENV
+          elif [ "${{ github.event.action }}" == "update-votemarket-v2-proofs" ]; then
+            echo "bountyType=votemarket-v2" >> $GITHUB_ENV
+          elif [ "${{ github.event.action }}" == "update-warden-proofs" ]; then
+            echo "bountyType=warden" >> $GITHUB_ENV
+          elif [ "${{ github.event.action }}" == "update-hiddenhand-proofs" ]; then
+            echo "bountyType=hiddenhand" >> $GITHUB_ENV
+          fi
+      - name: Run Bounties Workflow
+        uses: ./.github/workflows/weekly-bounties.yaml
+        with:
+          bountyType: ${{ env.bountyType }}
+          pastWeek: ${{ github.event.client_payload.pastWeek || '0' }}
+          chain: ${{ github.event.client_payload.chain || 'mainnet' }}
