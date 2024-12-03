@@ -7,6 +7,8 @@ on:
       - update-votemarket-v2-proofs
       - update-warden-proofs
       - update-hiddenhand-proofs
+      - update-convex-proofs
+      - update-convex-v2-proofs
 
 jobs:
   process-bounties:
@@ -23,6 +25,10 @@ jobs:
             echo "bountyType=warden" >> $GITHUB_ENV
           elif [ "${{ github.event.action }}" == "update-hiddenhand-proofs" ]; then
             echo "bountyType=hiddenhand" >> $GITHUB_ENV
+          elif [ "${{ github.event.action }}" == "update-convex-proofs" ]; then
+            echo "bountyType=convex" >> $GITHUB_ENV
+          elif [ "${{ github.event.action }}" == "update-convex-v2-proofs" ]; then
+            echo "bountyType=convex-v2" >> $GITHUB_ENV
           fi
       - name: Run Bounties Workflow
         uses: ./.github/workflows/weekly-bounties.yaml

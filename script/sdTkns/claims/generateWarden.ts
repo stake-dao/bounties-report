@@ -1,10 +1,9 @@
-import { getTimestampsBlocks } from "../utils/reportUtils";
-import { fetchVotemarketV1ClaimedBounties } from "../utils/claimedBountiesUtils";
+import { getTimestampsBlocks } from "../../utils/reportUtils";
+import { fetchWardenClaimedBounties } from "../../utils/claimedBountiesUtils";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
-import { VOTEMARKET_PLATFORM_CONFIGS } from "../utils/constants";
 
 const WEEK = 604800;
 
@@ -32,22 +31,35 @@ function customReplacer(key: string, value: any) {
   return value;
 }
 
-async function generateVotemarketBounties(pastWeek: number = 0) {
+const path_to_protocols: { [key: string]: string } = {
+  crv: "curve",
+  bal: "balancer",
+  fxn: "fxn",
+};
+
+async function generateWardenBounties(pastWeek: number = 0) {
   const currentDate = new Date();
   const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  const { timestamp1, timestamp2 } = await getTimestampsBlocks(
+  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
     ethereumClient,
     pastWeek
   );
 
-  const votemarketBounties = await fetchVotemarketV1ClaimedBounties(
-    timestamp1,
-    timestamp2,
-    VOTEMARKET_PLATFORM_CONFIGS
+  const wardenBounties = await fetchWardenClaimedBounties(
+    blockNumber1,
+    blockNumber2
   );
+
+  const warden: { [key: string]: any } = {};
+  for (const path of Object.keys(wardenBounties)) {
+    const protocol = path_to_protocols[path] || path;
+    warden[protocol] = wardenBounties[path];
+  }
+
+  const weeklyBounties = { warden };
 
   const rootDir = path.resolve(__dirname, "../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
@@ -55,20 +67,16 @@ async function generateVotemarketBounties(pastWeek: number = 0) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
   }
 
-  const periodFolder = path.join(
-    weeklyBountiesDir,
-    currentPeriod.toString(),
-    "votemarket"
-  );
+  const periodFolder = path.join(weeklyBountiesDir, currentPeriod.toString(), 'warden');
   if (!fs.existsSync(periodFolder)) {
     fs.mkdirSync(periodFolder, { recursive: true });
   }
 
   const fileName = path.join(periodFolder, "claimed_bounties.json");
-  const jsonString = JSON.stringify(votemarketBounties, customReplacer, 2);
+  const jsonString = JSON.stringify(weeklyBounties, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
-  console.log(`Votemarket weekly claims saved to ${fileName}`);
+  console.log(`Warden weekly claims saved to ${fileName}`);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
-generateVotemarketBounties(pastWeek);
+generateWardenBounties(pastWeek); 

@@ -12,6 +12,8 @@ on:
           - votemarket-v2
           - warden
           - hiddenhand
+          - convex
+          - convex-v2
       pastWeek:
         description: "Number of weeks in the past (0 for current week)"
         required: true
@@ -43,7 +45,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

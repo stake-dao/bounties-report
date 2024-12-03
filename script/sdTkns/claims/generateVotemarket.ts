@@ -1,9 +1,10 @@
-import { getTimestampsBlocks } from "../utils/reportUtils";
-import { fetchHiddenHandClaimedBounties } from "../utils/claimedBountiesUtils";
+import { getTimestampsBlocks } from "../../utils/reportUtils";
+import { fetchVotemarketV1ClaimedBounties } from "../../utils/claimedBountiesUtils";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+import { VOTEMARKET_PLATFORM_CONFIGS } from "../../utils/constants";
 
 const WEEK = 604800;
 
@@ -31,20 +32,21 @@ function customReplacer(key: string, value: any) {
   return value;
 }
 
-async function generateHiddenHandBounties(pastWeek: number = 0) {
+async function generateVotemarketBounties(pastWeek: number = 0) {
   const currentDate = new Date();
   const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  const { timestamp1, timestamp2, blockNumber1, blockNumber2 } = 
-    await getTimestampsBlocks(ethereumClient, pastWeek);
-
-  const hiddenhand = await fetchHiddenHandClaimedBounties(
+  const { timestamp1, timestamp2 } = await getTimestampsBlocks(
     ethereumClient,
-    currentPeriod,
-    blockNumber1,
-    blockNumber2
+    pastWeek
+  );
+
+  const votemarketBounties = await fetchVotemarketV1ClaimedBounties(
+    timestamp1,
+    timestamp2,
+    VOTEMARKET_PLATFORM_CONFIGS
   );
 
   const rootDir = path.resolve(__dirname, "../..");
@@ -53,16 +55,20 @@ async function generateHiddenHandBounties(pastWeek: number = 0) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
   }
 
-  const periodFolder = path.join(weeklyBountiesDir, currentPeriod.toString(), 'hiddenhand');
+  const periodFolder = path.join(
+    weeklyBountiesDir,
+    currentPeriod.toString(),
+    "votemarket"
+  );
   if (!fs.existsSync(periodFolder)) {
     fs.mkdirSync(periodFolder, { recursive: true });
   }
 
   const fileName = path.join(periodFolder, "claimed_bounties.json");
-  const jsonString = JSON.stringify(hiddenhand, customReplacer, 2);
+  const jsonString = JSON.stringify(votemarketBounties, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
-  console.log(`Hiddenhand weekly claims saved to ${fileName}`);
+  console.log(`Votemarket weekly claims saved to ${fileName}`);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
-generateHiddenHandBounties(pastWeek); 
+generateVotemarketBounties(pastWeek);

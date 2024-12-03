@@ -21,19 +21,27 @@ run-all: run-votemarket run-votemarket-v2 run-warden run-hiddenhand
 # Individual protocol targets for mainnet
 run-votemarket: setup install-deps
 	@echo "Running Votemarket V1 bounty generation..."
-	@$(PNPM) tsx script/sdTkns/generateVotemarket.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/claims/generateVotemarket.ts $(PAST_WEEK)
 
 run-votemarket-v2: setup install-deps
 	@echo "Running Votemarket V2 bounty generation..."
-	@$(PNPM) tsx script/sdTkns/generateVotemarketV2.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/claims/generateVotemarketV2.ts $(PAST_WEEK)
 
 run-warden: setup install-deps
 	@echo "Running Warden bounty generation..."
-	@$(PNPM) tsx script/sdTkns/generateWarden.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/claims/generateWarden.ts $(PAST_WEEK)
 
 run-hiddenhand: setup install-deps
 	@echo "Running Hidden Hand bounty generation..."
-	@$(PNPM) tsx script/sdTkns/generateHiddenHand.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/claims/generateHiddenHand.ts $(PAST_WEEK)
+
+run-convex: setup install-deps
+	@echo "Running Convex bounty generation..."
+	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarket.ts $(PAST_WEEK)
+
+run-convex-v2: setup install-deps
+	@echo "Running Convex V2 bounty generation..."
+	@$(PNPM) tsx script/vlCVX/claims/generateConvexV2.ts $(PAST_WEEK)
 
 # BSC specific target
 run-bsc: setup install-deps
