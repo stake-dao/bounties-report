@@ -48,9 +48,14 @@ interface DelegationDistribution {
 async function generateDelegatorMerkleTree(
   minBlock: number,
   maxBlock: number,
-  delegationDistribution: DelegationDistribution,
+  delegationDistribution: DelegationDistribution | null,
   previousMerkleData: MerkleData
 ): Promise<MerkleData> {
+  if (!delegationDistribution || Object.keys(delegationDistribution).length === 0) {
+    console.log("No delegation distribution found. Proceeding with empty distribution.");
+    return previousMerkleData;
+  }
+
   // Find delegators (those with shares)
   const delegators = Object.entries(delegationDistribution).filter(
     ([_, data]) => data.isStakeDelegator && data.share
@@ -117,7 +122,7 @@ async function generateDelegatorMerkleTree(
 async function generateMerkles() {
   const publicClient = createPublicClient({
     chain: mainnet,
-    transport: http(),
+    transport: http("https://rpc.flashbots.net"),
   });
 
   const WEEK = 604800;
@@ -144,9 +149,14 @@ async function generateMerkles() {
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/repartition_delegation.json`
   );
-  const delegationDistribution: { distribution: DelegationDistribution } = JSON.parse(
-    fs.readFileSync(delegationDistributionPath, "utf-8")
-  );
+  let delegationDistribution: DelegationDistribution | null = null;
+  if (fs.existsSync(delegationDistributionPath)) {
+    delegationDistribution = JSON.parse(
+      fs.readFileSync(delegationDistributionPath, "utf-8")
+    ).distribution;
+  } else {
+    console.log("Delegation distribution file not found. Proceeding with empty distribution.");
+  }
 
   // Step 2: Load previous merkle data (if exists)
   const previousMerkleDataPath = path.join(
@@ -308,7 +318,7 @@ async function generateMerkles() {
   const delegatorMerkleData = await generateDelegatorMerkleTree(
     minBlock,
     currentBlock,
-    delegationDistribution.distribution,
+    delegationDistribution,
     previousMerkleData.delegators
   );
 
