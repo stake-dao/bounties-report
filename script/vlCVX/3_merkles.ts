@@ -13,22 +13,17 @@
  *
  */
 
-import { utils } from "ethers";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http, getAddress } from "viem";
 import { mainnet } from "viem/chains";
 import {
   getSdCrvTransfer,
-  getTokenTransfersOut,
-  getWethTransfersIn,
-  matchTokensWithWeth,
-  calculateTokenSdCrvShares,
   generateMerkleTree,
   MerkleData,
   CombinedMerkleData,
 } from "./utils";
-import { getClosestBlockTimestamp } from "../utils/reportUtils";
+import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { SDCRV_SPACE, SPACES_TOKENS } from "../utils/constants";
 
 interface Distribution {
@@ -40,118 +35,53 @@ interface Distribution {
   };
 }
 
+interface DelegationDistribution {
+  [address: string]: {
+    isStakeDelegator: boolean;
+    tokens?: {
+      [tokenAddress: string]: bigint;
+    };
+    share?: string;
+  };
+}
+
 async function generateDelegatorMerkleTree(
   minBlock: number,
   maxBlock: number,
-  distribution: Distribution,
+  delegationDistribution: DelegationDistribution,
   previousMerkleData: MerkleData
 ): Promise<MerkleData> {
-  // Check if there are any delegators in the current distribution
-  let delegatorCount = 0;
-  Object.values(distribution.distribution).forEach((data) => {
-    if (typeof data === "object" && "isStakeDelegator" in data && data.isStakeDelegator) {
-      delegatorCount++;
-    }
-  });
+  // Find delegators (those with shares)
+  const delegators = Object.entries(delegationDistribution).filter(
+    ([_, data]) => data.isStakeDelegator && data.share
+  );
 
-  console.log(`Number of Stake Dao delegators in current distribution: ${delegatorCount}`);
-
-  // If there are no delegators, return the previous merkle data for delegators
-  if (delegatorCount === 0) {
-    console.log("No Stake Dao delegators found in current distribution. Using previous merkle data for delegators.");
+  if (delegators.length === 0) {
+    console.log("No delegators found in current distribution. Using previous merkle data for delegators.");
     return previousMerkleData;
   }
 
-  // If there are delegators, proceed with generating new merkle tree
-  console.log("Generating new merkle tree for delegators...");
-
-  // Step 1: Get the total sdCRV transfer amount and block number
+  // Step 1: Get the total sdCRV transfer amount
   const sdCrvTransfer = await getSdCrvTransfer(minBlock, maxBlock);
   const totalSdCrv = sdCrvTransfer.amount;
-  const transferBlock = sdCrvTransfer.blockNumber;
 
-  // Step 2: Get all unique tokens from delegators
-  const uniqueTokens = new Set<string>();
-  Object.values(distribution).forEach((data) => {
-    if (
-      typeof data === "object" &&
-      "isStakeDelegator" in data &&
-      data.isStakeDelegator
-    ) {
-      Object.keys(data.tokens || {}).forEach((token) =>
-        uniqueTokens.add(token)
-      );
-    }
-  });
+  console.log(`Total sdCRV amount to distribute: ${totalSdCrv.toString()}`);
 
-  // Step 3: Get token transfers out and WETH transfers in at the transfer block
-  const tokenTransfers = await Promise.all(
-    Array.from(uniqueTokens).map((token) =>
-      getTokenTransfersOut(1, token, transferBlock)
-    )
-  );
-  const wethTransfers = await getWethTransfersIn(1, transferBlock);
+  // Step 2: Calculate sdCRV amounts for each delegator based on their shares
+  const delegatorDistribution: { [address: string]: { [tokenAddress: string]: string } } = {};
 
-  // Step 4: Match token transfers with WETH transfers to get WETH values
-  const flattenedTokenTransfers = tokenTransfers.flat();
-  const tokenWethValues = matchTokensWithWeth(
-    flattenedTokenTransfers,
-    wethTransfers
-  );
-
-  // Step 5: Calculate sdCRV shares for each token based on WETH values
-  const tokenSdCrvShares = calculateTokenSdCrvShares(
-    tokenWethValues,
-    totalSdCrv
-  );
-
-  // Step 6: Calculate sdCRV amounts for each delegator based on their token holdings
-
-  // First, calculate total amounts for each token across all delegators
-  const tokenTotals: { [tokenAddress: string]: bigint } = {};
-  const delegatorShares: {
-    [address: string]: { [tokenAddress: string]: bigint };
-  } = {};
-
-  Object.entries(distribution.distribution).forEach(([address, data]) => {
-    if (
-      typeof data === "object" &&
-      "isStakeDelegator" in data &&
-      data.isStakeDelegator
-    ) {
-      delegatorShares[address] = {};
-      Object.entries(data.tokens || {}).forEach(([tokenAddress, amount]) => {
-        const tokenAmount = BigInt(Math.floor(amount * 1e18)); // Convert to wei
-        delegatorShares[address][tokenAddress] = tokenAmount;
-        tokenTotals[tokenAddress] =
-          (tokenTotals[tokenAddress] || BigInt(0)) + tokenAmount;
-      });
-    }
-  });
-
-  const delegatorDistribution: {
-    [address: string]: { [tokenAddress: string]: string };
-  } = {};
-
-  Object.entries(delegatorShares).forEach(([address, tokens]) => {
-    let totalSdCrvShare = BigInt(0);
-
-    Object.entries(tokens).forEach(([tokenAddress, amount]) => {
-      if (tokenSdCrvShares[tokenAddress] && tokenTotals[tokenAddress]) {
-        const tokenShare = (amount) / tokenTotals[tokenAddress]; // Calculate share with 18 decimals precision
-        const sdCrvShare = tokenSdCrvShares[tokenAddress] * tokenShare;
-        totalSdCrvShare += sdCrvShare;
-      }
-    });
-
-    if (totalSdCrvShare > BigInt(0)) {
+  delegators.forEach(([address, data]) => {
+    const share = parseFloat(data.share!);
+    const sdCrvAmount = (totalSdCrv * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
+    
+    if (sdCrvAmount > 0n) {
       delegatorDistribution[address] = {
-        [SPACES_TOKENS[SDCRV_SPACE]]: totalSdCrvShare.toString(),
+        [SPACES_TOKENS[SDCRV_SPACE]]: sdCrvAmount.toString()
       };
     }
   });
 
-  // Step 7: Merge previous merkle data with new delegator distribution
+  // Step 3: Merge with previous merkle data
   if (previousMerkleData && previousMerkleData.claims) {
     Object.entries(previousMerkleData.claims).forEach(
       ([address, claimData]: [string, any]) => {
@@ -180,7 +110,7 @@ async function generateDelegatorMerkleTree(
     );
   }
 
-  // Step 8: Generate Merkle tree for delegators using the calculated sdCRV amounts
+  // Step 4: Generate Merkle tree
   return generateMerkleTree(delegatorDistribution);
 }
 
@@ -200,13 +130,22 @@ async function generateMerkles() {
     currentPeriodTimestamp
   );
 
-  // Step 1: Load current distribution data
+  // Step 1: Load distributions
   const currentDistributionPath = path.join(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/repartition.json`
   );
-  const currentDistribution: Distribution = JSON.parse(
+  const currentDistribution: { distribution: Distribution } = JSON.parse(
     fs.readFileSync(currentDistributionPath, "utf-8")
+  );
+
+  // Load delegation distribution data with new format
+  const delegationDistributionPath = path.join(
+    __dirname,
+    `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/repartition_delegation.json`
+  );
+  const delegationDistribution: { distribution: DelegationDistribution } = JSON.parse(
+    fs.readFileSync(delegationDistributionPath, "utf-8")
   );
 
   // Step 2: Load previous merkle data (if exists)
@@ -365,11 +304,11 @@ async function generateMerkles() {
 
   const nonDelegatorMerkleData = generateMerkleTree(nonDelegatorDistribution);
 
-  // Step 6: Generate Merkle tree for delegators
+  // Step 6: Generate Merkle tree for delegators with new format
   const delegatorMerkleData = await generateDelegatorMerkleTree(
     minBlock,
     currentBlock,
-    currentDistribution,
+    delegationDistribution.distribution,
     previousMerkleData.delegators
   );
 

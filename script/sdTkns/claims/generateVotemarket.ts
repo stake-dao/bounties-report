@@ -49,7 +49,7 @@ async function generateVotemarketBounties(pastWeek: number = 0) {
     VOTEMARKET_PLATFORM_CONFIGS
   );
 
-  const rootDir = path.resolve(__dirname, "../..");
+  const rootDir = path.resolve(__dirname, "../../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });

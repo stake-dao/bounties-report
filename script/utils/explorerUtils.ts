@@ -53,7 +53,7 @@ class BlockchainExplorerUtils {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 900000);
 
         const response = await rateLimiter.add(() => 
           fetch(url, { 

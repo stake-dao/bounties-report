@@ -35,14 +35,50 @@ interface CSVRow {
 }
 
 async function fetchClaimedBounties(): Promise<ClaimedBounties> {
-  const claimedBountiesPath = `weekly-bounties/${currentPeriod}/claimed_bounties_convex.json`;
-  const rawData = fs.readFileSync(claimedBountiesPath, "utf8");
-  return JSON.parse(rawData, (key, value) => {
-    if (key === "amount") {
-      return BigInt(value);
-    }
-    return value;
-  });
+  const votemarketPath = `weekly-bounties/${currentPeriod}/votemarket/claimed_bounties_convex.json`;
+  const votemarketV2Path = `weekly-bounties/${currentPeriod}/votemarket-v2/claimed_bounties_convex.json`;
+
+  let votemarketBounties;
+  let votemarketV2Bounties;
+
+  try {
+    const votemarketData = fs.readFileSync(votemarketPath, "utf8");
+    votemarketBounties = JSON.parse(votemarketData, (key, value) => {
+      if (key === "amount") {
+        return BigInt(value);
+      }
+      return value;
+    });
+  } catch (error) {
+    console.warn(
+      `Warning: Could not find votemarket bounties file at ${votemarketPath}`
+    );
+  }
+
+  try {
+    const votemarketV2Data = fs.readFileSync(votemarketV2Path, "utf8");
+    votemarketV2Bounties = JSON.parse(votemarketV2Data, (key, value) => {
+      if (key === "amount") {
+        return BigInt(value);
+      }
+      return value;
+    });
+  } catch (error) {
+    console.warn(
+      `Warning: Could not find votemarket v2 bounties file at ${votemarketV2Path}`
+    );
+  }
+
+  if (!votemarketBounties && !votemarketV2Bounties) {
+    throw new Error(
+      "Neither votemarket nor votemarket v2 bounties files were found"
+    );
+  }
+
+  return {
+    votemarket: votemarketBounties,
+    votemarket_v2: votemarketV2Bounties,
+  };
 }
 
 async function fetchAllTokenInfos(
@@ -63,8 +99,18 @@ async function fetchAllTokenInfos(
 
 async function generateReport() {
   const claimedBounties = await fetchClaimedBounties();
-  const curveBounties = Object.values(claimedBounties.votemarket.curve);
-  const curveV2Bounties = Object.values(claimedBounties.votemarket_v2.curve);
+
+  // If both not present, error. If one present, continue with that one.
+  if (!claimedBounties.votemarket && !claimedBounties.votemarket_v2) {
+    throw new Error("Both votemarket and votemarket v2 bounties are missing");
+  }
+
+  const curveBounties = claimedBounties.votemarket?.curve 
+    ? Object.values(claimedBounties.votemarket.curve)
+    : [];
+  const curveV2Bounties = claimedBounties.votemarket_v2?.curve
+    ? Object.values(claimedBounties.votemarket_v2.curve) 
+    : [];
 
   const allTokens = new Set<string>([
     ...curveBounties.map((bounty) => "1:" + bounty.rewardToken),
@@ -89,7 +135,7 @@ async function generateReport() {
 
     rows.push({
       chainId: tokenInfo.chainId,
-      gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "Unknown",
+      gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "Unknown", 
       gaugeAddress: bounty.gauge,
       rewardToken: tokenInfo.symbol,
       rewardAddress: bounty.rewardToken,

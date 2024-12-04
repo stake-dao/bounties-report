@@ -1,6 +1,7 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
-import { CVX_SPACE, WEEK, DELEGATION_ADDRESS } from "../utils/constants";
+import { CVX_SPACE, WEEK, DELEGATION_ADDRESS, SD_FRAX_DELEG_TEST
+} from "../utils/constants";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
@@ -29,25 +30,29 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
   const totalsDistribution: Record<string, bigint> = {};
   const totalsReport: Record<string, bigint> = {};
 
+  console.log("Distribution:", distribution);
+  console.log("Report:", report);
+
   // Calculate totals for distribution
   Object.values(distribution).forEach(({ tokens }) => {
     Object.entries(tokens).forEach(([tokenAddress, amount]) => {
-      totalsDistribution[tokenAddress] =
-        (totalsDistribution[tokenAddress] || BigInt(0)) + BigInt(amount);
+      totalsDistribution[tokenAddress.toLowerCase()] =
+        (totalsDistribution[tokenAddress.toLowerCase()] || BigInt(0)) + BigInt(amount);
     });
   });
 
   // Calculate totals for report
-  Object.values(report).forEach(({ rewardAddress, rewardAmount }) => {
-    totalsReport[rewardAddress.toLowerCase()] =
-      (totalsReport[rewardAddress.toLowerCase()] || BigInt(0)) + rewardAmount;
+  Object.entries(report).forEach(([_, rewardInfos]) => {
+    rewardInfos.forEach(({ rewardAddress, rewardAmount }) => {
+      const address = rewardAddress.toLowerCase();
+      totalsReport[address] = (totalsReport[address] || BigInt(0)) + rewardAmount;
+    });
   });
 
   // Compare totals and normalize small differences
   Object.entries(totalsDistribution).forEach(
     ([tokenAddress, distributionAmount]) => {
-      const reportAmount =
-        totalsReport[tokenAddress.toLowerCase()] || BigInt(0);
+      const reportAmount = totalsReport[tokenAddress.toLowerCase()] || BigInt(0);
       const diff = distributionAmount - reportAmount;
 
       if (diff > 0 && diff < BigInt(0.00000000001)) {
@@ -61,9 +66,10 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
         let maxAmount = BigInt(0);
 
         Object.entries(distribution).forEach(([voter, { tokens }]) => {
-          if (tokens[tokenAddress] && tokens[tokenAddress] > maxAmount) {
+          const tokenAmount = BigInt(tokens[tokenAddress] || 0);
+          if (tokenAmount > maxAmount) {
             maxVoter = voter;
-            maxAmount = tokens[tokenAddress];
+            maxAmount = tokenAmount;
           }
         });
 
@@ -86,73 +92,63 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
   console.log("Report totals:", totalsReport);
 };
 
-// TODO : just compute vp for each stake dao delegator. And we will use that share for sdCRV repartition
 // For stake dao delegators, we want to distribute the rewards to the delegators, not to the voter
 const computeStakeDaoDelegation = async (
   proposal: any,
   stakeDaoDelegators: string[],
-  tokens: Record<string, bigint>
-) => {
-  const delegationDistribution: Distribution = {};
+  tokens: Record<string, bigint>,
+  delegationVoter: string
+): Promise<Record<string, { isStakeDelegator: boolean; tokens: Record<string, bigint> } | { isStakeDelegator: boolean; share: string }>> => {
+  const delegationDistribution: Record<string, { isStakeDelegator: boolean; tokens: Record<string, bigint> } | { isStakeDelegator: boolean; share: string }> = {};
 
+  // Store original delegator's distribution with full token amounts
+  delegationDistribution[delegationVoter] = {
+    isStakeDelegator: false,
+    tokens: { ...tokens }
+  };
+
+  // Get voting power for all delegators
   const vps = await getVotingPower(proposal, stakeDaoDelegators);
 
   // Compute the total vp with 18 decimals precision
-  const totalVpBigInt = BigInt(
-    Math.floor(Object.values(vps).reduce((acc, vp) => acc + vp, 0) * 1e18)
-  );
+  const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
 
-  // Process each token
-  Object.entries(tokens).forEach(([token, amount]) => {
-    let remainingRewards = BigInt(Math.floor(amount));
-    let processedDelegators = 0;
-    const totalDelegators = stakeDaoDelegators.length;
-
-    // Distribute rewards to each delegator
-    stakeDaoDelegators.forEach((delegator) => {
-      processedDelegators++;
-      const delegatorVp = vps[delegator] || 0;
-      const delegatorVpBigInt = BigInt(Math.floor(delegatorVp * 1e18));
-
-      let delegatorReward: bigint;
-      if (processedDelegators === totalDelegators) {
-        // Last delegator gets remaining rewards to avoid dust
-        delegatorReward = remainingRewards;
-      } else {
-        // Calculate proportional amount
-        delegatorReward =
-          (BigInt(Math.floor(amount)) * delegatorVpBigInt) / totalVpBigInt;
-        remainingRewards -= delegatorReward;
-      }
-
-      if (delegatorReward > 0n) {
-        if (!delegationDistribution[delegator]) {
-          delegationDistribution[delegator] = {
-            isStakeDelegator: true,
-            tokens: {},
-          };
-        }
-        delegationDistribution[delegator].tokens[token] =
-          (delegationDistribution[delegator].tokens[token] || 0) +
-          Number(delegatorReward);
-      }
-    });
-  });
-
-  // Verify total distribution matches original amount
-  Object.entries(tokens).forEach(([token, originalAmount]) => {
-    const distributedAmount = Object.values(delegationDistribution).reduce(
-      (acc, { tokens }) => acc + (tokens[token] || 0),
-      0
-    );
-    if (Math.abs(originalAmount - distributedAmount) > 0.000000001) {
-      throw new Error(
-        `Warning: Distribution mismatch for token ${token}. Original: ${originalAmount}, Distributed: ${distributedAmount}`
-      );
+  // Store share for each delegator
+  stakeDaoDelegators.forEach((delegator) => {
+    const delegatorVp = vps[delegator] || 0;
+    if (delegatorVp > 0) {
+      const share = (delegatorVp / totalVp).toString(); // Store share as decimal string
+      delegationDistribution[delegator] = {
+        isStakeDelegator: true,
+        share
+      };
     }
   });
 
   return delegationDistribution;
+};
+
+// Convert delegation distribution to JSON-friendly format
+const convertDelegationToJsonFormat = (dist: Record<string, { isStakeDelegator: boolean; tokens?: Record<string, bigint>; share?: string }>) => {
+  return Object.entries(dist).reduce((acc, [address, data]) => {
+    if ('tokens' in data) {
+      // Handle original delegator with tokens
+      acc[address] = {
+        isStakeDelegator: data.isStakeDelegator,
+        tokens: Object.entries(data.tokens!).reduce((tokenAcc, [token, amount]) => {
+          tokenAcc[token] = amount.toString(); // Convert BigInt to string
+          return tokenAcc;
+        }, {} as Record<string, string>)
+      };
+    } else {
+      // Handle delegators with shares
+      acc[address] = {
+        isStakeDelegator: data.isStakeDelegator,
+        share: data.share
+      };
+    }
+    return acc;
+  }, {} as Record<string, any>);
 };
 
 const main = async () => {
@@ -218,6 +214,7 @@ const main = async () => {
       }
     }
 
+    console.log('stakeDaoDelegators', stakeDaoDelegators);
   } else {
     console.log("Delegation address is not one of the voters, skipping StakeDAO delegators computation");
   }
@@ -225,9 +222,11 @@ const main = async () => {
   console.log("Distributing rewards...");
   const distribution: Distribution = {};
 
-  Object.entries(csvResult).forEach(([gauge, rewardInfo]) => {
+  Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
     const choiceId = gaugePerChoiceId[gauge.toLowerCase()];
-    console.log("gauge", gauge, "| choiceId", choiceId);
+
+    console.log("Choice:", choiceId, "| Gauge:", gauge.toLowerCase());
+
     if (!choiceId) throw new Error(`Choice ID not found for gauge: ${gauge}`);
 
     let totalVp = 0;
@@ -244,36 +243,41 @@ const main = async () => {
 
     // Convert totalVp to BigInt with 18 decimals precision
     const totalVpBigInt = BigInt(Math.floor(totalVp * 1e18));
-    
-    let remainingRewards = rewardInfo.rewardAmount;
-    let processedVoters = 0;
-    const totalVoters = Object.keys(voterVps).length;
 
-    Object.entries(voterVps).forEach(([voter, vp]) => {
-      processedVoters++;
-      // Convert vp to BigInt with same precision
-      const vpBigInt = BigInt(Math.floor(vp * 1e18));
-      
-      let amount: bigint;
-      if (processedVoters === totalVoters) {
-        // Last voter gets remaining rewards to avoid dust
-        amount = remainingRewards;
-      } else {
-        // Calculate proportional amount
-        amount = (rewardInfo.rewardAmount * vpBigInt) / totalVpBigInt;
-        remainingRewards -= amount;
-      }
+    rewardInfos.forEach(({ rewardAddress, rewardAmount }) => {
+      let remainingRewards = rewardAmount;
+      let processedVoters = 0;
+      const totalVoters = Object.keys(voterVps).length;
 
-      if (amount > 0n) {
-        if (!distribution[voter]) {
-          distribution[voter] = {
-            isStakeDelegator: false,
-            tokens: {},
-          };
+      Object.entries(voterVps).forEach(([voter, vp]) => {
+
+        console.log('voter', voter, 'vp', vp);
+        processedVoters++;
+        // Convert vp to BigInt with same precision
+        const vpBigInt = BigInt(Math.floor(vp * 1e18));
+
+        let amount: bigint;
+        if (processedVoters === totalVoters) {
+          // Last voter gets remaining rewards to avoid dust
+          amount = remainingRewards;
+        } else {
+          // Calculate proportional amount
+          amount = (rewardAmount * vpBigInt) / totalVpBigInt;
+          remainingRewards -= amount;
         }
-        distribution[voter].tokens[rewardInfo.rewardAddress] =
-          (distribution[voter].tokens[rewardInfo.rewardAddress] || 0) + Number(amount);
-      }
+
+        if (amount > 0n) {
+          if (!distribution[voter]) {
+            distribution[voter] = {
+              isStakeDelegator: false,
+              tokens: {},
+            };
+          }
+          // Ensure all operations use BigInt
+          distribution[voter].tokens[rewardAddress] = 
+            (distribution[voter].tokens[rewardAddress] || 0n) + amount;
+        }
+      });
     });
   });
 
@@ -289,67 +293,68 @@ const main = async () => {
     }
   });
 
-
   // Compute StakeDAO delegator rewards
   console.log("Computing StakeDAO delegator rewards...");
-  if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
-    const stakeDaoPromises = Object.entries(distribution).map(async ([voter, { tokens }]) => {
-      if (voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
-        const stakeDaoDelegation = await computeStakeDaoDelegation(proposal, stakeDaoDelegators, tokens);
-        Object.entries(stakeDaoDelegation).forEach(([delegator, { tokens }]) => {
-          if (!distribution[delegator]) {
-            distribution[delegator] = {
-              isStakeDelegator: true,
-              tokens: {},
-            };
-          }
-          distribution[delegator].tokens = { ...distribution[delegator].tokens, ...tokens };
-        });
-        // Remove the original delegatee
-        delete distribution[voter];
-      }
-    });
+  let delegationDistribution: Record<string, { isStakeDelegator: boolean; tokens: Record<string, bigint> } | { isStakeDelegator: boolean; share: string }> = {};
 
-    // Wait for all stake dao computations to complete
-    await Promise.all(stakeDaoPromises);
-  } else {
-    console.log("Skipping StakeDAO delegation computation");
+
+  if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
+    // Find the delegation voter's rewards
+    for (const [voter, { tokens }] of Object.entries(distribution)) {
+      if (voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
+        // Compute delegation distribution
+        delegationDistribution = await computeStakeDaoDelegation(
+          proposal,
+          stakeDaoDelegators,
+          tokens,
+          voter
+        );
+
+        // Remove delegation voter from main distribution
+        delete distribution[voter];
+        break;
+      }
+    }
   }
 
-  // Validate distribution
-  console.log("Validating distribution...");
-  checkDistribution(distribution, csvResult);
-
-  // Calculate and log total tokens distributed
-  const roundToDecimals = (num: number, decimals: number): number => {
-    return Number(num.toFixed(decimals));
+  // Convert distributions to JSON-friendly format for regular distribution
+  const convertToJsonFormat = (dist: Distribution) => {
+    return Object.entries(dist).reduce(
+      (acc, [voter, { isStakeDelegator, tokens }]) => {
+        acc[voter] = {
+          isStakeDelegator,
+          tokens: Object.entries(tokens).reduce((tokenAcc, [token, amount]) => {
+            tokenAcc[token] = amount.toString(); // Convert BigInt to string
+            return tokenAcc;
+          }, {} as Record<string, string>),
+        };
+        return acc;
+      },
+      {} as Record<string, { isStakeDelegator: boolean; tokens: Record<string, string> }>
+    );
   };
 
-  // Calculate and log total tokens distributed
-  const totalTokensDistributed = Object.values(distribution).reduce(
-    (acc, { tokens }) => {
-      Object.entries(tokens).forEach(([token, amount]) => {
-        if (amount) {
-          const roundedAmount = roundToDecimals(amount, 18); // Adjust decimal places as needed
-          acc[token] = roundToDecimals((acc[token] || 0) + roundedAmount, 18);
-        }
-      });
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  console.log("Total tokens distributed:");
-  console.log(totalTokensDistributed);
-
-  // Save distribution to file
-  console.log("Saving distribution to file...");
+  // Save distributions to separate files
+  console.log("Saving distributions to files...");
   const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX`;
   fs.mkdirSync(dirPath, { recursive: true });
+
+  // Save main distribution
   fs.writeFileSync(
-    `${dirPath}/repartition_bis.json`,
-    JSON.stringify({ distribution }, null, 2)
+    `${dirPath}/repartition.json`,
+    JSON.stringify({ distribution: convertToJsonFormat(distribution) }, null, 2)
   );
+
+  // Save delegation distribution if it exists
+  if (Object.keys(delegationDistribution).length > 0) {
+    fs.writeFileSync(
+      `${dirPath}/repartition_delegation.json`,
+      JSON.stringify({ 
+        distribution: convertDelegationToJsonFormat(delegationDistribution) 
+      }, null, 2)
+    );
+  }
+
   console.log("vlCVX repartition generation completed successfully.");
 };
 
