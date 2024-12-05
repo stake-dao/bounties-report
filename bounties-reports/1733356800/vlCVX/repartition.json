@@ -1,0 +1,28 @@
+{
+  "distribution": {
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "8731626999790973477049"
+      }
+    },
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "377697015741806259599"
+      }
+    },
+    "0x5180db0237291A6449DdA9ed33aD90a38787621c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "239115969256960245364"
+      }
+    },
+    "0xAAc0aa431c237C2C0B5f041c8e59B3f1a43aC78F": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "202276669497689983186"
+      }
+    }
+  }
+}
