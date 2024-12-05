@@ -12,7 +12,7 @@ on:
 
 jobs:
   call-weekly-bounties:
-    uses: ./.github/workflows/weekly-bounties.yaml@main
+    uses: ./.github/workflows/weekly-bounties.yaml
     with:
       bountyType: >-
         ${{
