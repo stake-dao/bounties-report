@@ -58,4 +58,7 @@ jobs:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 
       - name: Commit and push changes
-        run: make -f automation/weekly-bounties.mk commit-and-push 
+        run: |
+          BOUNTY_TYPE="${{ inputs.bountyType || github.event.inputs.bountyType }}"
+          CHAIN="${{ inputs.chain || github.event.inputs.chain || 'mainnet' }}"
+          make -f automation/weekly-bounties.mk commit-and-push COMMIT_MSG="Update ${BOUNTY_TYPE} bounties for ${CHAIN}"

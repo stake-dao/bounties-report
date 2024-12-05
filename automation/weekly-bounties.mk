@@ -36,12 +36,12 @@ run-hiddenhand: setup install-deps
 	@$(PNPM) tsx script/sdTkns/claims/generateHiddenHand.ts $(PAST_WEEK)
 
 run-convex: setup install-deps
-	@echo "Running Convex bounty generation..."
+	@echo "Running Convex Votemarket bounty generation..."
 	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarket.ts $(PAST_WEEK)
 
 run-convex-v2: setup install-deps
-	@echo "Running Convex V2 bounty generation..."
-	@$(PNPM) tsx script/vlCVX/claims/generateConvexV2.ts $(PAST_WEEK)
+	@echo "Running Convex Votemarket V2 bounty generation..."
+	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarketV2.ts $(PAST_WEEK)
 
 # BSC specific target
 run-bsc: setup install-deps
@@ -58,7 +58,7 @@ commit-and-push:
 	@git config --global user.name 'GitHub Action'
 	@git config --global user.email 'action@github.com'
 	@git add weekly-bounties
-	@git commit -m "Update weekly bounties" || true
+	@git commit -m "$(COMMIT_MSG)" || true
 	@git push
 
 clean:
