@@ -187,7 +187,7 @@ export const abi = parseAbi([
 ]);
 
 export const clients: Record<number, PublicClient> = {
-  [1]: createPublicClient({ chain: mainnet, transport: http() }),
+  [1]: createPublicClient({ chain: mainnet, transport: http("https://rpc.flashbots.net") }),
   [56]: createPublicClient({ chain: bsc, transport: http() }),
   [10]: createPublicClient({ chain: optimism, transport: http() }),
   [1124]: createPublicClient({ chain: fraxtal, transport: http() }),
