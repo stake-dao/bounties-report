@@ -100,11 +100,6 @@ async function main() {
       args: [BOTMARKET],
     });
 
-    // TODO : Remove this and use sdPendleBalance without dividing by 2
-    console.log("sdPendleBalance", sdPendleBalance)
-
-    sdPendleBalance = sdPendleBalance / BigInt(2);
-
     if (sdPendleBalance === BigInt(0)) {
       console.error("No sdPendle balance found on Botmarket");
       return;
