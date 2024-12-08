@@ -206,16 +206,54 @@ function escapeCSV(field: string): string {
   return field;
 }
 
+async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties> {
+  const paths = {
+    votemarket: `weekly-bounties/${currentPeriod}/votemarket/claimed_bounties.json`,
+    votemarket_v2: `weekly-bounties/${currentPeriod}/votemarket-v2/claimed_bounties.json`,
+    warden: `weekly-bounties/${currentPeriod}/warden/claimed_bounties.json`,
+    hiddenhand: `weekly-bounties/${currentPeriod}/hiddenhand/claimed_bounties.json`,
+  };
+
+  const readJsonFile = (path: string) => {
+    try {
+      return JSON.parse(fs.readFileSync(path, "utf8"));
+    } catch (error) {
+      console.warn(`Warning: Could not read ${path}`, error);
+      return {};
+    }
+  };
+
+  const votemarket = readJsonFile(paths.votemarket);
+  const votemarket_v2 = readJsonFile(paths.votemarket_v2);
+  const warden = readJsonFile(paths.warden);
+  const hiddenhand = readJsonFile(paths.hiddenhand);
+
+  // Filter out unwrapped bounties from v2 if needed
+  const filteredV2 = Object.entries(votemarket_v2).reduce((acc, [key, value]: [string, any]) => {
+    if (value.isWrapped !== false) {  // Keep if isWrapped is true or undefined
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+
+  return {
+    timestamp1: votemarket.timestamp1 || 0,
+    timestamp2: votemarket.timestamp2 || 0,
+    blockNumber1: votemarket.blockNumber1 || 0,
+    blockNumber2: votemarket.blockNumber2 || 0,
+    votemarket,
+    votemarket_v2: filteredV2,
+    warden,
+    hiddenhand,
+  };
+}
+
 async function main() {
   const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
     await getTimestampsBlocks(publicClient, 0);
 
-  const claimedBountiesPath = `weekly-bounties/${currentPeriod}/claimed_bounties.json`;
-  const claimedBounties: ClaimedBounties = JSON.parse(
-    fs.readFileSync(claimedBountiesPath, "utf8")
-  );
-
-  let aggregatedBounties = aggregateBounties(claimedBounties);
+  const totalBounties = await fetchBountiesData(currentPeriod);
+  let aggregatedBounties = aggregateBounties(totalBounties);
   const allTokens = collectAllTokens(aggregatedBounties, PROTOCOLS_TOKENS);
   const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens));
 
