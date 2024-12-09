@@ -205,7 +205,7 @@ const main = async () => {
 
   if (isDelegationAddressVoter) {
     console.log("Delegation address is one of the voters, fetching StakeDAO delegators");
-    stakeDaoDelegators = await processAllDelegators(CVX_SPACE, currentPeriodTimestamp, DELEGATION_ADDRESS);
+    stakeDaoDelegators = await processAllDelegators(CVX_SPACE, proposal.created, DELEGATION_ADDRESS);
 
     // If one of the delegators vote by himself, we need to remove him from the list
     for (const delegator of stakeDaoDelegators) {

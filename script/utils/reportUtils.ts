@@ -475,6 +475,7 @@ export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
 
 interface GaugeInfo {
   name: string;
+  shortName?: string;
   address: string;
   price?: string;
 }
