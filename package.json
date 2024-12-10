@@ -7,6 +7,7 @@
     "bounties": "npx ts-node script/generateWeeklyBounties.ts",
     "sd-merkle": "npx ts-node script/sdTkns/generateMerkle.ts",
     "vlcvx-repartition": "npx ts-node script/vlCVX/generatevlCVXRepartition.ts",
+    "top-cake-airdrop": "pnpm tsx script/top-cake/1_merkles.ts",
     "report": "npx ts-node script/generateWeeklyReport.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

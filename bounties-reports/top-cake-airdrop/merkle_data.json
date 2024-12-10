@@ -1,0 +1,13 @@
+{
+  "merkleRoot": "0x0e253b8515e9ef6a8917ce8e2b2b2b75e8597ddab68d2c7f4de30ec8565acc44",
+  "claims": {
+    "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6": {
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": {
+          "amount": "1",
+          "proof": []
+        }
+      }
+    }
+  }
+}
