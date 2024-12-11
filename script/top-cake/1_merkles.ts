@@ -4,7 +4,7 @@ import {
   generateMerkleTree,
 } from "../vlCVX/utils";
 
-const SDT_ADDRESS = "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f";
+export const SDT_ADDRESS = "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f" as `0x${string}`;
 
 type Airdrop = UserAirdrop[];
 
@@ -17,7 +17,7 @@ interface UsersDistribution {
   [address: string]: { [tokenAddress: string]: string };
 }
 
-async function generateMerkles() {
+export async function generateMerkles() {
 
   // Step 1: Load airdrop distribution
   const airdropPath = path.join(
@@ -47,6 +47,7 @@ async function generateMerkles() {
   fs.writeFileSync(merkleDataPath, JSON.stringify(merkleData, null, 2));
 
   console.log("Merkle trees generated and saved successfully.");
+  return merkleData;
 }
 
 generateMerkles().catch(console.error);

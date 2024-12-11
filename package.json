@@ -8,6 +8,7 @@
     "sd-merkle": "npx ts-node script/sdTkns/generateMerkle.ts",
     "vlcvx-repartition": "npx ts-node script/vlCVX/generatevlCVXRepartition.ts",
     "top-cake-airdrop": "pnpm tsx script/top-cake/1_merkles.ts",
+    "top-cake-airdrop-test": "pnpm tsx script/top-cake/2_test.ts",
     "report": "npx ts-node script/generateWeeklyReport.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
