@@ -1,18 +1,20 @@
 /**
- * Have a fork with the merkle contract funded with required SDT
+ * Have a fork with the merkle contract funded with required SDT (483278354601357121171288 / 483278.354601357121171288 SDT)
  */
-import { createPublicClient, createWalletClient, encodeFunctionData, erc20Abi, http, parseAbi } from "viem";
-import { generateMerkles, SDT_ADDRESS } from "./1_merkles";
+import { createPublicClient, createWalletClient, encodeFunctionData, erc20Abi, formatUnits, http, parseAbi } from "viem";
 import { mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { chunk } from "lodash";
+import { generateMerkles, SDT_ADDRESS } from "./utils";
 
-const FORK_URL = "https://rpc.tenderly.co/fork/171cd8b1-9317-4425-bece-f6ec63a9a57b";
+const FORK_URL = "https://rpc.tenderly.co/fork/4eb1030c-57c6-44d4-9cfe-f4d68b7ac4fc";
 
 // Merkle
 const MERKLE_CONTRACT = "0x14199d5116632318Aba6b4a972f6154101A09Ef0" as `0x${string}`;
 const MERKLE_ABI = parseAbi([
     'function setRoot(bytes32,bytes32) external',
     'function claim(address,address,uint256,bytes32[]) external',
+    'function multicall(bytes[]) external',
 ])
 const DEFAULT_IPFS = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
 
@@ -46,7 +48,7 @@ const runTest = async () => {
         args: [merkleData.merkleRoot as `0x${string}`, DEFAULT_IPFS]
     })
 
-    const hash = await client.sendTransaction({
+    let hash = await client.sendTransaction({
         account: address,
         to: MERKLE_CONTRACT,
         data: setRootData,
@@ -73,6 +75,7 @@ const runTest = async () => {
     });
 
     // Claim for all users
+    const claimDatas: `0x${string}`[] = [];
     for (const userAddress of userAddresses) {
         const claimData = encodeFunctionData({
             abi: MERKLE_ABI,
@@ -80,16 +83,26 @@ const runTest = async () => {
             args: [userAddress, SDT_ADDRESS, BigInt(merkleData.claims[userAddress].tokens[SDT_ADDRESS].amount), merkleData.claims[userAddress].tokens[SDT_ADDRESS].proof as `0x${string}`[]]
         })
 
-        const hash = await client.sendTransaction({
+        claimDatas.push(claimData)
+    }
+
+    const claimChunks = chunk(claimDatas, 200)
+    for (const claimChunk of claimChunks) {
+        const multiClaimData = encodeFunctionData({
+            abi: MERKLE_ABI,
+            functionName: 'multicall',
+            args: [claimChunk]
+        })
+        hash = await client.sendTransaction({
             account: address,
             to: MERKLE_CONTRACT,
-            data: claimData,
+            data: multiClaimData,
             chain: mainnet
         });
 
         const transaction = await publicClient.waitForTransactionReceipt({ hash });
         if (transaction.status === 'reverted') {
-            throw new Error(`Claim for user ${userAddress} reverted`);
+            throw new Error(`Multicall claim reverted`);
         }
     }
 
@@ -123,6 +136,20 @@ const runTest = async () => {
     }
 
     console.log("All claim done !")
+
+    // Check if the merkle SDT balance if equals to 0
+    const sdtMerkleBalance = await publicClient.readContract({
+        address: SDT_ADDRESS,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [MERKLE_CONTRACT]
+    });
+
+    if (sdtMerkleBalance > BigInt(10 ** 18)) {
+        throw new Error(`Error - still more than 1 SDT in the merkle contract`);
+    } else {
+        console.log(`Merkle SDT balance : ${formatUnits(sdtMerkleBalance, 18)}`)
+    }
     process.exit(0)
 };
 
