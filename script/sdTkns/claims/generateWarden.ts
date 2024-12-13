@@ -59,8 +59,6 @@ async function generateWardenBounties(pastWeek: number = 0) {
     warden[protocol] = wardenBounties[path];
   }
 
-  const weeklyBounties = { warden };
-
   const rootDir = path.resolve(__dirname, "../../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
   if (!fs.existsSync(weeklyBountiesDir)) {
@@ -73,7 +71,7 @@ async function generateWardenBounties(pastWeek: number = 0) {
   }
 
   const fileName = path.join(periodFolder, "claimed_bounties.json");
-  const jsonString = JSON.stringify(weeklyBounties, customReplacer, 2);
+  const jsonString = JSON.stringify(warden, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
   console.log(`Warden weekly claims saved to ${fileName}`);
 }
