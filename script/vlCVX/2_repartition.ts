@@ -1,6 +1,10 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
-import { CVX_SPACE, WEEK, DELEGATION_ADDRESS, SD_FRAX_DELEG_TEST
+import {
+  CVX_SPACE,
+  WEEK,
+  DELEGATION_ADDRESS,
+  SD_FRAX_DELEG_TEST,
 } from "../utils/constants";
 import {
   associateGaugesPerId,
@@ -37,7 +41,8 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
   Object.values(distribution).forEach(({ tokens }) => {
     Object.entries(tokens).forEach(([tokenAddress, amount]) => {
       totalsDistribution[tokenAddress.toLowerCase()] =
-        (totalsDistribution[tokenAddress.toLowerCase()] || BigInt(0)) + BigInt(amount);
+        (totalsDistribution[tokenAddress.toLowerCase()] || BigInt(0)) +
+        BigInt(amount);
     });
   });
 
@@ -45,14 +50,16 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
   Object.entries(report).forEach(([_, rewardInfos]) => {
     rewardInfos.forEach(({ rewardAddress, rewardAmount }) => {
       const address = rewardAddress.toLowerCase();
-      totalsReport[address] = (totalsReport[address] || BigInt(0)) + rewardAmount;
+      totalsReport[address] =
+        (totalsReport[address] || BigInt(0)) + rewardAmount;
     });
   });
 
   // Compare totals and normalize small differences
   Object.entries(totalsDistribution).forEach(
     ([tokenAddress, distributionAmount]) => {
-      const reportAmount = totalsReport[tokenAddress.toLowerCase()] || BigInt(0);
+      const reportAmount =
+        totalsReport[tokenAddress.toLowerCase()] || BigInt(0);
       const diff = distributionAmount - reportAmount;
 
       if (diff > 0 && diff < BigInt(0.00000000001)) {
@@ -98,13 +105,23 @@ const computeStakeDaoDelegation = async (
   stakeDaoDelegators: string[],
   tokens: Record<string, bigint>,
   delegationVoter: string
-): Promise<Record<string, { isStakeDelegator: boolean; tokens: Record<string, bigint> } | { isStakeDelegator: boolean; share: string }>> => {
-  const delegationDistribution: Record<string, { isStakeDelegator: boolean; tokens: Record<string, bigint> } | { isStakeDelegator: boolean; share: string }> = {};
+): Promise<
+  Record<
+    string,
+    | { isStakeDelegator: boolean; tokens: Record<string, bigint> }
+    | { isStakeDelegator: boolean; share: string }
+  >
+> => {
+  const delegationDistribution: Record<
+    string,
+    | { isStakeDelegator: boolean; tokens: Record<string, bigint> }
+    | { isStakeDelegator: boolean; share: string }
+  > = {};
 
   // Store original delegator's distribution with full token amounts
   delegationDistribution[delegationVoter] = {
     isStakeDelegator: false,
-    tokens: { ...tokens }
+    tokens: { ...tokens },
   };
 
   // Get voting power for all delegators
@@ -120,7 +137,7 @@ const computeStakeDaoDelegation = async (
       const share = (delegatorVp / totalVp).toString(); // Store share as decimal string
       delegationDistribution[delegator] = {
         isStakeDelegator: true,
-        share
+        share,
       };
     }
   });
@@ -129,22 +146,34 @@ const computeStakeDaoDelegation = async (
 };
 
 // Convert delegation distribution to JSON-friendly format
-const convertDelegationToJsonFormat = (dist: Record<string, { isStakeDelegator: boolean; tokens?: Record<string, bigint>; share?: string }>) => {
+const convertDelegationToJsonFormat = (
+  dist: Record<
+    string,
+    {
+      isStakeDelegator: boolean;
+      tokens?: Record<string, bigint>;
+      share?: string;
+    }
+  >
+) => {
   return Object.entries(dist).reduce((acc, [address, data]) => {
-    if ('tokens' in data) {
+    if ("tokens" in data) {
       // Handle original delegator with tokens
       acc[address] = {
         isStakeDelegator: data.isStakeDelegator,
-        tokens: Object.entries(data.tokens!).reduce((tokenAcc, [token, amount]) => {
-          tokenAcc[token] = amount.toString(); // Convert BigInt to string
-          return tokenAcc;
-        }, {} as Record<string, string>)
+        tokens: Object.entries(data.tokens!).reduce(
+          (tokenAcc, [token, amount]) => {
+            tokenAcc[token] = amount.toString(); // Convert BigInt to string
+            return tokenAcc;
+          },
+          {} as Record<string, string>
+        ),
       };
     } else {
       // Handle delegators with shares
       acc[address] = {
         isStakeDelegator: data.isStakeDelegator,
-        share: data.share
+        share: data.share,
       };
     }
     return acc;
@@ -170,17 +199,13 @@ const main = async () => {
   if (!csvResult) throw new Error("No CSV report found");
 
   // Log total rewards per token in CSV
-  const totalPerToken = Object.values(csvResult).reduce(
-    (acc, rewardArray) => {
-      rewardArray.forEach(({ rewardAddress, rewardAmount }) => {
-        acc[rewardAddress] = (acc[rewardAddress] || BigInt(0)) + rewardAmount;
-      });
-      return acc;
-    },
-    {} as Record<string, bigint>
-  );
+  const totalPerToken = Object.values(csvResult).reduce((acc, rewardArray) => {
+    rewardArray.forEach(({ rewardAddress, rewardAmount }) => {
+      acc[rewardAddress] = (acc[rewardAddress] || BigInt(0)) + rewardAmount;
+    });
+    return acc;
+  }, {} as Record<string, bigint>);
   console.log("Total rewards per token in CSV:", totalPerToken);
-
 
   // Fetch proposal and votes
   console.log("Fetching proposal and votes...");
@@ -200,45 +225,105 @@ const main = async () => {
   // Fetch StakeDAO delegators
   console.log("Fetching StakeDAO delegators...");
   // Only if delegation address is one of the voters
-  const isDelegationAddressVoter = votes.some((voter) => voter.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
+  const isDelegationAddressVoter = votes.some(
+    (voter) => voter.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
+  );
   let stakeDaoDelegators: string[] = [];
 
   if (isDelegationAddressVoter) {
-    console.log("Delegation address is one of the voters, fetching StakeDAO delegators");
-    stakeDaoDelegators = await processAllDelegators(CVX_SPACE, proposal.created, DELEGATION_ADDRESS);
+    console.log(
+      "Delegation address is one of the voters, fetching StakeDAO delegators"
+    );
+    stakeDaoDelegators = await processAllDelegators(
+      CVX_SPACE,
+      proposal.created,
+      DELEGATION_ADDRESS
+    );
 
     // If one of the delegators vote by himself, we need to remove him from the list
     for (const delegator of stakeDaoDelegators) {
-      if (votes.some((voter) => voter.voter.toLowerCase() === delegator.toLowerCase())) {
-        stakeDaoDelegators = stakeDaoDelegators.filter((d) => d.toLowerCase() !== delegator.toLowerCase());
+      if (
+        votes.some(
+          (voter) => voter.voter.toLowerCase() === delegator.toLowerCase()
+        )
+      ) {
+        stakeDaoDelegators = stakeDaoDelegators.filter(
+          (d) => d.toLowerCase() !== delegator.toLowerCase()
+        );
       }
     }
 
-    console.log('stakeDaoDelegators', stakeDaoDelegators);
+    console.log("stakeDaoDelegators", stakeDaoDelegators);
   } else {
-    console.log("Delegation address is not one of the voters, skipping StakeDAO delegators computation");
+    console.log(
+      "Delegation address is not one of the voters, skipping StakeDAO delegators computation"
+    );
   }
   // Distribute rewards
   console.log("Distributing rewards...");
   const distribution: Distribution = {};
 
+  const vps = await getVotingPower(
+    proposal,
+    votes.map((v) => v.voter),
+    1
+  );
+
+  console.log(vps);
+
   Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
     const choiceId = gaugePerChoiceId[gauge.toLowerCase()];
-
-    console.log("Choice:", choiceId, "| Gauge:", gauge.toLowerCase());
 
     if (!choiceId) throw new Error(`Choice ID not found for gauge: ${gauge}`);
 
     let totalVp = 0;
+
     const voterVps: Record<string, number> = {};
 
+    // First calculate total VP for the gauge
     votes.forEach((voter) => {
-      const weight = voter.choice[choiceId.toString()];
-      if (!weight) return;
+      let vpChoiceSum = 0;
+      let currentChoiceIndex = 0;
 
-      const vp = weight * voter.vp;
-      totalVp += vp;
-      voterVps[voter.voter] = vp;
+      for (const choiceIndex of Object.keys(voter.choice)) {
+        if (choiceId === parseInt(choiceIndex)) {
+          currentChoiceIndex = voter.choice[choiceIndex];
+        }
+        vpChoiceSum += voter.choice[choiceIndex];
+      }
+
+      if (currentChoiceIndex === 0) {
+        return;
+      }
+
+      const ratio = currentChoiceIndex * 100 / vpChoiceSum;
+      totalVp += (voter.vp * ratio) / 100;
+    });
+
+    if (choiceId === 27) {
+      console.log("totalVp", totalVp);
+    }
+
+    // Then calculate each voter's share based on the total VP
+    votes.forEach((voter) => {
+      let vpChoiceSum = 0;
+      let currentChoiceIndex = 0;
+
+      for (const choiceIndex of Object.keys(voter.choice)) {
+        if (choiceId === parseInt(choiceIndex)) {
+          currentChoiceIndex = voter.choice[choiceIndex];
+        }
+        vpChoiceSum += voter.choice[choiceIndex];
+      }
+
+      if (currentChoiceIndex === 0) {
+        return;
+      }
+
+      const ratio = currentChoiceIndex * 100 / vpChoiceSum;
+      const voterShare = (voter.vp * ratio) / 100;
+      // Store the voter's share of the total VP
+      voterVps[voter.voter] = voterShare / totalVp;
     });
 
     // Convert totalVp to BigInt with 18 decimals precision
@@ -249,20 +334,16 @@ const main = async () => {
       let processedVoters = 0;
       const totalVoters = Object.keys(voterVps).length;
 
-      Object.entries(voterVps).forEach(([voter, vp]) => {
-
-        console.log('voter', voter, 'vp', vp);
+      Object.entries(voterVps).forEach(([voter, share]) => {
         processedVoters++;
-        // Convert vp to BigInt with same precision
-        const vpBigInt = BigInt(Math.floor(vp * 1e18));
 
         let amount: bigint;
         if (processedVoters === totalVoters) {
           // Last voter gets remaining rewards to avoid dust
           amount = remainingRewards;
         } else {
-          // Calculate proportional amount
-          amount = (rewardAmount * vpBigInt) / totalVpBigInt;
+          // Simply multiply rewardAmount by the share
+          amount = rewardAmount * BigInt(Math.floor(share * 1e18)) / BigInt(1e18);
           remainingRewards -= amount;
         }
 
@@ -273,7 +354,6 @@ const main = async () => {
               tokens: {},
             };
           }
-          // Ensure all operations use BigInt
           distribution[voter].tokens[rewardAddress] = 
             (distribution[voter].tokens[rewardAddress] || 0n) + amount;
         }
@@ -330,7 +410,10 @@ const main = async () => {
         };
         return acc;
       },
-      {} as Record<string, { isStakeDelegator: boolean; tokens: Record<string, string> }>
+      {} as Record<
+        string,
+        { isStakeDelegator: boolean; tokens: Record<string, string> }
+      >
     );
   };
 
@@ -354,7 +437,6 @@ const main = async () => {
       }, null, 2)
     );
   }
-
   console.log("vlCVX repartition generation completed successfully.");
 };
 
