@@ -1,0 +1,14 @@
+{
+  "distribution": {
+    "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": "248694078773535841820151"
+      }
+    },
+    "0xf930ebbd05ef8b25b1797b9b2109ddc9b0d43063": {
+      "isStakeDelegator": true,
+      "share": "1"
+    }
+  }
+}
