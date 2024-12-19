@@ -1,6 +1,6 @@
 import { formatUnits, parseEther } from "viem";
 import { BigNumber, utils } from "ethers";
-import { AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
+import { AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SDPENDLE_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
 import { formatVotingPowerResult, getProposal, getVoters, getVotingPower } from "./snapshot";
 import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getAllAccountClaimedSinceLastFreeze, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower } from "./utils";
 import { Log, MerkleStat } from "./types";
@@ -9,7 +9,6 @@ import keccak256 from "keccak256";
 import { processAllDelegators } from "./cacheUtils";
 
 export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any): Promise<MerkleStat> => {
-
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
     const logs: Log[] = [];

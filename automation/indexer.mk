@@ -25,6 +25,7 @@ commit-and-push:
 	@git config --global user.name 'GitHub Action'
 	@git config --global user.email 'action@github.com'
 	@git add data/delegations/*
+	@git pull --rebase origin main
 	@git commit -m "Update delegation data" || true
 	@git push
 
