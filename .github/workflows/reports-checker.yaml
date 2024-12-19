@@ -1,0 +1,41 @@
+name: "[sdTokens] Reports checker"
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+        - Check reports
+        default: 'Check reports'
+  repository_dispatch:
+    types: [trigger-reports-checker]
+
+jobs:
+  check-reports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20.5.1"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.3
+
+      - name: Install node dependencies
+        run: pnpm install
+
+      - name: Run reportVerifier script
+        run: pnpm tsx script/repartition/sdTkns/reportVerifier.ts
+        env:
+          TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

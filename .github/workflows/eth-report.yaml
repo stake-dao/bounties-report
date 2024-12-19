@@ -1,0 +1,86 @@
+name: "[sdTokens] Generate weekly and OTC reports"
+
+on:
+  workflow_dispatch:
+    inputs:
+      actions:
+        description: 'Actions to perform'
+        required: true
+        type: choice
+        options:
+        - Generate Ethereum reports
+        - Generate OTCS reports
+        default: 'Ethereum'
+  schedule:
+    - cron: "0 0 * * 0" # Runs every Sunday at 00:00 UTC
+
+jobs:
+  generate-reports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        env:
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20.5.1"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.3
+
+      - name: Install node dependencies
+        run: pnpm install
+
+      - name: Set actions
+        id: set-actions
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "actions=Generate Ethereum reports" >> $GITHUB_OUTPUT
+          else
+            echo "actions=${{ github.event.inputs.actions }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run generateWeeklyReport (all except Pendle) script
+        if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
+        run: |
+          pnpm tsx script/reports/generateReport.ts
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
+
+      - name: Run generatePendleReport script
+        if: contains(steps.set-actions.outputs.actions, 'Generate Ethereum reports')
+        run: |
+          pnpm tsx script/reports/generatePendleReport.ts
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
+
+      - name: Run generateOTCReport script
+        if: contains(steps.set-actions.outputs.actions, 'Generate OTCS reports')
+        run: |
+          pnpm tsx script/reports/generateOTCReport.ts
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add .
+          git commit -m "Update weekly bounties and OTC reports" || exit 0
+          git push
+
+      - name: Trigger reports-checker workflow
+        run: |
+          curl -X POST -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          https://api.github.com/repos/${{ github.repository }}/dispatches \
+          -d '{"event_type": "trigger-reports-checker"}'

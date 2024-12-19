@@ -1,0 +1,18 @@
+# Directories
+node_modules/
+tmp/
+venv/
+.nodeenv/
+temp/
+artifacts/
+cache/
+
+# Files
+.DS_Store
+.env
+.vscode/settings.json
+solidity-files-cache.json
+
+# Patterns
+*lock*
+cache/hardhat-*

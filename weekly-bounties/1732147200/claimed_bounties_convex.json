@@ -1,0 +1,38 @@
+{
+  "timestamp1": 1732147200,
+  "timestamp2": 1732724675,
+  "blockNumber1": 0,
+  "blockNumber2": 0,
+  "votemarket": {
+    "curve": {
+      "0": {
+        "bountyId": "16",
+        "gauge": "0xa40C1E9aA3781c74c437212cd0353eAAB3EBBa6F",
+        "amount": "119557984628479776777",
+        "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F"
+      }
+    }
+  },
+  "votemarket_v2": {
+    "curve": {
+      "0": {
+        "chainId": 42161,
+        "bountyId": "0",
+        "gauge": "0x26F7786de3E6D9Bd37Fcf47BE6F2bC455a21b74A",
+        "amount": "46629370",
+        "rewardToken": "0x0Cc20784f790805537D4eE33B41f1aC4eC55446B",
+        "isWrapped": false
+      },
+      "1": {
+        "chainId": 42161,
+        "bountyId": "1",
+        "gauge": "0x26F7786de3E6D9Bd37Fcf47BE6F2bC455a21b74A",
+        "amount": "92364991746251284852",
+        "rewardToken": "0x59c9a01163e685719FAbE5De34779F563f49D4a3",
+        "isWrapped": true
+      }
+    }
+  },
+  "warden": {},
+  "hiddenhand": {}
+}

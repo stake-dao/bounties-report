@@ -1,0 +1,43 @@
+{
+  "delegators": {
+    "merkleRoot": "",
+    "claims": {}
+  },
+  "nonDelegators": {
+    "merkleRoot": "0xec261af51ff15d86b3f64260f6ed39958b0891f2f74b0188a0feb2d54d2639bf",
+    "claims": {
+      "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+        "tokens": {
+          "0x6b5204b0be36771253cc38e88012e02b752f0f36": {
+            "amount": "8421957883550754746907",
+            "proof": [
+              "0x0589d98b08a9fa81f48fd8d5e239866818141aa2546103975e424e7c8bbb7def",
+              "0x84bbde2bd7ee4a6f5acc4d56fc0071021b2e2b052f7feb2ab43d4b0286acc7ee"
+            ]
+          }
+        }
+      },
+      "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+        "tokens": {
+          "0x6b5204b0be36771253cc38e88012e02b752f0f36": {
+            "amount": "364301906093382997892",
+            "proof": [
+              "0xe62e89cf15dbb4f72e19554e557c42f4173791776efbd7c7bce501781375b242",
+              "0x84bbde2bd7ee4a6f5acc4d56fc0071021b2e2b052f7feb2ab43d4b0286acc7ee"
+            ]
+          }
+        }
+      },
+      "0x5180db0237291A6449DdA9ed33aD90a38787621c": {
+        "tokens": {
+          "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": {
+            "amount": "239115969256959900000",
+            "proof": [
+              "0x3ab139305ad37c10dc7b2a06040d83f061d29e4f09df86ca52d2a2a5f753a080"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

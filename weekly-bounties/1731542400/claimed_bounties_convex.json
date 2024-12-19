@@ -1,0 +1,18 @@
+{
+  "timestamp1": 1731542400,
+  "timestamp2": 1731618650,
+  "blockNumber1": 21182213,
+  "blockNumber2": 21188531,
+  "votemarket": {
+    "curve": {
+      "0": {
+        "bountyId": "16",
+        "gauge": "0xa40C1E9aA3781c74c437212cd0353eAAB3EBBa6F",
+        "amount": "119557984628480133487",
+        "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F"
+      }
+    }
+  },
+  "warden": {},
+  "hiddenhand": {}
+}

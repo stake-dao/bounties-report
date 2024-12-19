@@ -1,0 +1,64 @@
+{
+  "timestamp1": 1732147200,
+  "timestamp2": 1732216019,
+  "blockNumber1": 44188818,
+  "blockNumber2": 44211756,
+  "votemarket": {
+    "cake": [
+      {
+        "bountyId": "123",
+        "gauge": "0x7B94A5622035207d3f527d236d47B7714Ee0acBa",
+        "amount": "1940543267238906386919",
+        "rewardToken": "0x55d398326f99059fF775485246999027B3197955"
+      },
+      {
+        "bountyId": "130",
+        "gauge": "0xdD82975ab85E745c84e497FD75ba409Ec02d4739",
+        "amount": "120538140984707515608503936",
+        "rewardToken": "0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00"
+      },
+      {
+        "bountyId": "131",
+        "gauge": "0xBC7766aE74f38f251683633d50Cc2C1CD14aF948",
+        "amount": "13082705738597686133192",
+        "rewardToken": "0x8D279274789CceC8af94a430A5996eAaCE9609A9"
+      },
+      {
+        "bountyId": "132",
+        "gauge": "0xEd4D5317823Ff7BC8BB868C1612Bb270a8311179",
+        "amount": "7124420257035353734380",
+        "rewardToken": "0x8D279274789CceC8af94a430A5996eAaCE9609A9"
+      },
+      {
+        "bountyId": "136",
+        "gauge": "0x2163A4989B42748f28510CDDeC7a335ab656bB99",
+        "amount": "809886786970615307452",
+        "rewardToken": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+      },
+      {
+        "bountyId": "137",
+        "gauge": "0x172fcD41E0913e95784454622d1c3724f546f849",
+        "amount": "273853647241144276874",
+        "rewardToken": "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"
+      },
+      {
+        "bountyId": "138",
+        "gauge": "0x7f51c8AaA6B0599aBd16674e2b17FEc7a9f674A1",
+        "amount": "1301932290154225558346",
+        "rewardToken": "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82"
+      },
+      {
+        "bountyId": "139",
+        "gauge": "0x54D281c7cc029a9Dd71F9ACb7487dd95B1EecF5a",
+        "amount": "772177355162378041481",
+        "rewardToken": "0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A"
+      },
+      {
+        "bountyId": "141",
+        "gauge": "0x2163A4989B42748f28510CDDeC7a335ab656bB99",
+        "amount": "810041640673895071710",
+        "rewardToken": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+      }
+    ]
+  }
+}

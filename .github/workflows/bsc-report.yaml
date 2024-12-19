@@ -1,0 +1,145 @@
+name: "[sdTokens] Generate bi-weekly and OTC BSC report"
+
+on:
+  workflow_dispatch:
+    inputs:
+      actions:
+        description: "Actions to perform"
+        required: true
+        type: choice
+        options:
+          - Generate BSC reports
+          - Generate OTC BSC reports
+        default: "BSC"
+
+  schedule:
+    - cron: "0 0 * * 0" # Runs every Sunday at 00:00 UTC
+
+env:
+  AUTOMATION_DEVOPS_DIR: target-devops
+  WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+jobs:
+  check-week:
+    runs-on: ubuntu-latest
+    outputs:
+      isOdd: ${{ steps.week-check.outputs.isOdd }}
+    steps:
+      - name: Check if week is odd or even
+        id: week-check
+        run: |
+          echo "isOdd=$(if (( $(date +'%V') % 2 )); then echo 'true'; else echo 'false'; fi)" >> $GITHUB_OUTPUT
+        shell: bash
+
+  generate-bsc-report:
+    runs-on: ubuntu-latest
+    needs: check-week
+    if: ${{ needs.check-week.outputs.isOdd == 'true' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Checkout script repository
+        uses: actions/checkout@v4
+        with:
+          repository: stake-dao/automation-jobs
+          path: ${{ env.AUTOMATION_DEVOPS_DIR }}
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Set actions
+        id: set-actions
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "actions=Generate BSC reports" >> $GITHUB_OUTPUT
+          else
+            echo "actions=${{ github.event.inputs.actions }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
+
+      - name: Install dependencies
+        run: pip install -r ${{ env.AUTOMATION_DEVOPS_DIR }}/requirements.txt
+        shell: bash
+
+      - name: Run BSC report script
+        if: contains(steps.set-actions.outputs.actions, 'Generate BSC reports')
+        run: |
+          cd ${{ env.AUTOMATION_DEVOPS_DIR }}
+          python script/bounties/sdTkns/bsc/report.py
+        env:
+          BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
+          PYTHONPATH: script/
+
+      - name: Run OTC BSC report script
+        if: contains(steps.set-actions.outputs.actions, 'Generate OTC BSC reports')
+        run: |
+          cd ${{ env.AUTOMATION_DEVOPS_DIR }}
+          python script/bounties/sdTkns/otc/report_bsc.py
+        env:
+          BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_TOKEN }}
+          PYTHONPATH: script/
+
+      - name: Merge CSV files
+        run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          WEEK_TIMESTAMP=$((CURRENT_TIMESTAMP / WEEK * WEEK))
+          OUTPUT_DIR="bounties-reports/$WEEK_TIMESTAMP"
+          OUTPUT_FILE="$OUTPUT_DIR/cake.csv"
+          mkdir -p "$OUTPUT_DIR"
+
+          # Function to merge CSV files
+          merge_csv() {
+            local temp_file=$(mktemp)
+
+            # If OUTPUT_FILE exists, start with its content
+            if [ -f "$OUTPUT_FILE" ]; then
+              cp "$OUTPUT_FILE" "$temp_file"
+            else
+              touch "$temp_file"
+            fi
+
+            # Function to append unique lines from a file
+            append_unique() {
+              if [ -f "$1" ]; then
+                # If temp_file is empty, copy the entire file
+                if [ ! -s "$temp_file" ]; then
+                  cp "$1" "$temp_file"
+                else
+                  # Append unique lines, preserving the header
+                  head -n 1 "$temp_file" > "${temp_file}.tmp"
+                  tail -n +2 "$temp_file" > "${temp_file}.body"
+                  tail -n +2 "$1" >> "${temp_file}.body"
+                  sort -u "${temp_file}.body" >> "${temp_file}.tmp"
+                  mv "${temp_file}.tmp" "$temp_file"
+                  rm "${temp_file}.body"
+                fi
+              fi
+            }
+
+            # Append unique lines from both input files
+            append_unique "$1"
+            append_unique "$2"
+
+            # Move the result to OUTPUT_FILE
+            mv "$temp_file" "$OUTPUT_FILE"
+          }
+
+          # Merge the CSV files
+          merge_csv "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_report.csv" "${{ env.AUTOMATION_DEVOPS_DIR }}/bsc_otc_report.csv"
+
+          # Clean up
+          rm -rf ${{ env.AUTOMATION_DEVOPS_DIR }}
+        shell: bash
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add bounties-reports
+          git commit -m "Update bi-weekly BSC report" || exit 0
+          git push

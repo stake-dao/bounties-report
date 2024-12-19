@@ -1,0 +1,48 @@
+{
+  "name": "bribes",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "bounties": "npx ts-node script/generateWeeklyBounties.ts",
+    "sd-merkle": "npx ts-node script/sdTkns/generateMerkle.ts",
+    "vlcvx-repartition": "npx ts-node script/vlCVX/generatevlCVXRepartition.ts",
+    "report": "npx ts-node script/generateWeeklyReport.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@covalenthq/client-sdk": "^1.0.2",
+    "@openzeppelin/contracts": "^5.1.0",
+    "@types/lodash": "^4.17.7",
+    "@types/parquetjs": "^0.10.6",
+    "axios": "^1.7.7",
+    "blockstore-core": "^5.0.2",
+    "chai": "^4.3.7",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.3.1",
+    "ethers": "^5.6.8",
+    "graphql": "^16.5.0",
+    "graphql-request": "^4.3.0",
+    "hyparquet": "^1.5.0",
+    "keccak256": "^1.0.6",
+    "lodash": "^4.17.21",
+    "merkletreejs": "^0.2.31",
+    "moment": "^2.29.4",
+    "p-limit": "^6.1.0",
+    "parquetjs": "^0.11.2",
+    "punycode": "^2.3.1",
+    "redaxios": "^0.5.0",
+    "viem": "^2.21.3",
+    "wagmi": "^2.12.8",
+    "web3": "^1.7.3",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "hardhat": "^2.22.13",
+    "tsx": "^4.19.2"
+  }
+}

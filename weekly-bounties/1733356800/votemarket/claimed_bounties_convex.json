@@ -1,0 +1,16 @@
+{
+  "curve": {
+    "0": {
+      "bountyId": "236",
+      "gauge": "0xB1A829a05E618F7C4f50Cb86f8F64Fb86e42dE5a",
+      "amount": "9109324015532779736648",
+      "rewardToken": "0x6b5204B0Be36771253Cc38e88012E02B752f0f36"
+    },
+    "1": {
+      "bountyId": "16",
+      "gauge": "0xa40C1E9aA3781c74c437212cd0353eAAB3EBBa6F",
+      "amount": "239115969256960245364",
+      "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F"
+    }
+  }
+}

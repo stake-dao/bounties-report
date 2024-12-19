@@ -1,0 +1,28 @@
+name: "[Automatic] API Callable job for weekly bounties"
+
+on:
+  repository_dispatch:
+    types:
+      - update-votemarket-claims
+      - update-votemarket-v2-claims
+      - update-warden-claims
+      - update-hiddenhand-claims
+      - update-convex-claims
+      - update-convex-v2-claims
+
+jobs:
+  call-weekly-bounties:
+    uses: ./.github/workflows/weekly-bounties.yaml
+    with:
+      bountyType: >-
+        ${{
+          github.event.action == 'update-votemarket-claims' && 'votemarket' ||
+          github.event.action == 'update-votemarket-v2-claims' && 'votemarket-v2' ||
+          github.event.action == 'update-warden-claims' && 'warden' ||
+          github.event.action == 'update-hiddenhand-claims' && 'hiddenhand' ||
+          github.event.action == 'update-convex-claims' && 'convex' ||
+          github.event.action == 'update-convex-v2-claims' && 'convex-v2'
+        }}
+      pastWeek: ${{ github.event.client_payload.pastWeek || '0' }}
+      chain: ${{ github.event.client_payload.chain || 'mainnet' }}
+    secrets: inherit
