@@ -51,8 +51,13 @@ async function generateDelegatorMerkleTree(
   delegationDistribution: DelegationDistribution | null,
   previousMerkleData: MerkleData
 ): Promise<MerkleData> {
-  if (!delegationDistribution || Object.keys(delegationDistribution).length === 0) {
-    console.log("No delegation distribution found. Proceeding with empty distribution.");
+  if (
+    !delegationDistribution ||
+    Object.keys(delegationDistribution).length === 0
+  ) {
+    console.log(
+      "No delegation distribution found. Proceeding with empty distribution."
+    );
     return previousMerkleData;
   }
 
@@ -62,7 +67,9 @@ async function generateDelegatorMerkleTree(
   );
 
   if (delegators.length === 0) {
-    console.log("No delegators found in current distribution. Using previous merkle data for delegators.");
+    console.log(
+      "No delegators found in current distribution. Using previous merkle data for delegators."
+    );
     return previousMerkleData;
   }
 
@@ -73,15 +80,18 @@ async function generateDelegatorMerkleTree(
   console.log(`Total sdCRV amount to distribute: ${totalSdCrv.toString()}`);
 
   // Step 2: Calculate sdCRV amounts for each delegator based on their shares
-  const delegatorDistribution: { [address: string]: { [tokenAddress: string]: string } } = {};
+  const delegatorDistribution: {
+    [address: string]: { [tokenAddress: string]: string };
+  } = {};
 
   delegators.forEach(([address, data]) => {
     const share = parseFloat(data.share!);
-    const sdCrvAmount = (totalSdCrv * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-    
+    const sdCrvAmount =
+      (totalSdCrv * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
+
     if (sdCrvAmount > 0n) {
       delegatorDistribution[address] = {
-        [SPACES_TOKENS[SDCRV_SPACE]]: sdCrvAmount.toString()
+        [SPACES_TOKENS[SDCRV_SPACE]]: sdCrvAmount.toString(),
       };
     }
   });
@@ -127,7 +137,7 @@ async function generateMerkles() {
 
   const WEEK = 604800;
   const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
-  const previousPeriodTimestamp = currentPeriodTimestamp - WEEK;
+  const previousPeriodTimestamp = currentPeriodTimestamp - 2 * WEEK; // 2 weeks ago (latest distribution)
 
   const currentBlock = Number(await publicClient.getBlockNumber());
   const minBlock = await getClosestBlockTimestamp(
@@ -155,7 +165,9 @@ async function generateMerkles() {
       fs.readFileSync(delegationDistributionPath, "utf-8")
     ).distribution;
   } else {
-    console.log("Delegation distribution file not found. Proceeding with empty distribution.");
+    console.log(
+      "Delegation distribution file not found. Proceeding with empty distribution."
+    );
   }
 
   // Step 2: Load previous merkle data (if exists)
@@ -186,7 +198,7 @@ async function generateMerkles() {
         };
         Object.entries((data as any).tokens).forEach(
           ([tokenAddress, amount]) => {
-            combinedNonDelegatorDistribution[address].tokens[tokenAddress] = 
+            combinedNonDelegatorDistribution[address].tokens[tokenAddress] =
               BigInt(amount.toString());
           }
         );
@@ -278,11 +290,18 @@ async function generateMerkles() {
           Object.entries(claimData.tokens).forEach(
             ([tokenAddress, tokenData]: [string, any]) => {
               if (tokenData && tokenData.amount) {
-                if (!combinedNonDelegatorDistribution[address].tokens[tokenAddress]) {
-                  combinedNonDelegatorDistribution[address].tokens[tokenAddress] = 0n;
+                if (
+                  !combinedNonDelegatorDistribution[address].tokens[
+                    tokenAddress
+                  ]
+                ) {
+                  combinedNonDelegatorDistribution[address].tokens[
+                    tokenAddress
+                  ] = 0n;
                 }
-                combinedNonDelegatorDistribution[address].tokens[tokenAddress] += 
-                  BigInt(tokenData.amount);
+                combinedNonDelegatorDistribution[address].tokens[
+                  tokenAddress
+                ] += BigInt(tokenData.amount);
               }
             }
           );
