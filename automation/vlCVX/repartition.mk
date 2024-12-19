@@ -29,8 +29,8 @@ commit-and-push:
 	@git config --global user.name 'GitHub Action'
 	@git config --global user.email 'action@github.com'
 	@git add bounties-reports
-	@git pull --rebase origin main
 	@git commit -m "Add vlCVX report + repartition" || true
+	@git pull --rebase origin main
 	@git push
 
 clean:
