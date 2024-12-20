@@ -4,14 +4,14 @@
     "claims": {}
   },
   "nonDelegators": {
-    "merkleRoot": "0x87952f214197dad077aee896cedcdf8adff98deb3f5048a48a8603eae7cef710",
+    "merkleRoot": "0x76f075ae0b7d01e048ba4b1abd14dff7cbcbbd211c4327c1ea4d716c43b56c27",
     "claims": {
       "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
         "tokens": {
           "0x6b5204b0be36771253cc38e88012e02b752f0f36": {
-            "amount": "17153584883341728223956",
+            "amount": "10132459038476324858310",
             "proof": [
-              "0x9f5edf5b34274946dae9ec046f1091c137d8b68c5f77a24ea1e954d7a26c769b",
+              "0x19794a93ebe41e2208f1bbb9de4030750ea9a0b0c191da40f3da233338e78286",
               "0xe33ab1d1f6ea8ffdb9135918d0812980c7f3016d2fc36b7b44dc117ea9bc532a"
             ]
           }
@@ -20,9 +20,9 @@
       "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
         "tokens": {
           "0x6b5204b0be36771253cc38e88012e02b752f0f36": {
-            "amount": "741998921835189257491",
+            "amount": "7763124766700592623137",
             "proof": [
-              "0x7ad20bd2c228c2a97b7d45ba8d31c2852ad67b06d7931520cf450e5fe903414d",
+              "0x640d1bc78567a31ff2479d6be06edb14a20530f804051be5e13c31368c4484fd",
               "0xe33ab1d1f6ea8ffdb9135918d0812980c7f3016d2fc36b7b44dc117ea9bc532a"
             ]
           }
@@ -34,7 +34,7 @@
             "amount": "478231938513920145364",
             "proof": [
               "0x3572aacb4d63bc0fa5941219621bbddbfd69d15c0fb5d971df5a33f3bfdcc06c",
-              "0xfbd9de3fd9c1029207632a97549ef1f1350d422e5791cabf0030b53c7d596e65"
+              "0x899d6250d784b1ea3ae161157710cd4fd983c89b2d39f62fde3bc05ffb7b53f2"
             ]
           }
         }
@@ -45,7 +45,7 @@
             "amount": "202276669497689983186",
             "proof": [
               "0x3f05a6fe74ce6a217a19f59079f12a7c6cb5477f9328e8856ff002c5521033a3",
-              "0xfbd9de3fd9c1029207632a97549ef1f1350d422e5791cabf0030b53c7d596e65"
+              "0x899d6250d784b1ea3ae161157710cd4fd983c89b2d39f62fde3bc05ffb7b53f2"
             ]
           }
         }
