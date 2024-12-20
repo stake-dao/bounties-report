@@ -3,9 +3,24 @@
     "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
       "isStakeDelegator": false,
       "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "1403072899187324049285",
         "0x090185f2135308bad17527004364ebcc2d37e5f6": "16358624763264950146454904",
         "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "213193599520034495880",
         "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "10831925735604004221"
+      }
+    },
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "7650728898041043506548",
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "138742985375544333567"
+      }
+    },
+    "0xBE09e43A57F2980998cEdD08517eae7d5aE683Bb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "109507422883023525964",
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "2087714128157167631"
       }
     },
     "0xaDfc26b6520A35C37af3AC5AF174249737ec612c": {
@@ -20,12 +35,6 @@
         "0x090185f2135308bad17527004364ebcc2d37e5f6": "281941499192801323290114"
       }
     },
-    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
-      "isStakeDelegator": false,
-      "tokens": {
-        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "138742985375544333567"
-      }
-    },
     "0x08786F57606Ef83fc23878D4D9F3ACE867030a0d": {
       "isStakeDelegator": false,
       "tokens": {
@@ -36,12 +45,6 @@
       "isStakeDelegator": false,
       "tokens": {
         "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "25335133698418527393"
-      }
-    },
-    "0xBE09e43A57F2980998cEdD08517eae7d5aE683Bb": {
-      "isStakeDelegator": false,
-      "tokens": {
-        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "2087714128157167631"
       }
     },
     "0x5E62aB010fc0C5a9156e5c7EaBbA8a6d0b91680c": {
