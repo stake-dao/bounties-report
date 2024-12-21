@@ -117,14 +117,63 @@ async function main() {
             (vote) => vote.choice[activeChoiceId] !== undefined
           );
 
-          console.log(`\nTotal Votes for this Gauge: ${votesForGauge.length}`);
+          console.log(`\n=== Votes for ${gaugeInfo.shortName} ===`);
+          console.log(`Total Votes: ${votesForGauge.length}`);
 
+          // Calculate total effective VP for this gauge
+          let totalEffectiveVpForGauge = 0;
+          const voterEffectiveVps: { [voter: string]: number } = {};
+
+          // First pass: calculate all effective VPs
           for (const vote of votesForGauge) {
-            console.log("\nVote Details:");
-            console.log(`Voter: ${vote.voter}`);
-            console.log(`Weight: ${vote.choice[activeChoiceId]}`);
+            let vpChoiceSum = 0;
+            let currentChoiceIndex = 0;
+
+            for (const choiceIndex of Object.keys(vote.choice)) {
+              if (activeChoiceId === parseInt(choiceIndex)) {
+                currentChoiceIndex = vote.choice[choiceIndex];
+              }
+              vpChoiceSum += vote.choice[choiceIndex];
+            }
+
+            if (currentChoiceIndex > 0) {
+              const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
+              const effectiveVp = (vote.vp * ratio) / 100;
+              voterEffectiveVps[vote.voter] = effectiveVp;
+              totalEffectiveVpForGauge += effectiveVp;
+            }
+          }
+
+          // Print detailed votes
+          console.log("\n--- Detailed Votes ---");
+          for (const vote of votesForGauge) {
+            console.log(`\nVoter: ${formatAddress(vote.voter)}`);
+            
+            let vpChoiceSum = 0;
+            let currentChoiceIndex = 0;
+
+            for (const choiceIndex of Object.keys(vote.choice)) {
+              if (activeChoiceId === parseInt(choiceIndex)) {
+                currentChoiceIndex = vote.choice[choiceIndex];
+              }
+              vpChoiceSum += vote.choice[choiceIndex];
+            }
+
+            if (currentChoiceIndex > 0) {
+              const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
+              const effectiveVp = (vote.vp * ratio) / 100;
+              console.log(`Total VP: ${vote.vp.toFixed(2)}`);
+              console.log(`Share of voter's VP: ${ratio.toFixed(2)}%`);
+              console.log(`Effective VP: ${effectiveVp.toFixed(2)}`);
+            } else {
+              console.log(`Total VP: ${vote.vp.toFixed(2)}`);
+              console.log(`Share of voter's VP: 0%`);
+              console.log(`Effective VP: 0`);
+            }
+
             console.log(`Timestamp: ${new Date(vote.created * 1000).toLocaleString()}`);
 
+            // Add delegator details if applicable
             if (vote.voter === DELEGATION_ADDRESS) {
               console.log("\nDelegator Details:");
 
@@ -158,6 +207,25 @@ async function main() {
               }
             }
           }
+
+          // Print vote distribution summary
+          console.log("\n--- Vote Distribution Summary ---");
+          console.log(`Total Effective VP for ${gaugeInfo.shortName}: ${totalEffectiveVpForGauge.toFixed(2)}`);
+          
+          const sortedVoters = Object.entries(voterEffectiveVps)
+            .sort(([, a], [, b]) => b - a); // Sort by effective VP, descending
+
+          for (const [voter, effectiveVp] of sortedVoters) {
+            const shareOfGauge = (effectiveVp * 100) / totalEffectiveVpForGauge;
+            if (shareOfGauge >= 1) { // Only show voters with ≥1% share
+              const voterDisplay = voter === DELEGATION_ADDRESS 
+                ? "STAKE DELEGATION (0x52ea...)" 
+                : formatAddress(voter);
+              console.log(`${voterDisplay}: ${shareOfGauge.toFixed(2)}% (${effectiveVp.toFixed(2)} VP)`);
+            }
+          }
+
+          console.log("\n-------------------");
         } else {
           console.log("Gauge not found: " + gauge);
         }

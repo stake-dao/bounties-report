@@ -59,6 +59,7 @@ export const SDFXN_SPACE = "sdfxn.eth";
 export const CVX_SPACE = "cvx.eth";
 
 export const VLCVX_RECIPIENT = "0x0000000095310137125f82f37FBe5D2F99279947";
+export const VLCVX_DELEGATORS_RECIPIENT = "0x00000000b0FF0700adf86A929df3aC3f88E48583";
 
 export const WEEK = 604800;
 
