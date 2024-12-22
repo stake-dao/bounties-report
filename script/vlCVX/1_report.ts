@@ -105,11 +105,11 @@ async function generateReport() {
     throw new Error("Both votemarket and votemarket v2 bounties are missing");
   }
 
-  const curveBounties = claimedBounties.votemarket?.curve 
+  const curveBounties = claimedBounties.votemarket?.curve
     ? Object.values(claimedBounties.votemarket.curve)
     : [];
   const curveV2Bounties = claimedBounties.votemarket_v2?.curve
-    ? Object.values(claimedBounties.votemarket_v2.curve) 
+    ? Object.values(claimedBounties.votemarket_v2.curve)
     : [];
 
   const allTokens = new Set<string>([
@@ -135,7 +135,7 @@ async function generateReport() {
 
     rows.push({
       chainId: tokenInfo.chainId,
-      gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "Unknown", 
+      gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "Unknown",
       gaugeAddress: bounty.gauge,
       rewardToken: tokenInfo.symbol,
       rewardAddress: bounty.rewardToken,

@@ -67,7 +67,11 @@ async function generateConvexVotemarketV2Bounties(pastWeek: number = 0) {
     }
 
     const fileName = path.join(periodFolder, "claimed_bounties_convex.json");
-    const jsonString = JSON.stringify(votemarketV2ConvexBounties, customReplacer, 2);
+    const jsonString = JSON.stringify(
+      votemarketV2ConvexBounties,
+      customReplacer,
+      2
+    );
     fs.writeFileSync(fileName, jsonString);
 
     console.log(`Convex locker votemarket v2 bounties saved to ${fileName}`);

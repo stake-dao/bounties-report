@@ -296,7 +296,7 @@ const main = async () => {
         return;
       }
 
-      const ratio = currentChoiceIndex * 100 / vpChoiceSum;
+      const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
       totalVp += (voter.vp * ratio) / 100;
     });
 
@@ -320,7 +320,7 @@ const main = async () => {
         return;
       }
 
-      const ratio = currentChoiceIndex * 100 / vpChoiceSum;
+      const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
       const voterShare = (voter.vp * ratio) / 100;
       // Store the voter's share of the total VP
       voterVps[voter.voter] = voterShare / totalVp;
@@ -343,7 +343,8 @@ const main = async () => {
           amount = remainingRewards;
         } else {
           // Simply multiply rewardAmount by the share
-          amount = rewardAmount * BigInt(Math.floor(share * 1e18)) / BigInt(1e18);
+          amount =
+            (rewardAmount * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
           remainingRewards -= amount;
         }
 
@@ -354,7 +355,7 @@ const main = async () => {
               tokens: {},
             };
           }
-          distribution[voter].tokens[rewardAddress] = 
+          distribution[voter].tokens[rewardAddress] =
             (distribution[voter].tokens[rewardAddress] || 0n) + amount;
         }
       });
@@ -375,8 +376,11 @@ const main = async () => {
 
   // Compute StakeDAO delegator rewards
   console.log("Computing StakeDAO delegator rewards...");
-  let delegationDistribution: Record<string, { isStakeDelegator: boolean; tokens: Record<string, bigint> } | { isStakeDelegator: boolean; share: string }> = {};
-
+  let delegationDistribution: Record<
+    string,
+    | { isStakeDelegator: boolean; tokens: Record<string, bigint> }
+    | { isStakeDelegator: boolean; share: string }
+  > = {};
 
   if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
     // Find the delegation voter's rewards
@@ -432,9 +436,13 @@ const main = async () => {
   if (Object.keys(delegationDistribution).length > 0) {
     fs.writeFileSync(
       `${dirPath}/repartition_delegation.json`,
-      JSON.stringify({ 
-        distribution: convertDelegationToJsonFormat(delegationDistribution) 
-      }, null, 2)
+      JSON.stringify(
+        {
+          distribution: convertDelegationToJsonFormat(delegationDistribution),
+        },
+        null,
+        2
+      )
     );
   }
   console.log("vlCVX repartition generation completed successfully.");

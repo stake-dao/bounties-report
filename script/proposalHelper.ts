@@ -91,7 +91,9 @@ async function main() {
     console.log(`Title: ${proposal.title}`);
     console.log(`Space: ${space}`);
     console.log(`Author: ${formatAddress(proposal.author)}`);
-    console.log(`Created: ${new Date(proposal.created * 1000).toLocaleString()}`);
+    console.log(
+      `Created: ${new Date(proposal.created * 1000).toLocaleString()}`
+    );
     console.log(`Start: ${new Date(proposal.start * 1000).toLocaleString()}`);
     console.log(`End: ${new Date(proposal.end * 1000).toLocaleString()}`);
     console.log(`Snapshot Block: ${proposal.snapshot}`);
@@ -102,7 +104,7 @@ async function main() {
       console.log("\n=== Gauge Details ===");
       let gauges = argv.gauges as string[];
       gauges = gauges.map((g) => g.trim().toLowerCase());
-      
+
       for (const gauge of gauges) {
         console.log("\n-------------------");
         if (gaugePerChoiceIdWithShortName[gauge]) {
@@ -148,7 +150,7 @@ async function main() {
           console.log("\n--- Detailed Votes ---");
           for (const vote of votesForGauge) {
             console.log(`\nVoter: ${formatAddress(vote.voter)}`);
-            
+
             let vpChoiceSum = 0;
             let currentChoiceIndex = 0;
 
@@ -171,7 +173,9 @@ async function main() {
               console.log(`Effective VP: 0`);
             }
 
-            console.log(`Timestamp: ${new Date(vote.created * 1000).toLocaleString()}`);
+            console.log(
+              `Timestamp: ${new Date(vote.created * 1000).toLocaleString()}`
+            );
 
             // Add delegator details if applicable
             if (vote.voter === DELEGATION_ADDRESS) {
@@ -192,7 +196,7 @@ async function main() {
 
                 console.log(`Total Delegators: ${delegators.length}`);
                 console.log(`Total Voting Power: ${totalVp}`);
-                
+
                 console.log("\nDelegator Breakdown:");
                 delegators.forEach((delegator) => {
                   const delegatorVp = vps[delegator] || 0;
@@ -210,19 +214,27 @@ async function main() {
 
           // Print vote distribution summary
           console.log("\n--- Vote Distribution Summary ---");
-          console.log(`Total Effective VP for ${gaugeInfo.shortName}: ${totalEffectiveVpForGauge.toFixed(2)}`);
-          
-          const sortedVoters = Object.entries(voterEffectiveVps)
-            .sort(([, a], [, b]) => b - a); // Sort by effective VP, descending
+          console.log(
+            `Total Effective VP for ${
+              gaugeInfo.shortName
+            }: ${totalEffectiveVpForGauge.toFixed(2)}`
+          );
+
+          const sortedVoters = Object.entries(voterEffectiveVps).sort(
+            ([, a], [, b]) => b - a
+          ); // Sort by effective VP, descending
 
           for (const [voter, effectiveVp] of sortedVoters) {
             const shareOfGauge = (effectiveVp * 100) / totalEffectiveVpForGauge;
-            if (shareOfGauge >= 1) { // Only show voters with ≥1% share
-              const voterDisplay = voter === DELEGATION_ADDRESS 
-                ? "STAKE DELEGATION (0x52ea...)" 
+            const voterDisplay =
+              voter === DELEGATION_ADDRESS
+                ? "STAKE DELEGATION (0x52ea...)"
                 : formatAddress(voter);
-              console.log(`${voterDisplay}: ${shareOfGauge.toFixed(2)}% (${effectiveVp.toFixed(2)} VP)`);
-            }
+            console.log(
+              `${voterDisplay}: ${shareOfGauge.toFixed(
+                2
+              )}% (${effectiveVp.toFixed(2)} VP)`
+            );
           }
 
           console.log("\n-------------------");
@@ -239,7 +251,6 @@ async function main() {
         console.log(`Choice ID: ${info.choiceId}`);
       });
     }
-
   } catch (error) {
     if (error instanceof Error) {
       console.error("Error:", error.message);

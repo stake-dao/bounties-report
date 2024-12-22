@@ -10,14 +10,41 @@ This directory contains scripts for managing the distribution of rewards for vlC
 
 This is the process of distributing Votemarket rewards to vlCVX voters and Stake DAO delegators on vlCVX. It performs the following key steps:
 
+*All the files are stored in `bounties-reports/{timestamp}/vlCVX/`*
+
 1. Claims rewards from Votemarket (`automation-jobs`)
 2. Calculates the repartition of rewards per token and gauge (`distribution/generateBounties`)
-3. Generates repartition data for vlCVX voters and delegators (`1_generateBountieesReport`)
-4. Swaps tokens to sdCRV (`automation-jobs`)
-5. Computes sdCRV amounts for delegators (`3_generateMerkles`)
-6. Generates Merkle trees for both vlCVX voters and delegators (`3_generateMerkles`)
-7. Withdraws funds to respective Merkle distributors (`automation-jobs`)
-8. Sets Merkle roots for distribution (`automation-jobs`)
+3. Generates report (rewards / gauges) (`1_report.ts`)
+4. Generates repartition data for vlCVX voters and delegators (`2_repartition.ts`)
+5. Swaps tokens to sdCRV (`automation-jobs`)
+6. Computes sdCRV amounts for delegators, using shares present in `repartition_delegation.json` (`3_generateMerkles`)
+7. Generates Merkle trees for both vlCVX voters and delegators (`3_generateMerkles`) => `merkle_data.json`
+8. Withdraws funds to respective Merkle contracts (`automation-jobs`)
+9. Sets Merkle roots for distribution (`automation-jobs`)
+
+The process involves interactions with two repositories:
+- `automation-jobs` (green): Handles automated tasks like claiming rewards and token swaps
+- `bounties-report` (orange): Manages repartition calculations, Merkle tree generation, and distribution setup.
+
+## Verification Tools
+
+### Proposal Helper
+
+A proposal helper script is available to verify voter participation and voting power distribution. You can use it to analyze specific gauges in a proposal:
+
+```bash
+pnpm tsx script/proposalHelper.ts --proposalId <PROPOSAL_ID> --gauges <GAUGE_ADDRESSES>
+```
+
+This script helps verify the correct distribution of rewards by providing detailed information about:
+- Voter participation
+- Individual voting power
+- Delegation details
+- Vote distribution across gauges, by linking with snapshot choices
+
+### Distribution Verification
+
+All distribution calculations and Merkle tree generations can be verified through GitHub Actions logs under the `generate-vlcvx-merkles` workflow. These logs provide transparent tracking of reward distributions, including detailed breakdowns by token and recipient.
 
 The process involves interactions with two repositories:
 - `automation-jobs` (green): Handles automated tasks like claiming rewards and token swaps

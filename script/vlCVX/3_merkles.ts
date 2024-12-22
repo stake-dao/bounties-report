@@ -24,7 +24,11 @@ import {
   CombinedMerkleData,
 } from "./utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { DELEGATION_ADDRESS, SDCRV_SPACE, SPACES_TOKENS } from "../utils/constants";
+import {
+  DELEGATION_ADDRESS,
+  SDCRV_SPACE,
+  SPACES_TOKENS,
+} from "../utils/constants";
 
 interface Distribution {
   [address: string]: {
@@ -137,16 +141,18 @@ function compareMerkleData(
 
   // Collect all tokens from both merkles
   const tokens = new Set<string>();
-  [newMerkle.claims, previousMerkle.claims].forEach(claims => {
-    Object.values(claims).forEach(claim => {
+  [newMerkle.claims, previousMerkle.claims].forEach((claims) => {
+    Object.values(claims).forEach((claim) => {
       if (claim.tokens) {
-        Object.keys(claim.tokens).forEach(token => tokens.add(token.toLowerCase()));
+        Object.keys(claim.tokens).forEach((token) =>
+          tokens.add(token.toLowerCase())
+        );
       }
     });
   });
 
   // For each token, show distribution
-  tokens.forEach(token => {
+  tokens.forEach((token) => {
     // Find token info
     const info = Object.entries(tokenInfo).find(
       ([addr, _]) => addr.toLowerCase() === token
@@ -154,73 +160,94 @@ function compareMerkleData(
 
     // Calculate totals
     const newTotal = Object.values(newMerkle.claims).reduce((acc, claim) => {
-      const amount = claim.tokens?.[token]?.amount || 
-                    claim.tokens?.[getAddress(token)]?.amount || '0';
+      const amount =
+        claim.tokens?.[token]?.amount ||
+        claim.tokens?.[getAddress(token)]?.amount ||
+        "0";
       return acc + BigInt(amount);
     }, 0n);
 
-    const prevTotal = Object.values(previousMerkle.claims).reduce((acc, claim) => {
-      const amount = claim.tokens?.[token]?.amount || 
-                    claim.tokens?.[getAddress(token)]?.amount || '0';
-      return acc + BigInt(amount);
-    }, 0n);
+    const prevTotal = Object.values(previousMerkle.claims).reduce(
+      (acc, claim) => {
+        const amount =
+          claim.tokens?.[token]?.amount ||
+          claim.tokens?.[getAddress(token)]?.amount ||
+          "0";
+        return acc + BigInt(amount);
+      },
+      0n
+    );
 
     const newTotalFormatted = Number(newTotal) / 10 ** info.decimals;
     const prevTotalFormatted = Number(prevTotal) / 10 ** info.decimals;
     const diffTotal = newTotalFormatted - prevTotalFormatted;
 
     console.log(`\n--- ${info.symbol} Distribution ---`);
-    console.log(`Previous Total: ${prevTotalFormatted.toFixed(2)} ${info.symbol}`);
+    console.log(
+      `Previous Total: ${prevTotalFormatted.toFixed(2)} ${info.symbol}`
+    );
     console.log(`New Total: ${newTotalFormatted.toFixed(2)} ${info.symbol}`);
-    console.log(`Difference: ${diffTotal > 0 ? '+' : ''}${diffTotal.toFixed(2)} ${info.symbol}`);
-    
+    console.log(
+      `Difference: ${diffTotal > 0 ? "+" : ""}${diffTotal.toFixed(2)} ${
+        info.symbol
+      }`
+    );
+
     if (newTotal > 0n || prevTotal > 0n) {
-      console.log("\n Top Holders: (>0.01%)");
-      
+      console.log("\n Sorted users:");
+
       // Get all addresses and their amounts
       const addresses = new Set([
         ...Object.keys(newMerkle.claims),
-        ...Object.keys(previousMerkle.claims)
+        ...Object.keys(previousMerkle.claims),
       ]);
 
-      const holders = Array.from(addresses).map(address => {
+      const holders = Array.from(addresses).map((address) => {
         const newAmount = BigInt(
-          newMerkle.claims[address]?.tokens?.[token]?.amount || 
-          newMerkle.claims[address]?.tokens?.[getAddress(token)]?.amount || '0'
+          newMerkle.claims[address]?.tokens?.[token]?.amount ||
+            newMerkle.claims[address]?.tokens?.[getAddress(token)]?.amount ||
+            "0"
         );
         const prevAmount = BigInt(
-          previousMerkle.claims[address]?.tokens?.[token]?.amount || 
-          previousMerkle.claims[address]?.tokens?.[getAddress(token)]?.amount || '0'
+          previousMerkle.claims[address]?.tokens?.[token]?.amount ||
+            previousMerkle.claims[address]?.tokens?.[getAddress(token)]
+              ?.amount ||
+            "0"
         );
         return {
           address,
           newAmount,
           prevAmount,
-          share: Number(newAmount * 10000n / (newTotal || 1n)) / 100
+          share: Number((newAmount * 10000n) / (newTotal || 1n)) / 100,
         };
       });
 
       // Sort by new amount and filter significant holders
       holders
         .sort((a, b) => Number(b.newAmount - a.newAmount))
-        .filter(holder => holder.share >= 0.01)
-        .forEach(holder => {
-          const newAmountFormatted = Number(holder.newAmount) / 10 ** info.decimals;
-          const prevAmountFormatted = Number(holder.prevAmount) / 10 ** info.decimals;
+        .forEach((holder) => {
+          const newAmountFormatted =
+            Number(holder.newAmount) / 10 ** info.decimals;
+          const prevAmountFormatted =
+            Number(holder.prevAmount) / 10 ** info.decimals;
           const diff = newAmountFormatted - prevAmountFormatted;
-          
-          const addressDisplay = holder.address === DELEGATION_ADDRESS 
-            ? "STAKE DELEGATION (0x52ea...)" 
-            : `${holder.address.slice(0, 6)}...${holder.address.slice(-4)}`;
 
-          let diffStr = '';
+          const addressDisplay =
+            holder.address === DELEGATION_ADDRESS
+              ? "STAKE DELEGATION (0x52ea...)"
+              : `${holder.address.slice(0, 6)}...${holder.address.slice(-4)}`;
+
+          let diffStr = "";
           if (diff !== 0) {
-            const diffPercentage = (diff / (newTotalFormatted - prevTotalFormatted)) * 100;
+            const diffPercentage =
+              (diff / (newTotalFormatted - prevTotalFormatted)) * 100;
             diffStr = ` (+${diff.toFixed(2)} - ${diffPercentage.toFixed(1)}%)`;
           }
-          
+
           console.log(
-            `${addressDisplay}: ${holder.share.toFixed(2)}% - ${newAmountFormatted.toFixed(2)}${diffStr} ${info.symbol}`
+            `${addressDisplay}: ${holder.share.toFixed(
+              2
+            )}% - ${newAmountFormatted.toFixed(2)}${diffStr} ${info.symbol}`
           );
         });
     }
@@ -310,7 +337,7 @@ async function generateMerkles() {
     __dirname,
     `../../bounties-reports/${prevWeekTimestamp}/vlCVX/repartition.json`
   );
-  
+
   if (fs.existsSync(prevWeekDistributionPath)) {
     const prevWeekDistribution: { distribution: Distribution } = JSON.parse(
       fs.readFileSync(prevWeekDistributionPath, "utf-8")
@@ -327,8 +354,11 @@ async function generateMerkles() {
           }
           Object.entries((data as any).tokens).forEach(
             ([tokenAddress, amount]) => {
-              if (!combinedNonDelegatorDistribution[address].tokens[tokenAddress]) {
-                combinedNonDelegatorDistribution[address].tokens[tokenAddress] = 0n;
+              if (
+                !combinedNonDelegatorDistribution[address].tokens[tokenAddress]
+              ) {
+                combinedNonDelegatorDistribution[address].tokens[tokenAddress] =
+                  0n;
               }
               combinedNonDelegatorDistribution[address].tokens[tokenAddress] +=
                 BigInt(amount.toString());
@@ -340,7 +370,10 @@ async function generateMerkles() {
   }
 
   // Add previous merkle amounts
-  if (previousMerkleData.nonDelegators && previousMerkleData.nonDelegators.claims) {
+  if (
+    previousMerkleData.nonDelegators &&
+    previousMerkleData.nonDelegators.claims
+  ) {
     Object.entries(previousMerkleData.nonDelegators.claims).forEach(
       ([address, claimData]: [string, any]) => {
         if (!combinedNonDelegatorDistribution[address]) {
@@ -355,7 +388,7 @@ async function generateMerkles() {
               if (tokenData && tokenData.amount) {
                 if (
                   !combinedNonDelegatorDistribution[address].tokens[
-                  tokenAddress
+                    tokenAddress
                   ]
                 ) {
                   combinedNonDelegatorDistribution[address].tokens[
@@ -375,7 +408,7 @@ async function generateMerkles() {
 
   // Step 4: Retrieve token info (symbol and decimals) for all reward tokens
   const rewardTokenAddresses = new Set<string>();
-  
+
   // Collect from current distribution
   Object.values(combinedNonDelegatorDistribution).forEach((data) => {
     Object.keys(data.tokens).forEach((tokenAddress) =>
@@ -384,15 +417,17 @@ async function generateMerkles() {
   });
 
   // Collect from previous merkle data
-  [previousMerkleData.delegators, previousMerkleData.nonDelegators].forEach(merkle => {
-    Object.values(merkle.claims).forEach(claim => {
-      if (claim.tokens) {
-        Object.keys(claim.tokens).forEach(tokenAddress => 
-          rewardTokenAddresses.add(tokenAddress.toLowerCase())
-        );
-      }
-    });
-  });
+  [previousMerkleData.delegators, previousMerkleData.nonDelegators].forEach(
+    (merkle) => {
+      Object.values(merkle.claims).forEach((claim) => {
+        if (claim.tokens) {
+          Object.keys(claim.tokens).forEach((tokenAddress) =>
+            rewardTokenAddresses.add(tokenAddress.toLowerCase())
+          );
+        }
+      });
+    }
+  );
 
   // Add sdCRV token
   rewardTokenAddresses.add(SPACES_TOKENS[SDCRV_SPACE].toLowerCase());
@@ -490,7 +525,7 @@ async function generateMerkles() {
 
   // After generating both merkle trees, compare them
   console.log("\nComparing Merkle Trees:");
-  
+
   compareMerkleData(
     "Non-Delegator Distribution Changes",
     nonDelegatorMerkleData,
@@ -522,4 +557,3 @@ async function generateMerkles() {
 }
 
 generateMerkles().catch(console.error);
-
