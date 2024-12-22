@@ -19,6 +19,7 @@ import {
   WETH_ADDRESS,
   GOVERNANCE,
 } from "../utils/reportUtils";
+import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 
 dotenv.config();
 
@@ -288,6 +289,18 @@ async function main() {
     ALL_MIGHT
   );
 
+
+  const vlcvxRecipientSwapsIn = await fetchSwapInEvents(
+    1,
+    blockNumber1,
+    blockNumber2,
+    [PROTOCOLS_TOKENS.curve.sdToken],
+    VLCVX_DELEGATORS_RECIPIENT
+  );
+
+  const vlcvxRecipientSwapsInBlockNumbers = vlcvxRecipientSwapsIn.map((swap) => swap.blockNumber);
+  console.log("vlCVX recipient blocks to exclude:", vlcvxRecipientSwapsInBlockNumbers);
+
   const swapInFiltered = processSwaps(swapIn, tokenInfos);
   const swapOutFiltered = processSwaps(swapOut, tokenInfos);
 
@@ -297,6 +310,10 @@ async function main() {
     swapsData[key] = {};
 
     for (const swap of swapInFiltered) {
+      if (vlcvxRecipientSwapsInBlockNumbers.includes(swap.blockNumber)) {
+        continue;
+      }
+
       if (swap.token.toLowerCase() === protocolInfos.sdToken.toLowerCase()) {
         if (!swapsData[key][swap.blockNumber]) {
           swapsData[key][swap.blockNumber] = { sdTokenIn: [] };
@@ -306,6 +323,10 @@ async function main() {
     }
 
     for (const swap of [...swapInFiltered, ...swapOutFiltered]) {
+      if (vlcvxRecipientSwapsInBlockNumbers.includes(swap.blockNumber)) {
+        continue;
+      }
+
       if (!swapsData[key][swap.blockNumber]) continue;
 
       if (swap.token.toLowerCase() === "0x97efFB790f2fbB701D88f89DB4521348A2B77be8".toLowerCase()) {
