@@ -49,6 +49,78 @@ interface DelegationDistribution {
   };
 }
 
+async function checkDistribution(
+  combinedNonDelegatorDistribution: Distribution,
+) {
+  console.log("\nChecking Botmarket balances:");
+
+  const publicClient = createPublicClient({
+    chain: mainnet,
+    transport: http("https://rpc.flashbots.net"),
+  });
+
+  // Get unique token addresses from the distribution
+  const tokenAddresses = new Set<string>();
+  Object.values(combinedNonDelegatorDistribution).forEach(data => {
+    Object.keys(data.tokens).forEach(tokenAddress => tokenAddresses.add(tokenAddress));
+  });
+
+  for (const tokenAddress of tokenAddresses) {
+    // Skip ZUN as it's not on Botmarket
+    if (tokenAddress.toLowerCase() === "0x6b5204b0be36771253cc38e88012e02b752f0f36".toLowerCase()) {
+      continue;
+    }
+
+    // Get total amount from distribution for this token
+    const totalExpected = Object.values(combinedNonDelegatorDistribution)
+      .reduce((acc, data) => {
+        return acc + (data.tokens[tokenAddress] || 0n);
+      }, 0n);
+
+    if (totalExpected === 0n) continue;
+
+    // Get actual balance from Botmarket
+    const botmarketBalance = await publicClient.readContract({
+      address: tokenAddress as `0x${string}`,
+      abi: [
+        {
+          name: "balanceOf",
+          type: "function",
+          stateMutability: "view",
+          inputs: [{ name: "account", type: "address" }],
+          outputs: [{ name: "", type: "uint256" }],
+        },
+      ],
+      functionName: "balanceOf",
+      args: ["0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF" as `0x${string}`],
+    });
+
+    // Compare and log differences 
+    if (botmarketBalance !== totalExpected) {
+      console.log(`\nToken ${tokenAddress}:`);
+      console.log(`Expected: ${totalExpected}`);
+      console.log(`Actual: ${botmarketBalance}`);
+      console.log(`Difference: ${botmarketBalance - totalExpected}`);
+
+      // Adjust distribution if actual balance is lower
+      if (botmarketBalance < totalExpected) {
+        const ratio = Number(botmarketBalance) / Number(totalExpected);
+        console.log(`Adjusting amounts by ratio: ${ratio}`);
+
+        // Adjust all amounts for this token
+        for (const data of Object.values(combinedNonDelegatorDistribution)) {
+          if (data.tokens[tokenAddress]) {
+            data.tokens[tokenAddress] = BigInt(
+              Math.floor(Number(data.tokens[tokenAddress]) * ratio)
+            );
+          }
+        }
+      }
+    }
+  }
+  return combinedNonDelegatorDistribution;
+}
+
 async function generateDelegatorMerkleTree(
   minBlock: number,
   maxBlock: number,
@@ -225,6 +297,7 @@ function compareMerkleData(
       // Sort by new amount and filter significant holders
       holders
         .sort((a, b) => Number(b.newAmount - a.newAmount))
+        .filter((holder) => Number(holder.newAmount) > 0)
         .forEach((holder) => {
           const newAmountFormatted =
             Number(holder.newAmount) / 10 ** info.decimals;
@@ -312,7 +385,7 @@ async function generateMerkles() {
   }
 
   // Step 3: Combine current distribution with previous amounts for non-delegators
-  const combinedNonDelegatorDistribution: Distribution = {};
+  let combinedNonDelegatorDistribution: Distribution = {};
 
   // Add current week distribution for non-delegators
   Object.entries(currentDistribution.distribution).forEach(
@@ -368,6 +441,11 @@ async function generateMerkles() {
       }
     );
   }
+
+  // Adapt to avoid decimals issues
+  combinedNonDelegatorDistribution = await checkDistribution(
+    combinedNonDelegatorDistribution
+  );
 
   // Add previous merkle amounts
   if (
