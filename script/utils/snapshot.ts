@@ -85,7 +85,6 @@ export const fetchProposalsIdsBasedOnPeriods = async (
   periods: string[],
   currentTimestamp: number
 ): Promise<Record<string, string>> => {
-  console.log(currentTimestamp - WEEK);
   const query = gql`
     query Proposals {
       proposals(
@@ -103,6 +102,7 @@ export const fetchProposalsIdsBasedOnPeriods = async (
         id
         title
         end
+        created
         space {
           id
         }
@@ -113,18 +113,14 @@ export const fetchProposalsIdsBasedOnPeriods = async (
   const proposals = result.proposals;
 
   let associated_timestamps: Record<string, string> = {};
-  const TWO_DAYS = 2 * 24 * 60 * 60; // 2 days in seconds
 
   for (const period of periods) {
     const periodTimestamp = parseInt(period);
 
-    // Find the most recent proposal that ended within 2 days before the period
-    const matchingProposal = proposals.find((proposal) => {
-      const endTimestamp = parseInt(proposal.end);
-      return (
-        endTimestamp < periodTimestamp &&
-        periodTimestamp - endTimestamp <= TWO_DAYS
-      );
+    const matchingProposal = proposals.find((proposal: any) => {
+      const proposalPeriod = Math.floor(proposal.created / WEEK) * WEEK;
+      const reportPeriod = (Math.floor(periodTimestamp / WEEK) * WEEK) - WEEK;
+      return proposalPeriod === reportPeriod;
     });
 
     if (matchingProposal) {
