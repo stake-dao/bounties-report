@@ -100,13 +100,6 @@ const main = async () => {
         currentPeriodTimestamp
       );
 
-      proposalsPeriods = {
-        "1730332800": "0x0ce9dc1a8fe1b87f65b4463dab34a7a70516cb6026c5c3f023d7c213c2abd7c2",
-        "1730937600": "0xefc90320d7701a4deb4427afa298ea602ea80b04aa74afca97a5cc94c119035a",
-        "1731542400": "0x2e88b0303151962cf40e4c5b0b47546d457b8b495e0821579b5260d61fba9545",
-        "1732147200": "0xb5fb9f35eb6abe33ff6ec6d2f9bfe9ffc9e05a04176f2851d0d04c4e84879360",
-      }
-
       // Merge rewards by proposal period
       pendleRewards = {};
       for (const period in csvResult) {

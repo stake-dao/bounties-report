@@ -85,6 +85,7 @@ export const fetchProposalsIdsBasedOnPeriods = async (
   periods: string[],
   currentTimestamp: number
 ): Promise<Record<string, string>> => {
+  console.log(currentTimestamp - WEEK);
   const query = gql`
     query Proposals {
       proposals(
@@ -96,10 +97,12 @@ export const fetchProposalsIdsBasedOnPeriods = async (
           space_in: ["${space}"]
           type: "weighted"
           start_lt: ${currentTimestamp - WEEK}
+          title_contains: "Gauge vote"
         }
       ) {
         id
         title
+        end
         space {
           id
         }
@@ -107,38 +110,28 @@ export const fetchProposalsIdsBasedOnPeriods = async (
     }
   `;
   const result = await request(SNAPSHOT_ENDPOINT, query);
-  const proposals = result.proposals.filter(
-    (proposal: any) => proposal.title.indexOf("Gauge vote") > -1
-  );
-
-  // Extract dates from proposals "title"
+  const proposals = result.proposals;
 
   let associated_timestamps: Record<string, string> = {};
+  const TWO_DAYS = 2 * 24 * 60 * 60; // 2 days in seconds
 
-  for (const proposal of proposals) {
-    const title = proposal.title;
-    const dateStrings = title.match(/\d{1,2}\/\d{1,2}\/\d{4}/g);
+  for (const period of periods) {
+    const periodTimestamp = parseInt(period);
 
-    const date_a = dateStrings[0];
-    const date_b = dateStrings[1];
+    // Find the most recent proposal that ended within 2 days before the period
+    const matchingProposal = proposals.find((proposal) => {
+      const endTimestamp = parseInt(proposal.end);
+      return (
+        endTimestamp < periodTimestamp &&
+        periodTimestamp - endTimestamp <= TWO_DAYS
+      );
+    });
 
-    const parts_a = date_a.split("/");
-    const parts_b = date_b.split("/");
-
-    // Convert dd/mm/yyyy to mm/dd/yyyy by swapping the first two elements
-    const correctFormat_a = `${parts_a[1]}/${parts_a[0]}/${parts_a[2]}`;
-    const correctFormat_b = `${parts_b[1]}/${parts_b[0]}/${parts_b[2]}`;
-
-    const timestamp_a = new Date(correctFormat_a).getTime() / 1000;
-    const timestamp_b = new Date(correctFormat_b).getTime() / 1000;
-
-    // Associate if the period is between a and b
-    for (const period of periods) {
-      if (parseInt(period) >= timestamp_a && parseInt(period) <= timestamp_b) {
-        associated_timestamps[period] = proposal.id;
-      }
+    if (matchingProposal) {
+      associated_timestamps[period] = matchingProposal.id;
     }
   }
+
   return associated_timestamps;
 };
 
