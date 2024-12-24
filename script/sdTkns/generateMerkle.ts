@@ -1,16 +1,40 @@
 import axios from "axios";
 import * as dotenv from "dotenv";
-import { fetchLastProposalsIds, fetchProposalsIdsBasedOnPeriods } from '../utils/snapshot';
-import { abi, AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, NETWORK_TO_STASH, SDPENDLE_SPACE, SPACE_TO_NETWORK, SPACES, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN, WEEK } from '../utils/constants';
-import * as moment from 'moment';
-import { checkSpace, extractCSV, PendleCSVType } from '../utils/utils';
-import { createMerkle } from '../utils/createMerkle';
-import { Chain, createPublicClient, encodeFunctionData, formatUnits, http } from 'viem';
-import * as fs from 'fs';
-import * as path from 'path';
-import { BigNumber } from 'ethers';
-import { bsc, mainnet } from 'viem/chains';
-import { Merkle } from '../utils/types';
+import {
+  fetchLastProposalsIds,
+  fetchProposalsIdsBasedOnPeriods,
+} from "../utils/snapshot";
+import {
+  abi,
+  AUTO_VOTER_DELEGATION_ADDRESS,
+  DELEGATION_ADDRESS,
+  NETWORK_TO_MERKLE,
+  NETWORK_TO_STASH,
+  SDPENDLE_SPACE,
+  SPACE_TO_NETWORK,
+  SPACES,
+  SPACES_IMAGE,
+  SPACES_SYMBOL,
+  SPACES_TOKENS,
+  SPACES_UNDERLYING_TOKEN,
+  WEEK,
+} from "../utils/constants";
+import * as moment from "moment";
+import { checkSpace, extractCSV, PendleCSVType } from "../utils/utils";
+import { createMerkle } from "../utils/createMerkle";
+import {
+  Chain,
+  createPublicClient,
+  encodeFunctionData,
+  formatUnits,
+  http,
+} from "viem";
+import * as fs from "fs";
+import * as path from "path";
+import { BigNumber } from "ethers";
+import { ethers } from "ethers";
+import { bsc, mainnet } from "viem/chains";
+import { Merkle } from "../utils/types";
 
 dotenv.config();
 
@@ -20,23 +44,34 @@ const logData: Record<string, any> = {
   SnapshotIds: [],
 }; // Use to store and write logs in a JSON
 
+const convertToProperHex = (value: any): string => {
+  if (value?.hex) return value.hex;
+  // For BigNumber objects, use toHexString()
+  if (value?.toHexString) return value.toHexString();
+  return `0x${value}`;
+};
+
 const main = async () => {
   const now = moment.utc().unix();
 
   const filter: string = "*Gauge vote.*$";
-  const [{ data: lastMerkles }, proposalIdPerSpace, { data: delegationAPRs }, {data: sdFXSWorkingData}] =
-    await Promise.all([
-      axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
-      ),
-      fetchLastProposalsIds(SPACES, now, filter),
-      axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
-      ),
-      axios.get(
-        "https://raw.githubusercontent.com/stake-dao/tg-bots/refs/heads/main/data/sdfxs/sdfxs-working-supply.json"
-      ),
-    ]);
+  const [
+    { data: lastMerkles },
+    proposalIdPerSpace,
+    { data: delegationAPRs },
+    { data: sdFXSWorkingData },
+  ] = await Promise.all([
+    axios.get(
+      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
+    ),
+    fetchLastProposalsIds(SPACES, now, filter),
+    axios.get(
+      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
+    ),
+    axios.get(
+      "https://raw.githubusercontent.com/stake-dao/tg-bots/refs/heads/main/data/sdfxs/sdfxs-working-supply.json"
+    ),
+  ]);
 
   const delegationAPRsClone = { ...delegationAPRs };
   for (const key of Object.keys(delegationAPRs)) {
@@ -65,7 +100,6 @@ const main = async () => {
     const csvResult = await extractCSV(currentPeriodTimestamp, space);
     const isPendle = space === SDPENDLE_SPACE;
     const network = SPACE_TO_NETWORK[space];
-
 
     // Log csv totals (total sd token)
     if (!csvResult) {
@@ -135,7 +169,7 @@ const main = async () => {
       lastMerkles,
       csvResult,
       pendleRewards,
-      sdFXSWorkingData,
+      sdFXSWorkingData
     );
 
     newMerkles.push(merkleStat.merkle);
@@ -254,6 +288,108 @@ const main = async () => {
   const logPath = path.join(__dirname, "..", "..", "log.json");
   fs.writeFileSync(logPath, JSON.stringify(logData));
   console.log(logPath);
+
+  console.log("\nComparing Merkle Trees:");
+
+  for (const merkle of newMerkles) {
+    // Find corresponding previous merkle
+    const prevMerkle = lastMerkles.find(
+      (m: any) => m.address.toLowerCase() === merkle.address.toLowerCase()
+    );
+
+    if (!prevMerkle) {
+      console.log(`\n=== New Distribution for ${merkle.symbol} ===`);
+      const totalFormatted = parseFloat(
+        formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18)
+      );
+      console.log(`Total: ${totalFormatted.toFixed(2)} ${merkle.symbol}`);
+      continue;
+    }
+
+    console.log(`\n=== ${merkle.symbol} Distribution Changes ===`);
+
+    // Calculate totals
+    const newTotal = BigNumber.from(convertToProperHex(merkle.total));
+    const prevTotal = BigNumber.from(convertToProperHex(prevMerkle.total));
+    const difference = newTotal.sub(prevTotal);
+    
+    console.log(
+      `Previous Total: ${ethers.utils.formatUnits(prevTotal, 18)} ${
+        merkle.symbol
+      }`
+    );
+    console.log(
+      `New Total: ${ethers.utils.formatUnits(newTotal, 18)} ${merkle.symbol}`
+    );
+    console.log(
+      `Difference: ${difference.gte(0) ? "+" : ""}${ethers.utils.formatUnits(
+        difference,
+        18
+      )} ${merkle.symbol}`
+    );
+
+    if (newTotal > 0 || prevTotal > 0) {
+      console.log("\nSorted users:");
+
+      // Get all addresses
+      const addresses = new Set([
+        ...Object.keys(merkle.merkle),
+        ...Object.keys(prevMerkle.merkle),
+      ]);
+
+      const holders = Array.from(addresses).map((address) => {
+        const newAmount = parseFloat(
+          formatUnits(
+            BigInt(
+              BigNumber.from(merkle.merkle[address]?.amount || "0").toString()
+            ),
+            18
+          )
+        );
+        const prevAmount = parseFloat(
+          formatUnits(
+            BigInt(
+              BigNumber.from(
+                prevMerkle.merkle[address]?.amount || "0"
+              ).toString()
+            ),
+            18
+          )
+        );
+        return {
+          address,
+          newAmount,
+          prevAmount,
+          share: (newAmount * 100) / newTotal,
+        };
+      });
+
+      // Sort and filter significant holders
+      holders
+        .sort((a, b) => b.newAmount - a.newAmount)
+        .filter((h) => h.newAmount > 0)
+        .forEach((holder) => {
+          const diff = holder.newAmount - holder.prevAmount;
+          let diffStr = "";
+          if (diff !== 0) {
+            const diffPercentage = (diff / (newTotal - prevTotal)) * 100;
+            diffStr = ` (${diff > 0 ? "+" : ""}${diff.toFixed(
+              2
+            )} - ${diffPercentage.toFixed(1)}%)`;
+          }
+
+          const addressDisplay = `${holder.address.slice(
+            0,
+            6
+          )}...${holder.address.slice(-4)}`;
+          console.log(
+            `${addressDisplay}: ${holder.share.toFixed(
+              2
+            )}% - ${holder.newAmount.toFixed(2)}${diffStr} ${merkle.symbol}`
+          );
+        });
+    }
+  }
 };
 
 /**
@@ -364,7 +500,6 @@ const checkDistribution = async (
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
       throw new Error("Amount in the merkle to high for space " + space);
     }
-
   }
 };
 
