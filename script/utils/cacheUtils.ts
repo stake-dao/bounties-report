@@ -55,7 +55,7 @@ export const fetchAllDelegators = async (
   const endBlock = Number(await publicClient.getBlockNumber());
 
   for (const delegationAddress of delegationAddresses) {
-    const delegators = await fetchDelegatorsForAddress(
+    const newDelegators = await fetchDelegatorsForAddress(
       chainId,
       delegationAddress,
       explorerUtils,
@@ -63,24 +63,29 @@ export const fetchAllDelegators = async (
       endBlock
     );
 
-    // Add end block if necessary
-    if (
-      delegators.length === 0 ||
-      delegators[delegators.length - 1].blockNumber !== endBlock
-    ) {
-      delegators.push({
-        event: "EndBlock",
-        user: "",
-        spaceId: "",
-        timestamp: 0,
-        blockNumber: endBlock,
-      });
-    }
-    // Only if needed, store the delegators as Parquet
-    if (delegators.length > 1) {
-      // Always at least one (EndBlock)
-      await storeDelegatorsAsParquet(chainId, delegationAddress, delegators);
-    }
+    const oldDelegators = await readParquetFile(getDelegationsFilePath(chainId, delegationAddress));
+
+    // Remove EndBlock entries from both arrays
+    const filteredOldDelegators = oldDelegators.filter(d => d.event !== "EndBlock");
+    const filteredNewDelegators = newDelegators.filter(d => d.event !== "EndBlock");
+
+    // Merge the filtered delegators
+    const delegators = [...filteredOldDelegators, ...filteredNewDelegators];
+
+    // Sort by block number to ensure chronological order
+    delegators.sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber));
+
+    // Add new EndBlock entry
+    delegators.push({
+      event: "EndBlock",
+      user: "",
+      spaceId: "",
+      timestamp: 0,
+      blockNumber: endBlock,
+    });
+
+    // Store the merged results
+    await storeDelegatorsAsParquet(chainId, delegationAddress, delegators);
   }
 };
 
@@ -185,8 +190,8 @@ async function fetchDelegatorsForAddress(
 
   const fetchStartBlock = Math.max(startBlock, latestProcessedBlock + 1);
 
-  console.log(fetchStartBlock);
-  
+  console.log("Start block", fetchStartBlock);
+
   const chunkSize = 100_000;
 
   for (
@@ -218,6 +223,7 @@ async function getLatestProcessedBlock(
 ): Promise<number> {
   const existingFile = getDelegationsFilePath(chainId, delegationAddress);
 
+
   if (!fs.existsSync(existingFile)) {
     console.warn(
       `No existing file found for ${delegationAddress}. Starting from block 0.`
@@ -234,11 +240,11 @@ async function getLatestProcessedBlock(
       return 0;
     }
 
-    let latestBlock = 0;
+    const delegators = await readParquetFile(existingFile);
 
-    await readParquetFile(existingFile);
+    const lastBlock = delegators[delegators.length - 1].blockNumber;
 
-    return latestBlock;
+    return lastBlock;
   } catch (error) {
     console.error(
       `Error reading Parquet file for ${delegationAddress}:`,
