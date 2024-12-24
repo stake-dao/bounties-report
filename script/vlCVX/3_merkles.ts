@@ -52,6 +52,7 @@ interface DelegationDistribution {
 async function checkDistribution(
   combinedNonDelegatorDistribution: Distribution,
 ) {
+
   console.log("\nChecking Botmarket balances:");
 
   const publicClient = createPublicClient({
@@ -627,6 +628,21 @@ async function generateMerkles() {
     delegators: delegatorMerkleData,
     nonDelegators: nonDelegatorMerkleData,
   };
+
+  // Additional : all addresses should be checksummed
+  merkleData.delegators.claims = Object.fromEntries(
+    Object.entries(merkleData.delegators.claims).map(([address, claim]) => [
+      getAddress(address),
+      claim,
+    ])
+  );
+
+  merkleData.nonDelegators.claims = Object.fromEntries(
+    Object.entries(merkleData.nonDelegators.claims).map(([address, claim]) => [
+      getAddress(address),
+      claim,
+    ])
+  );
 
   // Step 8: Save the combined Merkle data to a JSON file
   fs.writeFileSync(merkleDataPath, JSON.stringify(merkleData, null, 2));
