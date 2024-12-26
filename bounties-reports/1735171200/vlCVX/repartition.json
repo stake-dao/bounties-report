@@ -1,0 +1,61 @@
+{
+  "distribution": {
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "633322427152226875717",
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "911829895624162089283",
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "203262421887410589182",
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": "4885803568505202599583461"
+      }
+    },
+    "0xD18327BB6D6de9241Bed63bb5E78459325FbbD70": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "60361418459478147001"
+      }
+    },
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "72238210320447359852"
+      }
+    },
+    "0xF887Fb5B10F4722AfD50C29b1e5BFBe90193C93e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "7982242976471360559"
+      }
+    },
+    "0x7cfc917d0D16916752Ee65AC73A24ED3f774eA7C": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "54026099349085388233"
+      }
+    },
+    "0xBE09e43A57F2980998cEdD08517eae7d5aE683Bb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "1808957218683652140"
+      }
+    },
+    "0xfD6D004e713e809292007C4F70dAF12894a2b394": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "73535985378226667030"
+      }
+    },
+    "0xA3653B4544d3EB711893dAeed6e1AC0D549Ce9ae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "1080212469325261302"
+      }
+    },
+    "0x93EFEC89Db80176895b2C7a4E00aF808BBc69239": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "2372149929882638309"
+      }
+    }
+  }
+}
