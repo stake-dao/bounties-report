@@ -21,13 +21,18 @@ get-delegators: setup install-deps
 
 commit-and-push:
 	@echo "Committing and pushing changes..."
-	@git add .
-	@git config --global user.name 'GitHub Action'
-	@git config --global user.email 'action@github.com'
-	@git add data/delegations/*
+	@git config --global user.name 'github-actions[bot]'
+	@git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+	@git stash
 	@git pull --rebase origin main
-	@git commit -m "Update delegation data" || true
-	@git push
+	@git stash pop
+	@if git diff --quiet data/delegations/; then \
+		echo "No changes to commit"; \
+		exit 0; \
+	fi
+	@git add data/delegations/*
+	@git commit -m "Update delegation data [$(shell date +%Y-%m-%d)]" || true
+	@git push origin main
 
 clean:
 	@echo "Cleaning up local files..."
