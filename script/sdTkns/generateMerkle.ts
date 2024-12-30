@@ -36,6 +36,8 @@ import { ethers } from "ethers";
 import { bsc, mainnet } from "viem/chains";
 import { Merkle } from "../utils/types";
 
+const TODAY_DATE = moment.utc().format("YYYY-MM-DD");
+
 dotenv.config();
 
 const logData: Record<string, any> = {
@@ -45,10 +47,29 @@ const logData: Record<string, any> = {
 }; // Use to store and write logs in a JSON
 
 const convertToProperHex = (value: any): string => {
-  if (value?.hex) return value.hex;
-  // For BigNumber objects, use toHexString()
-  if (value?.toHexString) return value.toHexString();
-  return `0x${value}`;
+  // If it's a BigNumber object with type and hex properties
+  if (value?.type === 'BigNumber' && value?.hex) {
+    const hexValue = value.hex.startsWith('0x') ? value.hex : `0x${value.hex}`;
+    return hexValue;
+  }
+  
+  // If it's an ethers BigNumber instance
+  if (BigNumber.isBigNumber(value)) {
+    return value.toHexString();
+  }
+  
+  // If it's a string already
+  if (typeof value === 'string') {
+    return value.startsWith('0x') ? value : `0x${value}`;
+  }
+  
+  // If it's a regular number
+  if (typeof value === 'number') {
+    return `0x${value.toString(16)}`;
+  }
+
+  // Default case
+  return value.hex || '0x0';
 };
 
 const main = async () => {
@@ -312,7 +333,7 @@ const main = async () => {
     const newTotal = BigNumber.from(convertToProperHex(merkle.total));
     const prevTotal = BigNumber.from(convertToProperHex(prevMerkle.total));
     const difference = newTotal.sub(prevTotal);
-    
+
     console.log(
       `Previous Total: ${ethers.utils.formatUnits(prevTotal, 18)} ${
         merkle.symbol
