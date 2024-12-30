@@ -11,6 +11,7 @@ import {
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDPENDLE_SPACE,
+  SPACE_TO_CHAIN_ID,
   SPACE_TO_NETWORK,
   SPACES,
   SPACES_IMAGE,
@@ -20,7 +21,12 @@ import {
   WEEK,
 } from "../utils/constants";
 import * as moment from "moment";
-import { checkSpace, extractCSV, PendleCSVType } from "../utils/utils";
+import {
+  checkSpace,
+  extractCSV,
+  getAllAccountClaimedSinceLastFreeze,
+  PendleCSVType,
+} from "../utils/utils";
 import { createMerkle } from "../utils/createMerkle";
 import {
   Chain,
@@ -48,28 +54,28 @@ const logData: Record<string, any> = {
 
 const convertToProperHex = (value: any): string => {
   // If it's a BigNumber object with type and hex properties
-  if (value?.type === 'BigNumber' && value?.hex) {
-    const hexValue = value.hex.startsWith('0x') ? value.hex : `0x${value.hex}`;
+  if (value?.type === "BigNumber" && value?.hex) {
+    const hexValue = value.hex.startsWith("0x") ? value.hex : `0x${value.hex}`;
     return hexValue;
   }
-  
+
   // If it's an ethers BigNumber instance
   if (BigNumber.isBigNumber(value)) {
     return value.toHexString();
   }
-  
+
   // If it's a string already
-  if (typeof value === 'string') {
-    return value.startsWith('0x') ? value : `0x${value}`;
+  if (typeof value === "string") {
+    return value.startsWith("0x") ? value : `0x${value}`;
   }
-  
+
   // If it's a regular number
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return `0x${value.toString(16)}`;
   }
 
   // Default case
-  return value.hex || '0x0';
+  return value.hex || "0x0";
 };
 
 const main = async () => {
@@ -312,37 +318,116 @@ const main = async () => {
 
   console.log("\nComparing Merkle Trees:");
 
+  const logFilePath = `./temp/sdTokens_merkle_${TODAY_DATE}.log`;
+  const writeToMerkleLog = (content: string) => {
+    fs.appendFileSync(logFilePath, content + "\n");
+  };
+
   for (const merkle of newMerkles) {
+    writeToMerkleLog("\n" + "=".repeat(80));
+    writeToMerkleLog(`Distribution Details for ${merkle.symbol}`);
+    writeToMerkleLog("=".repeat(80));
+
+    writeToMerkleLog(`Chain ID: ${merkle.chainId}`);
+    writeToMerkleLog(`Token Address: ${merkle.address}`);
+    writeToMerkleLog(`Merkle Contract: ${merkle.merkleContract}`);
+
     // Find corresponding previous merkle
     const prevMerkle = lastMerkles.find(
       (m: any) => m.address.toLowerCase() === merkle.address.toLowerCase()
     );
 
     if (!prevMerkle) {
-      console.log(`\n=== New Distribution for ${merkle.symbol} ===`);
+      writeToMerkleLog("\nNEW DISTRIBUTION");
       const totalFormatted = parseFloat(
         formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18)
       );
-      console.log(`Total: ${totalFormatted.toFixed(2)} ${merkle.symbol}`);
+      writeToMerkleLog(`Total: ${totalFormatted.toFixed(2)} ${merkle.symbol}`);
       continue;
     }
-
-    console.log(`\n=== ${merkle.symbol} Distribution Changes ===`);
 
     // Calculate totals
     const newTotal = BigNumber.from(convertToProperHex(merkle.total));
     const prevTotal = BigNumber.from(convertToProperHex(prevMerkle.total));
     const difference = newTotal.sub(prevTotal);
 
-    console.log(
+    let chain: Chain | null = null;
+    let rpcUrl = "";
+
+    switch (merkle.chainId) {
+      case mainnet.id:
+        chain = mainnet;
+        rpcUrl =
+          "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        break;
+      case bsc.id:
+        chain = bsc;
+        rpcUrl =
+          "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        break;
+    }
+
+    let sdTknBalance = 0;
+    let totalInMerkle = 0;
+    let remainingToDistribute = 0;
+
+    // Get current balance from contract
+    if (chain) {
+      try {
+        const publicClient = createPublicClient({
+          chain,
+          transport: http(rpcUrl),
+        });
+
+        const sdTknBalanceBn = await publicClient.readContract({
+          address: merkle.address as `0x${string}`,
+          abi: [
+            {
+              name: "balanceOf",
+              type: "function",
+              stateMutability: "view",
+              inputs: [{ name: "account", type: "address" }],
+              outputs: [{ name: "", type: "uint256" }],
+            },
+          ],
+          functionName: "balanceOf",
+          args: [merkle.merkleContract as `0x${string}`],
+        });
+
+        sdTknBalance = parseFloat(formatUnits(sdTknBalanceBn, 18));
+        totalInMerkle = parseFloat(ethers.utils.formatUnits(newTotal, 18));
+        remainingToDistribute = totalInMerkle - sdTknBalance;
+
+        writeToMerkleLog("\nContract Status:");
+        writeToMerkleLog(
+          `Current Balance: ${sdTknBalance.toFixed(2)} ${merkle.symbol}`
+        );
+        writeToMerkleLog(
+          `Total in Merkle: ${totalInMerkle.toFixed(2)} ${merkle.symbol}`
+        );
+        writeToMerkleLog(
+          `Remaining to Distribute: ${remainingToDistribute.toFixed(2)} ${
+            merkle.symbol
+          }`
+        );
+      } catch (error) {
+        writeToMerkleLog("\nError fetching balance information");
+        writeToMerkleLog(
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
+
+    writeToMerkleLog("\nDistribution Changes:");
+    writeToMerkleLog(
       `Previous Total: ${ethers.utils.formatUnits(prevTotal, 18)} ${
         merkle.symbol
       }`
     );
-    console.log(
+    writeToMerkleLog(
       `New Total: ${ethers.utils.formatUnits(newTotal, 18)} ${merkle.symbol}`
     );
-    console.log(
+    writeToMerkleLog(
       `Difference: ${difference.gte(0) ? "+" : ""}${ethers.utils.formatUnits(
         difference,
         18
@@ -350,65 +435,130 @@ const main = async () => {
     );
 
     if (newTotal > 0 || prevTotal > 0) {
-      console.log("\nSorted users:");
+      writeToMerkleLog("\nHolder Distribution:");
+      writeToMerkleLog("-".repeat(120));
+      writeToMerkleLog(
+        "Address          New Dist Share  Total Share  Prev Amount    Total Amount    Week Change    Status"
+      );
+      writeToMerkleLog("-".repeat(120));
 
-      // Get all addresses
       const addresses = new Set([
         ...Object.keys(merkle.merkle),
         ...Object.keys(prevMerkle.merkle),
       ]);
 
-      const holders = Array.from(addresses).map((address) => {
-        const newAmount = parseFloat(
-          formatUnits(
-            BigInt(
-              BigNumber.from(merkle.merkle[address]?.amount || "0").toString()
-            ),
-            18
-          )
-        );
-        const prevAmount = parseFloat(
-          formatUnits(
-            BigInt(
-              BigNumber.from(
-                prevMerkle.merkle[address]?.amount || "0"
-              ).toString()
-            ),
-            18
-          )
-        );
-        return {
-          address,
-          newAmount,
-          prevAmount,
-          share: (newAmount * 100) / newTotal,
-        };
-      });
+      // Get claim status for all users
+      const network = merkle.chainId === mainnet.id ? "ethereum" : "bsc";
+      const usersClaimedAddress = await getAllAccountClaimedSinceLastFreeze(
+        NETWORK_TO_MERKLE[network],
+        merkle.address,
+        merkle.chainId === mainnet.id ? "1" : "56"
+      );
 
-      // Sort and filter significant holders
-      holders
-        .sort((a, b) => b.newAmount - a.newAmount)
-        .filter((h) => h.newAmount > 0)
-        .forEach((holder) => {
-          const diff = holder.newAmount - holder.prevAmount;
-          let diffStr = "";
-          if (diff !== 0) {
-            const diffPercentage = (diff / (newTotal - prevTotal)) * 100;
-            diffStr = ` (${diff > 0 ? "+" : ""}${diff.toFixed(
-              2
-            )} - ${diffPercentage.toFixed(1)}%)`;
-          }
-
-          const addressDisplay = `${holder.address.slice(
-            0,
-            6
-          )}...${holder.address.slice(-4)}`;
-          console.log(
-            `${addressDisplay}: ${holder.share.toFixed(
-              2
-            )}% - ${holder.newAmount.toFixed(2)}${diffStr} ${merkle.symbol}`
+      // Create the holders array with calculations
+      const holders = Array.from(addresses)
+        .map((address) => {
+          const newAmount = parseFloat(
+            formatUnits(
+              BigInt(
+                BigNumber.from(merkle.merkle[address]?.amount || "0").toString()
+              ),
+              18
+            )
           );
-        });
+          const prevAmount = parseFloat(
+            formatUnits(
+              BigInt(
+                BigNumber.from(
+                  prevMerkle.merkle[address]?.amount || "0"
+                ).toString()
+              ),
+              18
+            )
+          );
+          const weekChange = newAmount - prevAmount;
+          const userAddressLowerCase = address.toLowerCase();
+          const hasClaimed = usersClaimedAddress[userAddressLowerCase];
+
+          // Calculate share based on claim status and only if there's a difference
+          const newDistShare =
+            weekChange > 0
+              ? hasClaimed
+                ? (newAmount / remainingToDistribute) * 100
+                : (weekChange / remainingToDistribute) * 100
+              : 0;
+
+          return {
+            address,
+            newAmount,
+            prevAmount,
+            weekChange,
+            hasClaimed,
+            totalShare: (newAmount / totalInMerkle) * 100,
+            newDistShare,
+          };
+        })
+        .filter((h) => h.newAmount > 0)
+        .sort((a, b) => b.newDistShare - a.newDistShare);
+
+      // Calculate summary stats
+      const totalHolders = holders.length;
+      const claimedCount = holders.filter((h) => h.hasClaimed).length;
+      const pendingCount = holders.filter((h) => !h.hasClaimed).length;
+
+      for (const holder of holders) {
+        const addressDisplay = `${holder.address.slice(
+          0,
+          6
+        )}...${holder.address.slice(-4)}`;
+
+        const newDistShareStr =
+          holder.newDistShare.toFixed(2).padStart(6) + "%";
+        const totalShareStr = holder.totalShare.toFixed(2).padStart(6) + "%";
+        const prevAmountStr = holder.prevAmount.toFixed(2).padStart(12);
+        const amountStr = holder.newAmount.toFixed(2).padStart(12);
+        const changeStr =
+          (holder.weekChange > 0 ? "+" : "") + holder.weekChange.toFixed(2);
+        const claimStatus = holder.hasClaimed ? "CLAIMED" : "PENDING";
+
+        writeToMerkleLog(
+          `${addressDisplay.padEnd(16)} ${newDistShareStr.padEnd(
+            14
+          )} ${totalShareStr.padEnd(12)} ${prevAmountStr.padEnd(
+            14
+          )} ${amountStr.padEnd(14)} ${changeStr.padEnd(
+            14
+          )} ${claimStatus.padEnd(10)}`
+        );
+      }
+
+      writeToMerkleLog("-".repeat(120));
+
+      // Summary statistics
+      writeToMerkleLog("\nDistribution Summary:");
+      writeToMerkleLog(`Total Holders: ${totalHolders}`);
+      writeToMerkleLog(
+        `Claimed Since Last Distribution: ${claimedCount} (${(
+          (claimedCount / totalHolders) *
+          100
+        ).toFixed(2)}%)`
+      );
+      writeToMerkleLog(
+        `Pending Claims: ${pendingCount} (${(
+          (pendingCount / totalHolders) *
+          100
+        ).toFixed(2)}%)`
+      );
+      writeToMerkleLog(
+        `Active Delegators this Week: ${
+          holders.filter((h) => h.weekChange > 0).length
+        }`
+      );
+      writeToMerkleLog(
+        `Total Distribution: ${remainingToDistribute.toFixed(2)} ${
+          merkle.symbol
+        }`
+      );
     }
   }
 };

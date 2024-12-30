@@ -11,6 +11,8 @@ import { mainnet } from "viem/chains";
 import { getAllCurveGauges } from "./utils/curveApi";
 import { DELEGATION_ADDRESS } from "./utils/constants";
 import { processAllDelegators } from "./utils/cacheUtils";
+import fs from "fs";
+import path from "path";
 
 const SUPPORTED_SPACES = {
   "sdcrv.eth": "curve",
@@ -24,6 +26,49 @@ const client = createPublicClient({
 
 function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+interface DelegatorData {
+  delegators: string[];
+  votingPowers: { [key: string]: number };
+  totalVotingPower: number;
+}
+
+function setupLogging(proposalId: string): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const tempDir = path.join(process.cwd(), "temp");
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+  const logPath = path.join(tempDir, `proposal-${proposalId}-${timestamp}.log`);
+  const logStream = fs.createWriteStream(logPath, { flags: "a" });
+
+  return logPath;
+}
+
+async function fetchDelegatorData(
+  space: string,
+  proposal: any
+): Promise<DelegatorData | null> {
+  const delegators = await processAllDelegators(
+    space,
+    proposal.created,
+    DELEGATION_ADDRESS
+  );
+
+  if (delegators.length === 0) return null;
+
+  const votingPowers = await getVotingPower(proposal, delegators);
+  const totalVotingPower = Object.values(votingPowers).reduce(
+    (acc, vp) => acc + vp,
+    0
+  );
+
+  return {
+    delegators,
+    votingPowers,
+    totalVotingPower,
+  };
 }
 
 async function main() {
@@ -47,12 +92,18 @@ async function main() {
     })
     .help().argv;
 
+  const logPath = setupLogging(argv.proposalId);
+  const log = (message: string) => {
+    fs.appendFileSync(logPath, `${message}\n`);
+    console.log(message);
+  };
+
   try {
     const proposal = await getProposal(argv.proposalId);
     const space = proposal.space.id;
 
     if (!SUPPORTED_SPACES[space]) {
-      console.error("Space not supported: " + space);
+      log("Space not supported: " + space);
       process.exit(1);
     }
 
@@ -63,8 +114,50 @@ async function main() {
       Number(blockSnapshot.timestamp) * 1000
     ).toLocaleString();
 
+    // Print proposal information
+    log("\n=== Proposal Information ===");
+    log(`ID: ${proposal.id}`);
+    log(`Title: ${proposal.title}`);
+    log(`Space: ${space}`);
+    log(`Author: ${formatAddress(proposal.author)}`);
+    log(`Created: ${new Date(proposal.created * 1000).toLocaleString()}`);
+    log(`Start: ${new Date(proposal.start * 1000).toLocaleString()}`);
+    log(`End: ${new Date(proposal.end * 1000).toLocaleString()}`);
+    log(`Snapshot Block: ${proposal.snapshot}`);
+    log(`Snapshot Date: ${dateSnapshot}`);
+
+    // Fetch and log delegator data for all supported spaces
+    log("\n=== Delegation Information ===");
+    for (const supportedSpace of Object.keys(SUPPORTED_SPACES)) {
+      log(`\nSpace: ${supportedSpace}`);
+      const delegatorData = await fetchDelegatorData(supportedSpace, proposal);
+      
+      if (delegatorData) {
+        const sortedDelegators = delegatorData.delegators
+          .filter(delegator => delegatorData.votingPowers[delegator] > 0)
+          .sort((a, b) => 
+            (delegatorData.votingPowers[b] || 0) - (delegatorData.votingPowers[a] || 0)
+          );
+
+        log(`Total Delegators: ${sortedDelegators.length}`);
+        log(`Total Voting Power: ${delegatorData.totalVotingPower.toFixed(2)}`);
+        
+        log("\nDelegator Breakdown:");
+        for (const delegator of sortedDelegators) {
+          const vp = delegatorData.votingPowers[delegator];
+          const share = (vp / delegatorData.totalVotingPower) * 100;
+          log(`- ${formatAddress(delegator)}: ${vp.toFixed(2)} VP (${share.toFixed(2)}%)`);
+        }
+      } else {
+        log("No delegators found");
+      }
+    }
+
     const curveGauges = await getAllCurveGauges();
     const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
+    const votes = await getVoters(proposal.id);
+
+    log(`\nTotal Votes: ${votes.length}`);
 
     let gaugePerChoiceIdWithShortName: {
       [key: string]: { shortName: string; choiceId: number };
@@ -83,44 +176,27 @@ async function main() {
       }
     }
 
-    const votes = await getVoters(proposal.id);
-
-    // Print proposal information first
-    console.log("\n=== Proposal Information ===");
-    console.log(`ID: ${proposal.id}`);
-    console.log(`Title: ${proposal.title}`);
-    console.log(`Space: ${space}`);
-    console.log(`Author: ${formatAddress(proposal.author)}`);
-    console.log(
-      `Created: ${new Date(proposal.created * 1000).toLocaleString()}`
-    );
-    console.log(`Start: ${new Date(proposal.start * 1000).toLocaleString()}`);
-    console.log(`End: ${new Date(proposal.end * 1000).toLocaleString()}`);
-    console.log(`Snapshot Block: ${proposal.snapshot}`);
-    console.log(`Snapshot Date: ${dateSnapshot}`);
-    console.log(`Total Votes: ${votes.length}`);
-
     if (argv.gauges) {
-      console.log("\n=== Gauge Details ===");
+      log("\n=== Gauge Details ===");
       let gauges = argv.gauges as string[];
       gauges = gauges.map((g) => g.trim().toLowerCase());
 
       for (const gauge of gauges) {
-        console.log("\n-------------------");
+        log("\n-------------------");
         if (gaugePerChoiceIdWithShortName[gauge]) {
           const gaugeInfo = gaugePerChoiceIdWithShortName[gauge];
-          console.log(`Gauge Info:`, gaugeInfo);
-          console.log(`Address: ${gauge}`);
-          console.log(`Name: ${gaugeInfo.shortName}`);
-          console.log(`Choice ID: ${gaugeInfo.choiceId}`);
+          log(`Gauge Info: ${JSON.stringify(gaugeInfo, null, 2)}`);
+          log(`Address: ${gauge}`);
+          log(`Name: ${gaugeInfo.shortName}`);
+          log(`Choice ID: ${gaugeInfo.choiceId}`);
 
           const activeChoiceId = gaugeInfo.choiceId;
           const votesForGauge = votes.filter(
             (vote) => vote.choice[activeChoiceId] !== undefined
           );
 
-          console.log(`\n=== Votes for ${gaugeInfo.shortName} ===`);
-          console.log(`Total Votes: ${votesForGauge.length}`);
+          log(`\n=== Votes for ${gaugeInfo.shortName} ===`);
+          log(`Total Votes: ${votesForGauge.length}`);
 
           // Calculate total effective VP for this gauge
           let totalEffectiveVpForGauge = 0;
@@ -147,9 +223,9 @@ async function main() {
           }
 
           // Print detailed votes
-          console.log("\n--- Detailed Votes ---");
+          log("\n--- Detailed Votes ---");
           for (const vote of votesForGauge) {
-            console.log(`\nVoter: ${formatAddress(vote.voter)}`);
+            log(`\nVoter: ${formatAddress(vote.voter)}`);
 
             let vpChoiceSum = 0;
             let currentChoiceIndex = 0;
@@ -164,57 +240,21 @@ async function main() {
             if (currentChoiceIndex > 0) {
               const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
               const effectiveVp = (vote.vp * ratio) / 100;
-              console.log(`Total VP: ${vote.vp.toFixed(2)}`);
-              console.log(`Share of voter's VP: ${ratio.toFixed(2)}%`);
-              console.log(`Effective VP: ${effectiveVp.toFixed(2)}`);
+              log(`Total VP: ${vote.vp.toFixed(2)}`);
+              log(`Share of voter's VP: ${ratio.toFixed(2)}%`);
+              log(`Effective VP: ${effectiveVp.toFixed(2)}`);
             } else {
-              console.log(`Total VP: ${vote.vp.toFixed(2)}`);
-              console.log(`Share of voter's VP: 0%`);
-              console.log(`Effective VP: 0`);
+              log(`Total VP: ${vote.vp.toFixed(2)}`);
+              log(`Share of voter's VP: 0%`);
+              log(`Effective VP: 0`);
             }
 
-            console.log(
-              `Timestamp: ${new Date(vote.created * 1000).toLocaleString()}`
-            );
-
-            // Add delegator details if applicable
-            if (vote.voter === DELEGATION_ADDRESS) {
-              console.log("\nDelegator Details:");
-
-              const delegators = await processAllDelegators(
-                space,
-                proposal.created,
-                DELEGATION_ADDRESS
-              );
-
-              if (delegators.length > 0) {
-                const vps = await getVotingPower(proposal, delegators);
-                const totalVp = Object.values(vps).reduce(
-                  (acc, vp) => acc + vp,
-                  0
-                );
-
-                console.log(`Total Delegators: ${delegators.length}`);
-                console.log(`Total Voting Power: ${totalVp}`);
-
-                console.log("\nDelegator Breakdown:");
-                delegators.forEach((delegator) => {
-                  const delegatorVp = vps[delegator] || 0;
-                  if (delegatorVp > 0) {
-                    const share = (delegatorVp / totalVp).toString();
-                    const percentage = (parseFloat(share) * 100).toFixed(2);
-                    console.log(`- ${formatAddress(delegator)}`);
-                    console.log(`  Share: ${percentage}%`);
-                    console.log(`  Voting Power: ${delegatorVp}`);
-                  }
-                });
-              }
-            }
+            log(`Timestamp: ${new Date(vote.created * 1000).toLocaleString()}`);
           }
 
           // Print vote distribution summary
-          console.log("\n--- Vote Distribution Summary ---");
-          console.log(
+          log("\n--- Vote Distribution Summary ---");
+          log(
             `Total Effective VP for ${
               gaugeInfo.shortName
             }: ${totalEffectiveVpForGauge.toFixed(2)}`
@@ -222,7 +262,7 @@ async function main() {
 
           const sortedVoters = Object.entries(voterEffectiveVps).sort(
             ([, a], [, b]) => b - a
-          ); // Sort by effective VP, descending
+          );
 
           for (const [voter, effectiveVp] of sortedVoters) {
             const shareOfGauge = (effectiveVp * 100) / totalEffectiveVpForGauge;
@@ -230,33 +270,32 @@ async function main() {
               voter === DELEGATION_ADDRESS
                 ? "STAKE DELEGATION (0x52ea...)"
                 : formatAddress(voter);
-            console.log(
+            log(
               `${voterDisplay}: ${shareOfGauge.toFixed(
                 2
               )}% (${effectiveVp.toFixed(2)} VP)`
             );
           }
 
-          console.log("\n-------------------");
+          log("\n-------------------");
         } else {
-          console.log("Gauge not found: " + gauge);
+          log("Gauge not found: " + gauge);
         }
       }
     } else {
-      console.log("\n=== All Available Gauges ===");
+      log("\n=== All Available Gauges ===");
       Object.entries(gaugePerChoiceIdWithShortName).forEach(([gauge, info]) => {
-        console.log("\n-------------------");
-        console.log(`Address: ${gauge}`);
-        console.log(`Name: ${info.shortName}`);
-        console.log(`Choice ID: ${info.choiceId}`);
+        log("\n-------------------");
+        log(`Address: ${gauge}`);
+        log(`Name: ${info.shortName}`);
+        log(`Choice ID: ${info.choiceId}`);
       });
     }
+
+    log(`\nLog file created at: ${logPath}`);
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error:", error.message);
-    } else {
-      console.error("Unknown error:", error);
-    }
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log(`Error: ${errorMessage}`);
     process.exit(1);
   }
 }

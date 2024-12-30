@@ -324,6 +324,63 @@ export const formatVotingPowerResult = (
   );
 };
 
+
+// Normalize pool name for comparison
+const normalizePoolName = (name) => {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '') // Remove all whitespace
+    .replace(/[\.…]/g, '') // Remove dots and ellipsis
+    .replace(/[\(\)]/g, ''); // Remove parentheses
+};
+
+// Extract address from pool name
+const extractAddress = (name) => {
+  const addressMatch = name.match(/0x[a-fA-F0-9]+/);
+  return addressMatch ? addressMatch[0].toLowerCase() : '';
+};
+
+const findCurveGauge = (choice, curveGauges) => {
+  // Normalize the search term
+  const normalizedChoice = normalizePoolName(choice);
+  const choiceAddress = extractAddress(choice);
+
+  return curveGauges.find(gauge => {
+    // Try exact match first
+    if (gauge.shortName.toLowerCase() === choice.toLowerCase()) {
+      return true;
+    }
+
+    // Try normalized name match
+    const normalizedGaugeName = normalizePoolName(gauge.shortName);
+    if (normalizedGaugeName === normalizedChoice) {
+      return true;
+    }
+
+    // Try matching by address if present
+    if (choiceAddress) {
+      const gaugeAddress = extractAddress(gauge.shortName);
+      if (gaugeAddress && gaugeAddress.startsWith(choiceAddress)) {
+        return true;
+      }
+      
+      // Also check swap address
+      if (gauge.swap && gauge.swap.toLowerCase().startsWith(choiceAddress)) {
+        return true;
+      }
+    }
+
+    // Try partial name match (excluding address part)
+    const gaugeName = gauge.shortName.split('(')[0].trim().toLowerCase();
+    const searchName = choice.split('(')[0].trim().toLowerCase();
+    if (gaugeName === searchName) {
+      return true;
+    }
+
+    return false;
+  });
+};
+
 /**
  * Associate gauges with choice IDs
  * @param proposal - Proposal object
@@ -351,6 +408,8 @@ export const associateGaugesPerId = (
       (curveGauge) =>
         curveGauge.shortName.toLowerCase() === choice.toLowerCase()
     );
+
+    //let curveGauge = findCurveGauge(choice, curveGauges);
 
     if (!curveGauge) {
       console.log(
