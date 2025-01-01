@@ -10,10 +10,10 @@ import { ALL_MIGHT, WETH_ADDRESS } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
-
-export async function getSdCrvTransfer(minBlock: number, maxBlock: number) {
+  
+export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   const explorerUtils = createBlockchainExplorerUtils();
-  const sdCrvAddress = getAddress("0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5");
+  const crvUsdAddress = getAddress("0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490");
 
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
@@ -32,7 +32,7 @@ export async function getSdCrvTransfer(minBlock: number, maxBlock: number) {
   };
 
   const response = await explorerUtils.getLogsByAddressesAndTopics(
-    [sdCrvAddress],
+    [crvUsdAddress],
     minBlock,
     maxBlock,
     topics,
@@ -40,7 +40,7 @@ export async function getSdCrvTransfer(minBlock: number, maxBlock: number) {
   );
 
   if (response.result.length === 0) {
-    throw new Error("No sdCRV transfer found");
+    throw new Error("No CRVUSD transfer found");
   }
 
   const latestTransfer = response.result[response.result.length - 1];

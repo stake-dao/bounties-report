@@ -18,7 +18,7 @@ import path from "path";
 import { createPublicClient, http, getAddress } from "viem";
 import { mainnet } from "viem/chains";
 import {
-  getSdCrvTransfer,
+  getCRVUsdTransfer,
   generateMerkleTree,
   MerkleData,
   CombinedMerkleData,
@@ -150,9 +150,9 @@ async function generateDelegatorMerkleTree(
     return previousMerkleData;
   }
 
-  // Step 1: Get the total sdCRV transfer amount
-  const sdCrvTransfer = await getSdCrvTransfer(minBlock, maxBlock);
-  const totalSdCrv = sdCrvTransfer.amount;
+  // Step 1: Get the total crvUsd transfer amount
+  const crvUsdTransfer = await getCRVUsdTransfer(minBlock, maxBlock);
+  const totalCrvUsd = crvUsdTransfer.amount;
 
   // Step 2: Calculate sdCRV amounts for each delegator based on their shares
   const delegatorDistribution: {
@@ -161,12 +161,12 @@ async function generateDelegatorMerkleTree(
 
   delegators.forEach(([address, data]) => {
     const share = parseFloat(data.share!);
-    const sdCrvAmount =
-      (totalSdCrv * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
+    const crvUsdAmount =
+      (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
 
-    if (sdCrvAmount > 0n) {
+    if (crvUsdAmount > 0n) {
       delegatorDistribution[address] = {
-        [SPACES_TOKENS[SDCRV_SPACE]]: sdCrvAmount.toString(),
+        [SPACES_TOKENS[SDCRV_SPACE]]: crvUsdAmount.toString(),
       };
     }
   });
@@ -508,8 +508,8 @@ async function generateMerkles() {
     }
   );
 
-  // Add sdCRV token
-  rewardTokenAddresses.add(SPACES_TOKENS[SDCRV_SPACE].toLowerCase());
+  // Add crvUSD token
+  rewardTokenAddresses.add(getAddress("0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490").toLowerCase());
 
   const tokenInfoArray = await Promise.allSettled(
     Array.from(rewardTokenAddresses).map(async (tokenAddress) => {
