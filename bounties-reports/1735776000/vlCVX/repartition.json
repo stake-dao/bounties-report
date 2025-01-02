@@ -1,0 +1,61 @@
+{
+  "distribution": {
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "636085651755090843944",
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "917177261769491392579",
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": "4926358615531833718605755",
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "203330799001552080113"
+      }
+    },
+    "0xD18327BB6D6de9241Bed63bb5E78459325FbbD70": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "60022165803180116140"
+      }
+    },
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "72262511124829166690"
+      }
+    },
+    "0xF887Fb5B10F4722AfD50C29b1e5BFBe90193C93e": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "7984928188691303619"
+      }
+    },
+    "0x7cfc917d0D16916752Ee65AC73A24ED3f774eA7C": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "54044273632002563018"
+      }
+    },
+    "0xBE09e43A57F2980998cEdD08517eae7d5aE683Bb": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "1809565748647383066"
+      }
+    },
+    "0xfD6D004e713e809292007C4F70dAF12894a2b394": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "73560722751810157929"
+      }
+    },
+    "0xA3653B4544d3EB711893dAeed6e1AC0D549Ce9ae": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "1080575850862420335"
+      }
+    },
+    "0x93EFEC89Db80176895b2C7a4E00aF808BBc69239": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "2372947916864246545"
+      }
+    }
+  }
+}
