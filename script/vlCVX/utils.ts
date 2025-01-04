@@ -13,7 +13,7 @@ import MerkleTree from "merkletreejs";
   
 export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   const explorerUtils = createBlockchainExplorerUtils();
-  const crvUsdAddress = getAddress("0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490");
+  const crvUsdAddress = getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E");
 
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));

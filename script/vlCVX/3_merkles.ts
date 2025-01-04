@@ -509,7 +509,7 @@ async function generateMerkles() {
   );
 
   // Add crvUSD token
-  rewardTokenAddresses.add(getAddress("0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490").toLowerCase());
+  rewardTokenAddresses.add(getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E").toLowerCase());
 
   const tokenInfoArray = await Promise.allSettled(
     Array.from(rewardTokenAddresses).map(async (tokenAddress) => {
