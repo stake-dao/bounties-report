@@ -146,7 +146,7 @@ async function main() {
         for (const delegator of sortedDelegators) {
           const vp = delegatorData.votingPowers[delegator];
           const share = (vp / delegatorData.totalVotingPower) * 100;
-          log(`- ${formatAddress(delegator)}: ${vp.toFixed(2)} VP (${share.toFixed(2)}%)`);
+          log(`- ${delegator}: ${vp.toFixed(2)} VP (${share.toFixed(2)}%)`);
         }
       } else {
         log("No delegators found");
@@ -225,7 +225,7 @@ async function main() {
           // Print detailed votes
           log("\n--- Detailed Votes ---");
           for (const vote of votesForGauge) {
-            log(`\nVoter: ${formatAddress(vote.voter)}`);
+            log(`\nVoter: ${vote.voter}`);
 
             let vpChoiceSum = 0;
             let currentChoiceIndex = 0;

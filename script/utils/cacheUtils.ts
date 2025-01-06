@@ -95,6 +95,8 @@ export const processAllDelegators = async (
   delegationAddress: string
 ) => {
   const spaceBytes32 = formatBytes32String(space);
+  console.log(space);
+  console.log(spaceBytes32);
   // First get the cached file for the delegation address
   const existingFile = getDelegationsFilePath(
     SPACE_TO_CHAIN_ID[space],

@@ -119,6 +119,18 @@ async function checkDistribution(
       }
     }
   }
+
+  console.log("\nRemoving 1 wei from each distribution for safety...");
+  
+  // For each address and their tokens
+  for (const data of Object.values(combinedNonDelegatorDistribution)) {
+    for (const [tokenAddress, amount] of Object.entries(data.tokens)) {
+      if (amount > 1n) {
+        data.tokens[tokenAddress] = amount - 1n;
+      }
+    }
+  }
+
   return combinedNonDelegatorDistribution;
 }
 
