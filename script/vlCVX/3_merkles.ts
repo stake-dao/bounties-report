@@ -120,13 +120,40 @@ async function checkDistribution(
     }
   }
 
-  console.log("\nRemoving 1 wei from each distribution for safety...");
+  console.log("\nRemoving 0.00001 token worth from each distribution for safety...");
   
-  // For each address and their tokens
-  for (const data of Object.values(combinedNonDelegatorDistribution)) {
-    for (const [tokenAddress, amount] of Object.entries(data.tokens)) {
-      if (amount > 1n) {
-        data.tokens[tokenAddress] = amount - 1n;
+  // Reuse the existing tokenAddresses Set that was created earlier
+  for (const tokenAddress of tokenAddresses) {
+    // Get total amount for this token
+    const totalAmount = Object.values(combinedNonDelegatorDistribution)
+      .reduce((acc, data) => acc + (data.tokens[tokenAddress] || 0n), 0n);
+    
+    if (totalAmount === 0n) continue;
+
+    // Calculate 0.00001 token worth based on decimals
+    const decimals = await publicClient.readContract({
+      address: tokenAddress as `0x${string}`,
+      abi: [
+        {
+          inputs: [],
+          name: "decimals",
+          outputs: [{ type: "uint8" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "decimals",
+    });
+    
+    const smallAmount = BigInt(10) ** BigInt(decimals - 5); // 0.00001 tokens
+
+    // Remove proportionally from each holder
+    for (const data of Object.values(combinedNonDelegatorDistribution)) {
+      if (data.tokens[tokenAddress] && data.tokens[tokenAddress] > 0n) {
+        const share = (data.tokens[tokenAddress] * smallAmount) / totalAmount;
+        if (data.tokens[tokenAddress] > share) {
+          data.tokens[tokenAddress] -= share;
+        }
       }
     }
   }
