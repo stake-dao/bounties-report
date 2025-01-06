@@ -166,7 +166,7 @@ async function generateDelegatorMerkleTree(
 
     if (crvUsdAmount > 0n) {
       delegatorDistribution[address] = {
-        [SPACES_TOKENS[SDCRV_SPACE]]: crvUsdAmount.toString(),
+        [getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E")]: crvUsdAmount.toString(),
       };
     }
   });

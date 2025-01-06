@@ -189,7 +189,28 @@ export function generateMerkleTree(distribution: {
   const leaves: string[] = [];
   const claims: MerkleData["claims"] = {};
 
-  Object.entries(distribution).forEach(([address, tokens]) => {
+  // Convert input addresses to checksum addresses and merge duplicate addresses
+  const checksummedDistribution = Object.entries(distribution).reduce(
+    (acc, [address, tokens]) => {
+      const checksumAddress = getAddress(address);
+      
+      // Initialize or merge with existing tokens for this address
+      if (!acc[checksumAddress]) {
+        acc[checksumAddress] = {};
+      }
+      
+      // Merge tokens for this address
+      Object.entries(tokens).forEach(([tokenAddress, amount]) => {
+        const checksumTokenAddress = getAddress(tokenAddress);
+        acc[checksumAddress][checksumTokenAddress] = amount;
+      });
+      
+      return acc;
+    },
+    {} as { [address: string]: { [tokenAddress: string]: string } }
+  );
+
+  Object.entries(checksummedDistribution).forEach(([address, tokens]) => {
     Object.entries(tokens).forEach(([tokenAddress, amount]) => {
       const leaf = utils.keccak256(
         utils.solidityPack(
@@ -219,7 +240,7 @@ export function generateMerkleTree(distribution: {
   const merkleTree = new MerkleTree(leaves, keccak256, { sortPairs: true });
   const merkleRoot = merkleTree.getHexRoot();
 
-  // Generate proofs
+  // Generate proofs using checksummed addresses
   Object.entries(claims).forEach(([address, claim]) => {
     Object.entries(claim.tokens).forEach(([tokenAddress, tokenClaim]) => {
       const leaf = utils.keccak256(
