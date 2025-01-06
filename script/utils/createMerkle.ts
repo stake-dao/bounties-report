@@ -8,6 +8,30 @@ import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 import { processAllDelegators } from "./cacheUtils";
 
+interface MerkleStat {
+  apr: number;
+  merkle: {
+    symbol: string;
+    address: string;
+    image: string;
+    merkle: Record<string, { index: number; amount: BigNumber; proof: string }>;
+    root: string;
+    total: BigNumber;
+    chainId: number;
+    merkleContract: string;
+  };
+  logs: Log[];
+  distributions?: {
+    symbol: string;
+    totalAmount: string;
+    holders: Array<{
+      address: string;
+      amount: string;
+      share: number;
+    }>;
+  };
+}
+
 export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any): Promise<MerkleStat> => {
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
@@ -322,6 +346,18 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         apr *= 4;
     }
 
+    const distributionLog = {
+        symbol: SPACES_SYMBOL[space],
+        totalAmount: totalAmount.toString(),
+        holders: userRewardAddresses
+            .map(address => ({
+                address,
+                amount: merkle[address.toLowerCase()].amount.toString(),
+                share: (Number(merkle[address.toLowerCase()].amount) * 100) / Number(totalAmount)
+            }))
+            .sort((a, b) => Number(b.amount) - Number(a.amount))
+    };
+
     return {
         apr,
         merkle: {
@@ -335,5 +371,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             "merkleContract": NETWORK_TO_MERKLE[network]
         },
         logs,
+        distributions: distributionLog
     }
 }
