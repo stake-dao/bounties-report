@@ -24,7 +24,7 @@ const main = async () => {
   const now = moment.utc().unix();
 
   const filter: string = "*Gauge vote.*$";
-  const [{ data: lastMerkles }, proposalIdPerSpace, { data: delegationAPRs }, {data: sdFXSWorkingData}] =
+  const [{ data: lastMerkles }, proposalIdPerSpace, { data: delegationAPRs }, {data: sdFXSWorkingData}, {data: sdCakeWorkingData}] =
     await Promise.all([
       axios.get(
         "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
@@ -34,7 +34,10 @@ const main = async () => {
         "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
       ),
       axios.get(
-        "https://raw.githubusercontent.com/stake-dao/tg-bots/refs/heads/main/data/sdfxs/sdfxs-working-supply.json"
+        "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdfxs-working-supply.json"
+      ),
+      axios.get(
+        "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdcake-working-supply.json"
       ),
     ]);
 
@@ -136,6 +139,7 @@ const main = async () => {
       csvResult,
       pendleRewards,
       sdFXSWorkingData,
+      sdCakeWorkingData,
     );
 
     newMerkles.push(merkleStat.merkle);

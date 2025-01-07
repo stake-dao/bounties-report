@@ -8,7 +8,7 @@ import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 import { processAllDelegators } from "./cacheUtils";
 
-export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any): Promise<MerkleStat> => {
+export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, sdCakeWorkingData: any): Promise<MerkleStat> => {
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
     const logs: Log[] = [];
@@ -180,7 +180,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
                 // This user should receive ratioVp% of all rewards
                 if (space === SDCRV_SPACE && delegatorAddress.toLowerCase() === "0x1c0d72a330f2768daf718def8a19bab019eead09".toLowerCase()) {
                     logs.push({
-                        id:"Concentrator",
+                        id: "Concentrator",
                         content: [
                             `Voting power : ${vp}`,
                             `Rewards : ${ratioVp * delegationVote.totalRewards / 100}`,
@@ -195,7 +195,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             if (delegationVote.vp > 0) {
                 if (space === "sdcake.eth") {
                     logs.push({
-                        id:"sdCAKE",
+                        id: "sdCAKE",
                         content: [
                             `Voting power : ${delegationVote.vp}`,
                             `Rewards : ${delegationVote.totalRewards}`,
@@ -311,10 +311,12 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
         if (space == SDFXS_SPACE) {
             apr = sumRewards / sdFXSWorkingData.total_vp * 52 * 100;
-        } else {
+        } else if (space === SDCAKE_SPACE) {
+            apr = sumRewards / sdCakeWorkingData.total_vp * 26 * 100;
+        }
+        else {
             const vpAverage = aprs.reduce((acc, aprData) => acc + aprData.vp, 0) / aprs.length;
-            const multiplier = space === SDCAKE_SPACE ? 26 : 52; // because cake is distributed every 2 weeks
-            apr = sumRewards / vpAverage * multiplier * 100;
+            apr = sumRewards / vpAverage * 52 * 100;
         }
     }
 
