@@ -1,0 +1,43 @@
+{
+  "distribution": {
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "8257686015055681114694",
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "230859515072594772504"
+      }
+    },
+    "0xF0d48F76b9Fc797BDF255136Ae6F22bB47a34c35": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "25387687214802909771"
+      }
+    },
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "17118611344462537540",
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "81077717119616221403",
+        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "13947657599267563856"
+      }
+    },
+    "0x58A9FA33aF36b503983508615132ADAc149d6Cc6": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "61641413089142669"
+      }
+    },
+    "0xAAc0aa431c237C2C0B5f041c8e59B3f1a43aC78F": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "156246622940895304174"
+      }
+    },
+    "0xaDfc26b6520A35C37af3AC5AF174249737ec612c": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": "301788867649595139677473"
+      }
+    }
+  }
+}
