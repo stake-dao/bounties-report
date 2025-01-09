@@ -1,0 +1,40 @@
+{
+  "curve": {
+    "0": {
+      "amount": "1002583751243940397914",
+      "rewardToken": "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0",
+      "gauge": "0x06B30D5F2341C2FB3F6B48b109685997022Bd272",
+      "questID": "171",
+      "period": "1735776000",
+      "distributor": "0x1327C85CE6F3C83faBC4f5C294F57ac05bCb51eB"
+    },
+    "1": {
+      "amount": "5048076923076923076922",
+      "rewardToken": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "gauge": "0x1E4B83f6bFE9dbeB6d5b92a5237E5c18a44176f4",
+      "questID": "170",
+      "period": "1735776000",
+      "distributor": "0x1327C85CE6F3C83faBC4f5C294F57ac05bCb51eB"
+    }
+  },
+  "balancer": {
+    "0": {
+      "amount": "119721746",
+      "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "gauge": "0x80CD37A62A8A58C4Cbf64003410c5cCC4d01519f",
+      "questID": "184",
+      "period": "1735776000",
+      "distributor": "0x1F7b4Bf0CD21c1FBC4F1d995BA0608fDfC992aF4"
+    }
+  },
+  "fxn": {
+    "0": {
+      "amount": "1554460269855154136534",
+      "rewardToken": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "gauge": "0xf0A3ECed42Dbd8353569639c0eaa833857aA0A75",
+      "questID": "44",
+      "period": "1735776000",
+      "distributor": "0x8964c76B6f0253A77129D58cBA5D184d414d7C9a"
+    }
+  }
+}
