@@ -9,6 +9,7 @@ import {
   MERKLE_CREATION_BLOCK_ETH,
   SDBAL_SPACE,
   SDPENDLE_SPACE,
+  SPECTRA_SPACE,
 } from "./constants";
 import fs from "fs";
 import path from "path";
@@ -27,11 +28,12 @@ const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
 export type PendleCSVType = Record<string, Record<string, number>>;
-type OtherCSVType = Record<string, number>;
-type CvxCSVType = Record<
+export type OtherCSVType = Record<string, number>;
+export type CvxCSVType = Record<
   string,
   Array<{ rewardAddress: string; rewardAmount: bigint }>
 >;
+
 export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType;
 
 export const extractCSV = async (
@@ -79,14 +81,21 @@ export const extractCSV = async (
   records = newRecords;
 
   const response: ExtractCSVType = {};
-  let total = 0;
 
   let totalPerToken: Record<string, number | bigint> = {};
 
   for (const row of records) {
     const gaugeAddress = row["gauge address"];
-    if (!gaugeAddress) {
-      throw new Error("can't find gauge address for " + space);
+    const gaugeName = row["gauge name"]; // For spectra
+    if (space === SPECTRA_SPACE) {
+      if (!gaugeName) {
+        throw new Error("can't find pool address for " + space);
+      }
+    }
+    else {
+      if (!gaugeAddress) {
+        throw new Error("can't find gauge address for " + space);
+      }
     }
 
     if (space === SDPENDLE_SPACE) {
@@ -100,7 +109,6 @@ export const extractCSV = async (
       }
 
       if (row["reward sd value"]) {
-        total += parseFloat(row["reward sd value"]);
         pendleResponse[period][gaugeAddress] += parseFloat(
           row["reward sd value"]
         );
@@ -129,15 +137,37 @@ export const extractCSV = async (
         totalPerToken[rewardAddress] = BigInt(0);
       }
       totalPerToken[rewardAddress] = (totalPerToken[rewardAddress] as bigint) + rewardAmount;
+    } else if (space === SPECTRA_SPACE) {
+      const spectraResponse = response as CvxCSVType;
+      const rewardAddress = row["reward address"].toLowerCase();
+      const rewardAmount = BigInt(row["reward amount"]);
+      const gaugeAddress = row["gauge name"].toLowerCase();
+
+      if (!spectraResponse[gaugeAddress]) {
+        spectraResponse[gaugeAddress] = [{ rewardAddress, rewardAmount }];
+      } else {
+        const existingRewardIndex = spectraResponse[gaugeAddress].findIndex(
+          reward => reward.rewardAddress === rewardAddress
+        );
+        
+        if (existingRewardIndex >= 0) {
+          spectraResponse[gaugeAddress][existingRewardIndex].rewardAmount += rewardAmount;
+        } else {
+          spectraResponse[gaugeAddress].push({ rewardAddress, rewardAmount });
+        }
+      }
+
+      if (!totalPerToken[rewardAddress]) {
+        totalPerToken[rewardAddress] = BigInt(0);
+      }
+      totalPerToken[rewardAddress] = (totalPerToken[rewardAddress] as bigint) + rewardAmount;
     } else {
       const otherResponse = response as OtherCSVType;
       if (!otherResponse[gaugeAddress]) {
         otherResponse[gaugeAddress] = 0;
       }
       if (row["reward sd value"]) {
-        const rewardValue = parseFloat(row["reward sd value"]);
-        total += rewardValue;
-        otherResponse[gaugeAddress] += rewardValue;
+        otherResponse[gaugeAddress] += parseFloat(row["reward sd value"]);
       }
     }
   }
