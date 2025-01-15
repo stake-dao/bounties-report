@@ -177,7 +177,7 @@ async function generateDelegatorMerkleTree(
     return previousMerkleData;
   }
 
-  // Find delegators (those with shares)
+  // Find delegators (those with shares) // TODO : Not use is delegator; do a ! {ADDRESS_DELEGATION}
   const delegators = Object.entries(delegationDistribution).filter(
     ([_, data]) => data.isStakeDelegator && data.share
   );

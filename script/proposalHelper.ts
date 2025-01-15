@@ -131,17 +131,19 @@ async function main() {
     for (const supportedSpace of Object.keys(SUPPORTED_SPACES)) {
       log(`\nSpace: ${supportedSpace}`);
       const delegatorData = await fetchDelegatorData(supportedSpace, proposal);
-      
+
       if (delegatorData) {
         const sortedDelegators = delegatorData.delegators
-          .filter(delegator => delegatorData.votingPowers[delegator] > 0)
-          .sort((a, b) => 
-            (delegatorData.votingPowers[b] || 0) - (delegatorData.votingPowers[a] || 0)
+          .filter((delegator) => delegatorData.votingPowers[delegator] > 0)
+          .sort(
+            (a, b) =>
+              (delegatorData.votingPowers[b] || 0) -
+              (delegatorData.votingPowers[a] || 0)
           );
 
         log(`Total Delegators: ${sortedDelegators.length}`);
         log(`Total Voting Power: ${delegatorData.totalVotingPower.toFixed(2)}`);
-        
+
         log("\nDelegator Breakdown:");
         for (const delegator of sortedDelegators) {
           const vp = delegatorData.votingPowers[delegator];
@@ -169,7 +171,7 @@ async function main() {
         if (gaugeInfo.gauge.toLowerCase() === gauge.toLowerCase()) {
           gaugePerChoiceIdWithShortName[gauge] = {
             shortName: gaugeInfo.shortName,
-            choiceId: gaugePerChoiceId[gauge],
+            choiceId: gaugePerChoiceId[gauge].choiceId,
           };
           break;
         }
@@ -190,9 +192,8 @@ async function main() {
           log(`Name: ${gaugeInfo.shortName}`);
           log(`Choice ID: ${gaugeInfo.choiceId}`);
 
-          const activeChoiceId = gaugeInfo.choiceId;
           const votesForGauge = votes.filter(
-            (vote) => vote.choice[activeChoiceId] !== undefined
+            (vote) => vote.choice[gaugeInfo.choiceId] !== undefined
           );
 
           log(`\n=== Votes for ${gaugeInfo.shortName} ===`);
@@ -208,7 +209,7 @@ async function main() {
             let currentChoiceIndex = 0;
 
             for (const choiceIndex of Object.keys(vote.choice)) {
-              if (activeChoiceId === parseInt(choiceIndex)) {
+              if (gaugeInfo.choiceId === parseInt(choiceIndex)) {
                 currentChoiceIndex = vote.choice[choiceIndex];
               }
               vpChoiceSum += vote.choice[choiceIndex];
@@ -231,7 +232,7 @@ async function main() {
             let currentChoiceIndex = 0;
 
             for (const choiceIndex of Object.keys(vote.choice)) {
-              if (activeChoiceId === parseInt(choiceIndex)) {
+              if (gaugeInfo.choiceId === parseInt(choiceIndex)) {
                 currentChoiceIndex = vote.choice[choiceIndex];
               }
               vpChoiceSum += vote.choice[choiceIndex];

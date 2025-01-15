@@ -331,70 +331,53 @@ export const formatVotingPowerResult = (
  * @returns Record of gauge addresses to their choice IDs
  */
 export const associateGaugesPerId = (
-  proposal: Proposal,
-  curveGauges: CurveGauge[]
-): Record<string, number> => {
-  // Create a map gauge address => choice id
-  const gaugePerChoiceId: Record<string, number> = {};
+  proposal: any,
+  curveGauges: any[]
+): { [key: string]: { shortName: string; choiceId: number } } => {
+  const result: { [key: string]: { shortName: string; choiceId: number } } = {};
 
   for (let i = 0; i < proposal.choices.length; i++) {
     const choice = proposal.choices[i];
-
-    // Specific case for VeFunder-vyper
-    if (choice.toLowerCase() === "VeFunder-vyper".toLowerCase()) {
-      gaugePerChoiceId[choice] = i + 1;
-      continue;
-    }
-
-    // Try to find the gauge object in curve api based on shortName
+    
+    // Case 1: Direct match with shortName
     let curveGauge = curveGauges.find(
-      (curveGauge) =>
-        curveGauge.shortName.toLowerCase() === choice.toLowerCase()
+      gauge => gauge.shortName.toLowerCase() === choice.toLowerCase()
     );
 
     if (!curveGauge) {
-      console.log(
-        "Can't find the correct gauge in the api for choice, searching with short address " +
-          choice
-      );
-
-      // Extract the short address from the choice string
-      const shortAddressMatch = choice.match(/\((0x[a-fA-F0-9]{4})…\)/);
-      const shortAddress = shortAddressMatch
-        ? shortAddressMatch[1].toLowerCase()
-        : null;
-
-      if (shortAddress) {
-        curveGauge = curveGauges.find((gauge) => {
-          const curveShortAddressMatch = gauge.shortName.match(
-            /\((0x[a-fA-F0-9]{4})…\)/
-          );
-          const curveShortAddress = curveShortAddressMatch
-            ? curveShortAddressMatch[1].toLowerCase()
-            : null;
-          return curveShortAddress === shortAddress;
-        });
-
-        if (curveGauge) {
-          console.log(
-            "Found the correct gauge in the api for choice " +
-              choice +
-              " ==> " +
-              curveGauge.shortName
-          );
-        }
+      // Case 2: Match by extracting addresses
+      const addressMatches = choice.match(/0x[a-fA-F0-9]{4}(?:[a-fA-F0-9]{36})?/g);
+      if (addressMatches) {
+        // Try to match either full address or short address
+        curveGauge = curveGauges.find(gauge => 
+          addressMatches.some(addr => {
+            const gaugeAddr = gauge.gauge.toLowerCase();
+            const matchAddr = addr.toLowerCase();
+            return gaugeAddr === matchAddr || gaugeAddr.startsWith(matchAddr);
+          })
+        );
       }
     }
 
     if (!curveGauge) {
-      throw new Error(
-        "Can't find the correct gauge in the api for choice " + choice
+      // Case 3: Match by pool name without addresses
+      const poolName = choice.split(/[\s(]/)[0]; // Get text before space or parenthesis
+      curveGauge = curveGauges.find(gauge => 
+        gauge.shortName.toLowerCase().includes(poolName.toLowerCase())
       );
     }
 
-    gaugePerChoiceId[curveGauge.gauge] = i + 1; // + 1 because when you vote for the first gauge, id starts at 1 and not 0
+    if (curveGauge) {
+      result[curveGauge.gauge.toLowerCase()] = {
+        shortName: curveGauge.shortName,
+        choiceId: i + 1 // Snapshot choices are 1-indexed
+      };
+    } else {
+      console.warn(`Warning: No matching gauge found for choice: ${choice}`);
+    }
   }
-  return gaugePerChoiceId;
+
+  return result;
 };
 
 /**
