@@ -182,7 +182,7 @@ export const getLastClosedProposal = async (space: string): Promise<any> => {
     query Proposal {
       proposals(
         first: 1
-        skip: 0
+        skip: 1
         orderBy: "created",
         orderDirection: desc,
         where: {

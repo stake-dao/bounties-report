@@ -33,54 +33,7 @@ const ptAbi = parseAbi([
 ]);
 
 export async function getSpectraDistribution() {
-  // TODO : remove in prod
-  return [
-    {
-      tokenRewardAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-      poolAddress: "0x",
-      poolId: 1,
-      chainId: 1,
-      amount: BigInt("1853405500"),
-      name: "ethereum-sw-stkGHO-03/25/2025",
-      tokenRewardSymbol: "USDC",
-    },
-    {
-      tokenRewardAddress: "0x64FCC3A02eeEba05Ef701b7eed066c6ebD5d4E51",
-      poolAddress: "0x",
-      poolId: 1,
-      chainId: 1,
-      amount: parseEther("34964"),
-      name: "ethereum-wstUSR-02/22/2025",
-      tokenRewardSymbol: "SPECTRA",
-    },
-    {
-      tokenRewardAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-      poolAddress: "0x",
-      poolId: 1,
-      chainId: 1,
-      amount: BigInt("16000000"),
-      name: "opmainnet-sMONEY-02/05/2025",
-      tokenRewardSymbol: "USDC",
-    },
-    {
-      tokenRewardAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-      poolAddress: "0x",
-      poolId: 1,
-      chainId: 1,
-      amount: BigInt("1595000000"),
-      name: "base-upLBTC-03/30/2025",
-      tokenRewardSymbol: "USDC",
-    },
-    {
-      tokenRewardAddress: "0x64FCC3A02eeEba05Ef701b7eed066c6ebD5d4E51",
-      poolAddress: "0x",
-      poolId: 1,
-      chainId: 1,
-      amount: parseEther("50"),
-      name: "base-sw-mwETH-01/25/2025",
-      tokenRewardSymbol: "SPECTRA",
-    }
-  ] as SpectraClaimed[];
+  
   const baseClient = createPublicClient({
     chain: base,
     transport: http("https://base.drpc.org")
@@ -112,21 +65,20 @@ export async function getSpectraDistribution() {
       continue;
     }
 
-    const tokenAddress = topics.args[0] as `0x${string}`;
-    const [tokenRewardSymbol] = await Promise.all([
-      baseClient.readContract({
-        address: tokenAddress,
-        abi: erc20Abi,
-        functionName: 'symbol',
-      })
-    ]);
+    const args = topics.args as any;
+    const tokenAddress = args.tokenAddress as `0x${string}`;
+    const tokenRewardSymbol = await baseClient.readContract({
+      address: tokenAddress,
+      abi: erc20Abi,
+      functionName: 'symbol',
+    });
 
     claimeds.push({
       tokenRewardAddress: tokenAddress,
-      poolAddress: topics.args[1] as `0x${string}`,
-      poolId: Number(topics.args[2]),
-      chainId: Number(topics.args[3]),
-      amount: topics.args[4] as bigint,
+      poolAddress: args.poolAddress as `0x${string}`,
+      poolId: Number(args.poolId),
+      chainId: Number(args.chainId),
+      amount: args.amount as bigint,
       name: "",
       tokenRewardSymbol,
     });
