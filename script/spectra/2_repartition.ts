@@ -36,7 +36,6 @@ const main = async () => {
   // Fetch proposal and votes
   console.log("Fetching proposal and votes...");
   const proposal = await getLastClosedProposal(SPECTRA_SPACE);
-  console.log(proposal)
   const proposalId = proposal.id;
   console.log("proposalId", proposalId);
 
