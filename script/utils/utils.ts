@@ -208,7 +208,12 @@ export const getHistoricalTokenPrice = async (
     const resp = await axios.get(
       `https://coins.llama.fi/prices/historical/${timestamp}/${key}`
     );
-    return resp.data.coins[key].price;
+    const price = resp.data.coins[key].price;
+    if (price === 0) {
+      throw new Error(`${tokenAddress} price equals to 0`);
+    }
+
+    return price;
   } catch (e) {
     console.log("Error getHistoricalTokenPrice");
     throw e;
