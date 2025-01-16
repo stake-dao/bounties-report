@@ -10,11 +10,12 @@ import {
   getVoters,
   getVotingPower,
 } from "../utils/snapshot";
-import { CvxCSVType, extractCSV } from "../utils/utils";
 import * as moment from "moment";
 import { processAllDelegators } from "../utils/cacheUtils";
 import { Distribution } from "./3_merkles";
 import { getAddress } from "viem";
+import { getSpectraDelegationAPR, getSpectraReport } from "./utils";
+import axios from "axios";
 
 dotenv.config();
 
@@ -25,13 +26,7 @@ const main = async () => {
 
   // Extract CSV report
   console.log("Extracting CSV report...");
-  const _csvResult = (await extractCSV(
-    currentPeriodTimestamp,
-    SPECTRA_SPACE
-  ));
-  if (!_csvResult) throw new Error("No CSV report found");
-
-  const csvResult = _csvResult as CvxCSVType;
+  const csvResult = await getSpectraReport(currentPeriodTimestamp);
 
   // Fetch proposal and votes
   console.log("Fetching proposal and votes...");
@@ -183,6 +178,7 @@ const main = async () => {
   // Compute StakeDAO delegator rewards
   console.log("Computing StakeDAO delegator rewards...");
 
+  let delegationAPR = 0;
   if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
     // Find the delegation voter's rewards
     const delegationVoterAddress = Object.keys(distribution).find((voter: string) => voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
@@ -195,6 +191,9 @@ const main = async () => {
 
       // Compute the total vp with 18 decimals precision
       const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
+
+      // Compute the APR
+      delegationAPR = await getSpectraDelegationAPR(tokens, currentPeriodTimestamp, totalVp);
 
       for(const stakeDaoDelegator of stakeDaoDelegators) {
         const stakeDaoDelegatorChecksum = getAddress(stakeDaoDelegator);
@@ -259,6 +258,14 @@ const main = async () => {
     JSON.stringify({ distribution: convertToJsonFormat(distribution) }, null, 2)
   );
 
+  // Save APR
+  const { data: delegationAPRs } = await axios.get(
+    "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
+  );
+  delegationAPRs[SPECTRA_SPACE] = delegationAPR;
+  fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+
+  // End
   console.log("Spectra repartition generation completed successfully.");
 };
 

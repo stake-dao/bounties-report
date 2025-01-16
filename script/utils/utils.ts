@@ -198,6 +198,23 @@ export const getTokenPrice = async (
   }
 };
 
+export const getHistoricalTokenPrice = async (
+  timestamp: number,
+  chain: string,
+  tokenAddress: string,
+): Promise<number> => {
+  try {
+    const key = `${chain}:${tokenAddress}`;
+    const resp = await axios.get(
+      `https://coins.llama.fi/prices/historical/${timestamp}/${key}`
+    );
+    return resp.data.coins[key].price;
+  } catch (e) {
+    console.log("Error getHistoricalTokenPrice");
+    throw e;
+  }
+};
+
 export const checkSpace = (
   space: string,
   SPACES_SYMBOL: Record<string, string>,

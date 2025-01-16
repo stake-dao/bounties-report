@@ -5,14 +5,16 @@ import {
   parseAbi,
   erc20Abi,
   formatUnits,
-  parseEther,
 } from "viem";
-import { SEPCTRA_SAFE_MODULE as SPECTRA_SAFE_MODULE, WEEK } from "../utils/constants";
+import { SEPCTRA_SAFE_MODULE as SPECTRA_SAFE_MODULE, SPECTRA_SPACE, WEEK } from "../utils/constants";
 import { base } from "viem/chains";
 import SpectraSafeModuleABI from "../../abis/SpectraSafeModule.json";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import * as chains from 'viem/chains'
 import moment from "moment";
+import { CvxCSVType, extractCSV, getHistoricalTokenPrice } from "../utils/utils";
+
+const SPECTRA_ADDRESS = "0x64fcc3a02eeeba05ef701b7eed066c6ebd5d4e51";
 
 export interface SpectraClaimed {
   tokenRewardAddress: `0x${string}`;
@@ -148,4 +150,53 @@ const getChainIdName = (chainId: number): string => {
   }
 
   return chainId.toString();
+}
+
+export const getSpectraReport = async (currentPeriodTimestamp: number): Promise<CvxCSVType> => {
+  const _csvResult = (await extractCSV(
+      currentPeriodTimestamp,
+      SPECTRA_SPACE
+    ));
+    if (!_csvResult) throw new Error("No CSV report found");
+  
+    return _csvResult as CvxCSVType;
+}
+
+export const getSpectraDelegationAPR = async (
+  tokens: {
+    [tokenAddress: string]: bigint;
+  },
+  currentPeriodTimestamp: number,
+  delegationVp: number
+): Promise<number> => {
+
+  const publicClient = createPublicClient({
+    chain: base,
+    transport: http(),
+  });
+
+  // Fetch reward token prices and compute the total USD distributed
+  let totalDistributedUSD = 0;
+  for (const rewardAddress of Object.keys(tokens)) {
+    // Fetch token price and decimals
+    const [tokenPrice, decimals] = await Promise.all([
+      getHistoricalTokenPrice(currentPeriodTimestamp, "base", rewardAddress),
+      publicClient.readContract({
+        address: rewardAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: "decimals",
+      })
+    ]);
+    totalDistributedUSD += (parseFloat(formatUnits(tokens[rewardAddress], decimals)) * tokenPrice);
+  }
+
+  // Fetch Spectra price
+  const spectraPrice = await getHistoricalTokenPrice(currentPeriodTimestamp, "base", SPECTRA_ADDRESS);
+
+  // Delegation vp USD
+  const delegationVpUsd = delegationVp * spectraPrice;
+
+  // Because we do a weekly distribution
+  totalDistributedUSD *= 52;
+  return totalDistributedUSD * 100 / delegationVpUsd; 
 }
