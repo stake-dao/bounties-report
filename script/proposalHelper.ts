@@ -56,6 +56,7 @@ async function fetchDelegatorData(
     DELEGATION_ADDRESS
   );
 
+  
   if (delegators.length === 0) return null;
 
   const votingPowers = await getVotingPower(proposal, delegators);

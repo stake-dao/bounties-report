@@ -219,7 +219,7 @@ const main = async () => {
   console.log("proposalId", proposalId);
 
   const proposal = await getProposal(proposalId);
-  const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
+  const gaugeMapping = associateGaugesPerId(proposal, curveGauges);
   const votes = await getVoters(proposalId);
 
   // Fetch StakeDAO delegators
@@ -247,6 +247,7 @@ const main = async () => {
           (voter) => voter.voter.toLowerCase() === delegator.toLowerCase()
         )
       ) {
+        console.log("removing delegator, already voted by himself", delegator);
         stakeDaoDelegators = stakeDaoDelegators.filter(
           (d) => d.toLowerCase() !== delegator.toLowerCase()
         );
@@ -263,19 +264,11 @@ const main = async () => {
   console.log("Distributing rewards...");
   const distribution: Distribution = {};
 
-  const vps = await getVotingPower(
-    proposal,
-    votes.map((v) => v.voter),
-    1
-  );
-
-  console.log(vps);
-
   Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
-    const choiceId = gaugePerChoiceId[gauge.toLowerCase()];
+    const gaugeInfo = gaugeMapping[gauge.toLowerCase()];
+    if (!gaugeInfo) throw new Error(`Choice ID not found for gauge: ${gauge}`);
 
-    if (!choiceId) throw new Error(`Choice ID not found for gauge: ${gauge}`);
-
+    const choiceId = gaugeInfo.choiceId;
     let totalVp = 0;
 
     const voterVps: Record<string, number> = {};
@@ -299,10 +292,6 @@ const main = async () => {
       const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
       totalVp += (voter.vp * ratio) / 100;
     });
-
-    if (choiceId === 27) {
-      console.log("totalVp", totalVp);
-    }
 
     // Then calculate each voter's share based on the total VP
     votes.forEach((voter) => {
