@@ -15,6 +15,7 @@ import moment from "moment";
 import { CvxCSVType, extractCSV, getHistoricalTokenPrice } from "../utils/utils";
 
 const SPECTRA_ADDRESS = "0x64fcc3a02eeeba05ef701b7eed066c6ebd5d4e51";
+const OLD_APW_ADDRESS = "0x4104b135dbc9609fc1a9490e61369036497660c8";
 
 export interface SpectraClaimed {
   tokenRewardAddress: `0x${string}`;
@@ -191,12 +192,19 @@ export const getSpectraDelegationAPR = async (
   }
 
   // Fetch Spectra price
-  const spectraPrice = await getHistoricalTokenPrice(currentPeriodTimestamp, "base", SPECTRA_ADDRESS);
+  const [spectraPrice, oldApwPrice] = await Promise.all([
+    getHistoricalTokenPrice(currentPeriodTimestamp, "base", SPECTRA_ADDRESS),
+    getHistoricalTokenPrice(currentPeriodTimestamp, "ethereum", OLD_APW_ADDRESS)
+  ]);
+
+  const ratio = spectraPrice / oldApwPrice;
 
   // Delegation vp USD
   const delegationVpUsd = delegationVp * spectraPrice;
 
   // Because we do a weekly distribution
   totalDistributedUSD *= 52;
-  return totalDistributedUSD * 100 / delegationVpUsd; 
+  let apr = totalDistributedUSD * 100 / delegationVpUsd; 
+
+  return apr * ratio;
 }
