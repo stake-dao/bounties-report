@@ -1,5 +1,26 @@
 {
   "distribution": {
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "8635477087919305839199",
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "229744251714756150414"
+      }
+    },
+    "0xF0d48F76b9Fc797BDF255136Ae6F22bB47a34c35": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "26549179862128014772"
+      }
+    },
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "isStakeDelegator": false,
+      "tokens": {
+        "0x6b5204b0be36771253cc38e88012e02b752f0f36": "17901791830372101512",
+        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "13948486632910321221",
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "80686037326767833860"
+      }
+    },
     "0xaDfc26b6520A35C37af3AC5AF174249737ec612c": {
       "isStakeDelegator": false,
       "tokens": {
@@ -10,19 +31,6 @@
       "isStakeDelegator": false,
       "tokens": {
         "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "176728997074818721704"
-      }
-    },
-    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
-      "isStakeDelegator": false,
-      "tokens": {
-        "0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68": "13948486632910321221",
-        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "80686037326767833860"
-      }
-    },
-    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
-      "isStakeDelegator": false,
-      "tokens": {
-        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "229744251714756150414"
       }
     },
     "0x58A9FA33aF36b503983508615132ADAc149d6Cc6": {

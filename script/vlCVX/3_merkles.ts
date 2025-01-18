@@ -50,9 +50,8 @@ interface DelegationDistribution {
 }
 
 async function checkDistribution(
-  combinedNonDelegatorDistribution: Distribution,
+  combinedNonDelegatorDistribution: Distribution
 ) {
-
   console.log("\nChecking Botmarket balances:");
 
   const publicClient = createPublicClient({
@@ -62,21 +61,27 @@ async function checkDistribution(
 
   // Get unique token addresses from the distribution
   const tokenAddresses = new Set<string>();
-  Object.values(combinedNonDelegatorDistribution).forEach(data => {
-    Object.keys(data.tokens).forEach(tokenAddress => tokenAddresses.add(tokenAddress));
+  Object.values(combinedNonDelegatorDistribution).forEach((data) => {
+    Object.keys(data.tokens).forEach((tokenAddress) =>
+      tokenAddresses.add(tokenAddress)
+    );
   });
 
   for (const tokenAddress of tokenAddresses) {
     // Skip ZUN as it's not on Botmarket
-    if (tokenAddress.toLowerCase() === "0x6b5204b0be36771253cc38e88012e02b752f0f36".toLowerCase()) {
+    if (
+      tokenAddress.toLowerCase() ===
+      "0x6b5204b0be36771253cc38e88012e02b752f0f36".toLowerCase()
+    ) {
       continue;
     }
 
     // Get total amount from distribution for this token
-    const totalExpected = Object.values(combinedNonDelegatorDistribution)
-      .reduce((acc, data) => {
-        return acc + (data.tokens[tokenAddress] || 0n);
-      }, 0n);
+    const totalExpected = Object.values(
+      combinedNonDelegatorDistribution
+    ).reduce((acc, data) => {
+      return acc + (data.tokens[tokenAddress] || 0n);
+    }, 0n);
 
     if (totalExpected === 0n) continue;
 
@@ -96,7 +101,7 @@ async function checkDistribution(
       args: ["0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF" as `0x${string}`],
     });
 
-    // Compare and log differences 
+    // Compare and log differences
     if (botmarketBalance !== totalExpected) {
       console.log(`\nToken ${tokenAddress}:`);
       console.log(`Expected: ${totalExpected}`);
@@ -120,14 +125,18 @@ async function checkDistribution(
     }
   }
 
-  console.log("\nRemoving 0.00001 token worth from each distribution for safety...");
-  
+  console.log(
+    "\nRemoving 0.00001 token worth from each distribution for safety..."
+  );
+
   // Reuse the existing tokenAddresses Set that was created earlier
   for (const tokenAddress of tokenAddresses) {
     // Get total amount for this token
-    const totalAmount = Object.values(combinedNonDelegatorDistribution)
-      .reduce((acc, data) => acc + (data.tokens[tokenAddress] || 0n), 0n);
-    
+    const totalAmount = Object.values(combinedNonDelegatorDistribution).reduce(
+      (acc, data) => acc + (data.tokens[tokenAddress] || 0n),
+      0n
+    );
+
     if (totalAmount === 0n) continue;
 
     // Calculate 0.00001 token worth based on decimals
@@ -144,7 +153,7 @@ async function checkDistribution(
       ],
       functionName: "decimals",
     });
-    
+
     const smallAmount = BigInt(10) ** BigInt(decimals - 5); // 0.00001 tokens
 
     // Remove proportionally from each holder
@@ -193,19 +202,25 @@ async function generateDelegatorMerkleTree(
   const crvUsdTransfer = await getCRVUsdTransfer(minBlock, maxBlock);
   const totalCrvUsd = crvUsdTransfer.amount;
 
+  console.log("totalCrvUsd", totalCrvUsd);
+
+
+
   // Step 2: Calculate sdCRV amounts for each delegator based on their shares
   const delegatorDistribution: {
     [address: string]: { [tokenAddress: string]: string };
   } = {};
 
   delegators.forEach(([address, data]) => {
+    const normalizedAddress = getAddress(address);
     const share = parseFloat(data.share!);
     const crvUsdAmount =
       (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
 
     if (crvUsdAmount > 0n) {
-      delegatorDistribution[address] = {
-        [getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E")]: crvUsdAmount.toString(),
+      delegatorDistribution[normalizedAddress] = {
+        [getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E")]:
+          crvUsdAmount.toString(),
       };
     }
   });
@@ -214,21 +229,26 @@ async function generateDelegatorMerkleTree(
   if (previousMerkleData && previousMerkleData.claims) {
     Object.entries(previousMerkleData.claims).forEach(
       ([address, claimData]: [string, any]) => {
-        if (!delegatorDistribution[address]) {
-          delegatorDistribution[address] = {};
+        const normalizedAddress = getAddress(address);
+        
+        if (!delegatorDistribution[normalizedAddress]) {
+          delegatorDistribution[normalizedAddress] = {};
         }
+        
         if (claimData && claimData.tokens) {
           Object.entries(claimData.tokens).forEach(
             ([tokenAddress, tokenData]: [string, any]) => {
+              const normalizedTokenAddress = getAddress(tokenAddress);
+              
               if (tokenData && tokenData.amount) {
-                if (!delegatorDistribution[address][tokenAddress]) {
-                  delegatorDistribution[address][tokenAddress] = "0";
+                if (!delegatorDistribution[normalizedAddress][normalizedTokenAddress]) {
+                  delegatorDistribution[normalizedAddress][normalizedTokenAddress] = "0";
                 }
                 const previousAmount = BigInt(tokenData.amount);
                 const currentAmount = BigInt(
-                  delegatorDistribution[address][tokenAddress]
+                  delegatorDistribution[normalizedAddress][normalizedTokenAddress]
                 );
-                delegatorDistribution[address][tokenAddress] = (
+                delegatorDistribution[normalizedAddress][normalizedTokenAddress] = (
                   previousAmount + currentAmount
                 ).toString();
               }
@@ -239,8 +259,24 @@ async function generateDelegatorMerkleTree(
     );
   }
 
-  // Step 4: Generate Merkle tree
-  return generateMerkleTree(delegatorDistribution);
+  // Final normalization pass to ensure all addresses are checksummed
+  const normalizedDelegatorDistribution = Object.entries(delegatorDistribution).reduce(
+    (acc, [address, tokens]) => {
+      const normalizedAddress = getAddress(address);
+      acc[normalizedAddress] = Object.entries(tokens).reduce(
+        (tokenAcc, [tokenAddress, amount]) => {
+          const normalizedTokenAddress = getAddress(tokenAddress);
+          tokenAcc[normalizedTokenAddress] = amount;
+          return tokenAcc;
+        },
+        {} as { [key: string]: string }
+      );
+      return acc;
+    },
+    {} as typeof delegatorDistribution
+  );
+
+  return generateMerkleTree(normalizedDelegatorDistribution);
 }
 
 function compareMerkleData(
@@ -492,29 +528,38 @@ async function generateMerkles() {
     previousMerkleData.nonDelegators &&
     previousMerkleData.nonDelegators.claims
   ) {
+    console.log("\nAdding previous merkle amounts:");
+
     Object.entries(previousMerkleData.nonDelegators.claims).forEach(
       ([address, claimData]: [string, any]) => {
-        if (!combinedNonDelegatorDistribution[address]) {
-          combinedNonDelegatorDistribution[address] = {
+        const normalizedAddress = getAddress(address);
+
+        if (!combinedNonDelegatorDistribution[normalizedAddress]) {
+          combinedNonDelegatorDistribution[normalizedAddress] = {
             isStakeDelegator: false,
             tokens: {},
           };
         }
+
         if (claimData && claimData.tokens) {
           Object.entries(claimData.tokens).forEach(
             ([tokenAddress, tokenData]: [string, any]) => {
+              const normalizedTokenAddress = getAddress(tokenAddress);
+
               if (tokenData && tokenData.amount) {
                 if (
-                  !combinedNonDelegatorDistribution[address].tokens[
-                    tokenAddress
+                  !combinedNonDelegatorDistribution[normalizedAddress].tokens[
+                    normalizedTokenAddress
                   ]
                 ) {
-                  combinedNonDelegatorDistribution[address].tokens[
-                    tokenAddress
+                  combinedNonDelegatorDistribution[normalizedAddress].tokens[
+                    normalizedTokenAddress
                   ] = 0n;
                 }
-                combinedNonDelegatorDistribution[address].tokens[
-                  tokenAddress
+
+                // Add the previous amount
+                combinedNonDelegatorDistribution[normalizedAddress].tokens[
+                  normalizedTokenAddress
                 ] += BigInt(tokenData.amount);
               }
             }
@@ -523,6 +568,32 @@ async function generateMerkles() {
       }
     );
   }
+
+  // Normalize all addresses and combine any duplicate token entries
+  combinedNonDelegatorDistribution = Object.entries(
+    combinedNonDelegatorDistribution
+  ).reduce((acc, [address, data]) => {
+    const normalizedAddress = getAddress(address);
+
+    // Initialize if not exists
+    if (!acc[normalizedAddress]) {
+      acc[normalizedAddress] = {
+        isStakeDelegator: false,
+        tokens: {},
+      };
+    }
+
+    // Combine tokens with normalization
+    Object.entries(data.tokens).forEach(([tokenAddress, amount]) => {
+      const normalizedTokenAddress = getAddress(tokenAddress);
+      if (!acc[normalizedAddress].tokens[normalizedTokenAddress]) {
+        acc[normalizedAddress].tokens[normalizedTokenAddress] = 0n;
+      }
+      acc[normalizedAddress].tokens[normalizedTokenAddress] += amount;
+    });
+
+    return acc;
+  }, {} as Distribution);
 
   // Step 4: Retrieve token info (symbol and decimals) for all reward tokens
   const rewardTokenAddresses = new Set<string>();
@@ -548,7 +619,9 @@ async function generateMerkles() {
   );
 
   // Add crvUSD token
-  rewardTokenAddresses.add(getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E").toLowerCase());
+  rewardTokenAddresses.add(
+    getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E").toLowerCase()
+  );
 
   const tokenInfoArray = await Promise.allSettled(
     Array.from(rewardTokenAddresses).map(async (tokenAddress) => {

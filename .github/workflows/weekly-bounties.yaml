@@ -54,21 +54,45 @@ jobs:
           python-version: "3.10.13"
 
       - name: Run generate bounties script
-        if: github.event.type != 'schedule'
+        if: github.event_name != 'schedule'
         run: |
           make -f automation/weekly-bounties.mk run-${{ inputs.bountyType || github.event.inputs.bountyType }} PAST_WEEK=${{ inputs.pastWeek || github.event.inputs.pastWeek }} CHAIN=${{ inputs.chain || github.event.inputs.chain }}
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 
       - name: Run generate bounties script (all on schedule)
-        if: github.event.type == 'schedule'
+        if: github.event_name == 'schedule'
         run: |
-          make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=0 CHAIN=mainnet
-          make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=0 CHAIN=mainnet
-          make -f automation/weekly-bounties.mk run-warden PAST_WEEK=0 CHAIN=mainnet
-          make -f automation/weekly-bounties.mk run-hiddenhand PAST_WEEK=0 CHAIN=mainnet
-          make -f automation/weekly-bounties.mk run-convex PAST_WEEK=0 CHAIN=mainnet
-          make -f automation/weekly-bounties.mk run-convex-v2 PAST_WEEK=0 CHAIN=mainnet
+          # Calculate current period
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+          BASE_DIR="weekly-bounties/$CURRENT_PERIOD"
+          
+          # Check and run each protocol if needed
+          if [ ! -f "$BASE_DIR/votemarket/claimed_bounties.json" ]; then
+            make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=0 CHAIN=mainnet
+          fi
+          
+          if [ ! -f "$BASE_DIR/votemarket-v2/claimed_bounties.json" ]; then
+            make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=0 CHAIN=mainnet
+          fi
+          
+          if [ ! -f "$BASE_DIR/warden/claimed_bounties.json" ]; then
+            make -f automation/weekly-bounties.mk run-warden PAST_WEEK=0 CHAIN=mainnet
+          fi
+          
+          if [ ! -f "$BASE_DIR/hiddenhand/claimed_bounties.json" ]; then
+            make -f automation/weekly-bounties.mk run-hiddenhand PAST_WEEK=0 CHAIN=mainnet
+          fi
+          
+          if [ ! -f "$BASE_DIR/votemarket/claimed_bounties_convex.json" ]; then
+            make -f automation/weekly-bounties.mk run-convex PAST_WEEK=0 CHAIN=mainnet
+          fi
+          
+          if [ ! -f "$BASE_DIR/votemarket-v2/claimed_bounties_convex.json" ]; then
+            make -f automation/weekly-bounties.mk run-convex-v2 PAST_WEEK=0 CHAIN=mainnet
+          fi
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
 
