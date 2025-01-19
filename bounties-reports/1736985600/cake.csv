@@ -1,0 +1,4 @@
+Protocol;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol
+cake;PEPE-WBNB / BNB Smart Chain;0xdD82975ab85E745c84e497FD75ba409Ec02d4739;Pepe;0x25d887ce7a35172c62febfd67a1856f20faebb00;164509420.756;1433.117;32.944
+cake;BNB-USDT / BNB Smart Chain;0x172fcD41E0913e95784454622d1c3724f546f849;PancakeSwap Token;0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82;1077.693;1210.484;27.826
+cake;CAKE-USDT / BNB Smart Chain;0x7f51c8AaA6B0599aBd16674e2b17FEc7a9f674A1;PancakeSwap Token;0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82;1519.312;1706.518;39.229
