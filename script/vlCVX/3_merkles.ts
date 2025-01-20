@@ -32,7 +32,6 @@ import {
 
 interface Distribution {
   [address: string]: {
-    isStakeDelegator: boolean;
     tokens: {
       [tokenAddress: string]: bigint;
     };
@@ -186,9 +185,9 @@ async function generateDelegatorMerkleTree(
     return previousMerkleData;
   }
 
-  // Find delegators (those with shares) // TODO : Not use is delegator; do a ! {ADDRESS_DELEGATION}
+  // Find delegators (those with shares)
   const delegators = Object.entries(delegationDistribution).filter(
-    ([_, data]) => data.isStakeDelegator && data.share
+    ([_, data]) => data.share
   );
 
   if (delegators.length === 0) {
@@ -466,57 +465,17 @@ async function generateMerkles() {
   // Add current week distribution for non-delegators
   Object.entries(currentDistribution.distribution).forEach(
     ([address, data]) => {
-      if (!(data as any).isStakeDaoDelegator) {
-        combinedNonDelegatorDistribution[address] = {
-          isStakeDelegator: false,
-          tokens: {},
-        };
-        Object.entries((data as any).tokens).forEach(
-          ([tokenAddress, amount]) => {
-            combinedNonDelegatorDistribution[address].tokens[tokenAddress] =
-              BigInt(amount.toString());
-          }
-        );
-      }
+      combinedNonDelegatorDistribution[address] = {
+        tokens: {},
+      };
+      Object.entries((data as any).tokens).forEach(
+        ([tokenAddress, amount]) => {
+          combinedNonDelegatorDistribution[address].tokens[tokenAddress] =
+            BigInt(amount.toString());
+        }
+      );
     }
   );
-
-  // Add previous week distribution for non-delegators
-  const prevWeekDistributionPath = path.join(
-    __dirname,
-    `../../bounties-reports/${prevWeekTimestamp}/vlCVX/repartition.json`
-  );
-
-  if (fs.existsSync(prevWeekDistributionPath)) {
-    const prevWeekDistribution: { distribution: Distribution } = JSON.parse(
-      fs.readFileSync(prevWeekDistributionPath, "utf-8")
-    );
-
-    Object.entries(prevWeekDistribution.distribution).forEach(
-      ([address, data]) => {
-        if (!(data as any).isStakeDaoDelegator) {
-          if (!combinedNonDelegatorDistribution[address]) {
-            combinedNonDelegatorDistribution[address] = {
-              isStakeDelegator: false,
-              tokens: {},
-            };
-          }
-          Object.entries((data as any).tokens).forEach(
-            ([tokenAddress, amount]) => {
-              if (
-                !combinedNonDelegatorDistribution[address].tokens[tokenAddress]
-              ) {
-                combinedNonDelegatorDistribution[address].tokens[tokenAddress] =
-                  0n;
-              }
-              combinedNonDelegatorDistribution[address].tokens[tokenAddress] +=
-                BigInt(amount.toString());
-            }
-          );
-        }
-      }
-    );
-  }
 
   // Adapt to avoid decimals issues
   combinedNonDelegatorDistribution = await checkDistribution(
@@ -536,7 +495,6 @@ async function generateMerkles() {
 
         if (!combinedNonDelegatorDistribution[normalizedAddress]) {
           combinedNonDelegatorDistribution[normalizedAddress] = {
-            isStakeDelegator: false,
             tokens: {},
           };
         }
@@ -578,7 +536,6 @@ async function generateMerkles() {
     // Initialize if not exists
     if (!acc[normalizedAddress]) {
       acc[normalizedAddress] = {
-        isStakeDelegator: false,
         tokens: {},
       };
     }
