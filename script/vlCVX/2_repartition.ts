@@ -24,10 +24,7 @@ type CvxCSVType = Record<
   string,
   { rewardAddress: string; rewardAmount: bigint }
 >;
-type Distribution = Record<
-  string,
-  { isStakeDelegator: boolean; tokens: Record<string, bigint> }
->;
+type Distribution = Record<string, { tokens: Record<string, bigint> }>;
 
 // Function to validate distribution against the report
 const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
@@ -105,22 +102,14 @@ const computeStakeDaoDelegation = async (
   stakeDaoDelegators: string[],
   tokens: Record<string, bigint>,
   delegationVoter: string
-): Promise<
-  Record<
-    string,
-    | { isStakeDelegator: boolean; tokens: Record<string, bigint> }
-    | { isStakeDelegator: boolean; share: string }
-  >
-> => {
+): Promise<Record<string, { tokens: Record<string, bigint> } | { share: string }>> => {
   const delegationDistribution: Record<
     string,
-    | { isStakeDelegator: boolean; tokens: Record<string, bigint> }
-    | { isStakeDelegator: boolean; share: string }
+    { tokens: Record<string, bigint> } | { share: string }
   > = {};
 
   // Store original delegator's distribution with full token amounts
   delegationDistribution[delegationVoter] = {
-    isStakeDelegator: false,
     tokens: { ...tokens },
   };
 
@@ -134,9 +123,8 @@ const computeStakeDaoDelegation = async (
   stakeDaoDelegators.forEach((delegator) => {
     const delegatorVp = vps[delegator] || 0;
     if (delegatorVp > 0) {
-      const share = (delegatorVp / totalVp).toString(); // Store share as decimal string
+      const share = (delegatorVp / totalVp).toString();
       delegationDistribution[delegator] = {
-        isStakeDelegator: true,
         share,
       };
     }
@@ -147,23 +135,15 @@ const computeStakeDaoDelegation = async (
 
 // Convert delegation distribution to JSON-friendly format
 const convertDelegationToJsonFormat = (
-  dist: Record<
-    string,
-    {
-      isStakeDelegator: boolean;
-      tokens?: Record<string, bigint>;
-      share?: string;
-    }
-  >
+  dist: Record<string, { tokens?: Record<string, bigint>; share?: string }>
 ) => {
   return Object.entries(dist).reduce((acc, [address, data]) => {
     if ("tokens" in data) {
       // Handle original delegator with tokens
       acc[address] = {
-        isStakeDelegator: data.isStakeDelegator,
         tokens: Object.entries(data.tokens!).reduce(
           (tokenAcc, [token, amount]) => {
-            tokenAcc[token] = amount.toString(); // Convert BigInt to string
+            tokenAcc[token] = amount.toString();
             return tokenAcc;
           },
           {} as Record<string, string>
@@ -172,7 +152,6 @@ const convertDelegationToJsonFormat = (
     } else {
       // Handle delegators with shares
       acc[address] = {
-        isStakeDelegator: data.isStakeDelegator,
         share: data.share,
       };
     }
@@ -340,7 +319,6 @@ const main = async () => {
         if (amount > 0n) {
           if (!distribution[voter]) {
             distribution[voter] = {
-              isStakeDelegator: false,
               tokens: {},
             };
           }
@@ -367,8 +345,7 @@ const main = async () => {
   console.log("Computing StakeDAO delegator rewards...");
   let delegationDistribution: Record<
     string,
-    | { isStakeDelegator: boolean; tokens: Record<string, bigint> }
-    | { isStakeDelegator: boolean; share: string }
+    { tokens: Record<string, bigint> } | { share: string }
   > = {};
 
   if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
@@ -392,22 +369,15 @@ const main = async () => {
 
   // Convert distributions to JSON-friendly format for regular distribution
   const convertToJsonFormat = (dist: Distribution) => {
-    return Object.entries(dist).reduce(
-      (acc, [voter, { isStakeDelegator, tokens }]) => {
-        acc[voter] = {
-          isStakeDelegator,
-          tokens: Object.entries(tokens).reduce((tokenAcc, [token, amount]) => {
-            tokenAcc[token] = amount.toString(); // Convert BigInt to string
-            return tokenAcc;
-          }, {} as Record<string, string>),
-        };
-        return acc;
-      },
-      {} as Record<
-        string,
-        { isStakeDelegator: boolean; tokens: Record<string, string> }
-      >
-    );
+    return Object.entries(dist).reduce((acc, [voter, { tokens }]) => {
+      acc[voter] = {
+        tokens: Object.entries(tokens).reduce((tokenAcc, [token, amount]) => {
+          tokenAcc[token] = amount.toString();
+          return tokenAcc;
+        }, {} as Record<string, string>),
+      };
+      return acc;
+    }, {} as Record<string, { tokens: Record<string, string> }>);
   };
 
   // Save distributions to separate files
