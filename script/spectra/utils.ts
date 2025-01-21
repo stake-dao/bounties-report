@@ -6,7 +6,7 @@ import {
   erc20Abi,
   formatUnits,
 } from "viem";
-import { SEPCTRA_SAFE_MODULE as SPECTRA_SAFE_MODULE, SPECTRA_SPACE, WEEK } from "../utils/constants";
+import { SPECTRA_SAFE_MODULE, SPECTRA_SPACE, WEEK } from "../utils/constants";
 import { base } from "viem/chains";
 import SpectraSafeModuleABI from "../../abis/SpectraSafeModule.json";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
