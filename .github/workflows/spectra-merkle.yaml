@@ -1,0 +1,34 @@
+name: "[Spectra] Merkle"
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [generate-spectra-merkle]
+
+jobs:
+  generate-merkles:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        env:
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
+
+      - name: Run merkles generation
+        run: make -f automation/spectra/run.mk run-all
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Update Spectra merkles"
+
+      - name: Clean up
+        if: always()
+        run: make -f automation/spectra/run.mk clean
