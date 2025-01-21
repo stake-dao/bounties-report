@@ -345,7 +345,7 @@ async function generateMerkles() {
   );
 
   // Step 7: Combine Merkle data
-  const merkleDataPath = path.join(
+  let merkleDataPath = path.join(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/spectra/merkle_data.json`
   );
@@ -360,6 +360,13 @@ async function generateMerkles() {
 
 
   // Step 8: Save the combined Merkle data to a JSON file
+  fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
+
+  // Step 9: Save it also in the root path
+  merkleDataPath = path.join(
+    __dirname,
+    `../../spectra_merkle.json`
+  );
   fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
   console.log("Merkle trees generated and saved successfully.");
