@@ -39,7 +39,7 @@ export async function getSpectraDistribution() {
   
   const baseClient = createPublicClient({
     chain: base,
-    transport: http("https://base.drpc.org")
+    transport: http("https://lb.drpc.org/ogrpc?network=base&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9")
   });
 
   // Fetch new claims from the start of the current epoch to now
