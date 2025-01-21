@@ -57,10 +57,11 @@ export const SDPENDLE_SPACE = "sdpendle.eth";
 export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
 export const CVX_SPACE = "cvx.eth";
+export const SPECTRA_SPACE = "sdapw.eth";
 
 export const VLCVX_RECIPIENT = "0x0000000095310137125f82f37FBe5D2F99279947";
 export const VLCVX_DELEGATORS_RECIPIENT = "0x00000000b0FF0700adf86A929df3aC3f88E48583";
-
+export const SPECTRA_SAFE_MODULE = "0xD5C838E6176A0606710aBdee1426Ac86B3E84543" as `0x${string}`;
 export const WEEK = 604800;
 
 // Stake DAO locker
@@ -87,6 +88,7 @@ export const LABELS_TO_SPACE: Record<string, string> = {
   cake: SDCAKE_SPACE,
   fxn: SDFXN_SPACE,
   cvx: CVX_SPACE,
+  spectra: SPECTRA_SPACE,
 };
 
 export const SPACE_TO_NETWORK: Record<string, string> = {
@@ -108,6 +110,7 @@ export const SPACE_TO_CHAIN_ID: Record<string, string> = {
   [SDFXN_SPACE]: ETH_CHAIN_ID,
   [SDCAKE_SPACE]: BSC_CHAIN_ID,
   [CVX_SPACE]: ETH_CHAIN_ID,
+  [SPECTRA_SPACE]: ETH_CHAIN_ID,
 };
 
 export const NETWORK_TO_STASH: Record<string, string> = {
