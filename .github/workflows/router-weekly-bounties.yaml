@@ -9,6 +9,7 @@ on:
       - update-hiddenhand-claims
       - update-convex-claims
       - update-convex-v2-claims
+      - update-spectra-claims
 
 jobs:
   call-weekly-bounties:

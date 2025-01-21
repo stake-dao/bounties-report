@@ -177,6 +177,56 @@ export const getProposal = async (idProposal: string): Promise<any> => {
   return result.proposal;
 };
 
+export const getLastClosedProposal = async (space: string): Promise<any> => {
+  const QUERY_PROPOSAL = gql`
+    query Proposal {
+      proposals(
+        first: 1
+        skip: 0
+        orderBy: "created",
+        orderDirection: desc,
+        where: {
+          space: "${space}"
+          type: "weighted"
+          state: "closed"
+          title_contains: "Gauge vote"
+        }
+      ) {
+        id
+        ipfs
+        title
+        body
+        start
+        end
+        state
+        author
+        created
+        choices
+        snapshot
+        type
+        strategies {
+          name
+          params
+        }
+        space {
+          id
+          name
+          members
+          avatar
+          symbol
+        }
+        scores_state
+        scores_total
+        scores
+        votes
+      }
+    }
+  `;
+
+  const result = await request(SNAPSHOT_ENDPOINT, QUERY_PROPOSAL);
+  return result.proposals[0];
+};
+
 /**
  * Get all voters for a proposal
  * @param proposalId - Proposal ID
