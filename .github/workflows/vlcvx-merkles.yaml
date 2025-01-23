@@ -7,6 +7,9 @@ on:
 
 jobs:
   generate-merkles:
+    strategy:
+      matrix:
+        type: [delegators, non-delegators]
     runs-on: ubuntu-latest
 
     steps:
@@ -21,13 +24,18 @@ jobs:
           python-version: "3.10.13"
 
       - name: Run merkles generation
-        run: make -f automation/vlCVX/merkles.mk run-merkles
+        run: |
+          if [ "${{ matrix.type }}" = "delegators" ]; then
+            make -f automation/vlCVX/merkles.mk run-merkles-delegators
+          else
+            make -f automation/vlCVX/merkles.mk run-merkles-non-delegators
+          fi
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: Update vlCVX merkles"
+          commit_message: "chore: Update vlCVX ${{ matrix.type }} merkles"
 
       - name: Clean up
         if: always()
