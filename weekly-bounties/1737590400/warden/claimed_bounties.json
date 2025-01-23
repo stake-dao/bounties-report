@@ -1,0 +1,22 @@
+{
+  "curve": {
+    "0": {
+      "amount": "3122668341992754462560",
+      "rewardToken": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "gauge": "0x1E4B83f6bFE9dbeB6d5b92a5237E5c18a44176f4",
+      "questID": "183",
+      "period": "1736985600",
+      "distributor": "0x1327C85CE6F3C83faBC4f5C294F57ac05bCb51eB"
+    }
+  },
+  "fxn": {
+    "0": {
+      "amount": "1650849343165423655915",
+      "rewardToken": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "gauge": "0xf0A3ECed42Dbd8353569639c0eaa833857aA0A75",
+      "questID": "45",
+      "period": "1736985600",
+      "distributor": "0x8964c76B6f0253A77129D58cBA5D184d414d7C9a"
+    }
+  }
+}
