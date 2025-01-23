@@ -1,12 +1,12 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-merkles-delegators run-merkles-non-delegators clean
+.PHONY: all setup install-deps run-merkles clean
 
 # Define the default target
 .DEFAULT_GOAL := all
 
-all: setup install-deps run-merkles-non-delegators
+all: setup install-deps run-merkles
 
 setup: setup-node
 
@@ -15,13 +15,16 @@ install-deps:
 	@$(PNPM) install
 	@$(PNPM) add -D tsx
 
-run-merkles-delegators: setup install-deps
-	@echo "Running merkles generation for delegators..."
-	@$(PNPM) tsx script/vlCVX/3_merkles.ts --delegators
-
-run-merkles-non-delegators: setup install-deps
-	@echo "Running merkles generation for non-delegators..."
-	@$(PNPM) tsx script/vlCVX/3_merkles.ts
+# Single target that handles both types based on TYPE parameter
+run-merkles: setup install-deps
+	@echo "Running merkles generation..."
+	@if [ "$(TYPE)" = "delegators" ]; then \
+		echo "Generating delegators merkle..."; \
+		$(PNPM) tsx script/vlCVX/3_merkles.ts --delegators; \
+	else \
+		echo "Generating non-delegators merkle..."; \
+		$(PNPM) tsx script/vlCVX/3_merkles.ts; \
+	fi
 
 commit-and-push:
 	@echo "Committing and pushing changes..."
