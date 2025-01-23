@@ -24,11 +24,7 @@ import {
   CombinedMerkleData,
 } from "./utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import {
-  DELEGATION_ADDRESS,
-  SDCRV_SPACE,
-  SPACES_TOKENS,
-} from "../utils/constants";
+import { DELEGATION_ADDRESS } from "../utils/constants";
 
 interface Distribution {
   [address: string]: {
@@ -124,6 +120,7 @@ async function checkDistribution(
     }
   }
 
+  /* TODO : Not needed anymore ?
   console.log(
     "\nRemoving 0.00001 token worth from each distribution for safety..."
   );
@@ -165,7 +162,7 @@ async function checkDistribution(
       }
     }
   }
-
+  */
   return combinedNonDelegatorDistribution;
 }
 
@@ -203,8 +200,6 @@ async function generateDelegatorMerkleTree(
 
   console.log("totalCrvUsd", totalCrvUsd);
 
-
-
   // Step 2: Calculate sdCRV amounts for each delegator based on their shares
   const delegatorDistribution: {
     [address: string]: { [tokenAddress: string]: string };
@@ -229,27 +224,35 @@ async function generateDelegatorMerkleTree(
     Object.entries(previousMerkleData.claims).forEach(
       ([address, claimData]: [string, any]) => {
         const normalizedAddress = getAddress(address);
-        
+
         if (!delegatorDistribution[normalizedAddress]) {
           delegatorDistribution[normalizedAddress] = {};
         }
-        
+
         if (claimData && claimData.tokens) {
           Object.entries(claimData.tokens).forEach(
             ([tokenAddress, tokenData]: [string, any]) => {
               const normalizedTokenAddress = getAddress(tokenAddress);
-              
+
               if (tokenData && tokenData.amount) {
-                if (!delegatorDistribution[normalizedAddress][normalizedTokenAddress]) {
-                  delegatorDistribution[normalizedAddress][normalizedTokenAddress] = "0";
+                if (
+                  !delegatorDistribution[normalizedAddress][
+                    normalizedTokenAddress
+                  ]
+                ) {
+                  delegatorDistribution[normalizedAddress][
+                    normalizedTokenAddress
+                  ] = "0";
                 }
                 const previousAmount = BigInt(tokenData.amount);
                 const currentAmount = BigInt(
-                  delegatorDistribution[normalizedAddress][normalizedTokenAddress]
+                  delegatorDistribution[normalizedAddress][
+                    normalizedTokenAddress
+                  ]
                 );
-                delegatorDistribution[normalizedAddress][normalizedTokenAddress] = (
-                  previousAmount + currentAmount
-                ).toString();
+                delegatorDistribution[normalizedAddress][
+                  normalizedTokenAddress
+                ] = (previousAmount + currentAmount).toString();
               }
             }
           );
@@ -259,21 +262,20 @@ async function generateDelegatorMerkleTree(
   }
 
   // Final normalization pass to ensure all addresses are checksummed
-  const normalizedDelegatorDistribution = Object.entries(delegatorDistribution).reduce(
-    (acc, [address, tokens]) => {
-      const normalizedAddress = getAddress(address);
-      acc[normalizedAddress] = Object.entries(tokens).reduce(
-        (tokenAcc, [tokenAddress, amount]) => {
-          const normalizedTokenAddress = getAddress(tokenAddress);
-          tokenAcc[normalizedTokenAddress] = amount;
-          return tokenAcc;
-        },
-        {} as { [key: string]: string }
-      );
-      return acc;
-    },
-    {} as typeof delegatorDistribution
-  );
+  const normalizedDelegatorDistribution = Object.entries(
+    delegatorDistribution
+  ).reduce((acc, [address, tokens]) => {
+    const normalizedAddress = getAddress(address);
+    acc[normalizedAddress] = Object.entries(tokens).reduce(
+      (tokenAcc, [tokenAddress, amount]) => {
+        const normalizedTokenAddress = getAddress(tokenAddress);
+        tokenAcc[normalizedTokenAddress] = amount;
+        return tokenAcc;
+      },
+      {} as { [key: string]: string }
+    );
+    return acc;
+  }, {} as typeof delegatorDistribution);
 
   return generateMerkleTree(normalizedDelegatorDistribution);
 }
@@ -402,7 +404,7 @@ function compareMerkleData(
   });
 }
 
-async function generateMerkles() {
+async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
   const publicClient = createPublicClient({
     chain: mainnet,
     transport: http("https://rpc.flashbots.net"),
@@ -447,7 +449,7 @@ async function generateMerkles() {
   // Step 2: Load previous merkle data (if exists)
   const previousMerkleDataPath = path.join(
     __dirname,
-    `../../bounties-reports/${previousPeriodTimestamp}/vlCVX/merkle_data.json`
+    `../../bounties-reports/${prevWeekTimestamp}/vlCVX/merkle_data.json`
   );
   let previousMerkleData: CombinedMerkleData = {
     delegators: { merkleRoot: "", claims: {} },
@@ -468,12 +470,11 @@ async function generateMerkles() {
       combinedNonDelegatorDistribution[address] = {
         tokens: {},
       };
-      Object.entries((data as any).tokens).forEach(
-        ([tokenAddress, amount]) => {
-          combinedNonDelegatorDistribution[address].tokens[tokenAddress] =
-            BigInt(amount.toString());
-        }
-      );
+      Object.entries((data as any).tokens).forEach(([tokenAddress, amount]) => {
+        combinedNonDelegatorDistribution[address].tokens[tokenAddress] = BigInt(
+          amount.toString()
+        );
+      });
     }
   );
 
@@ -562,23 +563,31 @@ async function generateMerkles() {
     );
   });
 
-  // Collect from previous merkle data
-  [previousMerkleData.delegators, previousMerkleData.nonDelegators].forEach(
-    (merkle) => {
-      Object.values(merkle.claims).forEach((claim) => {
-        if (claim.tokens) {
-          Object.keys(claim.tokens).forEach((tokenAddress) =>
-            rewardTokenAddresses.add(tokenAddress.toLowerCase())
-          );
-        }
-      });
-    }
-  );
+  // Collect from previous merkle data - only collect relevant data
+  if (generateDelegatorsMerkle) {
+    Object.values(previousMerkleData.delegators.claims).forEach((claim) => {
+      if (claim.tokens) {
+        Object.keys(claim.tokens).forEach((tokenAddress) =>
+          rewardTokenAddresses.add(tokenAddress.toLowerCase())
+        );
+      }
+    });
+  } else {
+    Object.values(previousMerkleData.nonDelegators.claims).forEach((claim) => {
+      if (claim.tokens) {
+        Object.keys(claim.tokens).forEach((tokenAddress) =>
+          rewardTokenAddresses.add(tokenAddress.toLowerCase())
+        );
+      }
+    });
+  }
 
-  // Add crvUSD token
-  rewardTokenAddresses.add(
-    getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E").toLowerCase()
-  );
+  // Add crvUSD token only if generating delegator merkle
+  if (generateDelegatorsMerkle) {
+    rewardTokenAddresses.add(
+      getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E").toLowerCase()
+    );
+  }
 
   const tokenInfoArray = await Promise.allSettled(
     Array.from(rewardTokenAddresses).map(async (tokenAddress) => {
@@ -640,83 +649,106 @@ async function generateMerkles() {
     }
   });
 
-  // Step 5: Generate Merkle tree for non-delegators
-  const nonDelegatorDistribution = Object.entries(
-    combinedNonDelegatorDistribution
-  ).reduce((acc, [address, data]) => {
-    acc[address] = Object.entries(data.tokens).reduce(
-      (tokenAcc, [tokenAddress, amount]) => {
-        if (amount !== undefined) {
-          tokenAcc[tokenAddress] = amount.toString();
-        } else {
-          console.warn(
-            `Amount for token ${tokenAddress} is undefined:`,
-            amount
-          );
-        }
-        return tokenAcc;
-      },
-      {} as { [tokenAddress: string]: string }
+  // Step 5: Generate appropriate Merkle tree based on parameter
+  let merkleData;
+  
+  if (generateDelegatorsMerkle) {
+    // Generate Merkle tree for delegators
+    merkleData = await generateDelegatorMerkleTree(
+      minBlock,
+      currentBlock,
+      delegationDistribution,
+      previousMerkleData.delegators
     );
-    return acc;
-  }, {} as { [address: string]: { [tokenAddress: string]: string } });
+    
+    // Compare only delegator distributions
+    compareMerkleData(
+      "Delegator Distribution Changes",
+      merkleData,
+      previousMerkleData.delegators,
+      tokenInfo
+    );
+  } else {
+    // Generate Merkle tree for non-delegators
+    const nonDelegatorDistribution = Object.entries(
+      combinedNonDelegatorDistribution
+    ).reduce((acc, [address, data]) => {
+      acc[address] = Object.entries(data.tokens).reduce(
+        (tokenAcc, [tokenAddress, amount]) => {
+          if (amount !== undefined) {
+            tokenAcc[tokenAddress] = amount.toString();
+          } else {
+            console.warn(
+              `Amount for token ${tokenAddress} is undefined:`,
+              amount
+            );
+          }
+          return tokenAcc;
+        },
+        {} as { [tokenAddress: string]: string }
+      );
+      return acc;
+    }, {} as { [address: string]: { [tokenAddress: string]: string } });
 
-  const nonDelegatorMerkleData = generateMerkleTree(nonDelegatorDistribution);
+    merkleData = generateMerkleTree(nonDelegatorDistribution);
 
-  // Step 6: Generate Merkle tree for delegators with new format
-  const delegatorMerkleData = await generateDelegatorMerkleTree(
-    minBlock,
-    currentBlock,
-    delegationDistribution,
-    previousMerkleData.delegators
-  );
+    // Compare only non-delegator distributions
+    compareMerkleData(
+      "Non-Delegator Distribution Changes",
+      merkleData,
+      previousMerkleData.nonDelegators,
+      tokenInfo
+    );
+  }
 
-  // After generating both merkle trees, compare them
-  console.log("\nComparing Merkle Trees:");
-
-  compareMerkleData(
-    "Non-Delegator Distribution Changes",
-    nonDelegatorMerkleData,
-    previousMerkleData.nonDelegators,
-    tokenInfo
-  );
-
-  compareMerkleData(
-    "Delegator Distribution Changes",
-    delegatorMerkleData,
-    previousMerkleData.delegators,
-    tokenInfo
-  );
-
-  // Step 7: Combine Merkle data for both delegators and non-delegators
+  // Save the Merkle data
+  const merkleFileName = generateDelegatorsMerkle
+    ? "merkle_data_delegators.json"
+    : "merkle_data_non_delegators.json";
   const merkleDataPath = path.join(
     __dirname,
-    `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/merkle_data.json`
+    `../../bounties-reports/${currentPeriodTimestamp}/vlCVX/${merkleFileName}`
   );
-  const merkleData = {
-    delegators: delegatorMerkleData,
-    nonDelegators: nonDelegatorMerkleData,
-  };
 
-  // Additional : all addresses should be checksummed
-  merkleData.delegators.claims = Object.fromEntries(
-    Object.entries(merkleData.delegators.claims).map(([address, claim]) => [
+  // Checksum addresses in the final data
+  merkleData.claims = Object.fromEntries(
+    Object.entries(merkleData.claims).map(([address, claim]) => [
       getAddress(address),
       claim,
     ])
   );
 
-  merkleData.nonDelegators.claims = Object.fromEntries(
-    Object.entries(merkleData.nonDelegators.claims).map(([address, claim]) => [
-      getAddress(address),
-      claim,
-    ])
-  );
-
-  // Step 8: Save the combined Merkle data to a JSON file
   fs.writeFileSync(merkleDataPath, JSON.stringify(merkleData, null, 2));
 
-  console.log("Merkle trees generated and saved successfully.");
+  console.log(
+    `${
+      generateDelegatorsMerkle ? "Delegator" : "Non-delegator"
+    } Merkle tree generated and saved successfully.`
+  );
 }
 
-generateMerkles().catch(console.error);
+async function main() {
+  // Get command line arguments
+  const args = process.argv.slice(2);
+  let generateDelegatorsMerkle = false;
+
+  // Check for --delegators or -d flag
+  if (args.includes("--delegators") || args.includes("-d")) {
+    generateDelegatorsMerkle = true;
+  }
+
+  try {
+    await generateMerkles(generateDelegatorsMerkle);
+  } catch (error) {
+    console.error("Error generating merkle trees:", error);
+    process.exit(1);
+  }
+}
+
+// Run if called directly (not imported)
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
