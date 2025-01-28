@@ -270,7 +270,7 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     const userRewardAddresses = Object.keys(userRewards);
 
     // Define a threshold below which numbers are considered too small and should be set to 0
-    const threshold = 1e-8;
+    const threshold = 2e-8;
 
     const adjustedUserRewards = Object.fromEntries(
         Object.entries(userRewards).map(([address, reward]) => {
