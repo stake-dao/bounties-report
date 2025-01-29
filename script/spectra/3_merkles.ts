@@ -363,11 +363,11 @@ async function generateMerkles() {
   fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
   // Step 9: Save it also in the root path
-  merkleDataPath = path.join(
+  /*merkleDataPath = path.join(
     __dirname,
     `../../spectra_merkle.json`
   );
-  fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
+  fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));*/
 
   console.log("Merkle trees generated and saved successfully.");
 }
