@@ -579,7 +579,7 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
     tokenInfo
   );
 
-  // fs.writeFileSync(outputPath, JSON.stringify(merkleData, null, 2));
+  fs.writeFileSync(outputPath, JSON.stringify(merkleData, null, 2));
 
   console.log(
     `${
