@@ -1,0 +1,14 @@
+Stake DAO - Swap Report
+Protocol: FRAX
+Timestamp: 1738195200
+Date: 2025-01-30 01:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 FRAX Swap Report
+
+🔄 https://etherscan.io/tx/0x6156d24b49cdfb66dcc98bf770cc57e74abd9a60a3bdb4473b7a43a60ac7d7bb Transaction
+├─ https://etherscan.io/token/0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36 sdFXS: 193.20 • https://etherscan.io/token/0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0 FXS: 188.15
+
+📈 Final Summary
+└─ 193.20 https://etherscan.io/token/0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36 sdFXS
+   └─ to 188.15 https://etherscan.io/token/0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0 FXS
