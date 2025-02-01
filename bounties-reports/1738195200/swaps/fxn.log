@@ -1,0 +1,18 @@
+Stake DAO - Swap Report
+Protocol: FXN
+Timestamp: 1738195200
+Date: 2025-01-30 01:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 FXN Swap Report
+
+🔄 https://etherscan.io/tx/0xaa0dac0124f8340a196f91a66995c5cb0fd4f34e786fb2271bb39ad4420b2f7f Transaction
+├─ https://etherscan.io/token/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad sdFXN: 59.44 • https://etherscan.io/token/0x365accfca291e7d3914637abf1f7635db165bb09 FXN: 58.55 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 1.2962
+├─ https://etherscan.io/token/0xdbdb4d16eda451d0503b854cf79d55697f90c8df ALCX: 19.52 → 0.0917 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (7.1%)
+├─ https://etherscan.io/token/0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f GHO: 1,604.09 → 0.4941 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (38.1%)
+└─ https://etherscan.io/token/0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68 INV: 49.00 → 0.7105 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (54.8%)
+
+📈 Final Summary
+└─ 59.44 https://etherscan.io/token/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad sdFXN
+   └─ via 1.2962 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH
+      └─ to 58.55 https://etherscan.io/token/0x365accfca291e7d3914637abf1f7635db165bb09 FXN
