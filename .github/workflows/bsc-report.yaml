@@ -8,12 +8,9 @@ on:
         required: true
         type: choice
         options:
-          - Generate BSC reports
-          - Generate OTC BSC reports
-        default: "BSC"
-
-  schedule:
-    - cron: "23 0 * * 6" # Runs every Saturday at 23:00 UTC
+        - normal
+        - otc
+        default: "normal"
 
 env:
   AUTOMATION_DEVOPS_DIR: target-devops
@@ -51,7 +48,7 @@ jobs:
         id: set-actions
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "actions=Generate BSC reports" >> $GITHUB_OUTPUT
+            echo "actions=normal" >> $GITHUB_OUTPUT
           else
             echo "actions=${{ github.event.inputs.actions }}" >> $GITHUB_OUTPUT
           fi
@@ -66,7 +63,7 @@ jobs:
         shell: bash
 
       - name: Run BSC report script
-        if: contains(steps.set-actions.outputs.actions, 'Generate BSC reports')
+        if: contains(steps.set-actions.outputs.actions, 'normal')
         run: |
           cd ${{ env.AUTOMATION_DEVOPS_DIR }}
           python script/bounties/sdTkns/bsc/report.py
@@ -75,7 +72,7 @@ jobs:
           PYTHONPATH: script/
 
       - name: Run OTC BSC report script
-        if: contains(steps.set-actions.outputs.actions, 'Generate OTC BSC reports')
+        if: contains(steps.set-actions.outputs.actions, 'otc')
         run: |
           cd ${{ env.AUTOMATION_DEVOPS_DIR }}
           python script/bounties/sdTkns/otc/report_bsc.py
