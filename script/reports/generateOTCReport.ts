@@ -432,7 +432,17 @@ async function main() {
       );
     }
 
-    // Convert currentCsvData to a dictionary for easier lookup and modification
+    // First, collect all gauge addresses from new OTC data
+    const newGaugeAddresses = new Set(data.map(row => row.gaugeAddress.toLowerCase()));
+
+    // Filter out existing entries with 0 sd value if their gauge is in new OTC data
+    currentCsvData = currentCsvData.filter(row => {
+      const isNewGauge = newGaugeAddresses.has(row["Gauge Address"].toLowerCase());
+      const hasZeroSdValue = parseFloat(row["Reward sd Value"]) === 0;
+      return !(isNewGauge && hasZeroSdValue);
+    });
+
+    // Convert filtered currentCsvData to a dictionary for easier lookup and modification
     const currentCsvDict = currentCsvData.reduce((acc, row) => {
       const key = `${row["Gauge Address"]}-${row["Reward Address"]}`;
       acc[key] = row;
