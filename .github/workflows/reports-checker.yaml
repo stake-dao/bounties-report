@@ -3,13 +3,17 @@ name: "[sdTokens] Reports checker"
 on:
   workflow_dispatch:
     inputs:
-      action:
-        description: 'Action to perform'
+      protocol:
+        description: 'Protocol to check'
         required: true
         type: choice
         options:
-        - Check reports
-        default: 'Check reports'
+        - curve
+        - balancer
+        - fxn
+        - frax
+        - pendle
+        default: 'curve'
   repository_dispatch:
     types: [trigger-reports-checker]
 
@@ -34,8 +38,16 @@ jobs:
       - name: Install node dependencies
         run: pnpm install
 
+      - name: Set protocol value
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "PROTOCOL=${{ github.event.inputs.protocol }}" >> $GITHUB_ENV
+          else
+            echo "PROTOCOL=curve" >> $GITHUB_ENV
+          fi
+
       - name: Run reportVerifier script
-        run: pnpm tsx script/repartition/sdTkns/reportVerifier.ts
+        run: pnpm tsx script/repartition/sdTkns/reportVerifier.ts ${{ env.PROTOCOL }}
         env:
           TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

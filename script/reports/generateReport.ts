@@ -250,28 +250,47 @@ async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties
 }
 
 async function main() {
+  // Get protocol from command line args
+  const protocol = process.argv[2];
+  if (!protocol || !['curve', 'balancer', 'fxn', 'frax'].includes(protocol)) {
+    console.error('Please specify a valid protocol: curve, balancer, fxn, or frax');
+    process.exit(1);
+  }
+
   const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
     await getTimestampsBlocks(publicClient, 0);
 
   const totalBounties = await fetchBountiesData(currentPeriod);
   let aggregatedBounties = aggregateBounties(totalBounties);
-  const allTokens = collectAllTokens(aggregatedBounties, PROTOCOLS_TOKENS);
+  
+  // Filter bounties for specific protocol
+  aggregatedBounties = { [protocol]: aggregatedBounties[protocol] };
+  
+  // Collect tokens only for specified protocol
+  const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
+  const allTokens = collectAllTokens(aggregatedBounties, protocolTokens);
   const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens));
 
-  const curveGaugesInfos = await getGaugesInfos("curve");
-  const balancerGaugesInfos = await getGaugesInfos("balancer");
-  const fxnGaugesInfos = await getGaugesInfos("fxn");
-  const fraxGaugesInfos = await getGaugesInfos("frax");
+  // Get gauge infos only for specified protocol
+  let gaugesInfo;
+  switch (protocol) {
+    case 'curve':
+      gaugesInfo = await getGaugesInfos("curve");
+      break;
+    case 'balancer':
+      gaugesInfo = await getGaugesInfos("balancer");
+      break;
+    case 'fxn':
+      gaugesInfo = await getGaugesInfos("fxn");
+      break;
+    case 'frax':
+      gaugesInfo = await getGaugesInfos("frax");
+      break;
+  }
 
-  // Add gauge names to bounties
+  // Add gauge names to bounties for specific protocol
   aggregatedBounties = {
-    curve: addGaugeNamesToBounties(aggregatedBounties.curve, curveGaugesInfos),
-    balancer: addGaugeNamesToBounties(
-      aggregatedBounties.balancer,
-      balancerGaugesInfos
-    ),
-    fxn: addGaugeNamesToBounties(aggregatedBounties.fxn, fxnGaugesInfos),
-    frax: addGaugeNamesToBounties(aggregatedBounties.frax, fraxGaugesInfos),
+    [protocol]: addGaugeNamesToBounties(aggregatedBounties[protocol], gaugesInfo)
   };
 
   const swapIn = await fetchSwapInEvents(
@@ -654,7 +673,7 @@ async function main() {
     ].join("\n");
 
     // Write to file
-    const fileName = `${protocol}.csv`;
+    const fileName = `${protocol}-bis.csv`;
     fs.writeFileSync(path.join(dirPath, fileName), csvContent);
     console.log(`Report generated for ${protocol}: ${fileName}`);
   }

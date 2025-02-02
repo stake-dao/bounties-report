@@ -137,61 +137,60 @@ async function processProtocol(protocol: string): Promise<ProtocolData> {
 }
 
 async function main() {
-  const protocols = Object.keys(PROTOCOLS_TOKENS) as ProtocolKey[];
-  const results: { [protocol in ProtocolKey]?: ProtocolData } = {};
-
-  for (const protocol of protocols) {
-    results[protocol] = await processProtocol(protocol);
+  // Get protocol from command line args
+  const protocol = process.argv[2] as ProtocolKey;
+  if (!protocol || !PROTOCOLS_TOKENS[protocol]) {
+    console.error('Please specify a valid protocol');
+    process.exit(1);
   }
 
   const reportUrl = `https://github.com/stake-dao/bounties-report/tree/main/bribes-reports/${currentPeriodTimestamp}`;
-  let message = `<a href="${reportUrl}"><b>[Distribution] Reports checker</b></a>\n\n`;
+  let message = `<a href="${reportUrl}"><b>[Distribution] Report checker for ${protocol.toUpperCase()}</b></a>\n\n`;
 
-  for (const [protocol, data] of Object.entries(results)) {
-    if (!data) continue;
-    message += `<b>${protocol.toUpperCase()}:</b>\n`;
-    const total = Object.values(data.sdTokenRepartition).reduce(
-      (a, b) => a + b,
-      0
-    );
+  const data = await processProtocol(protocol);
+  
+  message += `<b>${protocol.toUpperCase()}:</b>\n`;
+  const total = Object.values(data.sdTokenRepartition).reduce(
+    (a, b) => a + b,
+    0
+  );
 
-    // Create an array of [token, share, bountyCount] tuples and sort it
-    const sortedShares = Object.entries(data.sdTokenRepartition)
-      .map(([token, amount]) => {
-        const share = (amount / total) * 100;
-        const bountyCount = data.rewardTokenCount[token] || 0;
-        return { token, share, bountyCount };
-      })
-      .sort((a, b) => b.share - a.share); // Sort by share in descending order
+  // Create an array of [token, share, bountyCount] tuples and sort it
+  const sortedShares = Object.entries(data.sdTokenRepartition)
+    .map(([token, amount]) => {
+      const share = (amount / total) * 100;
+      const bountyCount = data.rewardTokenCount[token] || 0;
+      return { token, share, bountyCount };
+    })
+    .sort((a, b) => b.share - a.share);
 
-    // Output the sorted shares
-    for (const { token, share, bountyCount } of sortedShares) {
-      message += `  <b>${token}:</b> ${share.toFixed(2)}% <i>(${bountyCount} bounties)</i>\n`;
-    }
+  // Output the sorted shares
+  for (const { token, share, bountyCount } of sortedShares) {
+    message += `  <b>${token}:</b> ${share.toFixed(2)}% <i>(${bountyCount} bounties)</i>\n`;
+  }
 
-    const protocolInfo = PROTOCOLS_TOKENS[protocol as ProtocolKey];
-    const client =
-      SPACE_TO_NETWORK[LABELS_TO_SPACE[protocol as ProtocolKey]] === "bsc"
-        ? bscClient
-        : ethereumClient;
-    const botmarketBalance = await getTokenBalance(
-      client,
-      protocolInfo.sdToken,
-      protocolInfo.decimals,
-      protocolInfo.botmarket
-    );
+  const protocolInfo = PROTOCOLS_TOKENS[protocol];
+  const client =
+    SPACE_TO_NETWORK[LABELS_TO_SPACE[protocol]] === "bsc"
+      ? bscClient
+      : ethereumClient;
+  const botmarketBalance = await getTokenBalance(
+    client,
+    protocolInfo.sdToken,
+    protocolInfo.decimals,
+    protocolInfo.botmarket
+  );
 
-    message += `  <b>Report total:</b> ${data.totalReportAmount.toFixed(2)}\n`;
-    message += `  <b>Botmarket balance:</b> ${botmarketBalance.toFixed(2)}\n`;
-    const difference = botmarketBalance - data.totalReportAmount;
-    const differenceAbs = Math.abs(difference);
-    const isDifferenceSignificant = differenceAbs > 0.01; // Consider differences greater than 0.01 as significant
+  message += `  <b>Report total:</b> ${data.totalReportAmount.toFixed(2)}\n`;
+  message += `  <b>Botmarket balance:</b> ${botmarketBalance.toFixed(2)}\n`;
+  const difference = botmarketBalance - data.totalReportAmount;
+  const differenceAbs = Math.abs(difference);
+  const isDifferenceSignificant = differenceAbs > 0.01;
 
-    if (isDifferenceSignificant) {
-      message += `  <b>Difference:</b> ${differenceAbs.toFixed(2)} ⚠️\n\n`;
-    } else {
-      message += `  <b>Difference:</b> ${differenceAbs.toFixed(2)} ✅\n\n`;
-    }
+  if (isDifferenceSignificant) {
+    message += `  <b>Difference:</b> ${differenceAbs.toFixed(2)} ⚠️\n`;
+  } else {
+    message += `  <b>Difference:</b> ${differenceAbs.toFixed(2)} ✅\n`;
   }
 
   // Send the message to Telegram
