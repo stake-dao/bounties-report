@@ -16,25 +16,17 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http, getAddress } from "viem";
 import { mainnet } from "viem/chains";
-import { getCRVUsdTransfer, generateMerkleTree, MerkleData } from "./utils";
+import { getCRVUsdTransfer, generateMerkleTree } from "./utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { DELEGATION_ADDRESS } from "../utils/constants";
+import { MerkleData } from "../interfaces/MerkleData";
+import { DelegationDistribution } from "../interfaces/DelegationDistribution";
 
 interface Distribution {
   [address: string]: {
     tokens: {
       [tokenAddress: string]: bigint;
     };
-  };
-}
-
-interface DelegationDistribution {
-  [address: string]: {
-    isStakeDelegator: boolean;
-    tokens?: {
-      [tokenAddress: string]: bigint;
-    };
-    share?: string;
   };
 }
 
@@ -379,7 +371,7 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
   );
 
   // Load and parse distribution
-  const currentDistribution = JSON.parse(
+  const currentDistribution : { distribution: Distribution } = JSON.parse(
     fs.readFileSync(currentDistributionPath, "utf-8")
   );
 
@@ -503,7 +495,7 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
   );
 
   // Tokens infos (for checks)
-  const rewardTokenAddresses = new Set();
+  const rewardTokenAddresses = new Set<string>();
 
   for (const address in merkleData.claims) {
     const tokens = Object.keys(merkleData.claims[address].tokens);

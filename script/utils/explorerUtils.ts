@@ -84,7 +84,7 @@ class BlockchainExplorerUtils {
           continue;
         }
         return { result: [] };
-      } catch (error) {
+      } catch (error: any) {
         if (error.name === 'AbortError') {
           console.warn(`Request timed out (attempt ${attempt + 1}/${retries})`);
         } else {
