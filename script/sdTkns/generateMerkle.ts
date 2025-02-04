@@ -326,6 +326,7 @@ const main = async () => {
   fs.writeFileSync(logPath, JSON.stringify(logData));
   console.log(logPath);
 
+  /*
   console.log("\nComparing Merkle Trees:");
 
   const logFilePath = `./temp/sdTokens_merkle_${TODAY_DATE}.log`;
@@ -650,6 +651,7 @@ const main = async () => {
       );
     }
   }
+    */
 };
 
 /**
