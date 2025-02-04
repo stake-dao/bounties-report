@@ -1,0 +1,24 @@
+name: "[Spectra] Merkle"
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [copy-spectra-merkle]
+
+jobs:
+  generate-merkles:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        env:
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Copy SDT gauges data to target repo
+        run: |
+          cp "${GITHUB_WORKSPACE}/spectra_merkle_tmp.json" "${GITHUB_WORKSPACE}/spectra_merkle.json"
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Update Spectra merkle"
