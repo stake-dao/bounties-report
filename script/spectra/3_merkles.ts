@@ -185,7 +185,7 @@ async function generateMerkles() {
       };
       Object.entries(data.tokens).forEach(
         ([tokenAddress, amount]) => {
-          combinedDistribution[address].tokens[tokenAddress] =
+          combinedDistribution[address].tokens[getAddress(tokenAddress)] =
             BigInt(amount.toString());
         }
       );
@@ -207,17 +207,20 @@ async function generateMerkles() {
           Object.entries(claimData.tokens).forEach(
             ([tokenAddress, tokenData]: [string, any]) => {
               if (tokenData && tokenData.amount) {
+                const normalizedAddress = getAddress(tokenAddress);
+
                 if (
                   !combinedDistribution[address].tokens[
-                    tokenAddress
+                    normalizedAddress
                   ]
                 ) {
                   combinedDistribution[address].tokens[
-                    tokenAddress
+                    normalizedAddress
                   ] = 0n;
                 }
+
                 combinedDistribution[address].tokens[
-                  tokenAddress
+                  normalizedAddress
                 ] += BigInt(tokenData.amount);
               }
             }
