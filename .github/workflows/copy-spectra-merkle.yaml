@@ -15,7 +15,7 @@ jobs:
         env:
           GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
 
-      - name: Copy SDT gauges data to target repo
+      - name: Copy Spectra merkle
         run: |
           cp "${GITHUB_WORKSPACE}/spectra_merkle_tmp.json" "${GITHUB_WORKSPACE}/spectra_merkle.json"
 
