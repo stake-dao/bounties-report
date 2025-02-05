@@ -1,9 +1,11 @@
-name: "[vlcCVX] Merkle"
+name: "[vlCVX] Merkle"
 
 on:
   workflow_dispatch:
   repository_dispatch:
-    types: [copy-vlcvx-merkle]
+    types:
+      - copy-vlcvx-merkle
+      - copy-vlcvx-merkle-delegators
 
 jobs:
   generate-merkles:
@@ -23,8 +25,11 @@ jobs:
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
 
           # Copy merkle files from bounties-reports directory
-          cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
-          cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle.json"
+          if [ "$github.event.client_payload.type" == "copy-vlcvx-merkle" ]; then
+            cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_non_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle.json"
+          elif [ "$github.event.client_payload.type" == "copy-vlcvx-merkle-delegators" ]; then
+            cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
+          fi
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
