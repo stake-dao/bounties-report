@@ -16,6 +16,8 @@ import { base } from "viem/chains";
 import { Distribution } from "../interfaces/Distribution";
 import { distributionVerifier } from "../utils/distributionVerifier";
 
+const MERKLE_ADDRESS = "0x665d334388012d17f1d197de72b7b708ffccb67d" as `0x${string}`;
+
 function compareMerkleData(
   title: string,
   newMerkle: MerkleData,
@@ -236,7 +238,7 @@ async function generateMerkles() {
 
   console.log("Merkle trees generated and saved successfully.");
 
-  distributionVerifier("sdapw.eth", "spectra");
+  distributionVerifier("sdapw.eth", "spectra", base, MERKLE_ADDRESS);
 }
 
 generateMerkles().catch(console.error);

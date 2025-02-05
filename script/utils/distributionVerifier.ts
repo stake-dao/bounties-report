@@ -1,13 +1,16 @@
+import { Chain, createPublicClient, http, parseAbi } from "viem";
 import { Distribution } from "../interfaces/Distribution";
 import { DistributionRow } from "../interfaces/DistributionRow";
 import { MerkleData } from "../interfaces/MerkleData";
 import { formatAddress } from "./address";
-import { processAllDelegators } from "./cacheUtils";
-import { DELEGATION_ADDRESS } from "./constants";
 import { delegationLogger, proposalInformationLogger } from "./delegationHelper";
 import { getLastClosedProposal, getVoters } from "./snapshot";
 import fs from "fs";
 import path from "path";
+
+const merkleAbi = parseAbi([
+    'function claimed(address,address) external view returns(uint256)',
+]);
 
 const setupLogging = (proposalId: string): string => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -19,7 +22,7 @@ const setupLogging = (proposalId: string): string => {
 }
 
 
-export const distributionVerifier = async (space: string, folderName: string) => {
+export const distributionVerifier = async (space: string, folderName: string, merkleChain: Chain, merkleAddress: `0x${string}`) => {
 
     // Load merkles
     const WEEK = 604800;
@@ -89,14 +92,42 @@ export const distributionVerifier = async (space: string, folderName: string) =>
     log(`\nHolder Distribution:`);
 
     // Compare merkles with the current distribution
-    logDistributionRowsToFile(compareMerkleData(merkleData, previousMerkleData, currentDistribution.distribution), log);
+    logDistributionRowsToFile(await compareMerkleData(merkleData, previousMerkleData, currentDistribution.distribution, merkleChain, merkleAddress), log);
 }
 
-function compareMerkleData(
+const compareMerkleData = async(
     currentMerkleData: MerkleData,
     previousMerkleData: MerkleData,
     distribution: Distribution,
-): DistributionRow[] {
+    chain: Chain,
+    merkleAddress: `0x${string}`
+): Promise<DistributionRow[]> => {
+    const client = createPublicClient({
+        chain,
+        transport: http()
+    });
+
+    const calls: any[] = [];
+    const addressMapping: Array<{ address: string, tokenAddress: string }> = [];
+
+    for (const address in currentMerkleData.claims) {
+        const currentClaims = currentMerkleData.claims[address];
+        for (const tokenAddress in currentClaims.tokens) {
+            calls.push({
+                address: merkleAddress,
+                abi: merkleAbi,
+                functionName: 'claimed',
+                args: [address, tokenAddress]
+            });
+            addressMapping.push({ address, tokenAddress });
+        }
+    }
+
+    // Execute multicall
+    const results = await client.multicall({
+        contracts: calls
+    });
+
     const distributionRows: DistributionRow[] = [];
 
     // Parcourt tous les addresses du MerkleData actuel
@@ -109,7 +140,8 @@ function compareMerkleData(
             const currentTokenClaim = currentClaims.tokens[tokenAddress];
             const previousTokenClaim = previousClaims.tokens[tokenAddress] || { amount: '0' };
 
-            const weekChange = BigInt(currentTokenClaim.amount) - BigInt(previousTokenClaim.amount || '0');
+            const previousClaim = BigInt(previousTokenClaim.amount || '0');
+            const weekChange = BigInt(currentTokenClaim.amount) - previousClaim;
 
             let distributionAmount = BigInt(0);
             const distributionUser = Object.keys(distribution).find((user) => user.toLowerCase() === address.toLowerCase());
@@ -120,16 +152,17 @@ function compareMerkleData(
                 }
             }
 
-            const isAmountDifferent = distributionAmount !== (BigInt(currentTokenClaim.amount) - BigInt(previousTokenClaim.amount || '0'));
+            const isAmountDifferent = distributionAmount !== (BigInt(currentTokenClaim.amount) - previousClaim);
+            const claimedAmount = BigInt(results.shift()?.result as bigint || '0');
 
             const row: DistributionRow = {
                 address,
                 tokenAddress,
-                prevAmount: BigInt(previousTokenClaim.amount || '0'),
+                prevAmount: previousClaim,
                 newAmount: BigInt(currentTokenClaim.amount),
                 weekChange,
                 distributionAmount,
-                claimed: currentTokenClaim.proof.length > 0,
+                claimed: claimedAmount === previousClaim,
                 isError: isAmountDifferent
             };
 
@@ -160,7 +193,7 @@ const logDistributionRowsToFile = (distributionRows: DistributionRow[], log: (me
         row.newAmount.toString(),
         row.weekChange.toString(),
         row.distributionAmount.toString(),
-        row.claimed.toString(),
+        row.claimed ? `✅` : `❌`,
         row.isError ? `❌` : `✅`
     ]);
 
