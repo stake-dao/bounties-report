@@ -2,8 +2,7 @@ import request, { gql } from "graphql-request";
 import { SNAPSHOT_ENDPOINT, WEEK } from "./constants";
 import axios from "axios";
 import { orderBy } from "lodash";
-import { GaugeInfo, Proposal, Delegation, Vote } from "./types";
-import { CurveGauge } from "./curveApi";
+import { Proposal, Delegation, Vote } from "./types";
 
 /**
  * Fetch last proposal ID for all specified spaces with an optional global filter.
@@ -136,7 +135,7 @@ export const fetchProposalsIdsBasedOnPeriods = async (
  * @param idProposal - Proposal ID
  * @returns Proposal details
  */
-export const getProposal = async (idProposal: string): Promise<any> => {
+export const getProposal = async (idProposal: string): Promise<Proposal> => {
   const QUERY_PROPOSAL = gql`
     query Proposal($id: String!) {
       proposal(id: $id) {
@@ -177,7 +176,7 @@ export const getProposal = async (idProposal: string): Promise<any> => {
   return result.proposal;
 };
 
-export const getLastClosedProposal = async (space: string): Promise<any> => {
+export const getLastClosedProposal = async (space: string): Promise<Proposal> => {
   const QUERY_PROPOSAL = gql`
     query Proposal {
       proposals(
@@ -400,7 +399,7 @@ export const associateGaugesPerId = (
       if (addressMatches) {
         // Try to match either full address or short address
         curveGauge = curveGauges.find(gauge => 
-          addressMatches.some(addr => {
+          addressMatches.some((addr: any) => {
             const gaugeAddr = gauge.gauge.toLowerCase();
             const matchAddr = addr.toLowerCase();
             return gaugeAddr === matchAddr || gaugeAddr.startsWith(matchAddr);

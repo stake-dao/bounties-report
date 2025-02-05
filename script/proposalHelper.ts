@@ -3,18 +3,18 @@ import {
   associateGaugesPerId,
   getProposal,
   getVoters,
-  getVotingPower,
 } from "./utils/snapshot";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { mainnet } from "viem/chains";
 import { getAllCurveGauges } from "./utils/curveApi";
 import { DELEGATION_ADDRESS } from "./utils/constants";
-import { processAllDelegators } from "./utils/cacheUtils";
 import fs from "fs";
 import path from "path";
+import { delegationLogger, proposalInformationLogger } from "./utils/delegationHelper";
+import { formatAddress } from "./utils/address";
 
-const SUPPORTED_SPACES = {
+const SUPPORTED_SPACES: Record<string, string> = {
   "sdcrv.eth": "curve",
   "cvx.eth": "curve",
 } as const;
@@ -24,16 +24,6 @@ const client = createPublicClient({
   transport: http("https://rpc.ankr.com/eth"),
 });
 
-function formatAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-interface DelegatorData {
-  delegators: string[];
-  votingPowers: { [key: string]: number };
-  totalVotingPower: number;
-}
-
 function setupLogging(proposalId: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const tempDir = path.join(process.cwd(), "temp");
@@ -41,35 +31,8 @@ function setupLogging(proposalId: string): string {
     fs.mkdirSync(tempDir, { recursive: true });
   }
   const logPath = path.join(tempDir, `proposal-${proposalId}-${timestamp}.log`);
-  const logStream = fs.createWriteStream(logPath, { flags: "a" });
 
   return logPath;
-}
-
-async function fetchDelegatorData(
-  space: string,
-  proposal: any
-): Promise<DelegatorData | null> {
-  const delegators = await processAllDelegators(
-    space,
-    proposal.created,
-    DELEGATION_ADDRESS
-  );
-
-  
-  if (delegators.length === 0) return null;
-
-  const votingPowers = await getVotingPower(proposal, delegators);
-  const totalVotingPower = Object.values(votingPowers).reduce(
-    (acc, vp) => acc + vp,
-    0
-  );
-
-  return {
-    delegators,
-    votingPowers,
-    totalVotingPower,
-  };
 }
 
 async function main() {
@@ -109,51 +72,20 @@ async function main() {
     }
 
     const blockSnapshot = await client.getBlock({
-      blockNumber: proposal.snapshot,
+      blockNumber: BigInt(proposal.snapshot),
     });
     const dateSnapshot = new Date(
       Number(blockSnapshot.timestamp) * 1000
     ).toLocaleString();
 
     // Print proposal information
-    log("\n=== Proposal Information ===");
-    log(`ID: ${proposal.id}`);
-    log(`Title: ${proposal.title}`);
-    log(`Space: ${space}`);
-    log(`Author: ${formatAddress(proposal.author)}`);
-    log(`Created: ${new Date(proposal.created * 1000).toLocaleString()}`);
-    log(`Start: ${new Date(proposal.start * 1000).toLocaleString()}`);
-    log(`End: ${new Date(proposal.end * 1000).toLocaleString()}`);
-    log(`Snapshot Block: ${proposal.snapshot}`);
+    proposalInformationLogger(space, proposal, log);
     log(`Snapshot Date: ${dateSnapshot}`);
 
     // Fetch and log delegator data for all supported spaces
     log("\n=== Delegation Information ===");
     for (const supportedSpace of Object.keys(SUPPORTED_SPACES)) {
-      log(`\nSpace: ${supportedSpace}`);
-      const delegatorData = await fetchDelegatorData(supportedSpace, proposal);
-
-      if (delegatorData) {
-        const sortedDelegators = delegatorData.delegators
-          .filter((delegator) => delegatorData.votingPowers[delegator] > 0)
-          .sort(
-            (a, b) =>
-              (delegatorData.votingPowers[b] || 0) -
-              (delegatorData.votingPowers[a] || 0)
-          );
-
-        log(`Total Delegators: ${sortedDelegators.length}`);
-        log(`Total Voting Power: ${delegatorData.totalVotingPower.toFixed(2)}`);
-
-        log("\nDelegator Breakdown:");
-        for (const delegator of sortedDelegators) {
-          const vp = delegatorData.votingPowers[delegator];
-          const share = (vp / delegatorData.totalVotingPower) * 100;
-          log(`- ${delegator}: ${vp.toFixed(2)} VP (${share.toFixed(2)}%)`);
-        }
-      } else {
-        log("No delegators found");
-      }
+      delegationLogger(supportedSpace, proposal, log);
     }
 
     const curveGauges = await getAllCurveGauges();

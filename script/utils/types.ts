@@ -57,6 +57,7 @@ export interface Proposal {
   scores: number[];
   votes: number;
   strategies: Strategy[];
+  author: string;
   space: {
     id: string;
   };

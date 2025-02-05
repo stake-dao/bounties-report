@@ -11,6 +11,7 @@ import { getContract, formatUnits, PublicClient, Address } from "viem";
 import { erc20Abi } from "viem";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { getClosestBlockTimestamp } from "./chainUtils";
+import { Proposal } from "../interfaces/Proposal";
 
 const WEEK = 604800; // One week in seconds
 
@@ -181,25 +182,6 @@ export const PROTOCOLS_TOKENS: {
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 
-interface Proposal {
-  id: string;
-  title: string;
-  body: string;
-  choices: string[];
-  start: number;
-  end: number;
-  snapshot: string;
-  state: string;
-  scores: string[];
-  scores_by_strategy: string[];
-  scores_total: number;
-  scores_updated: number;
-  author: string;
-  space: {
-    id: string;
-    name: string;
-  };
-}
 
 interface Timestamps {
   [key: number]: Proposal;
