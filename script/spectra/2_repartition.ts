@@ -12,10 +12,10 @@ import {
 } from "../utils/snapshot";
 import * as moment from "moment";
 import { processAllDelegators } from "../utils/cacheUtils";
-import { Distribution } from "./3_merkles";
 import { getAddress } from "viem";
 import { getSpectraDelegationAPR, getSpectraReport } from "./utils";
 import axios from "axios";
+import { Distribution } from "../interfaces/Distribution";
 
 dotenv.config();
 

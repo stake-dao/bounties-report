@@ -13,14 +13,8 @@ import { MerkleData } from "../interfaces/MerkleData";
 import { createCombineDistribution } from "../utils/merkle";
 import { fetchTokenInfos } from "../utils/tokens";
 import { base } from "viem/chains";
-
-export interface Distribution {
-  [address: string]: {
-    tokens: {
-      [tokenAddress: string]: bigint;
-    };
-  };
-}
+import { Distribution } from "../interfaces/Distribution";
+import { distributionVerifier } from "../utils/distributionVerifier";
 
 function compareMerkleData(
   title: string,
@@ -241,6 +235,8 @@ async function generateMerkles() {
   fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
   console.log("Merkle trees generated and saved successfully.");
+
+  distributionVerifier("sdapw.eth", "spectra");
 }
 
 generateMerkles().catch(console.error);

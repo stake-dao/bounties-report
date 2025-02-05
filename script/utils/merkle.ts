@@ -1,6 +1,6 @@
 import { getAddress } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
-import { Distribution } from "../spectra/3_merkles";
+import { Distribution } from "../interfaces/Distribution";
 
 export const createCombineDistribution = (
     currentDistribution: { distribution: Distribution },
