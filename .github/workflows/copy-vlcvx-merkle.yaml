@@ -26,18 +26,18 @@ jobs:
 
       - name: Copy vlCVX merkle
         run: |
-          # Calculate current period
-          WEEK=604800
-          CURRENT_TIMESTAMP=$(date +%s)
-          CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
-
-          # Copy merkle files from bounties-reports directory
-          if [ "$github.event.client_payload.type" == "non-delegators" ]; then
-            cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_non_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle.json"
-          elif [ "$github.event.client_payload.type" == "delegators" ]; then
-            cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
+          if [ "${{ github.event.inputs.type }}" == "delegators" ] || [ "${{ github.event.client_payload.type }}" == "delegators" ]; then
+            # Copy delegators merkle and rename
+            cp "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/merkle_data_delegators_tmp.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/merkle_data_delegators.json"
+            # Remove tmp file
+            rm "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/merkle_data_delegators_tmp.json"
+          else
+            # Copy non-delegators merkle and rename
+            cp "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/merkle_data_non_delegators_tmp.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/merkle_data_non_delegators.json"
+            # Remove tmp file
+            rm "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/merkle_data_non_delegators_tmp.json"
           fi
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: Update vlcCVX merkle"
+          commit_message: "chore: Update vlCVX merkle"

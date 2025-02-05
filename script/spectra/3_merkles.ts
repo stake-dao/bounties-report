@@ -365,11 +365,18 @@ async function generateMerkles() {
   // Step 8: Save the combined Merkle data to a JSON file
   fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
-  // Step 9: Save it also in the root path
+  // Step 9: Save it in the latest path
   merkleDataPath = path.join(
     __dirname,
-    `../../spectra_merkle_tmp.json`
+    `../../bounties-reports/latest/spectra/merkle_data_tmp.json`
   );
+
+  // Create directory if it doesn't exist
+  const dir = path.dirname(merkleDataPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
   fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
   console.log("Merkle trees generated and saved successfully.");
