@@ -1,0 +1,43 @@
+name: "[vlCVX] Merkle - Copy to latest"
+
+on:
+  workflow_dispatch:
+    inputs:
+      type:
+        description: 'Type of merkle to generate'
+        required: true
+        default: 'non-delegators'
+        type: choice
+        options:
+          - delegators
+          - non-delegators
+  repository_dispatch:
+    types: [copy-vlcvx-merkle]
+
+jobs:
+  generate-merkles:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        env:
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Copy vlCVX merkle
+        run: |
+          # Calculate current period
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+
+          # Copy merkle files from bounties-reports directory
+          if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "non-delegators" ]; then
+            cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_non_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle.json"
+          elif [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
+            cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
+          fi
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Update vlcCVX merkle"

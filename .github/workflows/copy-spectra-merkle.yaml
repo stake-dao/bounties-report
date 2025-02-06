@@ -1,4 +1,4 @@
-name: "[Spectra] Merkle"
+name: "[Spectra] Merkle - Copy to latest"
 
 on:
   workflow_dispatch:
@@ -17,7 +17,8 @@ jobs:
 
       - name: Copy Spectra merkle
         run: |
-          cp "${GITHUB_WORKSPACE}/spectra_merkle_tmp.json" "${GITHUB_WORKSPACE}/spectra_merkle.json"
+          cp "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data_tmp.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data.json"
+          rm "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data_tmp.json"
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:

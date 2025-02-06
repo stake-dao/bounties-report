@@ -387,7 +387,6 @@ export const associateGaugesPerId = (
 
   for (let i = 0; i < proposal.choices.length; i++) {
     const choice = proposal.choices[i];
-    
     // Case 1: Direct match with shortName
     let curveGauge = curveGauges.find(
       gauge => gauge.shortName.toLowerCase() === choice.toLowerCase()
@@ -417,7 +416,8 @@ export const associateGaugesPerId = (
     }
 
     if (curveGauge) {
-      result[curveGauge.gauge.toLowerCase()] = {
+      const gaugeAddress = (curveGauge.rootGauge || curveGauge.gauge).toLowerCase();
+      result[gaugeAddress] = {
         shortName: curveGauge.shortName,
         choiceId: i + 1 // Snapshot choices are 1-indexed
       };

@@ -380,16 +380,62 @@ const main = async () => {
     }, {} as Record<string, { tokens: Record<string, string> }>);
   };
 
-  // Save distributions to separate files
+  // Create separate distributions by chain ID
+  const distributionsByChain: Record<number, Distribution> = { 1: {} };
+
+
+  // Create a map of token addresses to their chain IDs from the CSV
+  const tokenChainIds: Record<string, number> = {};
+  Object.values(csvResult).forEach((rewardInfos) => {
+    console.log(rewardInfos);
+    rewardInfos.forEach(({ chainId, rewardAddress }) => {
+      if (chainId !== 1) { // Only track non-mainnet tokens
+        tokenChainIds[rewardAddress.toLowerCase()] = chainId;
+      }
+    });
+  });
+
+  // Separate distributions by chain ID
+  Object.entries(distribution).forEach(([voter, { tokens }]) => {
+    const tokensByChain: Record<number, Record<string, bigint>> = { 1: {} };
+
+    // Separate tokens by chain ID
+    Object.entries(tokens).forEach(([tokenAddress, amount]) => {
+      const chainId = tokenChainIds[tokenAddress.toLowerCase()] || 1;
+      if (!tokensByChain[chainId]) {
+        tokensByChain[chainId] = {};
+      }
+      tokensByChain[chainId][tokenAddress] = amount;
+    });
+
+    // Add to respective chain distributions
+    Object.entries(tokensByChain).forEach(([chainId, chainTokens]) => {
+      const numChainId = Number(chainId);
+      if (!distributionsByChain[numChainId]) {
+        distributionsByChain[numChainId] = {};
+      }
+      if (Object.keys(chainTokens).length > 0) {
+        distributionsByChain[numChainId][voter] = { tokens: chainTokens };
+      }
+    });
+  });
+
+  // Save distributions to separate files by chain
   console.log("Saving distributions to files...");
   const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX`;
   fs.mkdirSync(dirPath, { recursive: true });
 
-  // Save main distribution
-  fs.writeFileSync(
-    `${dirPath}/repartition.json`,
-    JSON.stringify({ distribution: convertToJsonFormat(distribution) }, null, 2)
-  );
+  // Save each chain's distribution
+  Object.entries(distributionsByChain).forEach(([chainId, chainDistribution]) => {
+    const filename = chainId === '1' 
+      ? 'repartition.json' 
+      : `repartition_${chainId}.json`;
+
+    fs.writeFileSync(
+      `${dirPath}/${filename}`,
+      JSON.stringify({ distribution: convertToJsonFormat(chainDistribution) }, null, 2)
+    );
+  });
 
   // Save delegation distribution if it exists
   if (Object.keys(delegationDistribution).length > 0) {

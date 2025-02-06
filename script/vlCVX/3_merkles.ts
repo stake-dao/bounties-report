@@ -430,6 +430,7 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
     tokenInfo
   );
 
+  // Save to current period directory
   fs.writeFileSync(outputPath, JSON.stringify(merkleData, null, 2));
 
   console.log(

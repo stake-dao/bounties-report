@@ -31,7 +31,7 @@ export type PendleCSVType = Record<string, Record<string, number>>;
 export type OtherCSVType = Record<string, number>;
 export type CvxCSVType = Record<
   string,
-  Array<{ rewardAddress: string; rewardAmount: bigint }>
+  Array<{ rewardAddress: string; rewardAmount: bigint, chainId: number }>
 >;
 
 export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType;
@@ -117,19 +117,20 @@ export const extractCSV = async (
       const cvxResponse = response as CvxCSVType;
       const rewardAddress = row["reward address"].toLowerCase();
       const rewardAmount = BigInt(row["reward amount"]);
+      const chainId = parseInt(row["chainid"]);
       const gaugeAddress = row["gauge address"].toLowerCase();
 
       if (!cvxResponse[gaugeAddress]) {
-        cvxResponse[gaugeAddress] = [{ rewardAddress, rewardAmount }];
+        cvxResponse[gaugeAddress] = [{ rewardAddress, rewardAmount, chainId }];
       } else {
         const existingRewardIndex = cvxResponse[gaugeAddress].findIndex(
           reward => reward.rewardAddress === rewardAddress
         );
-        
+
         if (existingRewardIndex >= 0) {
           cvxResponse[gaugeAddress][existingRewardIndex].rewardAmount += rewardAmount;
         } else {
-          cvxResponse[gaugeAddress].push({ rewardAddress, rewardAmount });
+          cvxResponse[gaugeAddress].push({ rewardAddress, rewardAmount, chainId });
         }
       }
 
