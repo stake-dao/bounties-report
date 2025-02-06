@@ -1,20 +1,20 @@
 import { Chain, createPublicClient, getAddress, http } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
 import { TokenInfos } from "../interfaces/TokenInfos";
-import { UniversalMerkle } from "../interfaces/UniversalMerkle";
+import { AddressClaim } from "../interfaces/AddressClaim";
 
 export const fetchTokenInfos = async (combinedDistribution: MerkleData, previousMerkleData: MerkleData, chain: Chain): Promise<TokenInfos> => {
     const rewardTokenAddresses = new Set<string>();
 
     // Collect from current distribution
-    Object.values(combinedDistribution).forEach((data) => {
+    Object.values(combinedDistribution.claims).forEach((data: AddressClaim) => {
         Object.keys(data.tokens).forEach((tokenAddress) =>
             rewardTokenAddresses.add(tokenAddress.toLowerCase())
         );
     });
 
     // Collect from previous merkle data
-    Object.values(previousMerkleData.claims).forEach((claim) => {
+    Object.values(previousMerkleData.claims).forEach((claim: AddressClaim) => {
         if (claim.tokens) {
             Object.keys(claim.tokens).forEach((tokenAddress) =>
                 rewardTokenAddresses.add(tokenAddress.toLowerCase())
