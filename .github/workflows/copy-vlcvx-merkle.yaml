@@ -11,6 +11,9 @@ on:
         options:
           - delegators
           - non-delegators
+  repository_dispatch:
+    types: [copy-vlcvx-merkle]
+
 jobs:
   generate-merkles:
     runs-on: ubuntu-latest
@@ -29,9 +32,9 @@ jobs:
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
 
           # Copy merkle files from bounties-reports directory
-          if [ "${{ inputs.type }}" == "non-delegators" ]; then
+          if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "non-delegators" ]; then
             cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_non_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle.json"
-          elif [ "${{ inputs.type }}" == "delegators" ]; then
+          elif [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
             cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
           fi
 
