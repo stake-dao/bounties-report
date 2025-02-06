@@ -1,4 +1,4 @@
-name: "[Spectra] Merkle"
+name: "[Spectra] Merkle - Copy to latest"
 
 on:
   workflow_dispatch:
