@@ -1,0 +1,12 @@
+{
+  "fxn": {
+    "0": {
+      "amount": "2361524389762983737651",
+      "rewardToken": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "gauge": "0xf0A3ECed42Dbd8353569639c0eaa833857aA0A75",
+      "questID": "48",
+      "period": "1738195200",
+      "distributor": "0x8964c76B6f0253A77129D58cBA5D184d414d7C9a"
+    }
+  }
+}
