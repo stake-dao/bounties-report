@@ -18,7 +18,7 @@ import { createPublicClient, http, getAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { getCRVUsdTransfer, generateMerkleTree } from "./utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { DELEGATION_ADDRESS } from "../utils/constants";
+import { CRVUSD, DELEGATION_ADDRESS } from "../utils/constants";
 import { MerkleData } from "../interfaces/MerkleData";
 import { DelegationDistribution } from "../interfaces/DelegationDistribution";
 import { createCombineDistribution } from "../utils/merkle";
@@ -153,9 +153,7 @@ async function generateDelegatorMerkleTree(
   console.log("Total crvUsd for distribution:", totalCrvUsd.toString());
 
   // Calculate sdCRV amounts for delegators
-  const delegatorDistribution: {
-    [address: string]: { [tokenAddress: string]: string };
-  } = {};
+  const distribution: Distribution = {};
 
   delegators.forEach(([address, data]) => {
     const normalizedAddress = getAddress(address);
@@ -164,56 +162,15 @@ async function generateDelegatorMerkleTree(
       (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
 
     if (crvUsdAmount > 0n) {
-      delegatorDistribution[normalizedAddress] = {
-        [getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E")]:
-          crvUsdAmount.toString(),
+      distribution[normalizedAddress] = {
+        tokens: {
+          [CRVUSD]: crvUsdAmount
+        }
       };
     }
   });
 
-  // Merge with previous merkle data
-  if (previousMerkleData && previousMerkleData.claims) {
-    Object.entries(previousMerkleData.claims).forEach(
-      ([address, claimData]: [string, any]) => {
-        const normalizedAddress = getAddress(address);
-
-        if (!delegatorDistribution[normalizedAddress]) {
-          delegatorDistribution[normalizedAddress] = {};
-        }
-
-        if (claimData && claimData.tokens) {
-          Object.entries(claimData.tokens).forEach(
-            ([tokenAddress, tokenData]: [string, any]) => {
-              const normalizedTokenAddress = getAddress(tokenAddress);
-
-              if (tokenData && tokenData.amount) {
-                if (
-                  !delegatorDistribution[normalizedAddress][
-                    normalizedTokenAddress
-                  ]
-                ) {
-                  delegatorDistribution[normalizedAddress][
-                    normalizedTokenAddress
-                  ] = "0";
-                }
-                const previousAmount = BigInt(tokenData.amount);
-                const currentAmount = BigInt(
-                  delegatorDistribution[normalizedAddress][
-                    normalizedTokenAddress
-                  ]
-                );
-                delegatorDistribution[normalizedAddress][
-                  normalizedTokenAddress
-                ] = (previousAmount + currentAmount).toString();
-              }
-            }
-          );
-        }
-      }
-    );
-  }
-
-  return generateMerkleTree(delegatorDistribution);
+  return generateMerkleTree(createCombineDistribution({ distribution }, previousMerkleData));
 }
 
 /**
