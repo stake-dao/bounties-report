@@ -174,33 +174,13 @@ async function generateMerkles() {
   }
 
   // Step 3: Combine current distribution with previous amounts
-  const combinedDistribution = createCombineDistribution(currentDistribution, previousMerkleData);
+  const merkleData = createCombineDistribution(currentDistribution, previousMerkleData);
 
-  // Step 4: Retrieve token info (symbol and decimals) for all reward tokens
-  const tokenInfo = await fetchTokenInfos(combinedDistribution, previousMerkleData, base);
+  // Step 4 : generate merkle
+  const newMerkleData = generateMerkleTree(merkleData);
 
-  // Step 5: Generate Merkle tree
-  const nonDelegatorDistribution = Object.entries(
-    combinedDistribution
-  ).reduce((acc, [address, data]) => {
-    acc[address] = Object.entries(data.tokens).reduce(
-      (tokenAcc, [tokenAddress, amount]) => {
-        if (amount !== undefined) {
-          tokenAcc[tokenAddress] = amount.toString();
-        } else {
-          console.warn(
-            `Amount for token ${tokenAddress} is undefined:`,
-            amount
-          );
-        }
-        return tokenAcc;
-      },
-      {} as { [tokenAddress: string]: string }
-    );
-    return acc;
-  }, {} as { [address: string]: { [tokenAddress: string]: string } });
-
-  const newMerkleData = generateMerkleTree(nonDelegatorDistribution);
+  // Step 5: Retrieve token info (symbol and decimals) for all reward tokens
+  const tokenInfo = await fetchTokenInfos(newMerkleData, previousMerkleData, base);
 
   // After generating both merkle trees, compare them
   console.log("\nComparing Merkle Tree:");
@@ -212,7 +192,7 @@ async function generateMerkles() {
     tokenInfo
   );
 
-  // Step 7: Combine Merkle data
+  // Step 6: Combine Merkle data
   let merkleDataPath = path.join(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/spectra/merkle_data.json`
@@ -226,10 +206,10 @@ async function generateMerkles() {
     ])
   );
 
-  // Step 8: Save the combined Merkle data to a JSON file
+  // Step 7: Save the combined Merkle data to a JSON file
   fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
-  // Step 9: Save it also in the root path
+  // Step 8: Save it also in the root path
   merkleDataPath = path.join(
     __dirname,
     `../../spectra_merkle_tmp.json`

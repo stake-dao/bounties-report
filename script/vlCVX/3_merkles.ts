@@ -21,6 +21,8 @@ import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { DELEGATION_ADDRESS } from "../utils/constants";
 import { MerkleData } from "../interfaces/MerkleData";
 import { DelegationDistribution } from "../interfaces/DelegationDistribution";
+import { createCombineDistribution } from "../utils/merkle";
+import { fetchTokenInfos } from "../utils/tokens";
 
 interface Distribution {
   [address: string]: {
@@ -401,83 +403,7 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
       previousMerkleData
     );
   } else {
-    // TODO : A function like for delegators
-    // Process non-delegator distribution
-    let distribution = currentDistribution.distribution;
-    distribution = await checkDistribution(distribution);
-
-    // Convert distribution to merkle format
-    const merkleDistribution = Object.entries(distribution).reduce(
-      (acc, [address, data]) => {
-        acc[address] = Object.entries(data.tokens).reduce(
-          (tokenAcc, [tokenAddress, amount]) => {
-            tokenAcc[tokenAddress] = amount.toString();
-            return tokenAcc;
-          },
-          {} as { [tokenAddress: string]: string }
-        );
-        return acc;
-      },
-      {} as { [address: string]: { [tokenAddress: string]: string } }
-    );
-
-    // First normalize the merkleDistribution addresses
-    const normalizedMerkleDistribution: {
-      [address: string]: { [tokenAddress: string]: string };
-    } = {};
-
-    // Normalize the new distribution first
-    Object.entries(merkleDistribution).forEach(([address, tokens]) => {
-      const normalizedAddress = getAddress(address);
-      normalizedMerkleDistribution[normalizedAddress] = {};
-
-      // Normalize and merge token amounts for the same address
-      Object.entries(tokens).forEach(([tokenAddress, amount]) => {
-        const normalizedTokenAddress = getAddress(tokenAddress);
-        const currentAmount = BigInt(
-          normalizedMerkleDistribution[normalizedAddress][
-            normalizedTokenAddress
-          ] || "0"
-        );
-        const newAmount = BigInt(amount);
-        normalizedMerkleDistribution[normalizedAddress][
-          normalizedTokenAddress
-        ] = (currentAmount + newAmount).toString();
-      });
-    });
-
-    // Then merge with previous merkle data
-    if (previousMerkleData && previousMerkleData.claims) {
-      Object.entries(previousMerkleData.claims).forEach(
-        ([address, claimData]) => {
-          const normalizedAddress = getAddress(address);
-
-          if (!normalizedMerkleDistribution[normalizedAddress]) {
-            normalizedMerkleDistribution[normalizedAddress] = {};
-          }
-
-          if (claimData && claimData.tokens) {
-            Object.entries(claimData.tokens).forEach(
-              ([tokenAddress, tokenData]: [string, any]) => {
-                const normalizedTokenAddress = getAddress(tokenAddress);
-                const prevAmount = BigInt(tokenData.amount || "0");
-                const currentAmount = BigInt(
-                  normalizedMerkleDistribution[normalizedAddress][
-                    normalizedTokenAddress
-                  ] || "0"
-                );
-
-                normalizedMerkleDistribution[normalizedAddress][
-                  normalizedTokenAddress
-                ] = (prevAmount + currentAmount).toString();
-              }
-            );
-          }
-        }
-      );
-    }
-
-    merkleData = generateMerkleTree(normalizedMerkleDistribution);
+    merkleData = generateMerkleTree(createCombineDistribution(currentDistribution, previousMerkleData));
   }
 
   // Save merkle data
@@ -494,74 +420,7 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
     ])
   );
 
-  // Tokens infos (for checks)
-  const rewardTokenAddresses = new Set<string>();
-
-  for (const address in merkleData.claims) {
-    const tokens = Object.keys(merkleData.claims[address].tokens);
-    tokens.forEach((token) => rewardTokenAddresses.add(token));
-  }
-
-  const tokenInfoArray = await Promise.allSettled(
-    Array.from(rewardTokenAddresses).map(async (tokenAddress) => {
-      const address = getAddress(tokenAddress.toLowerCase());
-      try {
-        const [symbol, decimals] = await Promise.all([
-          publicClient.readContract({
-            address,
-            abi: [
-              {
-                inputs: [],
-                name: "symbol",
-                outputs: [{ type: "string" }],
-                stateMutability: "view",
-                type: "function",
-              },
-            ],
-            functionName: "symbol",
-          }),
-          publicClient.readContract({
-            address,
-            abi: [
-              {
-                inputs: [],
-                name: "decimals",
-                outputs: [{ type: "uint8" }],
-                stateMutability: "view",
-                type: "function",
-              },
-            ],
-            functionName: "decimals",
-          }),
-        ]);
-
-        return { tokenAddress: address, symbol, decimals };
-      } catch (error) {
-        console.error(`Error fetching info for token ${address}:`, error);
-        throw error;
-      }
-    })
-  );
-
-  const tokenInfo: {
-    [tokenAddress: string]: { symbol: string; decimals: number };
-  } = {};
-
-  tokenInfoArray.forEach((result, index) => {
-    if (result.status === "fulfilled") {
-      const { tokenAddress, symbol, decimals } = result.value;
-      tokenInfo[tokenAddress] = {
-        symbol: symbol as string,
-        decimals: Number(decimals),
-      };
-    } else {
-      const tokenAddress = Array.from(rewardTokenAddresses)[index];
-      console.warn(
-        `Failed to fetch info for token ${tokenAddress}. Using default values.`
-      );
-      tokenInfo[tokenAddress] = { symbol: "UNKNOWN", decimals: 18 };
-    }
-  });
+  const tokenInfo = await fetchTokenInfos(merkleData, previousMerkleData, mainnet);
 
   // Compare merkle data
   compareMerkleData(

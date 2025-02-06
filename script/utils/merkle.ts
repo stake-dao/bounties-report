@@ -1,72 +1,82 @@
 import { getAddress } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
 import { Distribution } from "../interfaces/Distribution";
+import { UniversalMerkle } from "../interfaces/UniversalMerkle";
 
 export const createCombineDistribution = (
     currentDistribution: { distribution: Distribution },
     previousMerkleData: MerkleData
-): Distribution => {
-    let combinedDistribution: Distribution = {};
+): UniversalMerkle => {
 
-    // Add current week distribution
-    Object.entries(currentDistribution.distribution).forEach(
-        ([address, data]) => {
-            combinedDistribution[address] = {
-                tokens: {},
-            };
-            Object.entries(data.tokens).forEach(
-                ([tokenAddress, amount]) => {
-                    combinedDistribution[address].tokens[getAddress(tokenAddress)] =
-                        BigInt(amount.toString());
-                }
+    // Convert distribution to merkle format
+    const merkleDistribution = Object.entries(currentDistribution.distribution).reduce(
+        (acc, [address, data]) => {
+            acc[address] = Object.entries(data.tokens).reduce(
+                (tokenAcc, [tokenAddress, amount]) => {
+                    tokenAcc[tokenAddress] = amount.toString();
+                    return tokenAcc;
+                },
+                {} as { [tokenAddress: string]: string }
             );
-        }
+            return acc;
+        },
+        {} as { [address: string]: { [tokenAddress: string]: string } }
     );
 
-    // Add previous merkle amounts
-    if (
-        previousMerkleData.claims
-    ) {
-        combinedDistribution = combinePreviousMerkle(previousMerkleData, combinedDistribution);
+    // First normalize the merkleDistribution addresses
+    const normalizedMerkleDistribution: UniversalMerkle = {};
+
+    // Normalize the new distribution first
+    Object.entries(merkleDistribution).forEach(([address, tokens]) => {
+        const normalizedAddress = getAddress(address);
+        normalizedMerkleDistribution[normalizedAddress] = {};
+
+        // Normalize and merge token amounts for the same address
+        Object.entries(tokens).forEach(([tokenAddress, amount]) => {
+            const normalizedTokenAddress = getAddress(tokenAddress);
+            const currentAmount = BigInt(
+                normalizedMerkleDistribution[normalizedAddress][
+                normalizedTokenAddress
+                ] || "0"
+            );
+            const newAmount = BigInt(amount);
+            normalizedMerkleDistribution[normalizedAddress][
+                normalizedTokenAddress
+            ] = (currentAmount + newAmount).toString();
+        });
+    });
+
+    // Then merge with previous merkle data
+    if (previousMerkleData && previousMerkleData.claims) {
+        Object.entries(previousMerkleData.claims).forEach(
+            ([address, claimData]) => {
+                const normalizedAddress = getAddress(address);
+
+                if (!normalizedMerkleDistribution[normalizedAddress]) {
+                    normalizedMerkleDistribution[normalizedAddress] = {};
+                }
+
+                if (claimData && claimData.tokens) {
+                    Object.entries(claimData.tokens).forEach(
+                        ([tokenAddress, tokenData]: [string, any]) => {
+                            const normalizedTokenAddress = getAddress(tokenAddress);
+                            const prevAmount = BigInt(tokenData.amount || "0");
+                            const currentAmount = BigInt(
+                                normalizedMerkleDistribution[normalizedAddress][
+                                normalizedTokenAddress
+                                ] || "0"
+                            );
+
+                            normalizedMerkleDistribution[normalizedAddress][
+                                normalizedTokenAddress
+                            ] = (prevAmount + currentAmount).toString();
+                        }
+                    );
+                }
+            }
+        );
     }
 
-    return combinedDistribution;
-}
-
-const combinePreviousMerkle = (previousMerkleData: MerkleData, combinedDistribution: Distribution): Distribution => {
-    Object.entries(previousMerkleData.claims).forEach(
-        ([address, claimData]: [string, any]) => {
-            if (!combinedDistribution[address]) {
-                combinedDistribution[address] = {
-                    tokens: {},
-                };
-            }
-            if (claimData && claimData.tokens) {
-                Object.entries(claimData.tokens).forEach(
-                    ([tokenAddress, tokenData]: [string, any]) => {
-                        if (tokenData && tokenData.amount) {
-                            const normalizedAddress = getAddress(tokenAddress);
-
-                            if (
-                                !combinedDistribution[address].tokens[
-                                normalizedAddress
-                                ]
-                            ) {
-                                combinedDistribution[address].tokens[
-                                    normalizedAddress
-                                ] = 0n;
-                            }
-
-                            combinedDistribution[address].tokens[
-                                normalizedAddress
-                            ] += BigInt(tokenData.amount);
-                        }
-                    }
-                );
-            }
-        }
-    );
-
-    return combinedDistribution;
+    return normalizedMerkleDistribution;
 }
 

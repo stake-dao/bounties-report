@@ -1,9 +1,9 @@
 import { Chain, createPublicClient, getAddress, http } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
 import { TokenInfos } from "../interfaces/TokenInfos";
-import { Distribution } from "../spectra/3_merkles";
+import { UniversalMerkle } from "../interfaces/UniversalMerkle";
 
-export const fetchTokenInfos = async (combinedDistribution: Distribution, previousMerkleData: MerkleData, chain: Chain): Promise<TokenInfos> => {
+export const fetchTokenInfos = async (combinedDistribution: MerkleData, previousMerkleData: MerkleData, chain: Chain): Promise<TokenInfos> => {
     const rewardTokenAddresses = new Set<string>();
 
     // Collect from current distribution

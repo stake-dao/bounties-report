@@ -11,6 +11,7 @@ import { VLCVX_DELEGATORS_MERKLE } from "../utils/constants";
 import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
 import { MerkleData } from "../interfaces/MerkleData";
+import { UniversalMerkle } from "../interfaces/UniversalMerkle";
   
 export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   const explorerUtils = createBlockchainExplorerUtils();
@@ -167,9 +168,7 @@ export interface CombinedMerkleData {
   nonDelegators: MerkleData;
 }
 
-export function generateMerkleTree(distribution: {
-  [address: string]: { [tokenAddress: string]: string };
-}): MerkleData {
+export function generateMerkleTree(distribution: UniversalMerkle): MerkleData {
   const leaves: string[] = [];
   const claims: MerkleData["claims"] = {};
 
