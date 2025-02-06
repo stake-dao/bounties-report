@@ -579,7 +579,23 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
     tokenInfo
   );
 
+  // Save to current period directory
   fs.writeFileSync(outputPath, JSON.stringify(merkleData, null, 2));
+
+  // Save to latest directory with tmp suffix
+  const latestPath = path.join(
+    __dirname,
+    "../../bounties-reports/latest/vlCVX",
+    generateDelegatorsMerkle ? "merkle_data_delegators_tmp.json" : "merkle_data_non_delegators_tmp.json"
+  );
+
+  // Create directory if it doesn't exist
+  const dir = path.dirname(latestPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  fs.writeFileSync(latestPath, JSON.stringify(merkleData, null, 2));
 
   console.log(
     `${
