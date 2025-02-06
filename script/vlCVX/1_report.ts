@@ -124,13 +124,24 @@ async function generateReport() {
   const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens));
 
   const gaugesInfo = await getGaugesInfos("curve");
+
   const gaugeMap = new Map(
     gaugesInfo.map((g) => [g.address.toLowerCase(), g.name])
   );
 
   const rows: CSVRow[] = [];
 
-  for (const bounty of [...curveBounties, ...curveV2Bounties]) {
+  // Filter out unknown gauges and log them
+  const allBounties = [...curveBounties, ...curveV2Bounties];
+  const filteredBounties = allBounties.filter((bounty) => {
+    const hasGauge = gaugeMap.has(bounty.gauge.toLowerCase());
+    if (!hasGauge) {
+      console.log(`Unknown gauge: ${bounty.gauge}`);
+    }
+    return hasGauge;
+  });
+
+  for (const bounty of filteredBounties) {
     const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
 
     rows.push({

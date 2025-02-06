@@ -517,7 +517,7 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
           }
           return {
             name: gaugeName,
-            address: gauge.gauge.toLowerCase(),
+            address: (gauge.rootGauge || gauge.gauge).toLowerCase(),
             price: gauge.lpTokenPrice,
           };
         });
