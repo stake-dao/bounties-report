@@ -30,13 +30,8 @@ import { extractCSV, getHistoricalTokenPrice } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import { ALL_MIGHT, REWARDS_ALLOCATIONS_POOL } from "../utils/reportUtils";
-import { writeFileSync } from 'fs';
-import { join } from 'path';
-
-const client = createPublicClient({
-  chain: mainnet,
-  transport: http("https://rpc.ankr.com/eth"),
-});
+import { writeFileSync, readFileSync } from "fs";
+import { join } from "path";
 
 const REWARD_TOKENS = [CRVUSD, SDT];
 
@@ -74,10 +69,17 @@ const publicClient = createPublicClient({
   transport: http("https://rpc.flashbots.net"),
 });
 
-async function getTokenPrices(tokens: string[], currentPeriodTimestamp: number): Promise<TokenPrice[]> {
+async function getTokenPrices(
+  tokens: string[],
+  currentPeriodTimestamp: number
+): Promise<TokenPrice[]> {
   const prices = await Promise.all(
     tokens.map(async (token) => {
-      const price = await getHistoricalTokenPrice(currentPeriodTimestamp, "ethereum", token);
+      const price = await getHistoricalTokenPrice(
+        currentPeriodTimestamp,
+        "ethereum",
+        token
+      );
       return { address: token, price, decimals: 18 };
     })
   );
@@ -96,9 +98,12 @@ async function getRewards(
   const paddedAllMight = pad(ALL_MIGHT as `0x${string}`, {
     size: 32,
   }).toLowerCase();
-  const paddedRewardsAllocationsPool = pad(REWARDS_ALLOCATIONS_POOL as `0x${string}`, {
-    size: 32,
-  }).toLowerCase();
+  const paddedRewardsAllocationsPool = pad(
+    REWARDS_ALLOCATIONS_POOL as `0x${string}`,
+    {
+      size: 32,
+    }
+  ).toLowerCase();
   const paddedVlcvxRecipient = pad(VLCVX_DELEGATORS_MERKLE as `0x${string}`, {
     size: 32,
   }).toLowerCase();
@@ -134,7 +139,10 @@ async function getRewards(
     ),
   ]);
 
-  const allResults = [...responseAllMight.result, ...responseRewardsAllocationsPool.result];
+  const allResults = [
+    ...responseAllMight.result,
+    ...responseRewardsAllocationsPool.result,
+  ];
 
   if (allResults.length === 0) {
     throw new Error("No token transfers found");
@@ -232,25 +240,33 @@ async function computeAPR(): Promise<APRResult> {
   const rewards = await getRewards(minBlock, currentBlock, REWARD_TOKENS);
 
   const sumPerToken = rewards.reduce((acc, reward) => {
-    acc[getAddress(reward.token)] = (acc[getAddress(reward.token)] || 0n) + reward.amount;
+    acc[getAddress(reward.token)] =
+      (acc[getAddress(reward.token)] || 0n) + reward.amount;
     return acc;
   }, {} as Record<string, bigint>);
 
-  const prices = await getTokenPrices(REWARD_TOKENS.concat([CVX]), currentPeriodTimestamp);
+  const prices = await getTokenPrices(
+    REWARD_TOKENS.concat([CVX]),
+    currentPeriodTimestamp
+  );
 
   // Calculate total reward value in USD
   const rewardValueUSD = prices.reduce((total, price) => {
     const tokenAmount = sumPerToken[getAddress(price.address)] || 0n;
-    const valueUSD = price.price * (Number(tokenAmount) / Math.pow(10, price.decimals));
+    const valueUSD =
+      price.price * (Number(tokenAmount) / Math.pow(10, price.decimals));
     return total + valueUSD;
   }, 0);
 
   // Get CVX price from prices array
-  const cvxPrice = prices.find(p => p.address.toLowerCase() === CVX.toLowerCase())?.price || 0;
+  const cvxPrice =
+    prices.find((p) => p.address.toLowerCase() === CVX.toLowerCase())?.price ||
+    0;
 
   // Calculate APR
   const annualizedRewards = rewardValueUSD * 52; // Multiply weekly rewards by 52 weeks
-  const annualizedAPR = (annualizedRewards / (cvxPrice * delegationVotingPower)) * 100; // Multiply by 100 for percentage
+  const annualizedAPR =
+    (annualizedRewards / (cvxPrice * delegationVotingPower)) * 100; // Multiply by 100 for percentage
 
   return {
     totalVotingPower,
@@ -268,10 +284,26 @@ async function computeAPR(): Promise<APRResult> {
 async function main() {
   try {
     const result = await computeAPR();
+    const outputPath = join(
+      __dirname,
+      "../../bounties-reports/latest/vlcvx/delegationsAPRs.json"
+    );
 
-    // Save APR to JSON file
-    const outputPath = join(__dirname, '../../bounties-reports/latest/vlcvx/delegationsAPRs.json');
-    writeFileSync(outputPath, JSON.stringify({ apr: result.annualizedAPR }, null, 2));
+    // Read existing file if it exists
+    let existingData = {};
+    try {
+      existingData = JSON.parse(readFileSync(outputPath, 'utf8'));
+    } catch (error) {
+      // File doesn't exist or is invalid, start fresh
+    }
+
+    // Merge new data with existing
+    const updatedData = {
+      ...existingData,
+      delegatorsApr: result.annualizedAPR
+    };
+
+    writeFileSync(outputPath, JSON.stringify(updatedData, null, 2));
 
     console.log("\n=== Delegation APR Calculation ===");
     console.log(`Period Timestamp: ${result.timestamp}`);
