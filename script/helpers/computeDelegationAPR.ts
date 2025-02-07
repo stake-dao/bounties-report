@@ -30,6 +30,8 @@ import { extractCSV, getHistoricalTokenPrice } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import { ALL_MIGHT } from "../utils/reportUtils";
+import { writeFileSync } from 'fs';
+import { join } from 'path';
 
 const client = createPublicClient({
   chain: mainnet,
@@ -245,6 +247,10 @@ async function main() {
   try {
     const result = await computeAPR();
 
+    // Save APR to JSON file
+    const outputPath = join(__dirname, '../../bounties-reports/latest/vlcvx/delegationsAPRs.json');
+    writeFileSync(outputPath, JSON.stringify({ apr: result.annualizedAPR }, null, 2));
+
     console.log("\n=== Delegation APR Calculation ===");
     console.log(`Period Timestamp: ${result.timestamp}`);
     console.log(`Total Voting Power: ${result.totalVotingPower.toFixed(2)}`);
@@ -260,6 +266,7 @@ async function main() {
     console.log(
       `Period: ${result.periodStartBlock} - ${result.periodEndBlock}`
     );
+    console.log(`APR saved to: ${outputPath}`);
   } catch (error) {
     console.error("Error:", error);
     process.exit(1);

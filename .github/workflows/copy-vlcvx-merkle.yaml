@@ -38,6 +38,12 @@ jobs:
             cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
           fi
 
+      - name: Compute delegation APR
+        run: |
+          if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
+            npx ts-node script/helpers/computeDelegationAPR.ts
+          fi
+
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: Update vlcCVX merkle"
+          commit_message: "chore: Update vlCVX merkle"
