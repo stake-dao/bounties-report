@@ -18,7 +18,7 @@ import { createPublicClient, http, getAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { getCRVUsdTransfer, generateMerkleTree } from "./utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { CRVUSD, DELEGATION_ADDRESS } from "../utils/constants";
+import { CRVUSD, DELEGATION_ADDRESS, SDT } from "../utils/constants";
 import { MerkleData } from "../interfaces/MerkleData";
 import { DelegationDistribution } from "../interfaces/DelegationDistribution";
 import { createCombineDistribution } from "../utils/merkle";
@@ -150,8 +150,11 @@ async function generateDelegatorMerkleTree(
   const crvUsdTransfer = await getCRVUsdTransfer(minBlock, maxBlock);
   const totalCrvUsd = crvUsdTransfer.amount;
 
-  console.log("Total crvUsd for distribution:", totalCrvUsd.toString());
+  // Add SDT (5k)
+  const totalSDT = 5000n * BigInt(10**18);
 
+  console.log("Total crvUsd for distribution:", totalCrvUsd.toString());
+  console.log("Total SDT for distribution:", totalSDT.toString());
   // Calculate sdCRV amounts for delegators
   const distribution: Distribution = {};
 
@@ -160,11 +163,12 @@ async function generateDelegatorMerkleTree(
     const share = parseFloat(data.share!);
     const crvUsdAmount =
       (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-
+    const sdtAmount = (totalSDT * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
     if (crvUsdAmount > 0n) {
       distribution[normalizedAddress] = {
         tokens: {
-          [CRVUSD]: crvUsdAmount
+          [CRVUSD]: crvUsdAmount,
+          [SDT]: sdtAmount
         }
       };
     }
