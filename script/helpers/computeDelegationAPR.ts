@@ -29,7 +29,7 @@ import {
 import { extractCSV, getHistoricalTokenPrice } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { ALL_MIGHT } from "../utils/reportUtils";
+import { ALL_MIGHT, REWARDS_ALLOCATIONS_POOL } from "../utils/reportUtils";
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -96,29 +96,51 @@ async function getRewards(
   const paddedAllMight = pad(ALL_MIGHT as `0x${string}`, {
     size: 32,
   }).toLowerCase();
+  const paddedRewardsAllocationsPool = pad(REWARDS_ALLOCATIONS_POOL as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
   const paddedVlcvxRecipient = pad(VLCVX_DELEGATORS_MERKLE as `0x${string}`, {
     size: 32,
   }).toLowerCase();
 
-  const topics = {
+  // Query for transfers from ALL_MIGHT
+  const topicsAllMight = {
     "0": transferHash,
     "1": paddedAllMight,
     "2": paddedVlcvxRecipient,
   };
 
-  const response = await explorerUtils.getLogsByAddressesAndTopics(
-    tokens,
-    startBlock,
-    endBlock,
-    topics,
-    1
-  );
+  // Query for transfers from REWARDS_ALLOCATIONS_POOL
+  const topicsRewardsAllocationsPool = {
+    "0": transferHash,
+    "1": paddedRewardsAllocationsPool,
+    "2": paddedVlcvxRecipient,
+  };
 
-  if (response.result.length === 0) {
+  const [responseAllMight, responseRewardsAllocationsPool] = await Promise.all([
+    explorerUtils.getLogsByAddressesAndTopics(
+      tokens,
+      startBlock,
+      endBlock,
+      topicsAllMight,
+      1
+    ),
+    explorerUtils.getLogsByAddressesAndTopics(
+      tokens,
+      startBlock,
+      endBlock,
+      topicsRewardsAllocationsPool,
+      1
+    ),
+  ]);
+
+  const allResults = [...responseAllMight.result, ...responseRewardsAllocationsPool.result];
+
+  if (allResults.length === 0) {
     throw new Error("No token transfers found");
   }
 
-  return response.result.map((transfer) => {
+  return allResults.map((transfer) => {
     const [amount] = decodeAbiParameters([{ type: "uint256" }], transfer.data);
 
     return {

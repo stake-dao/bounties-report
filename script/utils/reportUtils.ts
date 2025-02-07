@@ -45,6 +45,14 @@ export const OTC_REGISTRY = getAddress(
 export const ALL_MIGHT = getAddress(
   "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
 );
+export const BOSS = getAddress(
+  "0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765"
+);
+
+export const REWARDS_ALLOCATIONS_POOL = getAddress(
+  "0xA3ECF0cc8E88136134203aaafB21F7bD2dA6359a"
+);
+
 export const HH_BALANCER_MARKET = getAddress(
   "0x45Bc37b18E73A42A4a826357a8348cDC042cCBBc"
 );
