@@ -673,7 +673,7 @@ async function main() {
     ].join("\n");
 
     // Write to file
-    const fileName = `${protocol}-bis.csv`;
+    const fileName = `${protocol}.csv`;
     fs.writeFileSync(path.join(dirPath, fileName), csvContent);
     console.log(`Report generated for ${protocol}: ${fileName}`);
   }
