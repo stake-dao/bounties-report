@@ -1,0 +1,23 @@
+Stake DAO - Swap Report
+Protocol: BALANCER
+Timestamp: 1738800000
+Date: 2025-02-06 01:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 BALANCER Swap Report
+
+🔄 https://etherscan.io/tx/0xcc785f3c7ccb4ea2386d292f78405fa8abf3c4dc57587680e7b92d15b3612506 Transaction
+├─ https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL: 1,957.29 • https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL: 7,245.45 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 5.0870
+├─ https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 WETH: 0.15 → 0.1539 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (3.0%)
+├─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 2,705.08 → 0.3719 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (7.2%)
+├─ https://etherscan.io/token/0xc0c293ce456ff0ed870add98a0828dd4d2903dbf AURA: 3,927.49 → 0.5077 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (9.9%)
+└─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 10,948.08 → 4.0535 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (78.9%)
+
+🔄 https://etherscan.io/tx/0x1b26311640dd2e763ea5cd881b4f6c1a6bf90f541df2d428273c74c79ffddf69 Transaction
+├─ https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL: 30.01 • https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL: 71.56 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 0.0499
+└─ https://etherscan.io/token/0x63e5dc7c071c1f18d44b69bc86f4c80f24851388 KAI: 1,673.20 → 0.0499 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (1.0%)
+
+📈 Final Summary
+└─ 1,987.30 https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL
+   └─ via 5.1369 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH
+      └─ to 7,317.01 https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL
