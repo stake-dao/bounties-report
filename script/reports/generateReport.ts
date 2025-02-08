@@ -109,10 +109,19 @@ function processSwaps(
   swaps: SwapEvent[],
   tokenInfos: Record<string, TokenInfo>
 ): ProcessedSwapEvent[] {
+  const seen = new Set<string>();
+  
   return swaps
     .filter((swap) => swap.from.toLowerCase() !== BOTMARKET.toLowerCase())
     .filter((swap) => swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase())
     .filter((swap) => swap.to.toLowerCase() !== GOVERNANCE.toLowerCase())
+    .filter((swap) => {
+      // Create unique key for each swap using blockNumber and logIndex
+      const key = `${swap.blockNumber}-${swap.logIndex}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .map((swap) => {
       const tokenInfo = tokenInfos[swap.token.toLowerCase()];
       let formattedAmount: number;
@@ -207,7 +216,9 @@ function escapeCSV(field: string): string {
   return field;
 }
 
-async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties> {
+async function fetchBountiesData(
+  currentPeriod: number
+): Promise<ClaimedBounties> {
   const paths = {
     votemarket: `weekly-bounties/${currentPeriod}/votemarket/claimed_bounties.json`,
     votemarket_v2: `weekly-bounties/${currentPeriod}/votemarket-v2/claimed_bounties.json`,
@@ -230,12 +241,16 @@ async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties
   const hiddenhand = readJsonFile(paths.hiddenhand);
 
   // Filter out unwrapped bounties from v2 if needed
-  const filteredV2 = Object.entries(votemarket_v2).reduce((acc, [key, value]: [string, any]) => {
-    if (value.isWrapped !== false) {  // Keep if isWrapped is true or undefined
-      acc[key] = value;
-    }
-    return acc;
-  }, {});
+  const filteredV2 = Object.entries(votemarket_v2).reduce(
+    (acc, [key, value]: [string, any]) => {
+      if (value.isWrapped !== false) {
+        // Keep if isWrapped is true or undefined
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {}
+  );
 
   return {
     timestamp1: votemarket.timestamp1 || 0,
@@ -252,8 +267,10 @@ async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties
 async function main() {
   // Get protocol from command line args
   const protocol = process.argv[2];
-  if (!protocol || !['curve', 'balancer', 'fxn', 'frax'].includes(protocol)) {
-    console.error('Please specify a valid protocol: curve, balancer, fxn, or frax');
+  if (!protocol || !["curve", "balancer", "fxn", "frax"].includes(protocol)) {
+    console.error(
+      "Please specify a valid protocol: curve, balancer, fxn, or frax"
+    );
     process.exit(1);
   }
 
@@ -262,10 +279,10 @@ async function main() {
 
   const totalBounties = await fetchBountiesData(currentPeriod);
   let aggregatedBounties = aggregateBounties(totalBounties);
-  
+
   // Filter bounties for specific protocol
   aggregatedBounties = { [protocol]: aggregatedBounties[protocol] };
-  
+
   // Collect tokens only for specified protocol
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
   const allTokens = collectAllTokens(aggregatedBounties, protocolTokens);
@@ -274,23 +291,26 @@ async function main() {
   // Get gauge infos only for specified protocol
   let gaugesInfo;
   switch (protocol) {
-    case 'curve':
+    case "curve":
       gaugesInfo = await getGaugesInfos("curve");
       break;
-    case 'balancer':
+    case "balancer":
       gaugesInfo = await getGaugesInfos("balancer");
       break;
-    case 'fxn':
+    case "fxn":
       gaugesInfo = await getGaugesInfos("fxn");
       break;
-    case 'frax':
+    case "frax":
       gaugesInfo = await getGaugesInfos("frax");
       break;
   }
 
   // Add gauge names to bounties for specific protocol
   aggregatedBounties = {
-    [protocol]: addGaugeNamesToBounties(aggregatedBounties[protocol], gaugesInfo)
+    [protocol]: addGaugeNamesToBounties(
+      aggregatedBounties[protocol],
+      gaugesInfo
+    ),
   };
 
   const swapIn = await fetchSwapInEvents(
@@ -308,7 +328,6 @@ async function main() {
     ALL_MIGHT
   );
 
-
   const vlcvxRecipientSwapsIn = await fetchSwapInEvents(
     1,
     blockNumber1,
@@ -317,8 +336,13 @@ async function main() {
     VLCVX_DELEGATORS_RECIPIENT
   );
 
-  const vlcvxRecipientSwapsInBlockNumbers = vlcvxRecipientSwapsIn.map((swap) => swap.blockNumber);
-  console.log("vlCVX recipient blocks to exclude:", vlcvxRecipientSwapsInBlockNumbers);
+  const vlcvxRecipientSwapsInBlockNumbers = vlcvxRecipientSwapsIn.map(
+    (swap) => swap.blockNumber
+  );
+  console.log(
+    "vlCVX recipient blocks to exclude:",
+    vlcvxRecipientSwapsInBlockNumbers
+  );
 
   const swapInFiltered = processSwaps(swapIn, tokenInfos);
   const swapOutFiltered = processSwaps(swapOut, tokenInfos);
@@ -347,11 +371,6 @@ async function main() {
       }
 
       if (!swapsData[key][swap.blockNumber]) continue;
-
-      if (swap.token.toLowerCase() === "0x97efFB790f2fbB701D88f89DB4521348A2B77be8".toLowerCase()) {
-        console.log(swap)
-        continue
-      }
 
       const isNative =
         swap.token.toLowerCase() === protocolInfos.native.toLowerCase();
