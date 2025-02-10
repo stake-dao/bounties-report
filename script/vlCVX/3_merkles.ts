@@ -19,8 +19,8 @@
  *      - Saves as merkle_data_non_delegators_[chainId].json (or merkle_data_non_delegators.json for mainnet) -> Pending until set root (then copied in latest)
  *
  * Usage:
- * - For delegators: node script.js --delegators
- * - For non-delegators: node script.js (automatically handles all chains based on distribution files)
+ * - For delegators: pnpm tsx script/vlCVX/3_merkles.ts --delegators
+ * - For non-delegators: pnpm tsx script/vlCVX/3_merkles.ts
  */
 import fs from "fs";
 import path from "path";
@@ -162,10 +162,16 @@ async function generateDelegatorMerkleTree(
 
   // Get total crvUsd transfer amount
   const crvUsdTransfer = await getCRVUsdTransfer(minBlock, maxBlock);
-  const totalCrvUsd = crvUsdTransfer.amount;
+  let totalCrvUsd = crvUsdTransfer.amount;
+
+  // Remove worth 0.00001 of crvUSD from totalCrvUsd (for round issues)
+  totalCrvUsd -= BigInt(10 ** 14);
 
   // Add SDT (5k)
-  const totalSDT = 5000n * BigInt(10 ** 18);
+  let totalSDT = 5000n * BigInt(10 ** 18);
+
+  // Remove worth 0.00001 of sdt from totalSDT (for round issues)
+  totalSDT -= BigInt(10 ** 14);
 
   console.log("Total crvUsd for distribution:", totalCrvUsd.toString());
   console.log("Total SDT for distribution:", totalSDT.toString());
