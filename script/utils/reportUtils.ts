@@ -11,6 +11,7 @@ import { getContract, formatUnits, PublicClient, Address } from "viem";
 import { erc20Abi } from "viem";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { getClosestBlockTimestamp } from "./chainUtils";
+import { Proposal } from "../interfaces/Proposal";
 
 const WEEK = 604800; // One week in seconds
 
@@ -44,6 +45,14 @@ export const OTC_REGISTRY = getAddress(
 export const ALL_MIGHT = getAddress(
   "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
 );
+export const BOSS = getAddress(
+  "0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765"
+);
+
+export const REWARDS_ALLOCATIONS_POOL = getAddress(
+  "0xA3ECF0cc8E88136134203aaafB21F7bD2dA6359a"
+);
+
 export const HH_BALANCER_MARKET = getAddress(
   "0x45Bc37b18E73A42A4a826357a8348cDC042cCBBc"
 );
@@ -181,25 +190,6 @@ export const PROTOCOLS_TOKENS: {
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 
-interface Proposal {
-  id: string;
-  title: string;
-  body: string;
-  choices: string[];
-  start: number;
-  end: number;
-  snapshot: string;
-  state: string;
-  scores: string[];
-  scores_by_strategy: string[];
-  scores_total: number;
-  scores_updated: number;
-  author: string;
-  space: {
-    id: string;
-    name: string;
-  };
-}
 
 interface Timestamps {
   [key: number]: Proposal;

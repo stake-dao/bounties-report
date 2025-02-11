@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       type:
-        description: 'Type of merkle to generate'
+        description: "Type of merkle to generate"
         required: true
-        default: 'non-delegators'
+        default: "non-delegators"
         type: choice
         options:
           - delegators
@@ -33,11 +33,34 @@ jobs:
 
           # Copy merkle files from bounties-reports directory
           if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "non-delegators" ]; then
+            # Copy main merkle file
             cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_non_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle.json"
+
+            # Find and copy chain-specific merkle files
+            for file in bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_non_delegators_*.json; do
+              if [ -f "$file" ]; then
+                # Extract chain ID from filename
+                CHAIN_ID=$(echo "$file" | sed 's/.*_\([0-9]*\)\.json/\1/')
+                # Copy to latest directory with appropriate name
+                cp "$file" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_${CHAIN_ID}.json"
+              fi
+            done
           elif [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
             cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
           fi
 
+      - name: Compute voters APR
+        run: |
+          if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "non-delegators" ]; then
+            npx ts-node script/helpers/computevlCVXVotersAPR.ts
+          fi
+
+      - name: Compute delegation APR
+        run: |
+          if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
+            npx ts-node script/helpers/computeDelegationAPR.ts
+          fi
+
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: Update vlcCVX merkle"
+          commit_message: "chore: Update vlCVX merkle"

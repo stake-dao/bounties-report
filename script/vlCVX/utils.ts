@@ -10,6 +10,8 @@ import { ALL_MIGHT, WETH_ADDRESS } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_MERKLE } from "../utils/constants";
 import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
+import { MerkleData } from "../interfaces/MerkleData";
+import { UniversalMerkle } from "../interfaces/UniversalMerkle";
   
 export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   const explorerUtils = createBlockchainExplorerUtils();
@@ -160,32 +162,13 @@ export function calculateTokenSdCrvShares(
   return tokenSdCrvShares;
 }
 
-export interface TokenClaim {
-  amount: string;
-  proof: string[];
-}
-
-export interface AddressClaim {
-  tokens: {
-    [tokenAddress: string]: TokenClaim;
-  };
-}
-
-export interface MerkleData {
-  merkleRoot: string;
-  claims: {
-    [address: string]: AddressClaim;
-  };
-}
 
 export interface CombinedMerkleData {
   delegators: MerkleData;
   nonDelegators: MerkleData;
 }
 
-export function generateMerkleTree(distribution: {
-  [address: string]: { [tokenAddress: string]: string };
-}): MerkleData {
+export function generateMerkleTree(distribution: UniversalMerkle): MerkleData {
   const leaves: string[] = [];
   const claims: MerkleData["claims"] = {};
 

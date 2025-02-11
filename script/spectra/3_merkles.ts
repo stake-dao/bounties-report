@@ -4,20 +4,19 @@
 
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http, getAddress } from "viem";
-import { base } from "viem/chains";
+import { getAddress } from "viem";
 import {
   DELEGATION_ADDRESS,
 } from "../utils/constants";
-import { generateMerkleTree, MerkleData } from "../vlCVX/utils";
+import { generateMerkleTree } from "../vlCVX/utils";
+import { MerkleData } from "../interfaces/MerkleData";
+import { createCombineDistribution } from "../utils/merkle";
+import { fetchTokenInfos } from "../utils/tokens";
+import { base } from "viem/chains";
+import { Distribution } from "../interfaces/Distribution";
+import { distributionVerifier } from "../utils/distributionVerifier";
 
-export interface Distribution {
-  [address: string]: {
-    tokens: {
-      [tokenAddress: string]: bigint;
-    };
-  };
-}
+const MERKLE_ADDRESS = "0x665d334388012d17f1d197de72b7b708ffccb67d" as `0x${string}`;
 
 function compareMerkleData(
   title: string,
@@ -175,167 +174,13 @@ async function generateMerkles() {
   }
 
   // Step 3: Combine current distribution with previous amounts
-  let combinedDistribution: Distribution = {};
+  const merkleData = createCombineDistribution(currentDistribution, previousMerkleData);
 
-  // Add current week distribution
-  Object.entries(currentDistribution.distribution).forEach(
-    ([address, data]) => {
-      combinedDistribution[address] = {
-        tokens: {},
-      };
-      Object.entries(data.tokens).forEach(
-        ([tokenAddress, amount]) => {
-          combinedDistribution[address].tokens[getAddress(tokenAddress)] =
-            BigInt(amount.toString());
-        }
-      );
-    }
-  );
+  // Step 4 : generate merkle
+  const newMerkleData = generateMerkleTree(merkleData);
 
-  // Add previous merkle amounts
-  if (
-    previousMerkleData.claims
-  ) {
-    Object.entries(previousMerkleData.claims).forEach(
-      ([address, claimData]: [string, any]) => {
-        if (!combinedDistribution[address]) {
-          combinedDistribution[address] = {
-            tokens: {},
-          };
-        }
-        if (claimData && claimData.tokens) {
-          Object.entries(claimData.tokens).forEach(
-            ([tokenAddress, tokenData]: [string, any]) => {
-              if (tokenData && tokenData.amount) {
-                const normalizedAddress = getAddress(tokenAddress);
-
-                if (
-                  !combinedDistribution[address].tokens[
-                    normalizedAddress
-                  ]
-                ) {
-                  combinedDistribution[address].tokens[
-                    normalizedAddress
-                  ] = 0n;
-                }
-
-                combinedDistribution[address].tokens[
-                  normalizedAddress
-                ] += BigInt(tokenData.amount);
-              }
-            }
-          );
-        }
-      }
-    );
-  }
-
-  // Step 4: Retrieve token info (symbol and decimals) for all reward tokens
-  const rewardTokenAddresses = new Set<string>();
-
-  // Collect from current distribution
-  Object.values(combinedDistribution).forEach((data) => {
-    Object.keys(data.tokens).forEach((tokenAddress) =>
-      rewardTokenAddresses.add(tokenAddress.toLowerCase())
-    );
-  });
-
-  // Collect from previous merkle data
-  Object.values(previousMerkleData.claims).forEach((claim) => {
-    if (claim.tokens) {
-      Object.keys(claim.tokens).forEach((tokenAddress) =>
-        rewardTokenAddresses.add(tokenAddress.toLowerCase())
-      );
-    }
-  });
-
-  const publicClient = createPublicClient({
-    chain: base,
-    transport: http(),
-  });
-
-  const tokenInfoArray = await Promise.allSettled(
-    Array.from(rewardTokenAddresses).map(async (tokenAddress) => {
-      const address = getAddress(tokenAddress.toLowerCase());
-      try {
-        const [symbol, decimals] = await Promise.all([
-          publicClient.readContract({
-            address,
-            abi: [
-              {
-                inputs: [],
-                name: "symbol",
-                outputs: [{ type: "string" }],
-                stateMutability: "view",
-                type: "function",
-              },
-            ],
-            functionName: "symbol",
-          }),
-          publicClient.readContract({
-            address,
-            abi: [
-              {
-                inputs: [],
-                name: "decimals",
-                outputs: [{ type: "uint8" }],
-                stateMutability: "view",
-                type: "function",
-              },
-            ],
-            functionName: "decimals",
-          }),
-        ]);
-
-        return { tokenAddress: address, symbol, decimals };
-      } catch (error) {
-        console.error(`Error fetching info for token ${address}:`, error);
-        throw error;
-      }
-    })
-  );
-
-  const tokenInfo: {
-    [tokenAddress: string]: { symbol: string; decimals: number };
-  } = {};
-  tokenInfoArray.forEach((result, index) => {
-    if (result.status === "fulfilled") {
-      const { tokenAddress, symbol, decimals } = result.value;
-      tokenInfo[tokenAddress] = {
-        symbol: symbol as string,
-        decimals: Number(decimals),
-      };
-    } else {
-      const tokenAddress = Array.from(rewardTokenAddresses)[index];
-      console.warn(
-        `Failed to fetch info for token ${tokenAddress}. Using default values.`
-      );
-      tokenInfo[tokenAddress] = { symbol: "UNKNOWN", decimals: 18 };
-    }
-  });
-
-  // Step 5: Generate Merkle tree
-  const nonDelegatorDistribution = Object.entries(
-    combinedDistribution
-  ).reduce((acc, [address, data]) => {
-    acc[address] = Object.entries(data.tokens).reduce(
-      (tokenAcc, [tokenAddress, amount]) => {
-        if (amount !== undefined) {
-          tokenAcc[tokenAddress] = amount.toString();
-        } else {
-          console.warn(
-            `Amount for token ${tokenAddress} is undefined:`,
-            amount
-          );
-        }
-        return tokenAcc;
-      },
-      {} as { [tokenAddress: string]: string }
-    );
-    return acc;
-  }, {} as { [address: string]: { [tokenAddress: string]: string } });
-
-  const newMerkleData = generateMerkleTree(nonDelegatorDistribution);
+  // Step 5: Retrieve token info (symbol and decimals) for all reward tokens
+  const tokenInfo = await fetchTokenInfos(newMerkleData, previousMerkleData, base);
 
   // After generating both merkle trees, compare them
   console.log("\nComparing Merkle Tree:");
@@ -347,7 +192,7 @@ async function generateMerkles() {
     tokenInfo
   );
 
-  // Step 7: Combine Merkle data
+  // Step 6: Combine Merkle data
   let merkleDataPath = path.join(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/spectra/merkle_data.json`
@@ -361,11 +206,10 @@ async function generateMerkles() {
     ])
   );
 
-
-  // Step 8: Save the combined Merkle data to a JSON file
+  // Step 7: Save the combined Merkle data to a JSON file
   fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
-  // Step 9: Save it in the latest path
+  // Step 8: Save it also in the root path
   merkleDataPath = path.join(
     __dirname,
     `../../bounties-reports/latest/spectra/merkle_data_tmp.json`
@@ -380,6 +224,8 @@ async function generateMerkles() {
   fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
   console.log("Merkle trees generated and saved successfully.");
+
+  distributionVerifier("sdapw.eth", "spectra", base, MERKLE_ADDRESS);
 }
 
 generateMerkles().catch(console.error);
