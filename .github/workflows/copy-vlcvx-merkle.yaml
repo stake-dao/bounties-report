@@ -58,7 +58,7 @@ jobs:
       - name: Compute delegation APR
         run: |
           if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
-            npx ts-node script/helpers/computeDelegationAPR.ts
+            npx ts-node script/helpers/computevlCVXDelegatorsAPR.ts
           fi
 
       - uses: stefanzweifel/git-auto-commit-action@v5
