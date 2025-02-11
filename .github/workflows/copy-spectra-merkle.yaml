@@ -17,7 +17,7 @@ jobs:
 
       - name: Copy Spectra merkle
         run: |
-          cp "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data_tmp.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data.json"
+          cp "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data_tmp.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra_merkle.json"
           rm "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data_tmp.json"
 
       - uses: stefanzweifel/git-auto-commit-action@v5
