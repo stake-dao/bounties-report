@@ -22,4 +22,4 @@ jobs:
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: Update Spectra merkle"
+          commit_message: "chore: Update Spectra merkle to latest"
