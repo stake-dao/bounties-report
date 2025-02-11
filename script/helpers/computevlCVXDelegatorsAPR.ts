@@ -286,7 +286,7 @@ async function main() {
     const result = await computeAPR();
     const outputPath = join(
       __dirname,
-      "../../bounties-reports/latest/vlcvx/delegationsAPRs.json"
+      "../../bounties-reports/latest/vlCVX/APRs.json"
     );
 
     // Read existing file if it exists
