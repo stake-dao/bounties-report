@@ -162,7 +162,8 @@ const main = async () => {
     });
 
     rewardInfos.forEach(({ rewardAddress, rewardAmount }) => {
-      rewardAmount -= BigInt(10 ** tokenDecimals[getAddress(rewardAddress)]);
+      // Rounding issue
+      //rewardAmount -= BigInt(10 ** tokenDecimals[getAddress(rewardAddress)]);
       let remainingRewards = rewardAmount;
       let processedVoters = 0;
       const totalVoters = Object.keys(voterVps).length;
