@@ -12,10 +12,11 @@ import {
 } from "../utils/snapshot";
 import * as moment from "moment";
 import { processAllDelegators } from "../utils/cacheUtils";
-import { getAddress } from "viem";
+import { createPublicClient, getAddress, http } from "viem";
 import { getSpectraDelegationAPR, getSpectraReport } from "./utils";
 import axios from "axios";
 import { Distribution } from "../interfaces/Distribution";
+import { base } from "viem/chains";
 
 dotenv.config();
 
@@ -77,6 +78,36 @@ const main = async () => {
   console.log("Distributing rewards...");
   const distribution: Distribution = {};
 
+  const publicClient = createPublicClient({
+    chain: base,
+    transport: http(),
+  });
+
+  const csvEntries = Object.entries(csvResult);
+  const tokenDecimals: Record<`0x${string}`, number> = {};
+
+  for (const [gauge, rewardInfos] of csvEntries) {
+    for (const rewardInfo of rewardInfos) {
+      const address = getAddress(rewardInfo.rewardAddress);
+      if (!tokenDecimals[address]) {
+        const decimals = await publicClient.readContract({
+          address,
+          abi: [
+            {
+              inputs: [],
+              name: "decimals",
+              outputs: [{ type: "uint8" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "decimals",
+        });
+        tokenDecimals[address] = decimals;
+      }
+    }
+  }
+
   Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
     let choiceId = (proposal.choices as string[]).findIndex((choice: string) => choice.toLowerCase() === gauge.toLowerCase());
     if(choiceId === -1) {
@@ -130,8 +161,8 @@ const main = async () => {
       voterVps[voter.voter] = voterShare / totalVp;
     });
 
-
     rewardInfos.forEach(({ rewardAddress, rewardAmount }) => {
+      rewardAmount -= BigInt(10 ** tokenDecimals[getAddress(rewardAddress)]);
       let remainingRewards = rewardAmount;
       let processedVoters = 0;
       const totalVoters = Object.keys(voterVps).length;
