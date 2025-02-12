@@ -173,19 +173,40 @@ async function generateDelegatorMerkleTree(
   // Remove worth 0.00001 of sdt from totalSDT (for round issues)
   totalSDT -= BigInt(10 ** 14);
 
+  let totalSDTOut = 0n; // SDT after skipping certain users
+
+  const skippedUsers = new Set([
+    getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"), // Bent
+  ]);
+
   console.log("Total crvUsd for distribution:", totalCrvUsd.toString());
   console.log("Total SDT for distribution:", totalSDT.toString());
-  // Calculate sdCRV amounts for delegators
+
   const distribution: Distribution = {};
 
+  let totalValidShares = 0;
+
+  // First pass: Calculate crvUsd and sdt amounts for each delegator
   delegators.forEach(([address, data]) => {
     const normalizedAddress = getAddress(address);
     const share = parseFloat(data.share!);
+
+    if (share <= 0) return; // Ignore invalid shares
+
     const crvUsdAmount =
       (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-    const sdtAmount =
+    let sdtAmount =
       (totalSDT * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-    if (crvUsdAmount > 0n) {
+
+    totalValidShares += share;
+
+    if (skippedUsers.has(normalizedAddress)) {
+      totalSDTOut += sdtAmount; // Accumulate skipped users' SDT share
+      sdtAmount = 0n;
+      totalValidShares -= share;
+    }
+
+    if (crvUsdAmount > 0n || sdtAmount > 0n) {
       distribution[normalizedAddress] = {
         tokens: {
           [CRVUSD]: crvUsdAmount,
@@ -194,6 +215,20 @@ async function generateDelegatorMerkleTree(
       };
     }
   });
+
+  // Second pass: Redistribute leftover SDT
+  if (totalSDTOut > 0n) {
+    delegators.forEach(([address, data]) => {
+      const normalizedAddress = getAddress(address);
+      const share = parseFloat(data.share!);
+
+      if (share <= 0) return; // Ignore invalid shares
+      if (skippedUsers.has(normalizedAddress)) return;
+
+      const sdtAmount = (totalSDTOut * BigInt(Math.floor(share * 1e18))) / BigInt(Math.floor(totalValidShares * 1e18));
+      distribution[normalizedAddress].tokens[SDT] += sdtAmount;
+    });
+  }
 
   return generateMerkleTree(
     createCombineDistribution({ distribution }, previousMerkleData)
