@@ -4,6 +4,7 @@ import {
   WEEK,
   DELEGATION_ADDRESS,
   SPECTRA_SPACE,
+  AUTO_VOTER_DELEGATION_ADDRESS,
 } from "../utils/constants";
 import {
   getLastClosedProposal,
@@ -37,43 +38,8 @@ const main = async () => {
 
   const votes = await getVoters(proposalId);
 
-  // Fetch StakeDAO delegators
-  console.log("Fetching StakeDAO delegators...");
-  // Only if delegation address is one of the voters
-  const isDelegationAddressVoter = votes.some(
-    (voter) => voter.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
-  );
-  let stakeDaoDelegators: string[] = [];
 
-  if (isDelegationAddressVoter) {
-    console.log(
-      "Delegation address is one of the voters, fetching StakeDAO delegators"
-    );
-    stakeDaoDelegators = await processAllDelegators(
-      SPECTRA_SPACE,
-      proposal.created,
-      DELEGATION_ADDRESS
-    );
 
-    // If one of the delegators vote by himself, we need to remove him from the list
-    for (const delegator of stakeDaoDelegators) {
-      if (
-        votes.some(
-          (voter) => voter.voter.toLowerCase() === delegator.toLowerCase()
-        )
-      ) {
-        stakeDaoDelegators = stakeDaoDelegators.filter(
-          (d) => d.toLowerCase() !== delegator.toLowerCase()
-        );
-      }
-    }
-
-    console.log("stakeDaoDelegators", stakeDaoDelegators);
-  } else {
-    console.log(
-      "Delegation address is not one of the voters, skipping StakeDAO delegators computation"
-    );
-  }
   // Distribute rewards
   console.log("Distributing rewards...");
   const distribution: Distribution = {};
@@ -110,7 +76,7 @@ const main = async () => {
 
   Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
     let choiceId = (proposal.choices as string[]).findIndex((choice: string) => choice.toLowerCase() === gauge.toLowerCase());
-    if(choiceId === -1) {
+    if (choiceId === -1) {
       throw new Error(`Choice ID not found for gauge: ${gauge}`);
     }
     choiceId += 1 // + 1 because when you vote for the first gauge, id starts at 1 and not 0
@@ -210,54 +176,99 @@ const main = async () => {
   // Compute StakeDAO delegator rewards
   console.log("Computing StakeDAO delegator rewards...");
 
+  // Fetch StakeDAO delegators
+  console.log("Fetching StakeDAO delegators...");
+  // Only if delegation address is one of the voters
+
+  const delegationAddresses = [DELEGATION_ADDRESS, AUTO_VOTER_DELEGATION_ADDRESS];
   let delegationAPR = 0;
-  if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
-    // Find the delegation voter's rewards
-    const delegationVoterAddress = Object.keys(distribution).find((voter: string) => voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
-    if(delegationVoterAddress) {
-      const delegationDistribution = distribution[delegationVoterAddress];
-      const tokens = delegationDistribution.tokens;
 
-      // Get voting power for all delegators
-      const vps = await getVotingPower(proposal, stakeDaoDelegators);
+  for (const delegationAddress of delegationAddresses) {
+    const isDelegationAddressVoter = votes.some(
+      (voter) => voter.voter.toLowerCase() === delegationAddress.toLowerCase()
+    );
 
-      // Compute the total vp with 18 decimals precision
-      const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
+    if (isDelegationAddressVoter) {
+      console.log(
+        `Delegation address ${delegationAddress} is one of the voters, fetching StakeDAO delegators`
+      );
+      let stakeDaoDelegators = await processAllDelegators(
+        SPECTRA_SPACE,
+        proposal.created,
+        delegationAddress
+      );
 
-      // Compute the APR
-      delegationAPR = await getSpectraDelegationAPR(tokens, currentPeriodTimestamp, totalVp);
-
-      for(const stakeDaoDelegator of stakeDaoDelegators) {
-        const stakeDaoDelegatorChecksum = getAddress(stakeDaoDelegator);
-        const stakeDaoDelegatorLc = stakeDaoDelegator.toLowerCase();
-        const delegatorVp = vps[stakeDaoDelegatorLc] || 0;
-        if (delegatorVp === 0) {
-          continue;
-        }
-
-        const share = delegatorVp / totalVp; // In percentage
-
-        for(const tokenAddress of Object.keys(tokens)) {
-          const tokenAddressChecksum = getAddress(tokenAddress);
-          const totalAmount = tokens[tokenAddress];
-          const userAmount = (totalAmount * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-
-          if(!distribution[stakeDaoDelegatorChecksum]) {
-            distribution[stakeDaoDelegatorChecksum] = {
-              tokens: {}
-            }
-          }
-
-          if(!distribution[stakeDaoDelegatorChecksum].tokens[tokenAddressChecksum]) {
-            distribution[stakeDaoDelegatorChecksum].tokens[tokenAddressChecksum] = BigInt(0);
-          }
-
-          distribution[stakeDaoDelegatorChecksum].tokens[tokenAddressChecksum] += userAmount;
+      // If one of the delegators vote by himself, we need to remove him from the list
+      for (const delegator of stakeDaoDelegators) {
+        if (
+          votes.some(
+            (voter) => voter.voter.toLowerCase() === delegator.toLowerCase()
+          )
+        ) {
+          stakeDaoDelegators = stakeDaoDelegators.filter(
+            (d) => d.toLowerCase() !== delegator.toLowerCase()
+          );
         }
       }
-      delete distribution[delegationVoterAddress];
+
+      console.log("stakeDaoDelegators", stakeDaoDelegators);
+
+      if (stakeDaoDelegators.length > 0) {
+        // Find the delegation voter's rewards
+        const delegationVoterAddress = Object.keys(distribution).find((voter: string) => voter.toLowerCase() === delegationAddress.toLowerCase());
+        if (delegationVoterAddress) {
+          const delegationDistribution = distribution[delegationVoterAddress];
+          const tokens = delegationDistribution.tokens;
+
+          // Get voting power for all delegators
+          const vps = await getVotingPower(proposal, stakeDaoDelegators);
+
+          // Compute the total vp with 18 decimals precision
+          const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
+
+          // Compute the APR
+          if (delegationAddress.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
+            delegationAPR = await getSpectraDelegationAPR(tokens, currentPeriodTimestamp, totalVp);
+          }
+
+          for (const stakeDaoDelegator of stakeDaoDelegators) {
+            const stakeDaoDelegatorChecksum = getAddress(stakeDaoDelegator);
+            const stakeDaoDelegatorLc = stakeDaoDelegator.toLowerCase();
+            const delegatorVp = vps[stakeDaoDelegatorLc] || 0;
+            if (delegatorVp === 0) {
+              continue;
+            }
+
+            const share = delegatorVp / totalVp; // In percentage
+
+            for (const tokenAddress of Object.keys(tokens)) {
+              const tokenAddressChecksum = getAddress(tokenAddress);
+              const totalAmount = tokens[tokenAddress];
+              const userAmount = (totalAmount * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
+
+              if (!distribution[stakeDaoDelegatorChecksum]) {
+                distribution[stakeDaoDelegatorChecksum] = {
+                  tokens: {}
+                }
+              }
+
+              if (!distribution[stakeDaoDelegatorChecksum].tokens[tokenAddressChecksum]) {
+                distribution[stakeDaoDelegatorChecksum].tokens[tokenAddressChecksum] = BigInt(0);
+              }
+
+              distribution[stakeDaoDelegatorChecksum].tokens[tokenAddressChecksum] += userAmount;
+            }
+          }
+          delete distribution[delegationVoterAddress];
+        }
+
+      }
+
+    } else {
+      console.log(
+        `Delegation address ${delegationAddress} is not one of the voters, skipping StakeDAO delegators computation`
+      );
     }
-    
   }
 
   // Convert distributions to JSON-friendly format for regular distribution
