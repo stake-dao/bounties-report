@@ -17,9 +17,14 @@ jobs:
 
       - name: Copy SDTokens merkle
         run: |
-          cp "merkle.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/merkle.json"
-          cp "delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/delegationsAPRs.json"
-      
+          # Calculate current period
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+
+          cp "bounties-reports/${CURRENT_PERIOD}/merkle.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/merkle.json"
+          cp "bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/delegationsAPRs.json"
+
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:

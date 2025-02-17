@@ -41,52 +41,35 @@ import { ethers } from "ethers";
 import { bsc, mainnet } from "viem/chains";
 import { Merkle } from "../utils/types";
 
-const TODAY_DATE = moment.utc().format("YYYY-MM-DD");
-
 dotenv.config();
 
 const logData: Record<string, any> = {
   TotalReported: {},
   Transactions: [],
   SnapshotIds: [],
-}; // Use to store and write logs in a JSON
+}; // Used to store logs in a JSON file
 
 const convertToProperHex = (value: any): string => {
-  // If it's a BigNumber object with type and hex properties
-
   if (value?.type === "BigNumber" && value?.hex) {
     const hexValue = value.hex.startsWith("0x") ? value.hex : `0x${value.hex}`;
-
     return hexValue;
   }
-
-  // If it's an ethers BigNumber instance
-
   if (BigNumber.isBigNumber(value)) {
     return value.toHexString();
   }
-
-  // If it's a string already
-
   if (typeof value === "string") {
     return value.startsWith("0x") ? value : `0x${value}`;
   }
-
-  // If it's a regular number
-
   if (typeof value === "number") {
     return `0x${value.toString(16)}`;
   }
-
-  // Default case
-
   return value.hex || "0x0";
 };
 
 const main = async () => {
   const now = moment.utc().unix();
-
   const filter: string = "*Gauge vote.*$";
+
   const [
     { data: lastMerkles },
     proposalIdPerSpace,
@@ -119,7 +102,7 @@ const main = async () => {
   const toSet: Record<string, string[]> = {};
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
-  // All except Pendle
+  // Loop through each space (except Pendle, handled separately)
   for (const space of Object.keys(proposalIdPerSpace)) {
     checkSpace(
       space,
@@ -132,12 +115,11 @@ const main = async () => {
       NETWORK_TO_MERKLE
     );
 
-    // If no bribe to distribute to this space => skip
+    // Skip if no CSV data for this space.
     const csvResult = await extractCSV(currentPeriodTimestamp, space);
     const isPendle = space === SDPENDLE_SPACE;
     const network = SPACE_TO_NETWORK[space];
 
-    // Log csv totals (total sd token)
     if (!csvResult) {
       continue;
     }
@@ -156,28 +138,25 @@ const main = async () => {
         0
       );
     }
-    logData["TotalReported"][space] = totalSDToken;
+    // Save using the token symbol as key
+    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
 
     let ids: string[] = [];
     let pendleRewards: Record<string, Record<string, number>> | undefined =
       undefined;
 
-    // If it's pendle, we merge the rewards before
     if (isPendle) {
       let proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(
         space,
         Object.keys(csvResult),
         currentPeriodTimestamp
       );
-
-      // Merge rewards by proposal period
       pendleRewards = {};
       for (const period in csvResult) {
         const proposalId = proposalsPeriods[period];
         if (!pendleRewards[proposalId]) {
           pendleRewards[proposalId] = {};
         }
-
         const rewards = (csvResult as PendleCSVType)[period];
         for (const address in rewards) {
           if (pendleRewards[proposalId][address]) {
@@ -187,7 +166,6 @@ const main = async () => {
           }
         }
       }
-
       ids = Object.keys(pendleRewards);
     } else {
       ids = [proposalIdPerSpace[space]];
@@ -198,7 +176,7 @@ const main = async () => {
       ids,
     });
 
-    // Create the merkle
+    // Create the merkle for this space.
     const merkleStat = await createMerkle(
       ids,
       space,
@@ -222,12 +200,10 @@ const main = async () => {
 
     delegationAPRs[space] = merkleStat.apr;
 
-    // compute log
     for (const log of merkleStat.logs) {
       if (!logData[log.id]) {
         logData[log.id] = [];
       }
-
       logData[log.id] = logData[log.id].concat(log.content);
     }
   }
@@ -281,23 +257,23 @@ const main = async () => {
         break;
       }
     }
-
     if (!found) {
       newMerkles.push(lastMerkle);
     }
   }
 
-  // Check if sdTkn in the merkle contract + sdTkn to distribute >= total in merkle file
+  // Check if the tokens in the merkle contract plus the new tokens to distribute
+  // are at least the total expected (with a small threshold)
   checkDistribution(newMerkles, logData);
 
-  fs.writeFileSync(`./merkle.json`, JSON.stringify(newMerkles));
+  fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/merkle.json`, JSON.stringify(newMerkles));
 
   for (const key of Object.keys(delegationAPRs)) {
     if (delegationAPRs[key] === -1) {
       delegationAPRs[key] = delegationAPRsClone[key] || 0;
     }
   }
-  fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+  fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`, JSON.stringify(delegationAPRs));
 
   // Add totals in the log
   logData["TotalRewards"] = {};
@@ -313,7 +289,7 @@ const main = async () => {
     }
   }
 
-  // Add full path to the written files in the log
+  // Add full file paths to the log
   logData["Merkle"] = path.join(__dirname, "..", "merkle.json");
   logData["DelegationsAPRs"] = path.join(
     __dirname,
@@ -326,363 +302,40 @@ const main = async () => {
   fs.writeFileSync(logPath, JSON.stringify(logData));
   console.log(logPath);
 
-  /*
-  console.log("\nComparing Merkle Trees:");
-
-  const logFilePath = `./temp/sdTokens_merkle_${TODAY_DATE}.log`;
-
-  const writeToMerkleLog = (content: string) => {
-    fs.appendFileSync(logFilePath, content + "\n");
-  };
-
-  for (const merkle of newMerkles) {
-    writeToMerkleLog("\n" + "=".repeat(80));
-
-    writeToMerkleLog(`Distribution Details for ${merkle.symbol}`);
-
-    writeToMerkleLog("=".repeat(80));
-
-    writeToMerkleLog(`Chain ID: ${merkle.chainId}`);
-
-    writeToMerkleLog(`Token Address: ${merkle.address}`);
-
-    writeToMerkleLog(`Merkle Contract: ${merkle.merkleContract}`);
-
-    // Find corresponding previous merkle
-
-    const prevMerkle = lastMerkles.find(
-      (m: any) => m.address.toLowerCase() === merkle.address.toLowerCase()
-    );
-
-    if (!prevMerkle) {
-      writeToMerkleLog("\nNEW DISTRIBUTION");
-
-      const totalFormatted = parseFloat(
-        formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18)
-      );
-
-      writeToMerkleLog(`Total: ${totalFormatted.toFixed(2)} ${merkle.symbol}`);
-
-      continue;
-    }
-
-    // Calculate totals
-
-    const newTotal = BigNumber.from(convertToProperHex(merkle.total));
-
-    const prevTotal = BigNumber.from(convertToProperHex(prevMerkle.total));
-
-    const difference = newTotal.sub(prevTotal);
-
-    let chain: Chain | null = null;
-
-    let rpcUrl = "";
-
-    switch (merkle.chainId) {
-      case mainnet.id:
-        chain = mainnet;
-
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-
-        break;
-
-      case bsc.id:
-        chain = bsc;
-
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-
-        break;
-    }
-
-    let sdTknBalance = 0;
-
-    let totalInMerkle = 0;
-
-    let remainingToDistribute = 0;
-
-    // Get current balance from contract
-
-    if (chain) {
-      try {
-        const publicClient = createPublicClient({
-          chain,
-
-          transport: http(rpcUrl),
-        });
-
-        const sdTknBalanceBn = await publicClient.readContract({
-          address: merkle.address as `0x${string}`,
-
-          abi: [
-            {
-              name: "balanceOf",
-
-              type: "function",
-
-              stateMutability: "view",
-
-              inputs: [{ name: "account", type: "address" }],
-
-              outputs: [{ name: "", type: "uint256" }],
-            },
-          ],
-
-          functionName: "balanceOf",
-
-          args: [merkle.merkleContract as `0x${string}`],
-        });
-
-        sdTknBalance = parseFloat(formatUnits(sdTknBalanceBn, 18));
-
-        totalInMerkle = parseFloat(ethers.utils.formatUnits(newTotal, 18));
-
-        remainingToDistribute = totalInMerkle - sdTknBalance;
-
-        writeToMerkleLog("\nContract Status:");
-
-        writeToMerkleLog(
-          `Current Balance: ${sdTknBalance.toFixed(2)} ${merkle.symbol}`
-        );
-
-        writeToMerkleLog(
-          `Total in Merkle: ${totalInMerkle.toFixed(2)} ${merkle.symbol}`
-        );
-
-        writeToMerkleLog(
-          `Remaining to Distribute: ${remainingToDistribute.toFixed(2)} ${
-            merkle.symbol
-          }`
-        );
-      } catch (error) {
-        writeToMerkleLog("\nError fetching balance information");
-
-        writeToMerkleLog(
-          error instanceof Error ? error.message : String(error)
-        );
-      }
-    }
-
-    writeToMerkleLog("\nDistribution Changes:");
-
-    writeToMerkleLog(
-      `Previous Total: ${ethers.utils.formatUnits(prevTotal, 18)} ${
-        merkle.symbol
-      }`
-    );
-
-    writeToMerkleLog(
-      `New Total: ${ethers.utils.formatUnits(newTotal, 18)} ${merkle.symbol}`
-    );
-
-    writeToMerkleLog(
-      `Difference: ${difference.gte(0) ? "+" : ""}${ethers.utils.formatUnits(
-        difference,
-
-        18
-      )} ${merkle.symbol}`
-    );
-
-    if (newTotal > 0 || prevTotal > 0) {
-      writeToMerkleLog("\nHolder Distribution:");
-
-      writeToMerkleLog("-".repeat(120));
-
-      writeToMerkleLog(
-        "Address          New Dist Share  Total Share  Prev Amount    Total Amount    Week Change    Status"
-      );
-
-      writeToMerkleLog("-".repeat(120));
-
-      const addresses = new Set([
-        ...Object.keys(merkle.merkle),
-
-        ...Object.keys(prevMerkle.merkle),
-      ]);
-
-      // Get claim status for all users
-
-      const network = merkle.chainId === mainnet.id ? "ethereum" : "bsc";
-
-      const usersClaimedAddress = await getAllAccountClaimedSinceLastFreeze(
-        NETWORK_TO_MERKLE[network],
-
-        merkle.address,
-
-        merkle.chainId === mainnet.id ? "1" : "56"
-      );
-
-      // Create the holders array with calculations
-
-      const holders = Array.from(addresses)
-
-        .map((address) => {
-          const newAmount = parseFloat(
-            formatUnits(
-              BigInt(
-                BigNumber.from(merkle.merkle[address]?.amount || "0").toString()
-              ),
-
-              18
-            )
-          );
-
-          const prevAmount = parseFloat(
-            formatUnits(
-              BigInt(
-                BigNumber.from(
-                  prevMerkle.merkle[address]?.amount || "0"
-                ).toString()
-              ),
-
-              18
-            )
-          );
-
-          const weekChange = newAmount - prevAmount;
-
-          const userAddressLowerCase = address.toLowerCase();
-
-          const hasClaimed = usersClaimedAddress[userAddressLowerCase];
-
-          // Calculate share based on claim status and only if there's a difference
-
-          const newDistShare =
-            weekChange > 0
-              ? hasClaimed
-                ? (newAmount / remainingToDistribute) * 100
-                : (weekChange / remainingToDistribute) * 100
-              : 0;
-
-          return {
-            address,
-
-            newAmount,
-
-            prevAmount,
-
-            weekChange,
-
-            hasClaimed,
-
-            totalShare: (newAmount / totalInMerkle) * 100,
-
-            newDistShare,
-          };
-        })
-
-        .filter((h) => h.newAmount > 0)
-
-        .sort((a, b) => b.newDistShare - a.newDistShare);
-
-      // Calculate summary stats
-
-      const totalHolders = holders.length;
-
-      const claimedCount = holders.filter((h) => h.hasClaimed).length;
-
-      const pendingCount = holders.filter((h) => !h.hasClaimed).length;
-
-      for (const holder of holders) {
-        const addressDisplay = `${holder.address.slice(
-          0,
-
-          6
-        )}...${holder.address.slice(-4)}`;
-
-        const newDistShareStr =
-          holder.newDistShare.toFixed(2).padStart(6) + "%";
-
-        const totalShareStr = holder.totalShare.toFixed(2).padStart(6) + "%";
-
-        const prevAmountStr = holder.prevAmount.toFixed(2).padStart(12);
-
-        const amountStr = holder.newAmount.toFixed(2).padStart(12);
-
-        const changeStr =
-          (holder.weekChange > 0 ? "+" : "") + holder.weekChange.toFixed(2);
-
-        const claimStatus = holder.hasClaimed ? "CLAIMED" : "PENDING";
-
-        writeToMerkleLog(
-          `${addressDisplay.padEnd(16)} ${newDistShareStr.padEnd(
-            14
-          )} ${totalShareStr.padEnd(12)} ${prevAmountStr.padEnd(
-            14
-          )} ${amountStr.padEnd(14)} ${changeStr.padEnd(
-            14
-          )} ${claimStatus.padEnd(10)}`
-        );
-      }
-
-      writeToMerkleLog("-".repeat(120));
-
-      // Summary statistics
-
-      writeToMerkleLog("\nDistribution Summary:");
-
-      writeToMerkleLog(`Total Holders: ${totalHolders}`);
-
-      writeToMerkleLog(
-        `Claimed Since Last Distribution: ${claimedCount} (${(
-          (claimedCount / totalHolders) *
-          100
-        ).toFixed(2)}%)`
-      );
-
-      writeToMerkleLog(
-        `Pending Claims: ${pendingCount} (${(
-          (pendingCount / totalHolders) *
-          100
-        ).toFixed(2)}%)`
-      );
-
-      writeToMerkleLog(
-        `Active Delegators this Week: ${
-          holders.filter((h) => h.weekChange > 0).length
-        }`
-      );
-
-      writeToMerkleLog(
-        `Total Distribution: ${remainingToDistribute.toFixed(2)} ${
-          merkle.symbol
-        }`
-      );
-    }
+  // Compare merkle trees and log the distribution details.
+  // Run the merkle check only if the --log flag is passed.
+  if (process.argv.includes("--log")) {
+    await compareMerkleTrees(newMerkles, lastMerkles, logData);
   }
-    */
 };
 
 /**
- * Check, for each sdTkn, if the new amount in the merkle is higher than remaining sdTkn in the merkle contract + amount to distribute
- * The sdTkn must not be freeze
+ * Check, for each token, that the tokens held in the Merkle contract plus
+ * the tokens slated for distribution are not less than the total expected.
  */
 const checkDistribution = async (
   newMerkles: Merkle[],
   logData: Record<string, any>
 ) => {
   if (!logData || !logData["TotalReported"]) {
-    throw new Error("Total reported not exists in log");
+    throw new Error("Total reported does not exist in log");
   }
 
-  for (const space of Object.keys(logData["TotalReported"])) {
-    const amountToDistribute = logData["TotalReported"][space];
+  // Now TotalReported is keyed by token symbol.
+  for (const tokenSymbol of Object.keys(logData["TotalReported"])) {
+    const amountToDistribute = logData["TotalReported"][tokenSymbol];
 
-    // Find the merkle object
-    const merkle = newMerkles.find(
-      (merkle) => SPACES_SYMBOL[space] === merkle.symbol
-    );
+    // Find the merkle object using token symbol.
+    const merkle = newMerkles.find((merkle) => merkle.symbol === tokenSymbol);
     if (!merkle) {
-      throw new Error("Merkle object not found for " + space);
+      throw new Error("Merkle object not found for token " + tokenSymbol);
     }
 
-    // Get the total amount
     const totalAmount = parseFloat(
       formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18)
     );
 
-    let chain: null | Chain = null;
+    let chain: Chain | null = null;
     let rpcUrl = "";
 
     switch (merkle.chainId) {
@@ -700,32 +353,19 @@ const checkDistribution = async (
         throw new Error("Chain not found");
     }
 
-    // Fetch remaining amount in the merkle contract
     const publicClient = createPublicClient({
       chain,
       transport: http(rpcUrl),
     });
 
-    // Check if the token is freeze
+    // Check if the token is frozen.
     const merkleRootRes = await publicClient.readContract({
       address: merkle.merkleContract as any,
       abi: [
         {
-          inputs: [
-            {
-              internalType: "address",
-              name: "",
-              type: "address",
-            },
-          ],
+          inputs: [{ internalType: "address", name: "", type: "address" }],
           name: "merkleRoot",
-          outputs: [
-            {
-              internalType: "bytes32",
-              name: "",
-              type: "bytes32",
-            },
-          ],
+          outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
           stateMutability: "view",
           type: "function",
         },
@@ -758,11 +398,249 @@ const checkDistribution = async (
 
     const sdTknBalanceInMerkle = parseFloat(formatUnits(sdTknBalanceBn, 18));
 
-    // - 0.01 for threshold
+    // Allow a small threshold of 0.01
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
-      throw new Error("Amount in the merkle to high for space " + space);
+      throw new Error("Amount in the merkle too high for token " + tokenSymbol);
     }
   }
 };
+
+async function compareMerkleTrees(
+  newMerkles: any[],
+  lastMerkles: any[],
+  logData: Record<string, any>
+) {
+  if (!logData || !logData["TotalReported"]) {
+    throw new Error("Total reported does not exist in logData");
+  }
+
+  console.log("\nComparing Merkle Trees:");
+
+  for (const merkle of newMerkles) {
+    console.log("\n" + "=".repeat(80));
+    console.log(`Distribution Details for ${merkle.symbol}`);
+
+    // Fallbacks: if chainId or merkleContract are missing, default to mainnet and use token address.
+    const chainId = merkle.chainId || mainnet.id;
+    const merkleContractAddress = merkle.merkleContract || merkle.address;
+    console.log(`Chain ID: ${chainId}`);
+    console.log(`Token Address: ${merkle.address}`);
+    console.log(`Merkle Contract: ${merkleContractAddress}`);
+
+    // Find the previous snapshot.
+    const prevMerkle = lastMerkles.find(
+      (m: any) => m.address.toLowerCase() === merkle.address.toLowerCase()
+    );
+
+    // Weekly Reported Reward from logData (in token units).
+    const weeklyReportedReward = logData["TotalReported"][merkle.symbol] || 0;
+
+    if (!prevMerkle) {
+      console.log("\nNEW DISTRIBUTION");
+      console.log(
+        `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${
+          merkle.symbol
+        }`
+      );
+      continue;
+    }
+
+    // Set up blockchain client details.
+    let chain: Chain | null = null;
+    let rpcUrl = "";
+    switch (chainId) {
+      case mainnet.id:
+        chain = mainnet;
+        rpcUrl =
+          "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        break;
+      case bsc.id:
+        chain = bsc;
+        rpcUrl =
+          "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        break;
+      default:
+        throw new Error("Chain not supported for merkle " + merkle.symbol);
+    }
+
+    // Fetch the current contract balance.
+    let sdTknBalanceRaw: bigint;
+    try {
+      const publicClient = createPublicClient({
+        chain,
+        transport: http(rpcUrl),
+      });
+      sdTknBalanceRaw = await publicClient.readContract({
+        address: merkle.address as `0x${string}`,
+        abi: [
+          {
+            name: "balanceOf",
+            type: "function",
+            stateMutability: "view",
+            inputs: [{ name: "account", type: "address" }],
+            outputs: [{ name: "", type: "uint256" }],
+          },
+        ],
+        functionName: "balanceOf",
+        args: [merkleContractAddress as `0x${string}`],
+      });
+    } catch (error) {
+      console.log("\nError fetching contract balance information");
+      console.log(error instanceof Error ? error.message : String(error));
+      continue;
+    }
+
+    // Convert raw bigint to ethers BigNumber.
+    const sdTknBalanceBn = ethers.BigNumber.from(sdTknBalanceRaw);
+    // Get cumulative total (Merkle snapshot) as ethers BigNumber.
+    const newTotalBN = ethers.BigNumber.from(convertToProperHex(merkle.total));
+
+    // Compute pending allocation = (Cumulative Total – Contract Balance)
+    const pendingAllocationBN = newTotalBN.sub(sdTknBalanceBn);
+    const pendingAllocation = parseFloat(
+      ethers.utils.formatUnits(pendingAllocationBN, 18)
+    );
+    // Compute Distribution Surplus = max(Weekly Reported Reward - Pending Allocation, 0)
+    const distributionSurplus =
+      weeklyReportedReward > 0
+        ? Math.max(weeklyReportedReward - pendingAllocation, 0)
+        : 0;
+
+    console.log("\nDistribution Changes:");
+    console.log(
+      `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${
+        merkle.symbol
+      }`
+    );
+    console.log(
+      `Pending Allocation (Cumulative Total - Contract Balance): ${pendingAllocation.toFixed(
+        2
+      )} ${merkle.symbol}`
+    );
+    console.log(
+      `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}`
+    );
+
+    // --- Holder Distribution ---
+    const addresses = new Set([
+      ...Object.keys(merkle.merkle),
+      ...Object.keys(prevMerkle.merkle),
+    ]);
+
+    // Gather each holder's amounts.
+    const holderData = Array.from(addresses).map((address) => {
+      const newAmount = parseFloat(
+        ethers.utils.formatUnits(
+          BigInt(
+            BigNumber.from(merkle.merkle[address]?.amount || "0").toString()
+          ),
+          18
+        )
+      );
+      const prevAmount = parseFloat(
+        ethers.utils.formatUnits(
+          BigInt(
+            BigNumber.from(prevMerkle.merkle[address]?.amount || "0").toString()
+          ),
+          18
+        )
+      );
+      return { address, newAmount, prevAmount };
+    });
+
+    // Get claim status for each user.
+    const networkName = chainId === mainnet.id ? "ethereum" : "bsc";
+    const usersClaimedAddress = await getAllAccountClaimedSinceLastFreeze(
+      NETWORK_TO_MERKLE[networkName],
+      merkle.address,
+      chainId === mainnet.id ? "1" : "56"
+    );
+
+    // Compute each holder's shares.
+    const holders = holderData
+      .map((h) => {
+        const hasClaimed = !!usersClaimedAddress[h.address.toLowerCase()];
+        const totalShare =
+          weeklyReportedReward > 0
+            ? (h.newAmount / weeklyReportedReward) * 100
+            : 0;
+        // For pending users, the new distribution share is the delta (new - prev);
+        // for claimed users, we use the total share.
+        const newDistShare = hasClaimed
+          ? totalShare
+          : weeklyReportedReward > 0
+          ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
+          : 0;
+        return {
+          address: h.address,
+          newAmount: h.newAmount,
+          prevAmount: h.prevAmount,
+          weekChange: h.newAmount - h.prevAmount,
+          hasClaimed,
+          totalShare,
+          newDistShare,
+        };
+      })
+      .filter((h) => h.newAmount > 0)
+      .sort((a, b) => b.newDistShare - a.newDistShare);
+
+    console.log("\nHolder Distribution:");
+    console.log("-".repeat(120));
+    console.log(
+      "Address          New Dist Share  Total Share  Prev Amount    New Amount     Week Change    Status"
+    );
+    console.log("-".repeat(120));
+    for (const holder of holders) {
+      const addressDisplay = `${holder.address.slice(
+        0,
+        6
+      )}...${holder.address.slice(-4)}`;
+      const newDistShareStr = holder.newDistShare.toFixed(2).padStart(6) + "%";
+      const totalShareStr = holder.totalShare.toFixed(2).padStart(6) + "%";
+      const prevAmountStr = holder.prevAmount.toFixed(2).padStart(12);
+      const newAmountStr = holder.newAmount.toFixed(2).padStart(12);
+      const changeStr =
+        (holder.weekChange > 0 ? "+" : "") + holder.weekChange.toFixed(2);
+      const claimStatus = holder.hasClaimed ? "CLAIMED" : "PENDING";
+      console.log(
+        `${addressDisplay.padEnd(16)} ${newDistShareStr.padEnd(
+          14
+        )} ${totalShareStr.padEnd(12)} ${prevAmountStr.padEnd(
+          14
+        )} ${newAmountStr.padEnd(14)} ${changeStr.padEnd(
+          14
+        )} ${claimStatus.padEnd(10)}`
+      );
+    }
+    console.log("-".repeat(120));
+
+    const totalHolders = holders.length;
+    const claimedCount = holders.filter((h) => h.hasClaimed).length;
+    const pendingCount = holders.filter((h) => !h.hasClaimed).length;
+
+    console.log("\nDistribution Summary:");
+    console.log(`Total Holders: ${totalHolders}`);
+    console.log(
+      `Claimed Since Last Distribution: ${claimedCount} (${(
+        (claimedCount / totalHolders) *
+        100
+      ).toFixed(2)}%)`
+    );
+    console.log(
+      `Pending Claims: ${pendingCount} (${(
+        (pendingCount / totalHolders) *
+        100
+      ).toFixed(2)}%)`
+    );
+    console.log(
+      `Active Delegators this Week: ${
+        holders.filter((h) => h.weekChange > 0).length
+      }`
+    );
+    console.log(
+      `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}`
+    );
+  }
+}
 
 main();
