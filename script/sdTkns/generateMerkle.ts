@@ -591,10 +591,6 @@ async function compareMerkleTrees(
     );
     console.log("-".repeat(120));
     for (const holder of holders) {
-      const addressDisplay = `${holder.address.slice(
-        0,
-        6
-      )}...${holder.address.slice(-4)}`;
       const newDistShareStr = holder.newDistShare.toFixed(2).padStart(6) + "%";
       const totalShareStr = holder.totalShare.toFixed(2).padStart(6) + "%";
       const prevAmountStr = holder.prevAmount.toFixed(2).padStart(12);
@@ -603,7 +599,7 @@ async function compareMerkleTrees(
         (holder.weekChange > 0 ? "+" : "") + holder.weekChange.toFixed(2);
       const claimStatus = holder.hasClaimed ? "CLAIMED" : "PENDING";
       console.log(
-        `${addressDisplay.padEnd(16)} ${newDistShareStr.padEnd(
+        `${holder.address} ${newDistShareStr.padEnd(
           14
         )} ${totalShareStr.padEnd(12)} ${prevAmountStr.padEnd(
           14
