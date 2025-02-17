@@ -1,10 +1,13 @@
 import axios from "axios";
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http, formatUnits } from "viem";
+import { createPublicClient, http, formatUnits, pad } from "viem";
 import { mainnet } from "viem/chains";
 import { getAddress } from "viem";
 import { WEEK } from "../utils/constants";
+import { parseAbiItem, decodeEventLog, parseAbi, keccak256, encodePacked } from "viem";
+import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
+import { getTimestampsBlocks, OTC_REGISTRY } from "../utils/reportUtils";
 
 const REPO_PATH = "stake-dao/pendle-merkle-script";
 const DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
@@ -44,6 +47,7 @@ const publicClient = createPublicClient({
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
 const sdPENDLE = getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9");
 const WETH = getAddress("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+const explorerUtils = createBlockchainExplorerUtils();
 
 async function getLatestJson(
   repoPath: string,
@@ -77,31 +81,113 @@ async function getLatestJson(
   throw new Error("Failed to retrieve latest JSON file");
 }
 
-async function main() {
-  const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
+  const transferEventSignature = "Transfer(address,address,uint256)";
+  const transferHash = keccak256(encodePacked(["string"], [transferEventSignature]));
 
+  const transferAbi = parseAbi([
+    "event Transfer(address indexed from, address indexed to, uint256 value)",
+  ]);
+
+  const paddedContractAddress = pad(BOTMARKET as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+
+  const topics = {
+    "0": transferHash,
+    "2": paddedContractAddress,
+  };
+
+  const logs = await explorerUtils.getLogsByAddressesAndTopics(
+    [sdPENDLE],
+    fromBlock,
+    toBlock,
+    topics,
+    1
+  );
+
+  if (!logs?.result) return BigInt(0);
+
+  let totalAmount = BigInt(0);
+
+  // Group logs by transaction hash
+  const txGroups = logs.result.reduce((acc, log) => {
+    const txHash = log.transactionHash;
+    if (!acc[txHash]) {
+      acc[txHash] = [];
+    }
+    acc[txHash].push(log);
+    return acc;
+  }, {} as Record<string, typeof logs.result>);
+
+  // Process each transaction
+  for (const [txHash, txLogs] of Object.entries(txGroups)) {
+    // Check if any transfer in this tx comes from OTC_REGISTRY
+    let hasOTCTransfer = false;
+    
+    // Get all sdPENDLE transfers in this transaction
+    const allSdPendleTransfersInTx = await explorerUtils.getLogsByAddressesAndTopics(
+      [sdPENDLE],
+      Number(txLogs[0].blockNumber),
+      Number(txLogs[0].blockNumber),
+      { "0": transferHash },
+      1,
+      txHash
+    );
+
+    if (allSdPendleTransfersInTx?.result) {
+      for (const log of allSdPendleTransfersInTx.result) {
+        const decodedLog = decodeEventLog({
+          abi: transferAbi,
+          data: log.data,
+          topics: log.topics,
+          strict: true,
+        });
+
+        if (decodedLog.args.from.toLowerCase() === OTC_REGISTRY.toLowerCase()) {
+          hasOTCTransfer = true;
+          break;
+        }
+      }
+    }
+
+    // If this tx has any transfer from OTC_REGISTRY, skip all transfers in this tx
+    if (hasOTCTransfer) {
+      continue;
+    }
+
+    // Process valid transfers to BOTMARKET in this tx
+    for (const log of txLogs) {
+      const decodedLog = decodeEventLog({
+        abi: transferAbi,
+        data: log.data,
+        topics: log.topics,
+        strict: true,
+      });
+
+      totalAmount += decodedLog.args.value;
+    }
+  }
+
+  return totalAmount;
+}
+
+async function main() {
   try {
+    const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
+    await getTimestampsBlocks(publicClient, 0);
+
     // Fetch the repartition of rewards from Pendle scripts repo
     const latestRewards = await getLatestJson(REPO_PATH, DIRECTORY_PATH);
 
-    // SdPendle : Take balanceOf Botmarket
-    let sdPendleBalance = await publicClient.readContract({
-      address: sdPENDLE,
-      abi: [
-        {
-          name: "balanceOf",
-          type: "function",
-          stateMutability: "view",
-          inputs: [{ name: "account", type: "address" }],
-          outputs: [{ name: "", type: "uint256" }],
-        },
-      ],
-      functionName: "balanceOf",
-      args: [BOTMARKET],
-    });
+    // Get sdPendle transfers to BOTMARKET, excluding OTC transfers
+    const sdPendleBalance = await getSdPendleTransfers(
+      Number(blockNumber1),
+      Number(blockNumber2)
+    );
 
     if (sdPendleBalance === BigInt(0)) {
-      console.error("No sdPendle balance found on Botmarket");
+      console.error("No valid sdPendle transfers found to Botmarket");
       return;
     }
 
@@ -182,14 +268,14 @@ async function main() {
     const dirPath = path.join(
       projectRoot,
       "bounties-reports",
-      currentPeriod.toString()
+      timestamp1.toString()
     );
     fs.mkdirSync(dirPath, { recursive: true });
 
     const filePath = path.join(dirPath, "pendle.csv");
     fs.writeFileSync(filePath, csvContent);
 
-    const formattedDate = new Date(currentPeriod * 1000).toLocaleDateString(
+    const formattedDate = new Date(timestamp1 * 1000).toLocaleDateString(
       "en-GB"
     );
     console.log(`Report generated for Pendle for the week of: ${formattedDate}`);

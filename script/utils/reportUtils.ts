@@ -186,6 +186,10 @@ export const PROTOCOLS_TOKENS: {
     native: getAddress("0x365accfca291e7d3914637abf1f7635db165bb09"),
     sdToken: getAddress("0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad"),
   },
+  pendle: {
+    native: getAddress("0x808507121B80c02388fAd14726482e061B8da827"),
+    sdToken: getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9"),
+  },
 };
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
