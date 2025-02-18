@@ -300,12 +300,14 @@ const main = async () => {
 
   const logPath = path.join(__dirname, "..", "..", "log.json");
   fs.writeFileSync(logPath, JSON.stringify(logData));
-  console.log(logPath);
+  process.stdout.write(logPath + '\n');
 
   // Compare merkle trees and log the distribution details.
   // Run the merkle check only if the --log flag is passed.
   if (process.argv.includes("--log")) {
-    await compareMerkleTrees(newMerkles, lastMerkles, logData);
+    // Write comparison output to stderr
+    const comparisonOutput = await compareMerkleTrees(newMerkles, lastMerkles, logData);
+    process.stderr.write(comparisonOutput);
   }
 };
 
@@ -405,27 +407,28 @@ const checkDistribution = async (
   }
 };
 
+// Modify compareMerkleTrees to return a string instead of console.logging
 async function compareMerkleTrees(
   newMerkles: any[],
   lastMerkles: any[],
   logData: Record<string, any>
-) {
+): Promise<string> {
   if (!logData || !logData["TotalReported"]) {
     throw new Error("Total reported does not exist in logData");
   }
 
-  console.log("\nComparing Merkle Trees:");
+  let output = "\nComparing Merkle Trees:\n";
 
   for (const merkle of newMerkles) {
-    console.log("\n" + "=".repeat(80));
-    console.log(`Distribution Details for ${merkle.symbol}`);
-
+    output += "\n" + "=".repeat(80) + "\n";
+    output += `Distribution Details for ${merkle.symbol}\n`;
+    
     // Fallbacks: if chainId or merkleContract are missing, default to mainnet and use token address.
     const chainId = merkle.chainId || mainnet.id;
     const merkleContractAddress = merkle.merkleContract || merkle.address;
-    console.log(`Chain ID: ${chainId}`);
-    console.log(`Token Address: ${merkle.address}`);
-    console.log(`Merkle Contract: ${merkleContractAddress}`);
+    output += `Chain ID: ${chainId}\n`;
+    output += `Token Address: ${merkle.address}\n`;
+    output += `Merkle Contract: ${merkleContractAddress}\n`;
 
     // Find the previous snapshot.
     const prevMerkle = lastMerkles.find(
@@ -436,12 +439,8 @@ async function compareMerkleTrees(
     const weeklyReportedReward = logData["TotalReported"][merkle.symbol] || 0;
 
     if (!prevMerkle) {
-      console.log("\nNEW DISTRIBUTION");
-      console.log(
-        `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${
-          merkle.symbol
-        }`
-      );
+      output += "\nNEW DISTRIBUTION\n";
+      output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${merkle.symbol}\n`;
       continue;
     }
 
@@ -485,8 +484,8 @@ async function compareMerkleTrees(
         args: [merkleContractAddress as `0x${string}`],
       });
     } catch (error) {
-      console.log("\nError fetching contract balance information");
-      console.log(error instanceof Error ? error.message : String(error));
+      output += "\nError fetching contract balance information\n";
+      output += error instanceof Error ? error.message : String(error) + "\n";
       continue;
     }
 
@@ -506,20 +505,10 @@ async function compareMerkleTrees(
         ? Math.max(weeklyReportedReward - pendingAllocation, 0)
         : 0;
 
-    console.log("\nDistribution Changes:");
-    console.log(
-      `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${
-        merkle.symbol
-      }`
-    );
-    console.log(
-      `Pending Allocation (Cumulative Total - Contract Balance): ${pendingAllocation.toFixed(
-        2
-      )} ${merkle.symbol}`
-    );
-    console.log(
-      `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}`
-    );
+    output += "\nDistribution Changes:\n";
+    output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${merkle.symbol}\n`;
+    output += `Pending Allocation (Cumulative Total - Contract Balance): ${pendingAllocation.toFixed(2)} ${merkle.symbol}\n`;
+    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}\n`;
 
     // --- Holder Distribution ---
     const addresses = new Set([
@@ -584,12 +573,10 @@ async function compareMerkleTrees(
       .filter((h) => h.newAmount > 0)
       .sort((a, b) => b.newDistShare - a.newDistShare);
 
-    console.log("\nHolder Distribution:");
-    console.log("-".repeat(120));
-    console.log(
-      "Address          New Dist Share  Total Share  Prev Amount    New Amount     Week Change    Status"
-    );
-    console.log("-".repeat(120));
+    output += "\nHolder Distribution:\n";
+    output += "-".repeat(120) + "\n";
+    output += "Address                                      New Dist Share  Total Share  Prev Amount    New Amount     Week Change    Status\n";
+    output += "-".repeat(120) + "\n";
     for (const holder of holders) {
       const newDistShareStr = holder.newDistShare.toFixed(2).padStart(6) + "%";
       const totalShareStr = holder.totalShare.toFixed(2).padStart(6) + "%";
@@ -598,45 +585,24 @@ async function compareMerkleTrees(
       const changeStr =
         (holder.weekChange > 0 ? "+" : "") + holder.weekChange.toFixed(2);
       const claimStatus = holder.hasClaimed ? "CLAIMED" : "PENDING";
-      console.log(
-        `${holder.address} ${newDistShareStr.padEnd(
-          14
-        )} ${totalShareStr.padEnd(12)} ${prevAmountStr.padEnd(
-          14
-        )} ${newAmountStr.padEnd(14)} ${changeStr.padEnd(
-          14
-        )} ${claimStatus.padEnd(10)}`
-      );
+      output +=
+        `${holder.address.padEnd(42)} ${newDistShareStr.padEnd(14)} ${totalShareStr.padEnd(12)} ${prevAmountStr.padEnd(14)} ${newAmountStr.padEnd(14)} ${changeStr.padEnd(14)} ${claimStatus.padEnd(10)}\n`;
     }
-    console.log("-".repeat(120));
+    output += "-".repeat(120) + "\n";
 
     const totalHolders = holders.length;
     const claimedCount = holders.filter((h) => h.hasClaimed).length;
     const pendingCount = holders.filter((h) => !h.hasClaimed).length;
 
-    console.log("\nDistribution Summary:");
-    console.log(`Total Holders: ${totalHolders}`);
-    console.log(
-      `Claimed Since Last Distribution: ${claimedCount} (${(
-        (claimedCount / totalHolders) *
-        100
-      ).toFixed(2)}%)`
-    );
-    console.log(
-      `Pending Claims: ${pendingCount} (${(
-        (pendingCount / totalHolders) *
-        100
-      ).toFixed(2)}%)`
-    );
-    console.log(
-      `Active Delegators this Week: ${
-        holders.filter((h) => h.weekChange > 0).length
-      }`
-    );
-    console.log(
-      `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}`
-    );
+    output += "\nDistribution Summary:\n";
+    output += `Total Holders: ${totalHolders}\n`;
+    output += `Claimed Since Last Distribution: ${claimedCount} (${((claimedCount / totalHolders) * 100).toFixed(2)}%)\n`;
+    output += `Pending Claims: ${pendingCount} (${((pendingCount / totalHolders) * 100).toFixed(2)}%)\n`;
+    output += `Active Delegators this Week: ${holders.filter((h) => h.weekChange > 0).length}\n`;
+    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}\n`;
   }
+
+  return output;
 }
 
 main();
