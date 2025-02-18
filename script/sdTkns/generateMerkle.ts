@@ -429,6 +429,7 @@ async function compareMerkleTrees(
     output += `Chain ID: ${chainId}\n`;
     output += `Token Address: ${merkle.address}\n`;
     output += `Merkle Contract: ${merkleContractAddress}\n`;
+    output += `Root: ${merkle.root}\n`;
 
     // Find the previous snapshot.
     const prevMerkle = lastMerkles.find(
