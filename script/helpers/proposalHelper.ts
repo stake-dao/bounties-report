@@ -89,6 +89,7 @@ async function main() {
     }
 
     const curveGauges = await getAllCurveGauges();
+
     const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
     const votes = await getVoters(proposal.id);
 
@@ -101,7 +102,7 @@ async function main() {
     // Iterate over choices and add shortName
     for (const gauge of Object.keys(gaugePerChoiceId)) {
       for (const gaugeInfo of curveGauges) {
-        if (gaugeInfo.gauge.toLowerCase() === gauge.toLowerCase()) {
+        if (gaugeInfo.gauge.toLowerCase() === gauge.toLowerCase() || (gaugeInfo.rootGauge && gaugeInfo.rootGauge.toLowerCase() === gauge.toLowerCase())) {
           gaugePerChoiceIdWithShortName[gauge] = {
             shortName: gaugeInfo.shortName,
             choiceId: gaugePerChoiceId[gauge].choiceId,

@@ -26,6 +26,7 @@ type CvxCSVType = Record<
 >;
 type Distribution = Record<string, { tokens: Record<string, bigint> }>;
 
+/*
 // Function to validate distribution against the report
 const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
   const totalsDistribution: Record<string, bigint> = {};
@@ -95,6 +96,7 @@ const checkDistribution = (distribution: Distribution, report: CvxCSVType) => {
   console.log("Distribution totals:", totalsDistribution);
   console.log("Report totals:", totalsReport);
 };
+*/
 
 // For stake dao delegators, we want to distribute the rewards to the delegators, not to the voter
 const computeStakeDaoDelegation = async (

@@ -3,6 +3,7 @@ import axios from "axios"
 export interface CurveGauge {
     shortName: string;
     gauge: string;
+    rootGauge: string;
 }
 
 export const getAllCurveGauges = async () => {
