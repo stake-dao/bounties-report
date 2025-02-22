@@ -10,6 +10,7 @@ import {
   matchWethInWithRewardsOut,
   getTokenInfo,
   getGaugesInfos,
+  BOSS,
 } from "../utils/reportUtils";
 import dotenv from "dotenv";
 import {
@@ -115,6 +116,7 @@ function processSwaps(
     .filter((swap) => swap.from.toLowerCase() !== BOTMARKET.toLowerCase())
     .filter((swap) => swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase())
     .filter((swap) => swap.to.toLowerCase() !== GOVERNANCE.toLowerCase())
+    .filter((swap) => swap.to.toLowerCase() !== BOSS.toLowerCase())
     .filter((swap) => {
       // Create unique key for each swap using blockNumber and logIndex
       const key = `${swap.blockNumber}-${swap.logIndex}`;
