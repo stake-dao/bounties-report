@@ -414,7 +414,7 @@ async function main() {
 
   for (const [protocol, data] of Object.entries(csvData)) {
     // Get current csv (period)
-    const fileName = `${protocol}_b.csv`;
+    const fileName = `${protocol}.csv`;
     const filePath = path.join(dirPath, fileName);
 
     let currentCsvData: any[] = [];
