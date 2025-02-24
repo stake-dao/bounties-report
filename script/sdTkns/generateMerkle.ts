@@ -23,6 +23,7 @@ import * as moment from "moment";
 import {
   checkSpace,
   extractCSV,
+  extractOTCCSV,
   getAllAccountClaimedSinceLastFreeze,
   PendleCSVType,
 } from "../utils/utils";
@@ -138,8 +139,6 @@ const main = async () => {
         0
       );
     }
-    // Save using the token symbol as key
-    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
 
     let ids: string[] = [];
     let pendleRewards: Record<string, Record<string, number>> | undefined =
@@ -166,10 +165,50 @@ const main = async () => {
           }
         }
       }
+
+       // ----- PENDLE OTC CSV handling -----
+      const otcCsvPath = path.join(
+        __dirname,
+        "..",
+        "..",
+        "bounties-reports",
+        "pendle-otc.csv"
+      );
+
+      if (fs.existsSync(otcCsvPath)) {
+        const otcCsvResult: Record<string, Record<string, number>> = await extractOTCCSV(otcCsvPath);
+        const otcTimestamps = Object.keys(otcCsvResult);
+        const proposalsPeriodsOTC: Record<string, string> = {};
+        for (const timestamp of otcTimestamps) {
+          const proposalId = await fetchProposalsIdsBasedOnPeriods(
+            space,
+            [timestamp],
+            parseInt(timestamp)
+          );
+          proposalsPeriodsOTC[timestamp] = proposalId[timestamp];
+        }
+
+        // Merge OTC rewards into pendleRewards and add to total
+        for (const timestamp of otcTimestamps) {
+          const proposalId = proposalsPeriodsOTC[timestamp];
+          if (!pendleRewards[proposalId]) {
+            pendleRewards[proposalId] = {};
+          }
+          const rewards = otcCsvResult[timestamp];
+          for (const address in rewards) {
+            pendleRewards[proposalId][address] =
+              (pendleRewards[proposalId][address] || 0) + rewards[address];
+            totalSDToken += rewards[address]; // Add OTC rewards to total
+          }
+        }
+      }
       ids = Object.keys(pendleRewards);
     } else {
       ids = [proposalIdPerSpace[space]];
     }
+
+    // Save using the token symbol as key
+    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
 
     logData["SnapshotIds"].push({
       space,
@@ -264,7 +303,11 @@ const main = async () => {
 
   // Check if the tokens in the merkle contract plus the new tokens to distribute
   // are at least the total expected (with a small threshold)
-  checkDistribution(newMerkles, logData);
+  const isDistributionOk = await checkDistribution(newMerkles, logData);
+
+  if (!isDistributionOk) {
+    throw new Error("Distribution is not ok");
+  }
 
   fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/merkle.json`, JSON.stringify(newMerkles));
 
@@ -318,7 +361,7 @@ const main = async () => {
 const checkDistribution = async (
   newMerkles: Merkle[],
   logData: Record<string, any>
-) => {
+): Promise<boolean> => {
   if (!logData || !logData["TotalReported"]) {
     throw new Error("Total reported does not exist in log");
   }
@@ -402,9 +445,13 @@ const checkDistribution = async (
 
     // Allow a small threshold of 0.01
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
-      throw new Error("Amount in the merkle too high for token " + tokenSymbol);
+      console.error("Distribution is not ok for token " + tokenSymbol);
+      console.error("Difference", totalAmount - (sdTknBalanceInMerkle + amountToDistribute));
+      return false;
     }
   }
+
+  return true;
 };
 
 // Modify compareMerkleTrees to return a string instead of console.logging

@@ -31,7 +31,7 @@ export type PendleCSVType = Record<string, Record<string, number>>;
 export type OtherCSVType = Record<string, number>;
 export type CvxCSVType = Record<
   string,
-  Array<{ rewardAddress: string; rewardAmount: bigint, chainId: number }>
+  Array<{ rewardAddress: string; rewardAmount: bigint; chainId: number }>
 >;
 
 export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType;
@@ -91,8 +91,7 @@ export const extractCSV = async (
       if (!gaugeName) {
         throw new Error("can't find pool address for " + space);
       }
-    }
-    else {
+    } else {
       if (!gaugeAddress) {
         throw new Error("can't find gauge address for " + space);
       }
@@ -124,20 +123,26 @@ export const extractCSV = async (
         cvxResponse[gaugeAddress] = [{ rewardAddress, rewardAmount, chainId }];
       } else {
         const existingRewardIndex = cvxResponse[gaugeAddress].findIndex(
-          reward => reward.rewardAddress === rewardAddress
+          (reward) => reward.rewardAddress === rewardAddress
         );
 
         if (existingRewardIndex >= 0) {
-          cvxResponse[gaugeAddress][existingRewardIndex].rewardAmount += rewardAmount;
+          cvxResponse[gaugeAddress][existingRewardIndex].rewardAmount +=
+            rewardAmount;
         } else {
-          cvxResponse[gaugeAddress].push({ rewardAddress, rewardAmount, chainId });
+          cvxResponse[gaugeAddress].push({
+            rewardAddress,
+            rewardAmount,
+            chainId,
+          });
         }
       }
 
       if (!totalPerToken[rewardAddress]) {
         totalPerToken[rewardAddress] = BigInt(0);
       }
-      totalPerToken[rewardAddress] = (totalPerToken[rewardAddress] as bigint) + rewardAmount;
+      totalPerToken[rewardAddress] =
+        (totalPerToken[rewardAddress] as bigint) + rewardAmount;
     } else if (space === SPECTRA_SPACE) {
       const spectraResponse = response as CvxCSVType;
       const rewardAddress = row["reward address"].toLowerCase();
@@ -148,11 +153,12 @@ export const extractCSV = async (
         spectraResponse[gaugeAddress] = [{ rewardAddress, rewardAmount }];
       } else {
         const existingRewardIndex = spectraResponse[gaugeAddress].findIndex(
-          reward => reward.rewardAddress === rewardAddress
+          (reward) => reward.rewardAddress === rewardAddress
         );
-        
+
         if (existingRewardIndex >= 0) {
-          spectraResponse[gaugeAddress][existingRewardIndex].rewardAmount += rewardAmount;
+          spectraResponse[gaugeAddress][existingRewardIndex].rewardAmount +=
+            rewardAmount;
         } else {
           spectraResponse[gaugeAddress].push({ rewardAddress, rewardAmount });
         }
@@ -161,7 +167,8 @@ export const extractCSV = async (
       if (!totalPerToken[rewardAddress]) {
         totalPerToken[rewardAddress] = BigInt(0);
       }
-      totalPerToken[rewardAddress] = (totalPerToken[rewardAddress] as bigint) + rewardAmount;
+      totalPerToken[rewardAddress] =
+        (totalPerToken[rewardAddress] as bigint) + rewardAmount;
     } else {
       const otherResponse = response as OtherCSVType;
       if (!otherResponse[gaugeAddress]) {
@@ -172,6 +179,67 @@ export const extractCSV = async (
       }
     }
   }
+  return response;
+};
+
+/**
+ * Reads and parses an OTC CSV file for Pendle.
+ * The CSV is expected to have at least:
+ *  - "timestamp": to key each snapshot,
+ *  - "gauge address": used as the sub-key,
+ *  - "reward sd value": the reward amount (as a string to be parsed to a number).
+ *
+ * @param filePath - The full path to the pendle-otc.csv file.
+ * @returns A promise that resolves to a PendleCSVType object grouping rewards by timestamp.
+ */
+export const extractOTCCSV = async (
+  filePath: string
+): Promise<PendleCSVType> => {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`OTC CSV file does not exist at path: ${filePath}`);
+  }
+
+  const csvFile = fs.readFileSync(filePath, "utf8");
+  let records = parse(csvFile, {
+    columns: true,
+    skip_empty_lines: true,
+    delimiter: ";",
+  });
+
+  // Normalize column names to lowercase.
+  records = records.map((row: Record<string, string>) =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [key.toLowerCase(), value])
+    )
+  );
+
+  const response: PendleCSVType = {};
+
+  for (const row of records) {
+    const timestamp = row["timestamp"];
+    const gaugeAddress = row["gauge address"];
+
+    if (!timestamp) {
+      throw new Error("Missing 'timestamp' in row: " + JSON.stringify(row));
+    }
+    if (!gaugeAddress) {
+      throw new Error("Missing 'gauge address' in row: " + JSON.stringify(row));
+    }
+
+    if (!response[timestamp]) {
+      response[timestamp] = {};
+    }
+
+    // Initialize gauge address value if needed.
+    if (!response[timestamp][gaugeAddress]) {
+      response[timestamp][gaugeAddress] = 0;
+    }
+
+    if (row["reward sd value"]) {
+      response[timestamp][gaugeAddress] += parseFloat(row["reward sd value"]);
+    }
+  }
+
   return response;
 };
 
@@ -202,7 +270,7 @@ export const getTokenPrice = async (
 export const getHistoricalTokenPrice = async (
   timestamp: number,
   chain: string,
-  tokenAddress: string,
+  tokenAddress: string
 ): Promise<number> => {
   try {
     const key = `${chain}:${tokenAddress}`;
@@ -721,7 +789,6 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     default:
       throw new Error("Chain not found");
   }
-
 
   const publicClient = createPublicClient({
     chain,
