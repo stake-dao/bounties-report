@@ -172,6 +172,7 @@ const main = async () => {
         "..",
         "..",
         "bounties-reports",
+        currentPeriodTimestamp.toString(),
         "pendle-otc.csv"
       );
 
