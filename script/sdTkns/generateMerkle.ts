@@ -78,11 +78,11 @@ const main = async () => {
     { data: sdCakeWorkingData },
   ] = await Promise.all([
     axios.get(
-      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/merkle.json"
+      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/merkle.json"
     ),
     fetchLastProposalsIds(SPACES, now, filter),
     axios.get(
-      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
+      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json"
     ),
     axios.get(
       "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdfxs-working-supply.json"

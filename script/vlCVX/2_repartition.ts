@@ -229,6 +229,7 @@ const main = async () => {
         )
       ) {
         console.log("removing delegator, already voted by himself", delegator);
+        console.log("Votes:", votes.filter((voter) => voter.voter.toLowerCase() === delegator.toLowerCase()));
         stakeDaoDelegators = stakeDaoDelegators.filter(
           (d) => d.toLowerCase() !== delegator.toLowerCase()
         );
