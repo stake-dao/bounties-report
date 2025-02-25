@@ -42,18 +42,28 @@ export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   );
 
   if (response.result.length === 0) {
-    throw new Error("No CRVUSD transfer found");
+    throw new Error("No CRVUSD transfers found");
   }
 
-  const latestTransfer = response.result[response.result.length - 1];
-  const [amount] = decodeAbiParameters(
-    [{ type: "uint256" }],
-    latestTransfer.data
-  );
+  let totalAmount = 0n;
+  let latestBlockNumber = 0;
+
+  for (const transfer of response.result) {
+    const [amount] = decodeAbiParameters(
+      [{ type: "uint256" }],
+      transfer.data
+    );
+    totalAmount += BigInt(amount);
+
+    const blockNumber = parseInt(transfer.blockNumber, 16);
+    if (blockNumber > latestBlockNumber) {
+      latestBlockNumber = blockNumber;
+    }
+  }
 
   return {
-    amount: BigInt(amount),
-    blockNumber: parseInt(latestTransfer.blockNumber, 16),
+    amount: totalAmount,
+    blockNumber: latestBlockNumber,
   };
 }
 
