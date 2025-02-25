@@ -159,7 +159,9 @@ async function getRewards(
   });
 }
 
-async function computeAPR(): Promise<APRResult> {
+async function computeAPR(): Promise<
+  APRResult & { annualizedAPRWithoutSDT: number }
+> {
   const now = moment.utc().unix();
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
@@ -250,7 +252,18 @@ async function computeAPR(): Promise<APRResult> {
     currentPeriodTimestamp
   );
 
-  // Calculate total reward value in USD
+  // Calculate total reward value in USD (excluding SDT)
+  const rewardValueUSDWithoutSDT = prices.reduce((total, price) => {
+    // Skip SDT token
+    if (price.address.toLowerCase() === SDT.toLowerCase()) return total;
+
+    const tokenAmount = sumPerToken[getAddress(price.address)] || 0n;
+    const valueUSD =
+      price.price * (Number(tokenAmount) / Math.pow(10, price.decimals));
+    return total + valueUSD;
+  }, 0);
+
+  // Calculate total reward value in USD (including SDT)
   const rewardValueUSD = prices.reduce((total, price) => {
     const tokenAmount = sumPerToken[getAddress(price.address)] || 0n;
     const valueUSD =
@@ -263,10 +276,14 @@ async function computeAPR(): Promise<APRResult> {
     prices.find((p) => p.address.toLowerCase() === CVX.toLowerCase())?.price ||
     0;
 
-  // Calculate APR
-  const annualizedRewards = rewardValueUSD * 52; // Multiply weekly rewards by 52 weeks
+  // Calculate APRs
+  const annualizedRewards = rewardValueUSD * 52;
+  const annualizedRewardsWithoutSDT = rewardValueUSDWithoutSDT * 52;
+
   const annualizedAPR =
-    (annualizedRewards / (cvxPrice * delegationVotingPower)) * 100; // Multiply by 100 for percentage
+    (annualizedRewards / (cvxPrice * delegationVotingPower)) * 100;
+  const annualizedAPRWithoutSDT =
+    (annualizedRewardsWithoutSDT / (cvxPrice * delegationVotingPower)) * 100;
 
   return {
     totalVotingPower,
@@ -275,6 +292,7 @@ async function computeAPR(): Promise<APRResult> {
     rewardValueUSD,
     cvxPrice,
     annualizedAPR,
+    annualizedAPRWithoutSDT,
     periodStartBlock: Number(proposal.snapshot),
     periodEndBlock: Number(proposal.end),
     timestamp: currentPeriodTimestamp,
@@ -292,7 +310,7 @@ async function main() {
     // Read existing file if it exists
     let existingData = {};
     try {
-      existingData = JSON.parse(readFileSync(outputPath, 'utf8'));
+      existingData = JSON.parse(readFileSync(outputPath, "utf8"));
     } catch (error) {
       // File doesn't exist or is invalid, start fresh
     }
@@ -300,7 +318,8 @@ async function main() {
     // Merge new data with existing
     const updatedData = {
       ...existingData,
-      delegatorsApr: result.annualizedAPR
+      delegatorsApr: result.annualizedAPR,
+      delegatorsAprWithoutSDT: result.annualizedAPRWithoutSDT,
     };
 
     writeFileSync(outputPath, JSON.stringify(updatedData, null, 2));
@@ -317,6 +336,11 @@ async function main() {
     console.log(`Period Reward Value: $${result.rewardValueUSD.toFixed(2)}`);
     console.log(`CVX Price: $${result.cvxPrice.toFixed(2)}`);
     console.log(`Annualized APR: ${result.annualizedAPR.toFixed(2)}%`);
+    console.log(
+      `Annualized APR (without SDT): ${result.annualizedAPRWithoutSDT.toFixed(
+        2
+      )}%`
+    );
     console.log(
       `Period: ${result.periodStartBlock} - ${result.periodEndBlock}`
     );
