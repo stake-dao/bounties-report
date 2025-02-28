@@ -1,0 +1,26 @@
+Stake DAO - Swap Report
+Protocol: BALANCER
+Timestamp: 1740614400
+Date: 2025-02-27 00:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 BALANCER Swap Report
+
+🔄 https://etherscan.io/tx/0x90084070db70015e97098d953b260e269382f49ea0a7cc6597ff31b3444b2f19 Transaction
+├─ https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL: 2,135.65 • https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL: 7,729.55 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 5.9505
+├─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 1,964.92 → 0.2698 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (4.5%)
+├─ https://etherscan.io/token/0x63e5dc7c071c1f18d44b69bc86f4c80f24851388 KAI: 534.62 → 0.0081 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (0.1%)
+├─ https://etherscan.io/token/0xc0c293ce456ff0ed870add98a0828dd4d2903dbf AURA: 3,957.42 → 0.4414 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (7.4%)
+└─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 12,048.31 → 5.2312 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (87.9%)
+
+
+🔍 Token Contributions:
+├─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 12,048.31 → 5.2312 WETH (87.9%)
+├─ https://etherscan.io/token/0xc0c293ce456ff0ed870add98a0828dd4d2903dbf AURA: 3,957.42 → 0.4414 WETH (7.4%)
+├─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 1,964.92 → 0.2698 WETH (4.5%)
+├─ https://etherscan.io/token/0x63e5dc7c071c1f18d44b69bc86f4c80f24851388 KAI: 534.62 → 0.0081 WETH (0.1%)
+
+📈 Final Summary
+└─ 2,135.65 https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL
+   └─ via 5.9505 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH
+      └─ to 7,729.55 https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL
