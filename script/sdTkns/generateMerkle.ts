@@ -321,6 +321,10 @@ const main = async () => {
   fs.writeFileSync(`delegationsAPRs.json`, JSON.stringify(delegationAPRs)); // TODO : Remove , adapt the logger to fetch from current period
 
 
+  // Add delegation APRS in logData
+  logData["DelegationsAPRsDetails"] = delegationAPRs;
+
+
   // Add totals in the log
   logData["TotalRewards"] = {};
   for (const merkle of newMerkles) {
