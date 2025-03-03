@@ -5,7 +5,7 @@ import { DELEGATION_ADDRESS } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 
-export const delegationLogger = async (space: string, proposal: Proposal, log: (message: string) => void) => {
+export const delegationLogger = async (space: string, proposal: Proposal, voters: string[], log: (message: string) => void) => {
     log(`\nSpace: ${space}`);
     const delegatorData = await fetchDelegatorData(space, proposal);
 
@@ -17,15 +17,20 @@ export const delegationLogger = async (space: string, proposal: Proposal, log: (
                     (delegatorData.votingPowers[b] || 0) -
                     (delegatorData.votingPowers[a] || 0)
             );
+        // Only thoses whose above > 0.00000002% of the total VP (below likely no rewards)
+        // Filter out delegators with less than 1  voting power
+        const filteredDelegators = sortedDelegators.filter((delegator) => delegatorData.votingPowers[delegator] > delegatorData.totalVotingPower * 0.00000002);
 
         log(`Total Delegators: ${sortedDelegators.length}`);
+        log(`Total Delegators with voting power > 0.00000002% of total VP: ${filteredDelegators.length}`);
         log(`Total Voting Power: ${delegatorData.totalVotingPower.toFixed(2)}`);
 
         log("\nDelegator Breakdown:");
-        for (const delegator of sortedDelegators) {
+        for (const delegator of filteredDelegators) {
             const vp = delegatorData.votingPowers[delegator];
             const share = (vp / delegatorData.totalVotingPower) * 100;
-            log(`- ${delegator}: ${vp.toFixed(2)} VP (${share.toFixed(2)}%)`);
+            const hasVoted = voters.includes(delegator.toLowerCase()) ? " (Voted by himself)" : "";
+            log(`- ${delegator}: ${vp.toFixed(2)} VP (${share.toFixed(2)}%)${hasVoted}`);
         }
     } else {
         log("No delegators found");

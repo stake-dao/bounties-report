@@ -30,8 +30,8 @@ function setupLogging(proposalId: string): string {
   if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
   }
-  const logPath = path.join(tempDir, `proposal-${proposalId}-${timestamp}.log`);
-
+  const currentDate = new Date().toISOString().split("T")[0];
+  const logPath = path.join(tempDir, `${currentDate}-proposal-${proposalId}.log`);
   return logPath;
 }
 
@@ -81,13 +81,13 @@ async function main() {
     // Print proposal information
     proposalInformationLogger(space, proposal, log);
     log(`Snapshot Date: ${dateSnapshot}`);
-
-    // Fetch and log delegator data for all supported spaces
+    /*
+    // Fetch and log delegator data
     log("\n=== Delegation Information ===");
-    for (const supportedSpace of Object.keys(SUPPORTED_SPACES)) {
-      delegationLogger(supportedSpace, proposal, log);
-    }
+    await delegationLogger(space, proposal, log);
+    */
 
+    // TODO : All protocols
     const curveGauges = await getAllCurveGauges();
 
     const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);

@@ -75,6 +75,17 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             }
         }
 
+        // Compute only thoses with voting power > 0.00000002% of delegation voting power
+        const filteredDelegatorsVotingPower = Object.fromEntries(Object.entries(delegatorsVotingPower).filter(([_, vp]) => vp > delegationVote.vp * 0.00000002));
+        const amountOfDelegators = Object.keys(filteredDelegatorsVotingPower).length - 1; // Delegation
+
+        logs.push({
+            id: "Delegators",
+            content: [
+                `${id} : ${amountOfDelegators}`,
+            ]
+        });
+
         delegationVote.totalRewards = 0;
         const nonFoundGauges: Record<string, { index: number; amount: number }> = {};
         let delegationRewardsForNonFoundGauges = 0;
@@ -271,7 +282,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
     // Define a threshold below which numbers are considered too small and should be set to 0
     const threshold = 2e-8;
-
     const adjustedUserRewards = Object.fromEntries(
         Object.entries(userRewards).map(([address, reward]) => {
             // If the reward is smaller than the threshold, set it to 0

@@ -477,7 +477,7 @@ async function compareMerkleTrees(
 
   logData["DistributionSurplus"] = {};
   logData["MerkleRoots"] = [];
-  logData["ActiveDelegators"] = {};
+  logData["ActiveUsers"] = {};
   logData["TotalHolders"] = {};
   logData["ClaimedSinceLastDistrib"] = {};
   logData["TopHolders"] = {};
@@ -664,7 +664,7 @@ async function compareMerkleTrees(
     output += `Total Holders: ${totalHolders}\n`;
     output += `Claimed Since Last Distribution: ${claimedCount} (${((claimedCount / totalHolders) * 100).toFixed(2)}%)\n`;
     output += `Pending Claims: ${pendingCount} (${((pendingCount / totalHolders) * 100).toFixed(2)}%)\n`;
-    output += `Active Delegators this Week: ${holders.filter((h) => h.weekChange > 0).length}\n`;
+    output += `Active Users this Week: ${holders.filter((h) => h.weekChange > 0).length}\n`;
     output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}\n`;
 
 
@@ -673,7 +673,7 @@ async function compareMerkleTrees(
     logData["MerkleRoots"].push(merkle.root);
     logData["TotalHolders"][merkle.symbol] = holders.length;
     logData["ClaimedSinceLastDistrib"][merkle.symbol] = claimedCount;
-    logData["ActiveDelegators"][merkle.symbol] = holders.filter((h) => h.weekChange > 0).length;
+    logData["ActiveUsers"][merkle.symbol] = holders.filter((h) => h.weekChange > 0).length;
 
     // Storing top 5 holders before/after
     logData["TopHolders"][merkle.symbol] = holders.slice(0, 5).map((h) => ({

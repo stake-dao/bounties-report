@@ -134,7 +134,6 @@ export const processAllDelegators = async (
       );
     }
   }
-
   // Return as a list of addresses
   return filteredDelegators.map((d) => d.user);
 };

@@ -7,6 +7,7 @@
     "sd-merkle": "pnpm tsx script/sdTkns/generateMerkle.ts",
     "vlcvx-repartition": "pnpm tsx script/vlCVX/generatevlCVXRepartition.ts",
     "report": "pnpm tsx script/generateWeeklyReport.ts",
+    "proposal-helper": "pnpm tsx script/helpers/proposalHelper.ts",
     "top-cake-airdrop": "pnpm tsx script/top-cake/1_merkle.ts",
     "top-cake-airdrop-test": "pnpm tsx script/top-cake/2_test.ts",
     "spectra-report": "pnpm tsx script/spectra/1_report.ts",
