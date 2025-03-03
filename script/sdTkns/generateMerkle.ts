@@ -166,7 +166,7 @@ const main = async () => {
         }
       }
 
-       // ----- PENDLE OTC CSV handling -----
+      // ----- PENDLE OTC CSV handling -----
       const otcCsvPath = path.join(
         __dirname,
         "..",
@@ -321,6 +321,10 @@ const main = async () => {
   fs.writeFileSync(`delegationsAPRs.json`, JSON.stringify(delegationAPRs)); // TODO : Remove , adapt the logger to fetch from current period
 
 
+  // Add delegation APRS in logData
+  logData["DelegationsAPRsDetails"] = delegationAPRs;
+
+
   // Add totals in the log
   logData["TotalRewards"] = {};
   for (const merkle of newMerkles) {
@@ -344,9 +348,13 @@ const main = async () => {
     "delegationsAPRs.json"
   );
 
-  const logPath = path.join(__dirname, "..", "..", "log.json");
-  fs.writeFileSync(logPath, JSON.stringify(logData));
-  process.stdout.write(logPath + '\n');
+
+  // Write here if no --log, else write after the comparison
+  if (!process.argv.includes("--log")) {
+    const logPath = path.join(__dirname, "..", "..", "log.json");
+    fs.writeFileSync(logPath, JSON.stringify(logData));
+    process.stdout.write(logPath + '\n');
+  }
 
   // Compare merkle trees and log the distribution details.
   // Run the merkle check only if the --log flag is passed.
@@ -467,12 +475,19 @@ async function compareMerkleTrees(
     throw new Error("Total reported does not exist in logData");
   }
 
+  logData["DistributionSurplus"] = {};
+  logData["MerkleRoots"] = [];
+  logData["ActiveDelegators"] = {};
+  logData["TotalHolders"] = {};
+  logData["ClaimedSinceLastDistrib"] = {};
+  logData["TopHolders"] = {};
+
   let output = "\nComparing Merkle Trees:\n";
 
   for (const merkle of newMerkles) {
     output += "\n" + "=".repeat(80) + "\n";
     output += `Distribution Details for ${merkle.symbol}\n`;
-    
+
     // Fallbacks: if chainId or merkleContract are missing, default to mainnet and use token address.
     const chainId = merkle.chainId || mainnet.id;
     const merkleContractAddress = merkle.merkleContract || merkle.address;
@@ -609,8 +624,8 @@ async function compareMerkleTrees(
         const newDistShare = hasClaimed
           ? totalShare
           : weeklyReportedReward > 0
-          ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
-          : 0;
+            ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
+            : 0;
         return {
           address: h.address,
           newAmount: h.newAmount,
@@ -651,7 +666,28 @@ async function compareMerkleTrees(
     output += `Pending Claims: ${pendingCount} (${((pendingCount / totalHolders) * 100).toFixed(2)}%)\n`;
     output += `Active Delegators this Week: ${holders.filter((h) => h.weekChange > 0).length}\n`;
     output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}\n`;
+
+
+    // Log data
+    logData["DistributionSurplus"][merkle.symbol] = distributionSurplus;
+    logData["MerkleRoots"].push(merkle.root);
+    logData["TotalHolders"][merkle.symbol] = holders.length;
+    logData["ClaimedSinceLastDistrib"][merkle.symbol] = claimedCount;
+    logData["ActiveDelegators"][merkle.symbol] = holders.filter((h) => h.weekChange > 0).length;
+
+    // Storing top 5 holders before/after
+    logData["TopHolders"][merkle.symbol] = holders.slice(0, 5).map((h) => ({
+      address: h.address,
+      prevAmount: h.prevAmount,
+      newAmount: h.newAmount,
+      claimed: h.hasClaimed,
+    }));
   }
+
+  const logPath = path.join(__dirname, "..", "..", "log.json");
+  fs.writeFileSync(logPath, JSON.stringify(logData));
+  process.stdout.write(logPath + '\n');
+
 
   return output;
 }
