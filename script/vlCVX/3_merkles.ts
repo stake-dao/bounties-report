@@ -620,6 +620,7 @@ async function generateSingleMerkle(
     chain
   );
 
+  // TODO: As sdTokens, logFile + sended to Telegram (use distributionVerifier)
   // Compare merkle data
   compareMerkleData(
     chainId ? `Non-delegator (Chain ${chainId})` : "Non-delegator",

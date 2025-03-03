@@ -21,7 +21,7 @@ const setupLogging = (proposalId: string): string => {
     return path.join(tempDir, `proposal-${proposalId}-${timestamp}.log`);
 }
 
-
+// TODO : As sdTokens, logFile + sended to Telegram
 export const distributionVerifier = async (space: string, folderName: string, merkleChain: Chain, merkleAddress: `0x${string}`) => {
 
     // Load merkles
