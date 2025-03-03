@@ -302,11 +302,12 @@ const main = async () => {
   );
 
   // Save APR
+  // TODO : As vlCVX, compute when distributing
   const { data: delegationAPRs } = await axios.get(
-    "https://raw.githubusercontent.com/stake-dao/bounties-report/main/delegationsAPRs.json"
+    `https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json`
   );
   delegationAPRs[SPECTRA_SPACE] = delegationAPR;
-  fs.writeFileSync(`./delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+  fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`, JSON.stringify(delegationAPRs));
 
   // End
   console.log("Spectra repartition generation completed successfully.");
@@ -316,4 +317,4 @@ const main = async () => {
 main().catch((error) => {
   console.error("An error occurred:", error);
   process.exit(1);
-});
+}); 
