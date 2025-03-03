@@ -371,6 +371,13 @@ async function getAvailableChains(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/vlCVX`
   );
+  
+  // Check if directory exists, if not return empty array
+  if (!fs.existsSync(dirPath)) {
+    console.log(`Directory does not exist: ${dirPath}`);
+    return [];
+  }
+  
   const files = fs.readdirSync(dirPath);
 
   // Find all repartition files with chain IDs
@@ -397,6 +404,19 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
   // Calculate period timestamps
   const WEEK = 604800;
   const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+  
+  // Ensure the directory structure exists
+  const currentPeriodDir = path.join(
+    __dirname,
+    `../../bounties-reports/${currentPeriodTimestamp}/vlCVX`
+  );
+  
+  if (!fs.existsSync(currentPeriodDir)) {
+    console.log(`Creating directory structure: ${currentPeriodDir}`);
+    fs.mkdirSync(currentPeriodDir, { recursive: true });
+    console.log("Directory created. No distribution files found, exiting.");
+    return;
+  }
 
   if (generateDelegatorsMerkle) {
     // Handle delegators merkle tree generation
