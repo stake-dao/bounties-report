@@ -54,7 +54,11 @@ async function getLatestJson(
   directoryPath: string
 ): Promise<LatestRewards> {
   const url = `https://api.github.com/repos/${repoPath}/contents/${directoryPath}`;
-  const response = await axios.get(url);
+  const response = await axios.get(url, {
+    headers: {
+      Authorization: `token ${process.env.GIT_ACCESS_TOKEN}`,
+    },
+  });
 
   if (response.status === 200) {
     const files = response.data;

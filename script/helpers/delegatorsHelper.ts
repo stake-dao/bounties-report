@@ -1,6 +1,5 @@
 import path from "path";
 import fs from "fs";
-import { DELEGATION_ADDRESS } from "../utils/constants";
 import { delegationLogger } from "../utils/delegationHelper";
 import { getProposal, getVoters, fetchLastProposalsIds } from "../utils/snapshot";
 import yargs from "yargs";
