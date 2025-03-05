@@ -5,6 +5,7 @@ import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
 import { STAKE_DAO_LOCKER } from "../../utils/constants";
+import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
 
 const WEEK = 604800;
 
@@ -60,8 +61,12 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
   const fileName = path.join(periodFolder, "claimed_bounties.json");
   const jsonString = JSON.stringify(votemarketV2Bounties, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
-  console.log(`Votemarket weekly claims saved to ${fileName}`);
+  console.log(`VotemarketV2 weekly claims saved to ${fileName}`);
+
+  // Log aggregated claim sums to Telegram (chain id for mainnet is 1)
+  const telegramLogger = new ClaimsTelegramLogger();
+  await telegramLogger.logClaims("votemarket-v2/claimed_bounties.json", currentPeriod, votemarketV2Bounties);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
-generateVotemarketV2Bounties(pastWeek); 
+generateVotemarketV2Bounties(pastWeek);

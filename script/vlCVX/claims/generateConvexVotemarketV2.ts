@@ -5,6 +5,7 @@ import { CONVEX_LOCKER } from "../../utils/constants";
 import { getTimestampsBlocks } from "../../utils/reportUtils";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
 
 const WEEK = 604800;
 
@@ -75,6 +76,11 @@ async function generateConvexVotemarketV2Bounties(pastWeek: number = 0) {
     fs.writeFileSync(fileName, jsonString);
 
     console.log(`Convex locker votemarket v2 bounties saved to ${fileName}`);
+
+    // Log aggregated claim sums to Telegram (chain id for mainnet is 1)
+    const telegramLogger = new ClaimsTelegramLogger();
+    await telegramLogger.logClaims("votemarket-v2/claimed_bounties_convex.json", currentPeriod, votemarketV2ConvexBounties);
+  
   } catch (error) {
     console.error("Error generating votemarket v2 bounties:", error);
     process.exit(1);

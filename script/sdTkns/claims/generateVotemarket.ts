@@ -5,6 +5,7 @@ import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
 import { VOTEMARKET_PLATFORM_CONFIGS } from "../../utils/constants";
+import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
 
 const WEEK = 604800;
 
@@ -38,10 +39,7 @@ async function generateVotemarketBounties(pastWeek: number = 0) {
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  const { timestamp1, timestamp2 } = await getTimestampsBlocks(
-    ethereumClient,
-    pastWeek
-  );
+  const { timestamp1, timestamp2 } = await getTimestampsBlocks(ethereumClient, pastWeek);
 
   const votemarketBounties = await fetchVotemarketV1ClaimedBounties(
     timestamp1,
@@ -55,11 +53,7 @@ async function generateVotemarketBounties(pastWeek: number = 0) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
   }
 
-  const periodFolder = path.join(
-    weeklyBountiesDir,
-    currentPeriod.toString(),
-    "votemarket"
-  );
+  const periodFolder = path.join(weeklyBountiesDir, currentPeriod.toString(), "votemarket");
   if (!fs.existsSync(periodFolder)) {
     fs.mkdirSync(periodFolder, { recursive: true });
   }
@@ -68,6 +62,10 @@ async function generateVotemarketBounties(pastWeek: number = 0) {
   const jsonString = JSON.stringify(votemarketBounties, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
   console.log(`Votemarket weekly claims saved to ${fileName}`);
+
+  // Log aggregated claim sums to Telegram (chain id for mainnet is 1)
+  const telegramLogger = new ClaimsTelegramLogger();
+  await telegramLogger.logClaims("votemarket/claimed_bounties.json", currentPeriod, votemarketBounties);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;

@@ -48,6 +48,8 @@ async function main() {
     const now = Math.floor(Date.now() / 1000);
     const filter = args.space === "cvx.eth" ? "^(?!FXN ).*Gauge Weight*": "*Gauge vote.*$";
 
+    // TODO : If cvx.eth, also fetch for each delegator the Votium forwarded status
+
     const proposalIds = await fetchLastProposalsIds([args.space], now, filter);
     if (proposalIds.length === 0) {
       console.error(`No proposals found for space ${args.space}`);

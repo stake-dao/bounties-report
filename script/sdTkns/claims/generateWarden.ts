@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
 
 const WEEK = 604800;
 
@@ -43,20 +44,14 @@ async function generateWardenBounties(pastWeek: number = 0) {
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
-    ethereumClient,
-    pastWeek
-  );
+  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(ethereumClient, pastWeek);
 
-  const wardenBounties = await fetchWardenClaimedBounties(
-    blockNumber1,
-    blockNumber2
-  );
+  const wardenBounties = await fetchWardenClaimedBounties(blockNumber1, blockNumber2);
 
   const warden: { [key: string]: any } = {};
-  for (const path of Object.keys(wardenBounties)) {
-    const protocol = path_to_protocols[path] || path;
-    warden[protocol] = wardenBounties[path];
+  for (const p of Object.keys(wardenBounties)) {
+    const protocol = path_to_protocols[p] || p;
+    warden[protocol] = wardenBounties[p];
   }
 
   const rootDir = path.resolve(__dirname, "../../..");
@@ -74,7 +69,11 @@ async function generateWardenBounties(pastWeek: number = 0) {
   const jsonString = JSON.stringify(warden, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
   console.log(`Warden weekly claims saved to ${fileName}`);
+
+  // Log aggregated claim sums to Telegram (chain id for mainnet is 1)
+  const telegramLogger = new ClaimsTelegramLogger();
+  await telegramLogger.logClaims("warden/claimed_bounties.json", currentPeriod, warden);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
-generateWardenBounties(pastWeek); 
+generateWardenBounties(pastWeek);

@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
 
 const WEEK = 604800;
 
@@ -62,7 +63,11 @@ async function generateHiddenHandBounties(pastWeek: number = 0) {
   const jsonString = JSON.stringify(hiddenhand, customReplacer, 2);
   fs.writeFileSync(fileName, jsonString);
   console.log(`Hiddenhand weekly claims saved to ${fileName}`);
+
+  // Log aggregated claim sums to Telegram (chain id for mainnet is 1)
+  const telegramLogger = new ClaimsTelegramLogger();
+  await telegramLogger.logClaims("hiddenhand/claimed_bounties.json", currentPeriod, hiddenhand);
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
-generateHiddenHandBounties(pastWeek); 
+generateHiddenHandBounties(pastWeek);
