@@ -303,7 +303,7 @@ async function main() {
 
     writeFileSync(outputPath, JSON.stringify(updatedData, null, 2));
 
-    console.log("\n=== Delegation APR Calculation ===");
+    console.log("\n=== Voters APR Calculation ===");
     console.log(`Period Timestamp: ${result.timestamp}`);
     console.log(`Total Voting Power: ${result.totalVotingPower.toFixed(2)}`);
     console.log(`Period Reward Value: $${result.rewardValueUSD.toFixed(2)}`);
