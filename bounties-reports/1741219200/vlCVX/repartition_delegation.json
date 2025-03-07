@@ -7,6 +7,10 @@
       "0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": "10523171865203737552060",
       "0xdac17f958d2ee523a2206206994597c13d831ec7": "122581768"
     },
+    "totalSDTPerGroup": {
+      "forwarders": "761705000000000000000",
+      "nonForwarders": "4238295000000000000000"
+    },
     "totalForwardersShare": "0.15234189089561634",
     "totalNonForwardersShare": "0.8476581091043833",
     "forwarders": {

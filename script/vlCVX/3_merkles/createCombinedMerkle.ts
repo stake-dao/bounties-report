@@ -10,8 +10,9 @@ import { createCombineDistribution } from "../../utils/merkle";
 import { generateMerkleTree } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { Distribution } from "../../interfaces/Distribution";
-import { CVX_SPACE, ETHEREUM, SDT } from "../../utils/constants";
+import { CVX_SPACE, ETHEREUM, SDT, SDT_DELEGATORS_REWARD } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/distributionVerifier";
+import { fetchLastProposalsIds, getProposal } from "../../utils/snapshot";
 
 const WEEK = 604800;
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
@@ -49,10 +50,12 @@ for (const [address, data] of Object.entries(nonDelegators)) {
 // (A) For tokens other than SDT: from delegationTotalTokens * totalNonForwardersShare
 // (B) For SDT: totalSDT = 5000 SDT * (totalNonForwardersShare)
 
+// TODO : Tokens not on Ethereum, distributed on good chain
+
 const delegationTotalTokens = delegationSummary.totalTokens; // string amounts per token
 const totalNonForwardersShare = parseFloat(delegationSummary.totalNonForwardersShare);
 
-// We’ll build a new pool for non-SDT tokens.
+// We'll build a new pool for non-SDT tokens.
 const newDelegationPool: { [token: string]: bigint } = {};
 if (totalNonForwardersShare > 0) {
   for (const [token, totalStr] of Object.entries(delegationTotalTokens)) {
@@ -88,22 +91,17 @@ if (totalNonForwardersShare > 0) {
   }
 }
 
-// Now process SDT separately.
-// Total SDT to distribute = 5000 SDT * totalNonForwardersShare.
-const baseSDT = 5000n * (10n ** 18n);
-const totalSDT = baseSDT * BigInt(Math.floor(totalNonForwardersShare * 1e6)) / 1000000n;
-
-// Log total SDT pool.
-console.log("Total SDT Pool (to be distributed to forwarders):", totalSDT.toString());
+// Now process SDT separately (only for delegators)
+console.log("Total SDT Pool (to be distributed to non forwarders):", delegationSummary.totalSDTPerGroup.nonForwarders);
 
 // Calculate total forwarders share.
-const totalForwardersShare = Object.values(delegationSummary.forwarders)
+const totalNonForwardersShare = Object.values(delegationSummary.nonForwarders)
   .reduce((acc, s) => acc + parseFloat(s), 0);
 
-if (totalForwardersShare > 0) {
-  for (const [address, shareStr] of Object.entries(delegationSummary.forwarders)) {
+if (totalNonForwardersShare > 0) {
+  for (const [address, shareStr] of Object.entries(delegationSummary.nonForwarders)) {
     const share = parseFloat(shareStr);
-    const reward = BigInt(Math.floor((share / totalForwardersShare) * Number(totalSDT)));
+    const reward = BigInt(Math.floor((share / totalNonForwardersShare) * Number(delegationSummary.totalSDTPerGroup.nonForwarders)));
     const addr = address.toLowerCase();
     // SDT is added only to forwarders.
     if (combined[addr]) {
@@ -113,7 +111,7 @@ if (totalForwardersShare > 0) {
     }
   }
 } else {
-  console.warn("No forwarders found for SDT distribution.");
+  console.warn("No non-forwarders found for SDT distribution.");
 }
 
 // Load previous Merkle data.
@@ -139,14 +137,25 @@ const outputPath = path.join(reportsDir, "merkle_data_non_delegators.json");
 fs.writeFileSync(outputPath, JSON.stringify(newMerkleData, null, 2));
 console.log("Combined Merkle tree generated and saved as merkle_data_non_delegators.json");
 
-// TODO : use data as input directly.
-distributionVerifier(
-  CVX_SPACE,
-  mainnet,
-  "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
-  "bounties-reports/latest/vlCVX/merkle_data_non_delegators.json",
-  "bounties-reports/latest/vlCVX/merkle_data_non_delegators.json",
-  "bounties-reports/latest/vlCVX/repartition.json"
-);
+// Get and pass good proposal
+const filter = "^(?!FXN ).*Gauge Weight for Week of";
+const now = Math.floor(Date.now() / 1000);
+(async () => {
+  const proposalIdPerSpace = await fetchLastProposalsIds([CVX_SPACE], now, filter);
+  const proposalId = proposalIdPerSpace[CVX_SPACE];
+  console.log("proposalId", proposalId);
+
+  // Pass the data objects directly instead of file paths
+  distributionVerifier(
+    CVX_SPACE,
+    mainnet,
+    "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+    newMerkleData,
+    previousMerkleData,
+    currentDistribution.distribution,
+    proposalId
+  );
+})().catch(console.error);
+
 
 

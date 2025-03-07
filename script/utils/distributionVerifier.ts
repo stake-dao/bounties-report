@@ -1,4 +1,4 @@
-import { Chain, createPublicClient, http, parseAbi } from "viem";
+import { Chain, createPublicClient, erc20Abi, getAddress, http, parseAbi } from "viem";
 import { Distribution } from "../interfaces/Distribution";
 import { DistributionRow } from "../interfaces/DistributionRow";
 import { MerkleData } from "../interfaces/MerkleData";
@@ -7,13 +7,49 @@ import {
   delegationLogger,
   proposalInformationLogger,
 } from "./delegationHelper";
-import { getLastClosedProposal, getVoters } from "./snapshot";
+import { getLastClosedProposal, getProposal, getVoters } from "./snapshot";
 import fs from "fs";
 import path from "path";
-
 const merkleAbi = parseAbi([
   "function claimed(address,address) external view returns(uint256)",
 ]);
+
+// TODO : on utils
+
+export const getAllTokensInfos = async (tokenAddresses: string[], chain: Chain) => {
+  const client = createPublicClient({
+    chain,
+    transport: http(),
+  });
+
+  const symbolCalls = tokenAddresses.map((tokenAddr) => ({
+    address: tokenAddr as `0x${string}`,
+    abi: erc20Abi,
+    functionName: "symbol",
+    args: [],
+  }));
+
+  const decimalsCalls = tokenAddresses.map((tokenAddr) => ({
+    address: tokenAddr as `0x${string}`,
+    abi: erc20Abi,
+    functionName: "decimals",
+    args: [],
+  }));
+
+  const decimalsResults = await client.multicall({ contracts: decimalsCalls });
+  const symbolResults = await client.multicall({ contracts: symbolCalls });
+
+  const tokenInfoMap: { [token: string]: { decimals: number; symbol: string } } = {};
+  for (let i = 0; i < tokenAddresses.length; i++) {
+    const normalizedAddress = getAddress(tokenAddresses[i]);
+    tokenInfoMap[normalizedAddress] = {
+      decimals: decimalsResults[i].status === 'success' ? (decimalsResults[i].result as number) : 18,
+      symbol: symbolResults[i].status === 'success' ? (symbolResults[i].result as string) : normalizedAddress,
+    };
+  }
+  return tokenInfoMap;
+}
+
 
 const setupLogging = (proposalId: string): string => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -28,32 +64,18 @@ export const distributionVerifier = async (
   space: string,
   merkleChain: Chain,
   merkleAddress: `0x${string}`,
-  currentMerkleFile: string,
-  previousMerkleFile: string,
-  repartitionFile: string
+  currentMerkleData: MerkleData,
+  previousMerkleData: MerkleData,
+  distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
+  proposalId: any
 ) => {
-  let merkleData: MerkleData = { merkleRoot: "", claims: {} };
-  let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
-
-  if (fs.existsSync(currentMerkleFile)) {
-    merkleData = JSON.parse(fs.readFileSync(currentMerkleFile, "utf-8"));
-  }
-  if (fs.existsSync(previousMerkleFile)) {
-    previousMerkleData = JSON.parse(
-      fs.readFileSync(previousMerkleFile, "utf-8")
-    );
-  }
-
-  const currentDistribution: { distribution: Distribution } = JSON.parse(
-    fs.readFileSync(repartitionFile, "utf-8")
-  );
-
-  const addressCount = Object.keys(currentDistribution.distribution).length;
+  const addressCount = Object.keys(distribution).length;
   console.log(`Current Distribution has ${addressCount} addresses.`);
+
   const tokenSums: { [token: string]: bigint } = {};
-  for (const data of Object.values(currentDistribution.distribution)) {
-    for (const [token, amountStr] of Object.entries(data.tokens)) {
-      tokenSums[token] = (tokenSums[token] || 0n) + BigInt(amountStr);
+  for (const data of Object.values(distribution)) {
+    for (const [token, amount] of Object.entries(data.tokens)) {
+      tokenSums[token] = (tokenSums[token] || 0n) + amount;
     }
   }
   console.log("Token totals in current distribution:");
@@ -61,30 +83,59 @@ export const distributionVerifier = async (
     console.log(`${token}: ${sum.toString()}`);
   }
 
-  const proposal = await getLastClosedProposal(space);
-  const votes = await getVoters(proposal.id);
-  const logPath = setupLogging(proposal.id);
+  // --- Get token info using a single helper call ---
+  const tokenSet = new Set<string>();
+  for (const claim of Object.values(currentMerkleData.claims)) {
+    for (const tokenAddr of Object.keys(claim.tokens)) {
+      tokenSet.add(getAddress(tokenAddr));
+    }
+  }
+  const tokenAddresses = Array.from(tokenSet);
+  const tokenInfos = await getAllTokensInfos(tokenAddresses, merkleChain);
+
+  // --- Get proposal & votes ---
+  const activeProposal = await getProposal(proposalId);
+  console.log(activeProposal);
+  console.log(space);
+  const votes = await getVoters(activeProposal.id);
+  const logPath = setupLogging(activeProposal.id);
   const log = (message: string) => {
     fs.appendFileSync(logPath, `${message}\n`);
     console.log(message);
   };
 
-  proposalInformationLogger(space, proposal, log);
+  proposalInformationLogger(space, activeProposal, log);
   log("\n=== Delegation Information ===");
-  await delegationLogger(space, proposal, votes, log);
+  await delegationLogger(space, activeProposal, votes, log);
   log(`\nTotal Votes: ${votes.length}`);
   log(`\nHolder Distribution:`);
 
   const comparisonRows = await compareMerkleData(
-    merkleData,
+    currentMerkleData,
     previousMerkleData,
-    currentDistribution.distribution,
+    distribution,
     merkleChain,
-    merkleAddress
+    merkleAddress,
+    tokenInfos
   );
   logDistributionRowsToFile(comparisonRows, log);
 
-  // Optionally, send additional data to Telegram here.
+  // --- Log formatted Merkle totals per token ---
+  const merkleTokenTotals: { [token: string]: bigint } = {};
+  for (const claim of Object.values(currentMerkleData.claims)) {
+    for (const tokenAddr in claim.tokens) {
+      const normToken = getAddress(tokenAddr);
+      merkleTokenTotals[normToken] = (merkleTokenTotals[normToken] || 0n) + BigInt(claim.tokens[tokenAddr].amount);
+    }
+  }
+
+  console.log("\n=== Formatted Merkle Totals ===");
+  for (const tokenAddr of tokenAddresses) {
+    const info = tokenInfos[tokenAddr] || { decimals: 18, symbol: "UNKNOWN" };
+    const total = merkleTokenTotals[tokenAddr] || 0n;
+    const formatted = Number(total) / 10 ** info.decimals;
+    console.log(`${info.symbol} (${tokenAddr}): ${formatted.toFixed(2)}`);
+  }
 };
 
 const compareMerkleData = async (
@@ -92,7 +143,8 @@ const compareMerkleData = async (
   previousMerkleData: MerkleData,
   distribution: Distribution,
   chain: Chain,
-  merkleAddress: `0x${string}`
+  merkleAddress: `0x${string}`,
+  tokenInfos: { [token: string]: { decimals: number; symbol: string } }
 ): Promise<DistributionRow[]> => {
   const client = createPublicClient({
     chain,
@@ -115,54 +167,48 @@ const compareMerkleData = async (
     }
   }
 
-  // Execute multicall
   const results = await client.multicall({
     contracts: calls,
   });
 
   const distributionRows: DistributionRow[] = [];
 
-  // Parcourt tous les addresses du MerkleData actuel
   for (const address in currentMerkleData.claims) {
     const currentClaims = currentMerkleData.claims[address];
     const previousClaims = previousMerkleData.claims[address] || { tokens: {} };
 
-    // Parcourt tous les tokens pour cette adresse
     for (const tokenAddress in currentClaims.tokens) {
+      const normalizedTokenAddress = getAddress(tokenAddress);
+      const tokenInfo = tokenInfos[normalizedTokenAddress] || { decimals: 18, symbol: "UNKNOWN" };
+
       const currentTokenClaim = currentClaims.tokens[tokenAddress];
-      const previousTokenClaim = previousClaims.tokens[tokenAddress] || {
-        amount: "0",
-      };
+      const previousTokenClaim = previousClaims.tokens[tokenAddress] || { amount: "0" };
 
       const previousClaim = BigInt(previousTokenClaim.amount || "0");
       const weekChange = BigInt(currentTokenClaim.amount) - previousClaim;
 
-      let distributionAmount = BigInt(0);
+      let distributionAmount = 0n;
       const distributionUser = Object.keys(distribution).find(
         (user) => user.toLowerCase() === address.toLowerCase()
       );
       if (distributionUser) {
-        const distributionToken = Object.keys(
-          distribution[distributionUser].tokens
-        ).find((token) => token.toLowerCase() === tokenAddress.toLowerCase());
+        const distributionToken = Object.keys(distribution[distributionUser].tokens)
+          .find((token) => token.toLowerCase() === tokenAddress.toLowerCase());
         if (distributionToken) {
-          distributionAmount = BigInt(
-            distribution[distributionUser].tokens[distributionToken]
-          );
+          distributionAmount = BigInt(distribution[distributionUser].tokens[distributionToken]);
         }
       }
 
-      const isAmountDifferent =
-        distributionAmount !== BigInt(currentTokenClaim.amount) - previousClaim;
+      const isAmountDifferent = distributionAmount !== BigInt(currentTokenClaim.amount) - previousClaim;
       const claimedAmount = BigInt((results.shift()?.result as bigint) || "0");
 
       const row: DistributionRow = {
         address,
-        tokenAddress,
-        prevAmount: previousClaim,
-        newAmount: BigInt(currentTokenClaim.amount),
-        weekChange,
-        distributionAmount,
+        symbol: tokenInfo.symbol,
+        prevAmount: previousClaim / 10n ** BigInt(tokenInfo.decimals),
+        newAmount: BigInt(currentTokenClaim.amount) / 10n ** BigInt(tokenInfo.decimals),
+        weekChange: weekChange / 10n ** BigInt(tokenInfo.decimals),
+        distributionAmount: distributionAmount / 10n ** BigInt(tokenInfo.decimals),
         claimed: claimedAmount === previousClaim,
         isError: isAmountDifferent,
       };
@@ -178,9 +224,16 @@ const logDistributionRowsToFile = (
   distributionRows: DistributionRow[],
   log: (message: string) => void
 ) => {
+  distributionRows.sort((a, b) => {
+    if (a.address.toLowerCase() !== b.address.toLowerCase()) {
+      return a.address.toLowerCase() < b.address.toLowerCase() ? -1 : 1;
+    }
+    return b.weekChange > a.weekChange ? 1 : -1;
+  });
+
   const headers = [
     "Address",
-    "Token Address",
+    "Token",
     "Previous Amount",
     "New Amount",
     "Week Change",
@@ -191,32 +244,38 @@ const logDistributionRowsToFile = (
 
   const rows = distributionRows.map((row) => [
     formatAddress(row.address),
-    formatAddress(row.tokenAddress),
+    row.symbol.toUpperCase(),
     row.prevAmount.toString(),
     row.newAmount.toString(),
     row.weekChange.toString(),
     row.distributionAmount.toString(),
-    row.claimed ? `✅` : `❌`,
-    row.isError ? `❌` : `✅`,
+    row.claimed ? "✅" : "❌",
+    row.isError ? "❌" : "✅",
   ]);
 
   const columnWidths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => row[index].length))
   );
 
-  const headerLine = headers
-    .map((header, index) => header.padEnd(columnWidths[index]))
-    .join(" | ");
-
-  const separatorLine = columnWidths
-    .map((width) => "-".repeat(width))
-    .join("-|-");
-
+  const headerLine = headers.map((h, i) => h.padEnd(columnWidths[i])).join(" | ");
+  const separatorLine = columnWidths.map((w) => "-".repeat(w)).join("-|-");
   const formattedRows = rows.map((row) =>
-    row.map((cell, index) => cell.padEnd(columnWidths[index])).join(" | ")
+    row.map((cell, i) => cell.padEnd(columnWidths[i])).join(" | ")
   );
-
   const fileContent = [headerLine, separatorLine, ...formattedRows].join("\n");
 
   log(fileContent + "\n\n");
+
+  const tokenTotals: { [key: string]: { symbol: string; total: bigint } } = {};
+  for (const row of distributionRows) {
+    const key = row.symbol;
+    if (!tokenTotals[key]) {
+      tokenTotals[key] = { symbol: row.symbol, total: 0n };
+    }
+    tokenTotals[key].total += row.weekChange;
+  }
+  log("=== Token Week Change Totals ===");
+  for (const [token, data] of Object.entries(tokenTotals)) {
+    log(`${data.symbol.toUpperCase()} (${formatAddress(token)}): ${data.total.toString()}`);
+  }
 };

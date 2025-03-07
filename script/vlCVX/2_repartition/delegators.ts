@@ -1,4 +1,4 @@
-import { VOTIUM_FORWARDER } from "../../utils/constants";
+import { SDT_DELEGATORS_REWARD, VOTIUM_FORWARDER } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getVotingPower } from "../../utils/snapshot";
 
@@ -59,6 +59,7 @@ export const computeStakeDaoDelegation = async (
  *
  * {
  *   totalTokens: { token: string, ... },
+ *   totalSDTPerGroup: { forwarders: string, nonForwarders: string },
  *   totalForwardersShare: string,
  *   totalNonForwardersShare: string,
  *   forwarders: { [address: string]: share },
@@ -75,6 +76,10 @@ export const computeDelegationSummary = (
   let totalNonForwardersShare = 0;
   const forwarders: Record<string, string> = {};
   const nonForwarders: Record<string, string> = {};
+  const totalSDTPerGroup: Record<string, string> = {
+    forwarders: "0",
+    nonForwarders: "0",
+  };
 
   for (const [address, data] of Object.entries(delegationDistribution)) {
     if ("tokens" in data) {
@@ -97,8 +102,15 @@ export const computeDelegationSummary = (
     }
   }
 
+  // Calculate forwarders amount first
+  totalSDTPerGroup.forwarders = (SDT_DELEGATORS_REWARD * BigInt(Math.floor(totalForwardersShare * 1e6)) / 1000000n).toString();
+  
+  // Calculate non-forwarders as the remainder to ensure exact total
+  totalSDTPerGroup.nonForwarders = (SDT_DELEGATORS_REWARD - BigInt(totalSDTPerGroup.forwarders)).toString();
+
   return {
     totalTokens,
+    totalSDTPerGroup,
     totalForwardersShare: totalForwardersShare.toString(),
     totalNonForwardersShare: totalNonForwardersShare.toString(),
     forwarders,
