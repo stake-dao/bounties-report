@@ -7,6 +7,7 @@ import path from "path";
 import { getAddress } from "viem";
 import {
   DELEGATION_ADDRESS,
+  SPECTRA_SPACE,
 } from "../utils/constants";
 import { generateMerkleTree } from "../vlCVX/utils";
 import { MerkleData } from "../interfaces/MerkleData";
@@ -15,6 +16,7 @@ import { fetchTokenInfos } from "../utils/tokens";
 import { base } from "viem/chains";
 import { Distribution } from "../interfaces/Distribution";
 import { distributionVerifier } from "../utils/distributionVerifier";
+import { getLastClosedProposal } from "../utils/snapshot";
 
 const MERKLE_ADDRESS = "0x665d334388012d17f1d197de72b7b708ffccb67d" as `0x${string}`;
 
@@ -225,7 +227,11 @@ async function generateMerkles() {
 
   console.log("Merkle trees generated and saved successfully.");
 
-  distributionVerifier("sdapw.eth", "spectra", base, MERKLE_ADDRESS);
+  // --- Verification ---
+  const proposal = await getLastClosedProposal(SPECTRA_SPACE);
+  const proposalId = proposal.id;
+
+  distributionVerifier(SPECTRA_SPACE, base, MERKLE_ADDRESS, newMerkleData, previousMerkleData, currentDistribution.distribution, proposalId);
 }
 
 generateMerkles().catch(console.error);

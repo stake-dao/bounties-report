@@ -4,10 +4,59 @@ import { processAllDelegators } from "./cacheUtils";
 import { DELEGATION_ADDRESS } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
+import { VOTIUM_FORWARDER } from "./constants";
+
+// VOTIUM
+export const getForwardedDelegators = async (delegators: string[]): Promise<string[]> => {
+    // Assumes RPC_URL is set in your environment variables
+    const { createPublicClient, http } = await import('viem');
+    const { mainnet } = await import('viem/chains');
+    
+    const client = createPublicClient({
+      chain: mainnet,
+      transport: http(process.env.RPC_URL),
+    });
+    
+    const contractAddress = "0x92e6E43f99809dF84ed2D533e1FD8017eb966ee2";
+    const abi = [{ 
+      name: 'batchAddressCheck', 
+      type: 'function', 
+      stateMutability: 'view',
+      inputs: [{ name: 'accounts', type: 'address[]' }],
+      outputs: [{ name: '', type: 'address[]' }]
+    }];
+    
+    try {
+      const forwarded = await client.readContract({
+        address: contractAddress as `0x${string}`,
+        abi,
+        functionName: 'batchAddressCheck',
+        args: [delegators],
+      }) as string[];
+      
+      return forwarded;
+    } catch (error) {
+      console.error("Error in multicall to get forwarded delegators:", error);
+      // Return an array with empty strings if call fails
+      return new Array(delegators.length).fill("");
+    }
+  };
+  
+  
 
 export const delegationLogger = async (space: string, proposal: Proposal, voters: string[], log: (message: string) => void) => {
     log(`\nSpace: ${space}`);
     const delegatorData = await fetchDelegatorData(space, proposal);
+
+     // If space is cvx.eth, fetch forwarded addresses
+    let forwardedMap: Record<string, string> = {};
+    if (space === "cvx.eth" && delegatorData && delegatorData.delegators.length > 0) {
+        const forwardedAddresses = await getForwardedDelegators(delegatorData.delegators);
+        // Create a mapping from delegator to its forwarded address based on the input order
+        delegatorData.delegators.forEach((delegator, index) => {
+        forwardedMap[delegator] = forwardedAddresses[index];
+        });
+    }
 
     if (delegatorData) {
         const sortedDelegators = delegatorData.delegators
@@ -30,7 +79,8 @@ export const delegationLogger = async (space: string, proposal: Proposal, voters
             const vp = delegatorData.votingPowers[delegator];
             const share = (vp / delegatorData.totalVotingPower) * 100;
             const hasVoted = voters.includes(delegator.toLowerCase()) ? " (Voted by himself)" : "";
-            log(`- ${delegator}: ${vp.toFixed(2)} VP (${share.toFixed(2)}%)${hasVoted}`);
+            const forwarded = forwardedMap[delegator] && forwardedMap[delegator].toLowerCase() === VOTIUM_FORWARDER.toLowerCase();
+            log(`- ${delegator}: ${vp.toFixed(2)} VP (${share.toFixed(2)}%)${hasVoted} Forwarded: ${forwarded}`);
         }
     } else {
         log("No delegators found");
