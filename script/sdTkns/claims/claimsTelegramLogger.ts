@@ -195,7 +195,7 @@ export class ClaimsTelegramLogger {
     }
 
     // Build the message
-    const reportUrl = `https://github.com/stake-dao/bounties-report/tree/main/weekly-bounties/${currentPeriod}/${protocol}/${title}`;
+    const reportUrl = `https://github.com/stake-dao/bounties-report/tree/main/weekly-bounties/${currentPeriod}/${title}`;
     let message = `<a href="${reportUrl}"><b>[Distribution] Claimed bounties for ${protocol.toUpperCase()}</b></a>\n\n`;
     message += `<b>Period:</b> ${
       new Date(currentPeriod * 1000).toLocaleDateString('fr-FR')
