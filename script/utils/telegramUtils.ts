@@ -7,8 +7,8 @@ export async function sendTelegramMessage(
   message: string,
   parseMode: "MarkdownV2" | "HTML" = "MarkdownV2"
 ) {
-  const TELEGRAM_API_KEY = process.env.TELEGRAM_API_KEY;
-  const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+  const TELEGRAM_API_KEY = process.env.TELEGRAM_VERIF_API_KEY;
+  const TELEGRAM_CHAT_ID = process.env.TELEGRAM_VERIF_CHAT_ID;
 
   if (!TELEGRAM_API_KEY || !TELEGRAM_CHAT_ID) {
     console.error(

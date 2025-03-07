@@ -59,6 +59,8 @@ jobs:
           make -f automation/weekly-bounties.mk run-${{ inputs.bountyType || github.event.inputs.bountyType }} PAST_WEEK=${{ inputs.pastWeek || github.event.inputs.pastWeek }} CHAIN=${{ inputs.chain || github.event.inputs.chain }}
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
       - name: Run generate bounties script (all on schedule)
         if: github.event_name == 'schedule'
