@@ -107,6 +107,8 @@ const main = async () => {
       }
     });
   });
+  
+  // Process non-delegator distributions by chain
   Object.entries(nonDelegatorsDistribution).forEach(([voter, { tokens }]) => {
     const tokensByChain: Record<number, Record<string, bigint>> = { 1: {} };
     Object.entries(tokens).forEach(([tokenAddress, amount]) => {
@@ -121,6 +123,47 @@ const main = async () => {
         distributionsByChain[numChainId][voter] = { tokens: chainTokens };
       }
     });
+  });
+
+  // --- Process delegation summary by chain ---
+  const delegationSummaryByChain: Record<number, any> = { 1: {} };
+  
+  // Initialize with the base structure for each chain
+  Object.keys(tokenChainIds).forEach(token => {
+    const chainId = tokenChainIds[token.toLowerCase()];
+    if (!delegationSummaryByChain[chainId]) {
+      delegationSummaryByChain[chainId] = {
+        totalTokens: {},
+        totalPerGroup: {},
+        totalForwardersShare: delegationSummary.totalForwardersShare,
+        totalNonForwardersShare: delegationSummary.totalNonForwardersShare,
+        forwarders: delegationSummary.forwarders,
+        nonForwarders: delegationSummary.nonForwarders
+      };
+    }
+  });
+  
+  // Add Ethereum (chain 1) with the same structure
+  delegationSummaryByChain[1] = {
+    totalTokens: {},
+    totalPerGroup: {},
+    totalSDTPerGroup: delegationSummary.totalSDTPerGroup,
+    totalForwardersShare: delegationSummary.totalForwardersShare,
+    totalNonForwardersShare: delegationSummary.totalNonForwardersShare,
+    forwarders: delegationSummary.forwarders,
+    nonForwarders: delegationSummary.nonForwarders
+  };
+  
+  // Distribute tokens by chain
+  Object.entries(delegationSummary.totalTokens).forEach(([token, amount]) => {
+    const chainId = tokenChainIds[token.toLowerCase()] || 1;
+    delegationSummaryByChain[chainId].totalTokens[token] = amount;
+  });
+  
+  // Distribute totalPerGroup by chain
+  Object.entries(delegationSummary.totalPerGroup).forEach(([token, groupData]) => {
+    const chainId = tokenChainIds[token.toLowerCase()] || 1;
+    delegationSummaryByChain[chainId].totalPerGroup[token] = groupData;
   });
 
   // Helper to convert distributions to JSON-friendly format.
@@ -138,6 +181,8 @@ const main = async () => {
 
   const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX`;
   fs.mkdirSync(dirPath, { recursive: true });
+  
+  // Save non-delegator distributions by chain
   Object.entries(distributionsByChain).forEach(([chainId, chainDistribution]) => {
     const filename = chainId === "1" ? "repartition.json" : `repartition_${chainId}.json`;
     fs.writeFileSync(
@@ -146,11 +191,20 @@ const main = async () => {
     );
   });
 
-  // Save the delegation summary.
-  fs.writeFileSync(
-    `${dirPath}/repartition_delegation.json`,
-    JSON.stringify({ distribution: delegationSummary }, null, 2)
-  );
+  // Save delegation summaries by chain
+  Object.entries(delegationSummaryByChain).forEach(([chainId, chainDelegationSummary]) => {
+    // Only save if there are tokens for this chain
+    if (Object.keys(chainDelegationSummary.totalTokens).length > 0) {
+      const filename = chainId === "1" ? 
+        "repartition_delegation.json" : 
+        `repartition_delegation_${chainId}.json`;
+      
+      fs.writeFileSync(
+        `${dirPath}/${filename}`,
+        JSON.stringify({ distribution: chainDelegationSummary }, null, 2)
+      );
+    }
+  });
 
   console.log("vlCVX repartition generation completed successfully.");
 };

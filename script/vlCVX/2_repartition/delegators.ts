@@ -59,6 +59,7 @@ export const computeStakeDaoDelegation = async (
  *
  * {
  *   totalTokens: { token: string, ... },
+ *   totalPerGroup: { token: { forwarders: string, nonForwarders: string }, ... },
  *   totalSDTPerGroup: { forwarders: string, nonForwarders: string },
  *   totalForwardersShare: string,
  *   totalNonForwardersShare: string,
@@ -80,7 +81,9 @@ export const computeDelegationSummary = (
     forwarders: "0",
     nonForwarders: "0",
   };
+  const totalPerGroup: Record<string, { forwarders: string, nonForwarders: string }> = {};
 
+  // First pass: collect all shares and addresses
   for (const [address, data] of Object.entries(delegationDistribution)) {
     if ("tokens" in data) {
       // This is the delegation voter: extract token totals.
@@ -102,14 +105,45 @@ export const computeDelegationSummary = (
     }
   }
 
-  // Calculate forwarders amount first
+  // Second pass: normalize shares within each group
+  if (totalForwardersShare > 0) {
+    for (const address of Object.keys(forwarders)) {
+      const normalizedShare = (parseFloat(forwarders[address]) / totalForwardersShare).toString();
+      forwarders[address] = normalizedShare;
+    }
+  }
+
+  if (totalNonForwardersShare > 0) {
+    for (const address of Object.keys(nonForwarders)) {
+      const normalizedShare = (parseFloat(nonForwarders[address]) / totalNonForwardersShare).toString();
+      nonForwarders[address] = normalizedShare;
+    }
+  }
+
+  // Calculate forwarders amount first for SDT
   totalSDTPerGroup.forwarders = (SDT_DELEGATORS_REWARD * BigInt(Math.floor(totalForwardersShare * 1e6)) / 1000000n).toString();
   
-  // Calculate non-forwarders as the remainder to ensure exact total
+  // Calculate non-forwarders as the remainder to ensure exact total for SDT
   totalSDTPerGroup.nonForwarders = (SDT_DELEGATORS_REWARD - BigInt(totalSDTPerGroup.forwarders)).toString();
+
+  // Calculate totalPerGroup for each token
+  for (const [token, totalAmount] of Object.entries(totalTokens)) {
+    totalPerGroup[token] = {
+      forwarders: "0",
+      nonForwarders: "0"
+    };
+    
+    // Calculate forwarders amount first
+    const tokenBigInt = BigInt(totalAmount);
+    totalPerGroup[token].forwarders = (tokenBigInt * BigInt(Math.floor(totalForwardersShare * 1e6)) / 1000000n).toString();
+    
+    // Calculate non-forwarders as the remainder to ensure exact total
+    totalPerGroup[token].nonForwarders = (tokenBigInt - BigInt(totalPerGroup[token].forwarders)).toString();
+  }
 
   return {
     totalTokens,
+    totalPerGroup,
     totalSDTPerGroup,
     totalForwardersShare: totalForwardersShare.toString(),
     totalNonForwardersShare: totalNonForwardersShare.toString(),
