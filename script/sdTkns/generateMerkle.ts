@@ -188,7 +188,6 @@ const main = async () => {
           );
           proposalsPeriodsOTC[timestamp] = proposalId[timestamp];
         }
-
         // Merge OTC rewards into pendleRewards and add to total
         for (const timestamp of otcTimestamps) {
           const proposalId = proposalsPeriodsOTC[timestamp];
