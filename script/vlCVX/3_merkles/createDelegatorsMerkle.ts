@@ -13,80 +13,100 @@ import { MerkleData } from "../../interfaces/MerkleData";
 import { CVX_SPACE, SDT, CRVUSD } from "../../utils/constants";
 import { getCRVUsdTransfer } from "../utils";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
-import { fetchTokenInfos } from "../../utils/tokens";
 import { distributionVerifier } from "../../utils/distributionVerifier";
 import { fetchLastProposalsIds } from "../../utils/snapshot";
 
+// Number of seconds in one week
 const WEEK = 604800;
+
+// Round current UTC time down to the nearest week to get the current period timestamp
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
+
+// The directory to which we'll write the bounties reports for this period
 const reportsDir = path.join("bounties-reports", currentPeriodTimestamp.toString(), "vlCVX");
 
+// Path to the JSON file holding delegation data for this period
 const DELEGATION_FILE = path.join(reportsDir, "repartition_delegation.json");
 
+// Ensure the required file exists before proceeding
 if (!fs.existsSync(DELEGATION_FILE)) {
   console.error(`Delegation file not found: ${DELEGATION_FILE}`);
   process.exit(1);
 }
 
-// Load delegation data
+// Load the delegation data from disk
 const delegationData = JSON.parse(fs.readFileSync(DELEGATION_FILE, "utf8"));
 const delegationSummary = delegationData.distribution;
 
-// Initialize the distribution object for forwarders
+// Object where we'll accumulate final forwarder distributions
 const combined: { [address: string]: { tokens: { [token: string]: bigint } } } = {};
 
-// Get the total forwarders share
+// Extract the total share of forwarders from the loaded delegation summary
 const totalForwardersShare = parseFloat(delegationSummary.totalForwardersShare);
 
-// Skip processing if no forwarders
+// If no forwarders are present, there's no need to do anything
 if (totalForwardersShare <= 0) {
   console.warn("No forwarders found in delegation data.");
   process.exit(0);
 }
 
-// Get block numbers for crvUSD transfer calculation
+/**
+ * Main function to compute forwarder rewards, build a Merkle tree,
+ * and run the distribution verifier.
+ */
 async function processForwarders() {
+  // Create a public viem client for mainnet (using an RPC URL from .env if provided)
   const publicClient = createPublicClient({
     chain: mainnet,
     transport: http(process.env.RPC_URL || "https://rpc.flashbots.net"),
   });
 
+  // Fetch the current block number
   const currentBlock = Number(await publicClient.getBlockNumber());
-  const minBlock = await getClosestBlockTimestamp("ethereum", currentPeriodTimestamp - WEEK); // TODO : Current week
 
-  // Get crvUSD transfer amount for the week
+  // We'll look for transfers since the start of the current period,
+  // i.e., the block near `currentPeriodTimestamp`
+  const minBlock = await getClosestBlockTimestamp("ethereum", currentPeriodTimestamp);
+
+  // Query the CRVUSD transfer data within the specified block range
   const crvUsdTransfer = await getCRVUsdTransfer(minBlock, currentBlock);
+
+  // We store the total amount of crvUSD found during this time frame
   let totalCrvUsd = crvUsdTransfer.amount;
 
-  // Remove a small amount for rounding issues
+  // Subtract a small buffer to avoid minor rounding issues
   totalCrvUsd -= BigInt(10 ** 14);
-
   console.log("Total crvUSD for distribution:", totalCrvUsd.toString());
 
-  // Get SDT amount from delegation summary
+  // Similarly, retrieve the SDT amount to distribute from the delegation summary
+  // If it's missing, we'll use a default fallback of 5000 SDT
   let totalSDT = 0n;
   if (delegationSummary.totalSDTPerGroup && delegationSummary.totalSDTPerGroup.forwarders) {
     totalSDT = BigInt(delegationSummary.totalSDTPerGroup.forwarders);
     console.log("Total SDT for distribution to forwarders:", totalSDT.toString());
   } else {
-    // Fallback to 5000 SDT if not specified in delegation summary
+    // Fallback to 5000 SDT (with 18 decimals) if not specified in the summary
     totalSDT = 5000n * BigInt(10 ** 18);
     console.log("Using default 5000 SDT for distribution");
   }
 
-  // Remove a small amount for rounding issues
+  // Again subtract a small buffer for rounding issues
   totalSDT -= BigInt(10 ** 14);
 
-  // Process forwarders
+  // Iterate over each forwarder from the delegation summary
+  // Calculate their portion of both crvUSD and SDT
   for (const [address, shareStr] of Object.entries(delegationSummary.forwarders)) {
     const share = parseFloat(shareStr);
-    if (share <= 0) continue;
+    if (share <= 0) continue; // Skip any zero or negative shares
 
-    // Calculate rewards based on share
+    // Convert the share to a BigInt-based fraction and multiply by total token amounts
     const crvUsdAmount = (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
     const sdtAmount = (totalSDT * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
 
+    // Convert the address to EIP-55 format
     const addr = getAddress(address);
+
+    // Only add if the user gets a non-zero allocation
     if (crvUsdAmount > 0n || sdtAmount > 0n) {
       combined[addr] = { tokens: {} };
       if (crvUsdAmount > 0n) {
@@ -98,7 +118,8 @@ async function processForwarders() {
     }
   }
 
-  // Load previous Merkle data
+  // Load previous Merkle data for forwarders (if any)
+  // This file is used to ensure continuity of claims across periods
   const previousMerkleDataPath = path.join(
     "bounties-reports",
     "latest",
@@ -114,25 +135,29 @@ async function processForwarders() {
     console.log("No previous merkle data found for delegators in latest directory");
   }
 
+  // Combine the current distribution with the previous claims
+  // so that any leftover / carry-over amounts remain claimable
   const currentDistribution = { distribution: combined };
   const universalMerkle = createCombineDistribution(currentDistribution, previousMerkleData);
   const newMerkleData: MerkleData = generateMerkleTree(universalMerkle);
 
   console.log("Delegators Merkle Root:", newMerkleData.merkleRoot);
 
-  // Ensure the output directory exists
+  // Ensure output directory exists
   if (!fs.existsSync(reportsDir)) {
     fs.mkdirSync(reportsDir, { recursive: true });
   }
 
+  // Write the newly generated Merkle data to a JSON file
   const outputPath = path.join(reportsDir, "merkle_data_delegators.json");
   fs.writeFileSync(outputPath, JSON.stringify(newMerkleData, null, 2));
   console.log("Delegators Merkle tree generated and saved as merkle_data_delegators.json");
   
-  // Run distribution verifier
+  // Attempt to verify distribution on mainnet
   const filter = "^(?!FXN ).*Gauge Weight for Week of";
   const now = Math.floor(Date.now() / 1000);
   try {
+    // Find the proposal ID used for verifying distribution
     const proposalIdPerSpace = await fetchLastProposalsIds([CVX_SPACE], now, filter);
     const proposalId = proposalIdPerSpace[CVX_SPACE];
     console.log("Running verifier with proposalId:", proposalId);
@@ -140,7 +165,7 @@ async function processForwarders() {
     distributionVerifier(
       CVX_SPACE,
       mainnet,
-      "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+      "0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380", // Target contract
       newMerkleData,
       previousMerkleData,
       currentDistribution.distribution,
@@ -151,6 +176,5 @@ async function processForwarders() {
   }
 }
 
-
-// Execute the script
+// Run the forwarders processing flow
 processForwarders().catch(console.error);

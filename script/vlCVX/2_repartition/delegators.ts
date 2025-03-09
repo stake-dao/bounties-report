@@ -8,6 +8,16 @@ export type DelegationDistribution = Record<
   | { share: string; shareNonForwarders: string; shareForwarders: string }
 >;
 
+export type DelegationSummary = {
+  totalTokens: Record<string, string>;
+  totalPerGroup: Record<string, { forwarders: string; nonForwarders: string }>;
+  totalSDTPerGroup?: { forwarders: string; nonForwarders: string };
+  totalForwardersShare: string;
+  totalNonForwardersShare: string;
+  forwarders: Record<string, string>;
+  nonForwarders: Record<string, string>;
+};
+
 /**
  * Computes vlcvx rewards distribution for StakeDAO delegators.
  *   - share: the relative share (as a string)
@@ -71,13 +81,13 @@ export const computeStakeDaoDelegation = async (
  */
 export const computeDelegationSummary = (
   delegationDistribution: DelegationDistribution
-) => {
+): DelegationSummary => {
   let totalTokens: Record<string, string> = {};
   let totalForwardersShare = 0;
   let totalNonForwardersShare = 0;
   const forwarders: Record<string, string> = {};
   const nonForwarders: Record<string, string> = {};
-  const totalSDTPerGroup: Record<string, string> = {
+  const totalSDTPerGroup: { forwarders: string; nonForwarders: string } = {
     forwarders: "0",
     nonForwarders: "0",
   };
