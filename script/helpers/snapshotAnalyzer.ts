@@ -123,7 +123,16 @@ async function main() {
     const secondEpoch = currentEpoch + WEEK;
     log("\n=== Epoch Distribution ===");
     log(`First Epoch (rounded down on Thursday): ${new Date(currentEpoch * 1000).toUTCString()} (${currentEpoch})`);
+    
+    // Calculate Tuesday distribution date for first epoch (5 days after Thursday)
+    const firstTuesdayDistrib = new Date((currentEpoch + (5 * 86400)) * 1000);
+    log(`Tuesday distrib: ${firstTuesdayDistrib.getDate().toString().padStart(2, '0')}/${(firstTuesdayDistrib.getMonth() + 1).toString().padStart(2, '0')}`);
+    
     log(`Second Epoch: ${new Date(secondEpoch * 1000).toUTCString()} (${secondEpoch})`);
+    
+    // Calculate Tuesday distribution date for second epoch (5 days after Thursday)
+    const secondTuesdayDistrib = new Date((secondEpoch + (5 * 86400)) * 1000);
+    log(`Tuesday distrib: ${secondTuesdayDistrib.getDate().toString().padStart(2, '0')}/${(secondTuesdayDistrib.getMonth() + 1).toString().padStart(2, '0')}`);
 
     // Fetch votes
     const votes = await getVoters(proposal.id);
