@@ -223,7 +223,11 @@ const main = async () => {
       csvResult,
       pendleRewards,
       sdFXSWorkingData,
-      sdCakeWorkingData
+      sdCakeWorkingData,
+      {
+        "sdcrv.eth": 1330,
+        "sdbal.eth": 48
+      }
     );
 
     newMerkles.push(merkleStat.merkle);
