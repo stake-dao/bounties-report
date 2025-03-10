@@ -46,10 +46,9 @@ async function main() {
       process.exit(1);
     }
     const now = Math.floor(Date.now() / 1000);
-    const filter = args.space === "cvx.eth" ? "^(?!FXN ).*Gauge Weight*": "*Gauge vote.*$";
+    const filter = args.space === "cvx.eth" ? "^(?!FXN ).*Gauge Weight*" : "*Gauge vote.*$";
 
-    // TODO : If cvx.eth, also fetch for each delegator the Votium forwarded status
-
+    // TODO: If cvx.eth, also fetch for each delegator the Votium forwarded status
     const proposalIds = await fetchLastProposalsIds([args.space], now, filter);
     if (proposalIds.length === 0) {
       console.error(`No proposals found for space ${args.space}`);
@@ -73,6 +72,7 @@ async function main() {
     console.log(message);
   };
 
+  // Log basic proposal info
   log("=== Proposal Information ===");
   log(`ID: ${proposal.id}`);
   log(`Title: ${proposal.title}`);
@@ -82,6 +82,14 @@ async function main() {
   log(`Start: ${new Date(proposal.start * 1000).toLocaleString()}`);
   log(`End: ${new Date(proposal.end * 1000).toLocaleString()}`);
   log(`Snapshot Block: ${proposal.snapshot}`);
+
+  // --- Epoch Distribution ---
+  const WEEK = 604800; // seconds in a week
+  const currentEpoch = Math.floor(proposal.end / WEEK) * WEEK + WEEK; // One week after the end of the proposal
+  const secondEpoch = currentEpoch + WEEK;
+  log("\n=== Epoch Distribution ===");
+  log(`First Epoch (rounded down on Thursday): ${new Date(currentEpoch * 1000).toUTCString()} (${currentEpoch})`);
+  log(`Second Epoch: ${new Date(secondEpoch * 1000).toUTCString()} (${secondEpoch})`);
 
   const votes = await getVoters(proposal.id);
   log(`Total Votes: ${votes.length}`);

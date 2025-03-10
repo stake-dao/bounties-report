@@ -16,8 +16,8 @@ This is the process of distributing Votemarket rewards to vlCVX voters and Stake
 2. Calculates the repartition of rewards per token and gauge (`distribution/generateBounties`)
 3. Generates report (rewards / gauges) (`1_report.ts`)
 4. Generates repartition data for vlCVX voters and delegators (`2_repartition.ts`)
-5. Swaps tokens to sdCRV (`automation-jobs`)
-6. Computes sdCRV amounts for delegators, using shares present in `repartition_delegation.json` (`3_generateMerkles`)
+5. Swaps tokens to crvUSD (`automation-jobs`)
+6. Computes crvUSD amounts for delegators, using shares present in `repartition_delegation.json` (`3_generateMerkles`)
 7. Generates Merkle trees for both vlCVX voters and delegators (`3_generateMerkles`) => `merkle_data.json`
 8. Withdraws funds to respective Merkle contracts (`automation-jobs`)
 9. Sets Merkle roots for distribution (`automation-jobs`)

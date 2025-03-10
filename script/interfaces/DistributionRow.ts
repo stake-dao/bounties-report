@@ -1,6 +1,6 @@
 export interface DistributionRow {
     address: string;
-    tokenAddress: string;
+    symbol: string;
     prevAmount: bigint;
     newAmount: bigint;
     weekChange: bigint;
