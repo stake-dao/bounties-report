@@ -705,55 +705,70 @@ async function main() {
       totalSdTokenOut,
     } = protocolSummary;
 
-    // Ratios
-    const wethToNativeRatio = totalNativeOut / totalWethIn;
+    // Calculate the total amount of native tokens from bounties
+    const nativeFromBounties = bounties
+      .filter(bounty => bounty.rewardToken.toLowerCase() === native)
+      .reduce((sum, bounty) => {
+        const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
+        const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+        return sum + formattedAmount;
+      }, 0);
 
-    console.log("totalNativeIn", totalNativeIn);
-    console.log("totalWethOut", totalWethOut);
-    console.log("wethToNativeRatio", wethToNativeRatio);
+    console.log("Native tokens from bounties:", nativeFromBounties);
+
+    // Calculate the native tokens that came from WETH (total minus native bounties)
+    const nativeFromWeth = totalNativeOut - nativeFromBounties;
+    // Calculate the ratio of native tokens per WETH
+    const wethToNativeRatio = totalWethIn > 0 ? nativeFromWeth / totalWethIn : 0;
+
+    console.log("totalNativeOut:", totalNativeOut);
+    console.log("nativeFromBounties:", nativeFromBounties);
+    console.log("nativeFromWeth (totalNativeOut - nativeFromBounties):", nativeFromWeth);
+    console.log("totalWethIn:", totalWethIn);
+    console.log("wethToNativeRatio:", wethToNativeRatio);
 
     let totalShares = 0;
 
-    // First pass: calculate shares
+    // Calculate shares based on native token equivalents
     bounties.forEach((bounty: any) => {
       const rewardToken = bounty.rewardToken.toLowerCase();
       const tokenInfo = tokenInfos[rewardToken];
-      const formattedAmount =
-        Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+      const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
 
-      let share = 0;
-
-      console.log("rewardToken", rewardToken);
-      console.log("formattedAmount", formattedAmount);
-      console.log("totalNativeOut", totalNativeOut);
+      let nativeEquivalent = 0;
 
       if (rewardToken === native) {
-        console.log("formattedAmount", formattedAmount);
-        share = formattedAmount / totalNativeOut;
-      } else if (rewardToken === sdToken) {
-        // No action needed for sdToken, share remains 0
+        // Direct native token
+        nativeEquivalent = formattedAmount;
       } else if (rewardToken === WETH_ADDRESS.toLowerCase()) {
-        const nativeAmount = formattedAmount * wethToNativeRatio;
-        console.log("formattedAmount", formattedAmount);
-        console.log("nativeAmount for the WETH", nativeAmount);
-        share = nativeAmount / totalNativeOut;
+        // Convert WETH to native
+        nativeEquivalent = formattedAmount * wethToNativeRatio;
       } else {
+        // For other tokens, find their WETH equivalent and convert to native
         const tokenSummary = protocolSummary.tokens.find(
           (t) => t.address.toLowerCase() === rewardToken
         );
         if (tokenSummary) {
           const localShare = formattedAmount / tokenSummary.amount;
           const wethAmount = tokenSummary.weth * localShare;
-          const nativeAmount = wethAmount * wethToNativeRatio;
-          share = nativeAmount / totalNativeOut;
+          nativeEquivalent = wethAmount * wethToNativeRatio;
         }
       }
 
-      bounty.share = share;
-      totalShares += share;
+      bounty.nativeEquivalent = nativeEquivalent;
+      console.log(`Bounty ${bounty.bountyId} - Token: ${rewardToken}, Amount: ${formattedAmount}, Native Equivalent: ${nativeEquivalent}`);
     });
 
-    console.log("totalShares", totalShares);
+    // Calculate total native equivalent
+    const totalNativeEquivalent = bounties.reduce((acc, bounty) => acc + (bounty.nativeEquivalent || 0), 0);
+    console.log("Total native equivalent:", totalNativeEquivalent);
+
+    // Calculate shares based on native equivalents
+    bounties.forEach((bounty) => {
+      bounty.share = bounty.nativeEquivalent / totalNativeEquivalent;
+      console.log(`Bounty ${bounty.bountyId} - Share: ${bounty.share}`);
+      totalShares += bounty.share;
+    });
 
     // Second pass: normalize shares and calculate SD token amounts
     bounties.forEach((bounty: any) => {
