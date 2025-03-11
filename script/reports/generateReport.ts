@@ -557,7 +557,7 @@ async function main() {
     } = protocolSummary;
 
     // Ratios
-    const wethToNativeRatio = totalNativeIn / totalWethOut;
+    const wethToNativeRatio = totalNativeOut / totalWethIn; // TODO : As on OTC (one for both ? )
 
     let totalShares = 0;
 
