@@ -288,6 +288,8 @@ async function main() {
   // Collect tokens only for specified protocol
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
   const allTokens = collectAllTokens(aggregatedBounties, protocolTokens);
+
+  // TODO : Fix, not take if not on Ethereum
   const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens));
 
   // Get gauge infos only for specified protocol
@@ -348,6 +350,9 @@ async function main() {
 
   const swapInFiltered = processSwaps(swapIn, tokenInfos);
   const swapOutFiltered = processSwaps(swapOut, tokenInfos);
+
+  // TODO: Filter out sdTokens that are for OTC
+
 
   const swapsData: Record<string, Record<number, SwapData>> = {};
 
@@ -424,7 +429,6 @@ async function main() {
       }
     }
   }
-
   const allMatches = Object.entries(swapsData).flatMap(([protocol, blocks]) =>
     Object.entries(blocks).flatMap(([blockNumber, blockData]) => {
       const matches = matchWethInWithRewardsOut(blockData);
