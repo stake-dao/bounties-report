@@ -83,7 +83,7 @@ export const distributionVerifier = async (space: string, folderName: string, me
 
     // Delegation breakdown
     log("\n=== Delegation Information ===");
-    await delegationLogger(space, proposal, log);
+    await delegationLogger(space, proposal, votes, log);
 
     // Votes
     log(`\nTotal Votes: ${votes.length}`);
