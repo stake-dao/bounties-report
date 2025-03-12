@@ -1,51 +1,50 @@
-# vlCVX Distribution Script
+# vlCVX Rewards Distribution Process
 
-This directory contains scripts for managing the distribution of rewards for vlCVX voters and delegators.
+This document outlines the process for distributing rewards to vlCVX voters and delegators.
 
 ## Process Overview
-[![](https://mermaid.ink/img/pako:eNqVU12PmzAQ_CuW77GOmkvUh3BSJSCXJlIr5aNKq0AenHhJ3GCMbHNpdbr_3gXTFqpUuoIEhp2ZHXvsZ3rUAmhAT4aXZ_J5mhYErzCJcy4VMXDlRliiC7LVDhQ3F3B7Mhi8J1HyARwCSm6cdBIRJRji9AWKtydenWDvpaIGHSO6AMMd9CiZNuQpj7dfyRsiIIcTd9rYlumfccOfJZsrL728xRexIl5vW-CsgcyTWKuywg5NjXClq8I1rn5L95TnDW3xx9knMJcciDMAtmPtCWduLOGF-JfHRaO0TL5IdxaGX0lmtGrZBo6ylIBO0LXyHcJ9l7d6NS_qdV027HWyqXPQ2nnPf7VYNaDNbVBfz1YHvwtSuoZSW4nzlGBT6su7-4RXTiteJzf4pg-_1mA3Sg71UiN2gOFq49oCFKKrf8y5tVPI6h2gQ5LJPA_uJsPHx8mQWWcw2uBuPB6348FVCncORuX3hxv0qKXPZuG74f_RMUE01vKzSX2_ht9RISGbsSVbsTXb-Ml0e5CIxWzOFt5nr7K7vwHfjW4gP3qT3usDZRQTU1wKPKnPNS6l7gwKUhrgUEDGq9zVQb0gtE5p86M40sCZChg1ujqdaZDx3OJXVQrc61PJMWvV_n35CZHFTIk?type=png)](https://mermaid.live/edit#pako:eNqVU12PmzAQ_CuW77GOmkvUh3BSJSCXJlIr5aNKq0AenHhJ3GCMbHNpdbr_3gXTFqpUuoIEhp2ZHXvsZ3rUAmhAT4aXZ_J5mhYErzCJcy4VMXDlRliiC7LVDhQ3F3B7Mhi8J1HyARwCSm6cdBIRJRji9AWKtydenWDvpaIGHSO6AMMd9CiZNuQpj7dfyRsiIIcTd9rYlumfccOfJZsrL728xRexIl5vW-CsgcyTWKuywg5NjXClq8I1rn5L95TnDW3xx9knMJcciDMAtmPtCWduLOGF-JfHRaO0TL5IdxaGX0lmtGrZBo6ylIBO0LXyHcJ9l7d6NS_qdV027HWyqXPQ2nnPf7VYNaDNbVBfz1YHvwtSuoZSW4nzlGBT6su7-4RXTiteJzf4pg-_1mA3Sg71UiN2gOFq49oCFKKrf8y5tVPI6h2gQ5LJPA_uJsPHx8mQWWcw2uBuPB6348FVCncORuX3hxv0qKXPZuG74f_RMUE01vKzSX2_ht9RISGbsSVbsTXb-Ml0e5CIxWzOFt5nr7K7vwHfjW4gP3qT3usDZRQTU1wKPKnPNS6l7gwKUhrgUEDGq9zVQb0gtE5p86M40sCZChg1ujqdaZDx3OJXVQrc61PJMWvV_n35CZHFTIk)
 
+0. **Claims rewards from Votium** (Wednesday)
+   - Claims forwarded rewards from Votium for delegators who opted to forward their rewards
+   - This happens one day before Votemarket claims
 
-## Description
+1. **Claims rewards from Votemarket** (Thursday) (`claims/generateConvexVotemarket.ts` and `claims/generateConvexVotemarketV2.ts`)
+   - Fetches claimed bounties from Votemarket v1 and v2
+   - Saves data to JSON files for further processing
 
-This is the process of distributing Votemarket rewards to vlCVX voters and Stake DAO delegators on vlCVX. It performs the following key steps:
+2. **Generates report (rewards / gauges)** (`1_report.ts`)
+   - Processes claimed bounties data
+   - Creates a CSV report with reward details per gauge
+   - Saves report to `bounties-reports/{timestamp}/cvx.csv`
 
-*All the files are stored in `bounties-reports/{timestamp}/vlCVX/`*
+3. **Generates repartition data** (`2_repartition/index.ts`)
+   - Calculates distribution for non-delegators (`2_repartition/nonDelegators.ts`)
+   - Calculates distribution for delegators (`2_repartition/delegators.ts`)
+   - Handles forwarding status on Votium for delegators
+   - Saves data to:
+     - `bounties-reports/{timestamp}/vlCVX/repartition.json` (and chain-specific variants)
+     - `bounties-reports/{timestamp}/vlCVX/repartition_delegation.json` (and chain-specific variants)
 
-1. Claims rewards from Votemarket (`automation-jobs`)
-2. Calculates the repartition of rewards per token and gauge (`distribution/generateBounties`)
-3. Generates report (rewards / gauges) (`1_report.ts`)
-4. Generates repartition data for vlCVX voters and delegators (`2_repartition.ts`)
-5. Swaps tokens to crvUSD (`automation-jobs`)
-6. Computes crvUSD amounts for delegators, using shares present in `repartition_delegation.json` (`3_generateMerkles`)
-7. Generates Merkle trees for both vlCVX voters and delegators (`3_generateMerkles`) => `merkle_data.json`
-8. Withdraws funds to respective Merkle contracts (`automation-jobs`)
-9. Sets Merkle roots for distribution (`automation-jobs`)
+4. **Swaps forwarded delegators rewards to crvUSD** (handled by automation-jobs)
 
-The process involves interactions with two repositories:
-- `automation-jobs` (green): Handles automated tasks like claiming rewards and token swaps
-- `bounties-report` (orange): Manages repartition calculations, Merkle tree generation, and distribution setup.
+5. **Generates Merkle trees** (`3_merkles.ts`)
+   - For vlCVX voters: `3_merkles/createCombinedMerkle.ts`
+     - Processes distribution data across multiple chains
+     - Generates chain-specific Merkle trees
+     - Taking also into account delegators non-forwarded rewards + SDT for them
+   - For delegators: `3_merkles/createDelegatorsMerkle.ts`
+     - Computes crvUSD amounts for delegators using shares from `repartition_delegation.json`
+     - Generates a separate Merkle tree for delegators
+   - Saves Merkle data to:
+     - `bounties-reports/{timestamp}/vlCVX/merkle_data_{CHAIN_ID}.json`
+     - `bounties-reports/{timestamp}/vlCVX/merkle_data_delegators.json`
 
-## Verification Tools
+6. **Withdraws funds to respective Merkle contracts** (handled by automation-jobs)
 
-### Proposal Helper
+7. **Sets Merkle roots for distribution** (handled by automation-jobs)
+   - Thursday: Distributes unprocessed rewards (non-delegators + non-forwarded ones)
+   - Tuesday: Distributes swapped rewards (for delegators who forwarded their Votium rewards)
 
-A proposal helper script is available to verify voter participation and voting power distribution. You can use it to analyze specific gauges in a proposal:
-
-```bash
-pnpm tsx script/proposalHelper.ts --proposalId <PROPOSAL_ID> --gauges <GAUGE_ADDRESSES>
-```
-
-This script helps verify the correct distribution of rewards by providing detailed information about:
-- Voter participation
-- Individual voting power
-- Delegation details
-- Vote distribution across gauges, by linking with snapshot choices
-
-### Distribution Verification
-
-All distribution calculations and Merkle tree generations can be verified through GitHub Actions logs under the `generate-vlcvx-merkles` workflow. These logs provide transparent tracking of reward distributions, including detailed breakdowns by token and recipient.
-
-The process involves interactions with two repositories:
-- `automation-jobs` (green): Handles automated tasks like claiming rewards and token swaps
-- `bounties-report` (orange): Manages repartition calculations, Merkle tree generation, and distribution setup.
+8. **Copies Merkle data to latest directory** (GitHub workflow: `copy-vlCVX-merkle.yaml`)
+   - Copies temporary Merkle data to `bounties-reports/latest/vlCVX_merkle.json`
+   - Computes and publishes APR (non-delegators on Thursday, delegators on Tuesday)
