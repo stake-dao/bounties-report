@@ -1,5 +1,3 @@
-// Common structure for report generation
-
 import {
   PROTOCOLS_TOKENS,
   matchWethInWithRewardsOut,
@@ -92,7 +90,9 @@ interface CSVRow {
   sharePercentage: number;
 }
 
-// USE TYPES
+/**
+ * Processes swap events and bounties to generate CSV rows grouped by protocol.
+ */
 function processReport(
   swapsIn: ProcessedSwapEvent[],
   swapsOut: ProcessedSwapEvent[],
@@ -100,68 +100,74 @@ function processReport(
   tokenInfos: Record<string, TokenInfo>,
   excludedSwapsInBlockNumbers: number[]
 ): { [protocol: string]: CSVRow[] } {
-  // Organize swaps data by protocol and block number
+  // Organize swaps data by protocol and block number.
   const swapsData: Record<string, Record<number, SwapData>> = {};
-  for (const [key, protocolInfos] of Object.entries(PROTOCOLS_TOKENS)) {
-    swapsData[key] = {};
 
-    // Process sdTokenIn
+  for (const [protocol, tokenConfig] of Object.entries(PROTOCOLS_TOKENS)) {
+    swapsData[protocol] = {};
+
+    // Process sdTokenIn events.
     for (const swap of swapsIn) {
       if (excludedSwapsInBlockNumbers.includes(swap.blockNumber)) continue;
-      if (swap.token.toLowerCase() === protocolInfos.sdToken.toLowerCase()) {
-        if (!swapsData[key][swap.blockNumber]) {
-          swapsData[key][swap.blockNumber] = { sdTokenIn: [] };
+      if (swap.token.toLowerCase() === tokenConfig.sdToken.toLowerCase()) {
+        if (!swapsData[protocol][swap.blockNumber]) {
+          swapsData[protocol][swap.blockNumber] = { sdTokenIn: [] };
         }
-        swapsData[key][swap.blockNumber].sdTokenIn!.push(swap.formattedAmount);
+        swapsData[protocol][swap.blockNumber].sdTokenIn!.push(
+          swap.formattedAmount
+        );
       }
     }
 
-    // Process remaining swaps (both in and out)
+    // Process remaining swap events (both in and out).
     for (const swap of [...swapsIn, ...swapsOut]) {
       if (excludedSwapsInBlockNumbers.includes(swap.blockNumber)) continue;
-      if (!swapsData[key][swap.blockNumber]) continue;
+      if (!swapsData[protocol][swap.blockNumber]) continue;
 
-      const isNative =
-        swap.token.toLowerCase() === protocolInfos.native.toLowerCase();
-      const isWeth = swap.token.toLowerCase() === WETH_ADDRESS.toLowerCase();
-      const isSdToken =
-        swap.token.toLowerCase() === protocolInfos.sdToken.toLowerCase();
-      const isReward = ![
-        WETH_ADDRESS,
-        protocolInfos.native,
-        protocolInfos.sdToken,
-      ].includes(swap.token.toLowerCase());
+      const token = swap.token.toLowerCase();
+      const isNative = token === tokenConfig.native.toLowerCase();
+      const isWeth = token === WETH_ADDRESS.toLowerCase();
+      const isSdToken = token === tokenConfig.sdToken.toLowerCase();
+      const isReward = ![WETH_ADDRESS, tokenConfig.native, tokenConfig.sdToken]
+        .map((t) => t.toLowerCase())
+        .includes(token);
 
       if (swapsIn.includes(swap)) {
         if (isNative) {
-          swapsData[key][swap.blockNumber].nativeIn ??= [];
-          swapsData[key][swap.blockNumber].nativeIn!.push(swap.formattedAmount);
+          swapsData[protocol][swap.blockNumber].nativeIn ??= [];
+          swapsData[protocol][swap.blockNumber].nativeIn!.push(
+            swap.formattedAmount
+          );
         } else if (isWeth) {
-          swapsData[key][swap.blockNumber].wethIn ??= [];
-          swapsData[key][swap.blockNumber].wethIn!.push(swap.formattedAmount);
+          swapsData[protocol][swap.blockNumber].wethIn ??= [];
+          swapsData[protocol][swap.blockNumber].wethIn!.push(
+            swap.formattedAmount
+          );
         }
       } else if (swapsOut.includes(swap)) {
         if (isNative) {
-          swapsData[key][swap.blockNumber].nativeOut ??= [];
-          swapsData[key][swap.blockNumber].nativeOut!.push(
+          swapsData[protocol][swap.blockNumber].nativeOut ??= [];
+          swapsData[protocol][swap.blockNumber].nativeOut!.push(
             swap.formattedAmount
           );
         } else if (isWeth) {
-          swapsData[key][swap.blockNumber].wethOut ??= [];
-          swapsData[key][swap.blockNumber].wethOut!.push(swap.formattedAmount);
+          swapsData[protocol][swap.blockNumber].wethOut ??= [];
+          swapsData[protocol][swap.blockNumber].wethOut!.push(
+            swap.formattedAmount
+          );
         } else if (isSdToken) {
-          swapsData[key][swap.blockNumber].sdTokenOut ??= [];
-          swapsData[key][swap.blockNumber].sdTokenOut!.push(
+          swapsData[protocol][swap.blockNumber].sdTokenOut ??= [];
+          swapsData[protocol][swap.blockNumber].sdTokenOut!.push(
             swap.formattedAmount
           );
         } else if (isReward) {
-          swapsData[key][swap.blockNumber].rewardsOut ??= [];
+          swapsData[protocol][swap.blockNumber].rewardsOut ??= [];
           if (
-            !swapsData[key][swap.blockNumber].rewardsOut!.some(
+            !swapsData[protocol][swap.blockNumber].rewardsOut!.some(
               (r) => r.token === swap.token && r.amount === swap.formattedAmount
             )
           ) {
-            swapsData[key][swap.blockNumber].rewardsOut!.push({
+            swapsData[protocol][swap.blockNumber].rewardsOut!.push({
               token: swap.token,
               symbol: swap.symbol,
               amount: swap.formattedAmount,
@@ -172,7 +178,7 @@ function processReport(
     }
   }
 
-  // Match swaps and build ordered data
+  // Build ordered matches using the provided matching function.
   const allMatches = Object.entries(swapsData).flatMap(([protocol, blocks]) =>
     Object.entries(blocks).flatMap(([blockNumber, blockData]) => {
       const matches = matchWethInWithRewardsOut(blockData);
@@ -181,16 +187,17 @@ function processReport(
         : [];
     })
   );
-  const orderedData = allMatches.reduce((acc: ProtocolData, item) => {
-    const { protocol, blockNumber, matches } = item;
-    if (!acc[protocol]) acc[protocol] = [];
-    acc[protocol].push({ blockNumber, matches });
-    return acc;
-  }, {} as ProtocolData);
 
-  // Build protocol summaries
-  const protocolSummaries: ProtocolSummary[] = [];
-  // Remove blocks without sdTokenOut
+  const orderedData = allMatches.reduce(
+    (acc: ProtocolData, { protocol, blockNumber, matches }) => {
+      acc[protocol] = acc[protocol] || [];
+      acc[protocol].push({ blockNumber, matches });
+      return acc;
+    },
+    {} as ProtocolData
+  );
+
+  // Remove blocks with no sdTokenOut events.
   for (const [protocol, blocks] of Object.entries(swapsData)) {
     for (const [blockNumber, blockData] of Object.entries(blocks)) {
       if (!blockData.sdTokenOut || blockData.sdTokenOut.length === 0) {
@@ -199,45 +206,41 @@ function processReport(
     }
   }
 
+  // Build protocol summaries.
+  const protocolSummaries: ProtocolSummary[] = [];
   for (const [protocol, blocks] of Object.entries(swapsData)) {
-    let totalWethOut = 0;
-    let totalWethIn = 0;
-    let totalNativeOut = 0;
-    let totalNativeIn = 0;
-    let totalSdTokenOut = 0;
-    let totalSdTokenIn = 0;
+    let totalWethOut = 0,
+      totalWethIn = 0,
+      totalNativeOut = 0,
+      totalNativeIn = 0,
+      totalSdTokenOut = 0,
+      totalSdTokenIn = 0;
     const tokenMap: { [address: string]: AggregatedTokenInfo } = {};
 
     for (const block of Object.values(blocks)) {
-      totalWethOut += (block.wethOut || []).reduce(
-        (sum, amount) => sum + amount,
-        0
-      );
-      totalWethIn += (block.wethIn || []).reduce(
-        (sum, amount) => sum + amount,
-        0
-      );
-      totalSdTokenOut += (block.sdTokenOut || []).reduce(
-        (sum, amount) => sum + amount,
-        0
-      );
-      totalSdTokenIn += (block.sdTokenIn || []).reduce(
-        (sum, amount) => sum + amount,
-        0
-      );
+      totalWethOut += (block.wethOut || []).reduce((sum, amt) => sum + amt, 0);
+      totalWethIn += (block.wethIn || []).reduce((sum, amt) => sum + amt, 0);
       totalNativeOut += (block.nativeOut || []).reduce(
-        (sum, amount) => sum + amount,
+        (sum, amt) => sum + amt,
         0
       );
       totalNativeIn += (block.nativeIn || []).reduce(
-        (sum, amount) => sum + amount,
+        (sum, amt) => sum + amt,
+        0
+      );
+      totalSdTokenOut += (block.sdTokenOut || []).reduce(
+        (sum, amt) => sum + amt,
+        0
+      );
+      totalSdTokenIn += (block.sdTokenIn || []).reduce(
+        (sum, amt) => sum + amt,
         0
       );
     }
 
     const protocolData = orderedData[protocol] || [];
-    for (const blockData of protocolData) {
-      for (const match of blockData.matches) {
+    for (const { matches } of protocolData) {
+      for (const match of matches) {
         if (!tokenMap[match.address]) {
           tokenMap[match.address] = { ...match, amount: 0, weth: 0 };
         }
@@ -258,13 +261,14 @@ function processReport(
     });
   }
 
-  // Calculate bounty shares
+  // Calculate bounty shares using protocol summaries.
   Object.entries(aggregatedBounties).forEach(([protocol, bounties]) => {
     const native = PROTOCOLS_TOKENS[protocol].native.toLowerCase();
     const sdToken = PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase();
     const protocolSummary = protocolSummaries.find(
       (p) => p.protocol === protocol
     );
+
     if (!protocolSummary) {
       console.warn(`No summary found for protocol ${protocol}`);
       return;
@@ -284,13 +288,13 @@ function processReport(
     const wethToNativeRatio =
       totalWethIn > 0 ? nativeFromWeth / totalWethIn : 0;
 
-    let totalShares = 0;
     bounties.forEach((bounty) => {
       const rewardToken = bounty.rewardToken.toLowerCase();
       const tokenInfo = tokenInfos[rewardToken];
       const formattedAmount =
         Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
       let nativeEquivalent = 0;
+
       if (rewardToken === native) {
         nativeEquivalent = formattedAmount;
       } else if (rewardToken === WETH_ADDRESS.toLowerCase()) {
@@ -301,8 +305,7 @@ function processReport(
         );
         if (tokenSummary) {
           const localShare = formattedAmount / tokenSummary.amount;
-          const wethAmount = tokenSummary.weth * localShare;
-          nativeEquivalent = wethAmount * wethToNativeRatio;
+          nativeEquivalent = tokenSummary.weth * localShare * wethToNativeRatio;
         }
       }
       bounty.nativeEquivalent = nativeEquivalent;
@@ -312,7 +315,7 @@ function processReport(
       (acc, bounty) => acc + (bounty.nativeEquivalent || 0),
       0
     );
-
+    let totalShares = 0;
     bounties.forEach((bounty) => {
       bounty.share = bounty.nativeEquivalent
         ? bounty.nativeEquivalent / totalNativeEquivalent
@@ -320,13 +323,12 @@ function processReport(
       totalShares += bounty.share;
     });
 
-    // Second pass: normalize shares and calculate SD token amounts
+    // Normalize shares and compute SD token amounts.
     bounties.forEach((bounty) => {
       if (bounty.rewardToken.toLowerCase() === sdToken) {
         const tokenInfo = tokenInfos[bounty.rewardToken];
-        const formattedAmount =
+        bounty.sdTokenAmount =
           Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
-        bounty.sdTokenAmount = formattedAmount;
       } else {
         bounty.normalizedShare = bounty.share ? bounty.share / totalShares : 0;
         bounty.sdTokenAmount = bounty.normalizedShare
@@ -346,7 +348,7 @@ function processReport(
     });
   });
 
-  // Merge bounties into CSV rows
+  // Merge bounties into CSV rows.
   const mergedRows: { [key: string]: CSVRow } = {};
   Object.entries(aggregatedBounties).forEach(([protocol, bounties]) => {
     bounties.forEach((bounty) => {
@@ -355,6 +357,7 @@ function processReport(
       const formattedAmount =
         Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
       const key = `${protocol}-${bounty.gauge.toLowerCase()}-${rewardToken}`;
+
       if (mergedRows[key]) {
         mergedRows[key].rewardAmount += formattedAmount;
         mergedRows[key].rewardSdValue += bounty.sdTokenAmount || 0;
@@ -376,13 +379,11 @@ function processReport(
     });
   });
 
-  // Group rows by protocol and filter out rows with zero rewardSdValue
+  // Group CSV rows by protocol and filter out rows with zero SD token value.
   const groupedRows: { [protocol: string]: CSVRow[] } = {};
   Object.values(mergedRows).forEach((row) => {
     if (row.rewardSdValue > 0) {
-      if (!groupedRows[row.protocol]) {
-        groupedRows[row.protocol] = [];
-      }
+      groupedRows[row.protocol] = groupedRows[row.protocol] || [];
       groupedRows[row.protocol].push(row);
     }
   });

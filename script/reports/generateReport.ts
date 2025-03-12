@@ -1,16 +1,13 @@
 import fs from "fs";
 import path from "path";
-import { createPublicClient, formatUnits, http } from "viem";
+import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+import dotenv from "dotenv";
 import {
   getTimestampsBlocks,
   fetchSwapInEvents,
   fetchSwapOutEvents,
   PROTOCOLS_TOKENS,
-  matchWethInWithRewardsOut,
-  getTokenInfo,
-  getGaugesInfos,
-  BOSS,
   processSwapsOTC,
   aggregateBounties,
   collectAllTokens,
@@ -18,15 +15,9 @@ import {
   processSwaps,
   escapeCSV,
   addGaugeNamesToBounties,
+  getGaugesInfos,
 } from "../utils/reportUtils";
-import dotenv from "dotenv";
-import {
-  ALL_MIGHT,
-  BOTMARKET,
-  OTC_REGISTRY,
-  WETH_ADDRESS,
-  GOVERNANCE,
-} from "../utils/reportUtils";
+import { ALL_MIGHT } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import processReport from "./reportCommon";
 
@@ -35,6 +26,7 @@ dotenv.config();
 const WEEK = 604800;
 const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
 
+// Only keep interfaces used in this file
 interface TokenInfo {
   symbol: string;
   decimals: number;
@@ -53,73 +45,15 @@ interface ClaimedBounties {
   timestamp2: number;
   blockNumber1: number;
   blockNumber2: number;
-  votemarket: Record<string, Record<string, Bounty>>;
-  votemarket_v2: Record<string, Record<string, Bounty>>;
-  warden: Record<string, Record<string, Bounty>>;
-  hiddenhand: Record<string, Record<string, Bounty>>;
+  votemarket: Record<string, any>;
+  votemarket_v2: Record<string, any>;
+  warden: Record<string, any>;
+  hiddenhand: Record<string, any>;
 }
 
-interface SwapEvent {
-  blockNumber: number;
-  logIndex: number;
-  from: string;
-  to: string;
-  token: string;
-  amount: bigint;
-}
-
-interface SwapData {
-  sdTokenIn?: number[];
-  sdTokenOut?: number[];
-  nativeIn?: number[];
-  nativeOut?: number[];
-  wethOut?: number[];
-  wethIn?: number[];
-  rewardsOut?: { token: string; symbol: string; amount: number }[];
-}
-
-interface MatchData {
-  address: string;
-  symbol: string;
-  amount: number;
-  weth: number;
-}
-
-interface BlockData {
-  blockNumber: number;
-  matches: MatchData[];
-}
-
-interface ProtocolData {
-  [protocol: string]: BlockData[];
-}
-
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
-});
-
-interface ProcessedSwapEvent extends SwapEvent {
-  formattedAmount: number;
-  symbol: string;
-}
-
-interface GaugeInfo {
-  name: string;
-  address: string;
-}
-
-interface CSVRow {
-  protocol: string;
-  gaugeName: string;
-  gaugeAddress: string;
-  rewardToken: string;
-  rewardAddress: string;
-  rewardAmount: number;
-  rewardSdValue: number;
-  sharePercentage: number;
-}
-
+/**
+ * Reads claimed bounties from JSON files and filters the v2 bounties.
+ */
 async function fetchBountiesData(
   currentPeriod: number
 ): Promise<ClaimedBounties> {
@@ -130,11 +64,11 @@ async function fetchBountiesData(
     hiddenhand: `weekly-bounties/${currentPeriod}/hiddenhand/claimed_bounties.json`,
   };
 
-  const readJsonFile = (path: string) => {
+  const readJsonFile = (filePath: string) => {
     try {
-      return JSON.parse(fs.readFileSync(path, "utf8"));
+      return JSON.parse(fs.readFileSync(filePath, "utf8"));
     } catch (error) {
-      console.warn(`Warning: Could not read ${path}`, error);
+      console.warn(`Warning: Could not read ${filePath}`, error);
       return {};
     }
   };
@@ -144,16 +78,15 @@ async function fetchBountiesData(
   const warden = readJsonFile(paths.warden);
   const hiddenhand = readJsonFile(paths.hiddenhand);
 
-  // Filter out unwrapped bounties from v2 if needed
+  // Filter out v2 bounties that are explicitly unwrapped
   const filteredV2 = Object.entries(votemarket_v2).reduce(
     (acc, [key, value]: [string, any]) => {
       if (value.isWrapped !== false) {
-        // Keep if isWrapped is true or undefined
         acc[key] = value;
       }
       return acc;
     },
-    {}
+    {} as Record<string, any>
   );
 
   return {
@@ -168,8 +101,13 @@ async function fetchBountiesData(
   };
 }
 
+const publicClient = createPublicClient({
+  chain: mainnet,
+  transport: http("https://rpc.flashbots.net"),
+});
+
 async function main() {
-  // Get protocol from command line args
+  // Validate protocol argument
   const protocol = process.argv[2];
   if (!protocol || !["curve", "balancer", "fxn", "frax"].includes(protocol)) {
     console.error(
@@ -178,25 +116,26 @@ async function main() {
     process.exit(1);
   }
 
-  const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
-    await getTimestampsBlocks(publicClient, 0);
+  // Get block numbers and timestamps (timestamps are not used later)
+  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
+    publicClient,
+    0
+  );
 
   const totalBounties = await fetchBountiesData(currentPeriod);
   let aggregatedBounties = aggregateBounties(totalBounties);
-
-  // Filter bounties for specific protocol
+  // Keep bounties only for the specified protocol
   aggregatedBounties = { [protocol]: aggregatedBounties[protocol] };
 
-  // Collect tokens only for specified protocol
+  // Collect tokens and fetch their info
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
   const allTokens = collectAllTokens(aggregatedBounties, protocolTokens);
-
   const tokenInfos = await fetchAllTokenInfos(
     Array.from(allTokens),
     publicClient
   );
 
-  // Get gauge infos only for specified protocol
+  // Fetch gauge infos and add gauge names to bounties
   let gaugesInfo;
   switch (protocol) {
     case "curve":
@@ -212,8 +151,6 @@ async function main() {
       gaugesInfo = await getGaugesInfos("frax");
       break;
   }
-
-  // Add gauge names to bounties for specific protocol
   aggregatedBounties = {
     [protocol]: addGaugeNamesToBounties(
       aggregatedBounties[protocol],
@@ -221,6 +158,7 @@ async function main() {
     ),
   };
 
+  // Fetch swap events
   const swapIn = await fetchSwapInEvents(
     1,
     blockNumber1,
@@ -236,6 +174,7 @@ async function main() {
     ALL_MIGHT
   );
 
+  // Get blocks to exclude for vlCVX recipient swaps
   const vlcvxRecipientSwapsIn = await fetchSwapInEvents(
     1,
     blockNumber1,
@@ -243,7 +182,6 @@ async function main() {
     [PROTOCOLS_TOKENS.curve.sdToken],
     VLCVX_DELEGATORS_RECIPIENT
   );
-
   const vlcvxRecipientSwapsInBlockNumbers = vlcvxRecipientSwapsIn.map(
     (swap) => swap.blockNumber
   );
@@ -252,23 +190,15 @@ async function main() {
     vlcvxRecipientSwapsInBlockNumbers
   );
 
+  // Process swaps and filter out OTC swaps by block number
   const swapOTC = processSwapsOTC(swapIn, tokenInfos);
-
   let swapInFiltered = processSwaps(swapIn, tokenInfos);
   let swapOutFiltered = processSwaps(swapOut, tokenInfos);
 
-  console.log(swapOTC);
-
-  console.log(swapInFiltered);
-
-  console.log(swapOutFiltered);
-
-  // Filter out swaps that are for OTC (Block is present in swapOTC)
   swapInFiltered = swapInFiltered.filter(
     (swap) =>
       !swapOTC.some((otcSwap) => otcSwap.blockNumber === swap.blockNumber)
   );
-
   swapOutFiltered = swapOutFiltered.filter(
     (swap) =>
       !swapOTC.some((otcSwap) => otcSwap.blockNumber === swap.blockNumber)
@@ -282,37 +212,34 @@ async function main() {
     vlcvxRecipientSwapsInBlockNumbers
   );
 
-  // Generate CSV files from the processed report
+  // Generate CSV reports in the designated directory
   const projectRoot = path.resolve(__dirname, "..", "..");
   const dirPath = path.join(
     projectRoot,
     "bounties-reports",
     currentPeriod.toString()
   );
-
   fs.mkdirSync(dirPath, { recursive: true });
   const formattedDate = new Date(currentPeriod * 1000).toLocaleDateString(
     "en-GB"
   );
   console.log("Generating reports for the week of:", formattedDate);
 
-  // Generate CSV files for each protocol
   for (const [protocol, rows] of Object.entries(processedReport)) {
     const csvContent = [
       "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
       ...rows.map(
         (row) =>
-          `${escapeCSV(row.gaugeName)};` +
-          `${escapeCSV(row.gaugeAddress)};` +
-          `${escapeCSV(row.rewardToken)};` +
-          `${escapeCSV(row.rewardAddress)};` +
-          `${row.rewardAmount.toFixed(6)};` +
-          `${row.rewardSdValue.toFixed(6)};` +
+          `${escapeCSV(row.gaugeName)};${escapeCSV(
+            row.gaugeAddress
+          )};${escapeCSV(row.rewardToken)};` +
+          `${escapeCSV(row.rewardAddress)};${row.rewardAmount.toFixed(
+            6
+          )};${row.rewardSdValue.toFixed(6)};` +
           `${row.sharePercentage.toFixed(2)}`
       ),
     ].join("\n");
 
-    // Write to file
     const fileName = `${protocol}.csv`;
     fs.writeFileSync(path.join(dirPath, fileName), csvContent);
     console.log(`Report generated for ${protocol}: ${fileName}`);
