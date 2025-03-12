@@ -4,9 +4,9 @@ This document outlines the process for distributing rewards to vlCVX voters and 
 
 ## Process Overview
 
-0. **Claims rewards from Votium** (Wednesday)
+0. **Claims rewards from Votium** (Tuesday)
    - Claims forwarded rewards from Votium for delegators who opted to forward their rewards
-   - This happens one day before Votemarket claims
+   - This happens two days before Votemarket claims
 
 1. **Claims rewards from Votemarket** (Thursday) (`claims/generateConvexVotemarket.ts` and `claims/generateConvexVotemarketV2.ts`)
    - Fetches claimed bounties from Votemarket v1 and v2
