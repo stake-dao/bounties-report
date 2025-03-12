@@ -15,6 +15,40 @@ import { Proposal } from "../interfaces/Proposal";
 
 const WEEK = 604800; // One week in seconds
 
+interface TokenInfo {
+  symbol: string;
+  decimals: number;
+}
+
+interface Bounty {
+  bountyId: string;
+  gauge: string;
+  amount: string;
+  rewardToken: string;
+  sdTokenAmount?: number;
+  gaugeName?: string;
+  nativeEquivalent?: number;
+  share?: number;
+  normalizedShare?: number;
+  chainId?: number;
+}
+
+interface ClaimedBounties {
+  timestamp1: number;
+  timestamp2: number;
+  blockNumber1: number;
+  blockNumber2: number;
+  votemarket: Record<string, Record<string, Bounty>>;
+  votemarket_v2: Record<string, Record<string, Bounty>>;
+  warden: Record<string, Record<string, Bounty>>;
+  hiddenhand: Record<string, Record<string, Bounty>>;
+}
+
+interface ProcessedSwapEvent extends SwapEvent {
+  formattedAmount: number;
+  symbol: string;
+}
+
 interface SwapEvent {
   blockNumber: number;
   logIndex: number;
@@ -45,9 +79,7 @@ export const OTC_REGISTRY = getAddress(
 export const ALL_MIGHT = getAddress(
   "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
 );
-export const BOSS = getAddress(
-  "0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765"
-);
+export const BOSS = getAddress("0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765");
 
 export const REWARDS_ALLOCATIONS_POOL = getAddress(
   "0xA3ECF0cc8E88136134203aaafB21F7bD2dA6359a"
@@ -122,7 +154,6 @@ export async function getTimestampsBlocks(
     pastWeek === undefined || pastWeek === 0
       ? Number(await publicClient.getBlockNumber())
       : await getClosestBlockTimestamp("ethereum", timestamp2);
-
   return {
     timestamp1,
     timestamp2,
@@ -134,7 +165,6 @@ export async function getTimestampsBlocks(
 export function isValidAddress(address: string): address is `0x${string}` {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
-
 
 export const MAINNET_VM_PLATFORMS: {
   [key: string]: { platforms: string[]; locker: string };
@@ -194,7 +224,6 @@ export const PROTOCOLS_TOKENS: {
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 
-
 interface Timestamps {
   [key: number]: Proposal;
 }
@@ -252,7 +281,6 @@ export async function fetchProposalsIdsBasedOnPeriods(
   const proposals = result.proposals.filter(
     (proposal: Proposal) => proposal.title.indexOf("Gauge vote") > -1
   );
-
 
   let associated_timestamps: Timestamps = {};
 
@@ -343,6 +371,161 @@ export async function getGaugeWeight(
     console.error(`Error fetching gauge weight for ${gaugeAddress}:`, error);
     return 0;
   }
+}
+
+/**
+ * Process swap events (non-OTC) with various filters.
+ */
+export function processSwaps(
+  swaps: SwapEvent[],
+  tokenInfos: Record<string, TokenInfo>
+): ProcessedSwapEvent[] {
+  const seen = new Set<string>();
+  return swaps
+    .filter(
+      (swap) =>
+        swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase() &&
+        swap.from.toLowerCase() !== BOTMARKET.toLowerCase() &&
+        swap.to.toLowerCase() !== GOVERNANCE.toLowerCase() &&
+        swap.to.toLowerCase() !== BOSS.toLowerCase()
+    )
+    .filter((swap) => {
+      const key = `${swap.blockNumber}-${swap.logIndex}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((swap) => formatSwap(swap, tokenInfos));
+}
+
+/**
+ * Process OTC swap events.
+ */
+export function processSwapsOTC(
+  swaps: SwapEvent[],
+  tokenInfos: Record<string, TokenInfo>
+): ProcessedSwapEvent[] {
+  const seen = new Set<string>();
+  return swaps
+    .filter((swap) => swap.from.toLowerCase() === OTC_REGISTRY.toLowerCase())
+    .filter((swap) => {
+      const key = `${swap.blockNumber}-${swap.logIndex}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((swap) => formatSwap(swap, tokenInfos));
+}
+
+/**
+ * Merge bounty objects across protocols.
+ */
+export function aggregateBounties(
+  claimedBounties: ClaimedBounties
+): Record<string, Bounty[]> {
+  const protocols = ["curve", "balancer", "fxn", "frax"];
+  const aggregated: Record<string, Bounty[]> = {};
+
+  for (const protocol of protocols) {
+    aggregated[protocol] = [
+      ...Object.values(claimedBounties.votemarket[protocol] || {}),
+      ...Object.values(claimedBounties.votemarket_v2[protocol] || {}),
+      ...Object.values(claimedBounties.warden[protocol] || {}),
+      ...Object.values(claimedBounties.hiddenhand[protocol] || {}),
+    ];
+  }
+
+  return aggregated;
+}
+
+/**
+ * Helper to format a single swap event.
+ */
+export function formatSwap(
+  swap: SwapEvent,
+  tokenInfos: Record<string, TokenInfo>
+): ProcessedSwapEvent {
+  const tokenInfo = tokenInfos[swap.token.toLowerCase()];
+  const decimals = tokenInfo ? tokenInfo.decimals : 18;
+  return {
+    ...swap,
+    formattedAmount: Number(formatUnits(swap.amount, decimals)),
+    symbol: tokenInfo?.symbol || "UNKNOWN",
+  };
+}
+
+export function collectAllTokens(
+  bounties: Record<string, Bounty[]>,
+  protocols: typeof PROTOCOLS_TOKENS,
+  chainId: number = 1
+): Set<string> {
+  const allTokens = new Set<string>();
+
+  Object.values(bounties).forEach((protocolBounties) =>
+    protocolBounties.forEach((bounty) => {
+      // Check if the bounty has an isWrapped field
+      // If isWrapped is true, it's on Ethereum (chainId=1)
+      // Otherwise, use the bounty's chainId or default to the provided chainId
+      const bountyChainId = bounty.hasOwnProperty('isWrapped') && bounty.isWrapped === true
+        ? 1
+        : bounty.chainId || chainId;
+
+      if (bountyChainId === chainId) {
+        allTokens.add(bounty.rewardToken);
+      }
+    })
+  );
+
+  if (chainId === 1) {
+    allTokens.add(WETH_ADDRESS);
+
+    Object.values(protocols).forEach((protocolInfo) => {
+      allTokens.add(protocolInfo.native);
+      allTokens.add(protocolInfo.sdToken);
+    });
+  }
+
+  return allTokens;
+}
+
+/**
+ * Add gauge names to each bounty.
+ */
+export function addGaugeNamesToBounties(
+  bounties: Bounty[],
+  gaugesInfo: { name: string; address: string }[]
+): Bounty[] {
+  const gaugeMap = new Map(
+    gaugesInfo.map((g) => [g.address.toLowerCase(), g.name])
+  );
+  return bounties.map((bounty) => ({
+    ...bounty,
+    gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "UNKNOWN",
+  }));
+}
+
+/**
+ * Escape fields for CSV output.
+ */
+export function escapeCSV(field: string): string {
+  if (field.includes(";") || field.includes('"') || field.includes("\n")) {
+    return `"${field.replace(/"/g, '""')}"`;
+  }
+  return field;
+}
+
+/**
+ * Fetch token information for a list of tokens.
+ */
+export async function fetchAllTokenInfos(
+  allTokens: string[],
+  publicClient: PublicClient
+): Promise<Record<string, TokenInfo>> {
+  const tokenInfos: Record<string, TokenInfo> = {};
+  for (const token of allTokens) {
+    tokenInfos[token.toLowerCase()] = await getTokenInfo(publicClient, token);
+  }
+  return tokenInfos;
 }
 
 export async function fetchSwapInEvents(
