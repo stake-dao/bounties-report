@@ -1,0 +1,24 @@
+Stake DAO - Swap Report
+Protocol: BALANCER
+Timestamp: 1741219200
+Date: 2025-03-06 00:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 BALANCER Swap Report
+
+🔄 https://etherscan.io/tx/0x02c75f93de6c2a7572b8d6fc705c2f1de0e5d6b8f3aaf208e78fed846c541d7f Transaction
+├─ https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL: 1,646.71 • https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL: 6,009.61 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 4.5386
+├─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 2,072.39 → 0.2874 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (6.3%)
+├─ https://etherscan.io/token/0x63e5dc7c071c1f18d44b69bc86f4c80f24851388 KAI: 15.01 → 0.0002 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (0.0%)
+└─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 9,418.66 → 4.2511 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (93.7%)
+
+
+🔍 Token Contributions:
+├─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 9,418.66 → 4.2511 WETH (93.7%)
+├─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 2,072.39 → 0.2874 WETH (6.3%)
+├─ https://etherscan.io/token/0x63e5dc7c071c1f18d44b69bc86f4c80f24851388 KAI: 15.01 → 0.0002 WETH (0.0%)
+
+📈 Final Summary
+└─ 1,646.71 https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL
+   └─ via 4.5386 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH
+      └─ to 6,009.61 https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL

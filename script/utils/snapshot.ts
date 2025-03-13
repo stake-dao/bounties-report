@@ -112,18 +112,26 @@ export const fetchProposalsIdsBasedOnPeriods = async (
   const proposals = result.proposals;
 
   let associated_timestamps: Record<string, string> = {};
-
   for (const period of periods) {
     const periodTimestamp = parseInt(period);
+    const reportPeriod = (Math.floor(periodTimestamp / WEEK) * WEEK);
 
     const matchingProposal = proposals.find((proposal: any) => {
       const proposalPeriod = Math.floor(proposal.created / WEEK) * WEEK;
-      const reportPeriod = (Math.floor(periodTimestamp / WEEK) * WEEK) - WEEK;
       return proposalPeriod === reportPeriod;
     });
 
     if (matchingProposal) {
       associated_timestamps[period] = matchingProposal.id;
+    } else {
+      // Try to find the closest proposal before this period
+      const closestProposal = proposals
+        .filter((proposal: any) => Math.floor(proposal.created / WEEK) * WEEK < reportPeriod)
+        .sort((a: any, b: any) => b.created - a.created)[0];
+      
+      if (closestProposal) {
+        associated_timestamps[period] = closestProposal.id;
+      }
     }
   }
 

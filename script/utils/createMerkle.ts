@@ -8,7 +8,7 @@ import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 import { processAllDelegators } from "./cacheUtils";
 
-export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, sdCakeWorkingData: any): Promise<MerkleStat> => {
+export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, sdCakeWorkingData: any, additionalDelegatorRewards: Record<string, number> = {}): Promise<MerkleStat> => {
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
     const logs: Log[] = [];
@@ -86,7 +86,22 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
             ]
         });
 
-        delegationVote.totalRewards = 0;
+        // Add additional rewards to delegation if specified for this space
+        if (additionalDelegatorRewards[space] && additionalDelegatorRewards[space] > 0 && id === ids[0]) { // Only add to the first proposal to avoid duplicating
+            if (!delegationVote.totalRewards) {
+                delegationVote.totalRewards = 0;
+            }
+            delegationVote.totalRewards += additionalDelegatorRewards[space];
+            
+            logs.push({
+                id: "AdditionalRewards",
+                content: [
+                    `Added ${additionalDelegatorRewards[space]} additional rewards to ${space} delegators`,
+                ]
+            });
+        }
+
+        delegationVote.totalRewards = delegationVote.totalRewards || 0;
         const nonFoundGauges: Record<string, { index: number; amount: number }> = {};
         let delegationRewardsForNonFoundGauges = 0;
 

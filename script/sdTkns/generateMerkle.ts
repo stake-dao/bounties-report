@@ -188,7 +188,6 @@ const main = async () => {
           );
           proposalsPeriodsOTC[timestamp] = proposalId[timestamp];
         }
-
         // Merge OTC rewards into pendleRewards and add to total
         for (const timestamp of otcTimestamps) {
           const proposalId = proposalsPeriodsOTC[timestamp];
@@ -224,7 +223,11 @@ const main = async () => {
       csvResult,
       pendleRewards,
       sdFXSWorkingData,
-      sdCakeWorkingData
+      sdCakeWorkingData,
+      {
+        "sdcrv.eth": 1330,
+        "sdbal.eth": 48
+      }
     );
 
     newMerkles.push(merkleStat.merkle);
