@@ -1,27 +1,13 @@
 {
   "distribution": {
     "totalTokens": {
-      "0x090185f2135308bad17527004364ebcc2d37e5f6": "3747395429624806705257124",
-      "0xdac17f958d2ee523a2206206994597c13d831ec7": "126041305",
-      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "2511321749689146686"
+      "0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": "21817365179468296454554"
     },
     "totalPerGroup": {
-      "0x090185f2135308bad17527004364ebcc2d37e5f6": {
-        "forwarders": "188572685414149898215243",
-        "nonForwarders": "3558822744210656807041881"
-      },
-      "0xdac17f958d2ee523a2206206994597c13d831ec7": {
-        "forwarders": "6342524",
-        "nonForwarders": "119698781"
-      },
-      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
-        "forwarders": "126372221766107550",
-        "nonForwarders": "2384949527923039136"
+      "0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+        "forwarders": "1097871633196024145889",
+        "nonForwarders": "20719493546272272308665"
       }
-    },
-    "totalSDTPerGroup": {
-      "forwarders": "251605000000000000000",
-      "nonForwarders": "4748395000000000000000"
     },
     "totalForwardersShare": "0.05032107480153885",
     "totalNonForwardersShare": "0.9496789251984609",
