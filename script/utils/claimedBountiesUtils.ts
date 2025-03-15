@@ -885,8 +885,6 @@ const fetchHiddenHandClaimedBounties = async (
 };
 
 const fetchVotiumClaimedBounties = async (
-  publicClient: PublicClient,
-  period: number,
   block_min: number,
   block_max: number
 ) => {

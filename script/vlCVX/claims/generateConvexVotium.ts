@@ -40,16 +40,14 @@ async function generateConvexVotiumBounties(pastWeek: number = 0) {
     const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
     const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-    const { timestamp1, timestamp2, block1, block2 } = await getTimestampsBlocks(
+    const { timestamp1, timestamp2, blockNumber1, blockNumber2 } = await getTimestampsBlocks(
       ethereumClient,
       pastWeek
     );
 
     const votiumConvexBounties = await fetchVotiumClaimedBounties(
-      ethereumClient,
-      currentPeriod,
-      block1,
-      block2
+      blockNumber1,
+      blockNumber2
     );
 
     // Ensure directories exist
