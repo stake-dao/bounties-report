@@ -631,6 +631,8 @@ export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
       return getFxnGaugesInfos();
     case "cake":
       return getCakeGaugesInfos();
+    case "pendle":
+      return getPendleGaugesInfos();
     default:
       return [];
   }
@@ -750,3 +752,30 @@ export async function getCakeGaugesInfos(): Promise<GaugeInfo[]> {
     return [];
   }
 }
+
+export const getPendleGaugesInfos = async (): Promise<GaugeInfo[]> => {
+  try {
+    const chains = [1, 42161, 5000, 56, 8453];
+    const responses = await Promise.all(
+      chains.map(chainId =>
+        axios.get(`https://api-v2.pendle.finance/core/v1/${chainId}/markets/active`)
+      )
+    );
+    
+    const allMarkets = responses.flatMap(r => r.data.markets);
+
+    if (Array.isArray(allMarkets)) {
+      return allMarkets.map((market: any) => ({
+        name: `${market.name} - ${new Date(market.expiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase().replace(/ /g, '')}`,
+        address: market.address,
+      }));
+    } else {
+      console.error('Failed to fetch Pendle gauges: Invalid response format');
+      return [];
+    }
+  } catch (error) {
+    console.error('Error fetching Pendle gauges:', error);
+    return [];
+  }
+};
+

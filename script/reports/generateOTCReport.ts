@@ -151,13 +151,13 @@ const publicClient = createPublicClient({
 async function main() {
   // Validate protocol argument
   const protocol = process.argv[2];
-  if (!protocol || !["curve", "balancer", "fxn", "frax"].includes(protocol)) {
-    console.error("Please specify a valid protocol: curve, balancer, fxn, or frax");
+  if (!protocol || !["curve", "balancer", "fxn", "frax", "pendle"].includes(protocol)) {
+    console.error("Please specify a valid protocol: curve, balancer, fxn, frax, or pendle");
     process.exit(1);
   }
 
   // Get block numbers
-  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, 0);
+  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, 1); // TODO : change to 0
 
   let aggregatedBounties = await fetchOTCWithdrawals(blockNumber1, blockNumber2);
   // Filter bounties for the specified protocol
@@ -183,6 +183,9 @@ async function main() {
     case "frax":
       gaugesInfo = await getGaugesInfos("frax");
       break;
+    case "pendle":
+      gaugesInfo = await getGaugesInfos("pendle");
+      break;
   }
   aggregatedBounties = { [protocol]: addGaugeNamesToBounties(aggregatedBounties[protocol], gaugesInfo) };
 
@@ -201,7 +204,6 @@ async function main() {
   console.log("vlCVX recipient blocks to exclude:", vlcvxRecipientSwapsInBlockNumbers);
 
   const swapInFiltered = processSwapsOTC(swapIn, tokenInfos);
-  const swapOutFiltered = processSwaps(swapOut, tokenInfos);
 
   // Identify OTC swap blocks to filter for further processing
   const otcSwapBlocks = new Set(swapInFiltered.map(swap => swap.blockNumber));
@@ -320,12 +322,15 @@ async function main() {
 
     const updatedCsvData = Object.values(currentCsvDict);
     const csvContent = [
-      "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-      ...updatedCsvData.map((row: any) =>
-        `${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
-        `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
-        `${row["Share % per Protocol"]}`
-      ),
+      protocol === "pendle" 
+        ? "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol"
+        : "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+      ...updatedCsvData.map((row: any) => {
+        const periodPrefix = protocol === "pendle" ? `${currentPeriod};` : "";
+        return `${periodPrefix}${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
+          `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
+          `${row["Share % per Protocol"]}`;
+      }),
     ].join("\n");
 
     fs.writeFileSync(filePath, csvContent);
