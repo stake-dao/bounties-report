@@ -7,7 +7,7 @@ import { getAddress } from "viem";
 import { WEEK } from "../utils/constants";
 import { parseAbiItem, decodeEventLog, parseAbi, keccak256, encodePacked } from "viem";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { getTimestampsBlocks, OTC_REGISTRY } from "../utils/reportUtils";
+import { getTimestampsBlocks, OTC_REGISTRY, getPendleGaugesInfos } from "../utils/reportUtils";
 
 const REPO_PATH = "stake-dao/pendle-merkle-script";
 const DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
@@ -54,11 +54,7 @@ async function getLatestJson(
   directoryPath: string
 ): Promise<LatestRewards> {
   const url = `https://api.github.com/repos/${repoPath}/contents/${directoryPath}`;
-  const response = await axios.get(url, {
-    headers: {
-      Authorization: `token ${process.env.GIT_ACCESS_TOKEN}`,
-    },
-  });
+  const response = await axios.get(url);
 
   if (response.status === 200) {
     const files = response.data;
@@ -195,6 +191,13 @@ async function main() {
       return;
     }
 
+    // Fetch Pendle gauges info to get proper names
+    const pendleGaugesInfo = await getPendleGaugesInfos();
+    const gaugeNameMap = pendleGaugesInfo.reduce((map, gauge) => {
+      map[gauge.address.toLowerCase()] = gauge.name;
+      return map;
+    }, {} as Record<string, string>);
+
     const totalVoterRewards = BigInt(latestRewards.totalVoterRewards);
     const newData: CSVRow[] = [];
     let totalRewardAmount = BigInt(0);
@@ -207,11 +210,14 @@ async function main() {
           const reward = BigInt(gaugeInfo.reward);
           totalRewardAmount += reward;
           const share = Number(reward) / Number(totalVoterRewards);
+          
+          // Use the gauge name from our map if available, otherwise use the one from the rewards data
+          const gaugeName = gaugeNameMap[address.toLowerCase()] || gaugeInfo.name;
 
           newData.push({
             Protocol: `${PROTOCOL}`,
             "Period": period,
-            "Gauge Name": gaugeInfo.name,
+            "Gauge Name": gaugeName,
             "Gauge Address": address,
             "Reward Token": "WETH",
             "Reward Address": WETH,
