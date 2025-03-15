@@ -225,8 +225,7 @@ const main = async () => {
       sdFXSWorkingData,
       sdCakeWorkingData,
       {
-        "sdcrv.eth": 1330,
-        "sdbal.eth": 48
+        "sdcake.eth": 700,
       }
     );
 
