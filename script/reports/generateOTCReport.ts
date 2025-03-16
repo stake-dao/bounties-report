@@ -157,7 +157,7 @@ async function main() {
   }
 
   // Get block numbers
-  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, 1); // TODO : change to 0
+  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, 0);
 
   let aggregatedBounties = await fetchOTCWithdrawals(blockNumber1, blockNumber2);
   // Filter bounties for the specified protocol
