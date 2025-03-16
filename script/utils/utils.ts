@@ -216,27 +216,27 @@ export const extractOTCCSV = async (
   const response: PendleCSVType = {};
 
   for (const row of records) {
-    const timestamp = row["timestamp"];
+    const period = row["period"];
     const gaugeAddress = row["gauge address"];
 
-    if (!timestamp) {
-      throw new Error("Missing 'timestamp' in row: " + JSON.stringify(row));
+    if (!period) {
+      throw new Error("Missing 'period' in row: " + JSON.stringify(row));
     }
     if (!gaugeAddress) {
       throw new Error("Missing 'gauge address' in row: " + JSON.stringify(row));
     }
 
-    if (!response[timestamp]) {
-      response[timestamp] = {};
+    if (!response[period]) {
+      response[period] = {};
     }
 
     // Initialize gauge address value if needed.
-    if (!response[timestamp][gaugeAddress]) {
-      response[timestamp][gaugeAddress] = 0;
+    if (!response[period][gaugeAddress]) {
+      response[period][gaugeAddress] = 0;
     }
 
     if (row["reward sd value"]) {
-      response[timestamp][gaugeAddress] += parseFloat(row["reward sd value"]);
+      response[period][gaugeAddress] += parseFloat(row["reward sd value"]);
     }
   }
 

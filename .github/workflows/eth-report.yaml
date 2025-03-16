@@ -129,6 +129,14 @@ jobs:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
 
+      - name: Run generateOTCReport script (pendle)
+        if: env.ACTION_TYPE == 'otc' && env.PROTOCOL == 'pendle'
+        run: |
+          pnpm tsx script/reports/generateOTCReport.ts pendle
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
+
 
       - name: Commit and push if changed
         run: |

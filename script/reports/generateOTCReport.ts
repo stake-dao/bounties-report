@@ -261,6 +261,49 @@ async function main() {
   const dirPath = path.join(projectRoot, "bounties-reports", currentPeriod.toString());
 
   for (const [protocol, data] of Object.entries(processedReport)) {
+    // Special handling for Pendle - create a separate OTC file
+    if (protocol === "pendle") {
+      const fileName = `${protocol}-otc.csv`;
+      const filePath = path.join(dirPath, fileName);
+      
+      // Create rows with current period
+      const rows = data.map(row => ({
+        "Period": currentPeriod.toString(),
+        "Gauge Name": row.gaugeName,
+        "Gauge Address": row.gaugeAddress,
+        "Reward Token": row.rewardToken,
+        "Reward Address": row.rewardAddress,
+        "Reward Amount": row.rewardAmount.toString(),
+        "Reward sd Value": row.rewardSdValue.toString(),
+        "Share % per Protocol": "0", // To be computed
+      }));
+      
+      // Calculate percentages
+      const totalRewardSdValue = rows.reduce(
+        (sum, row) => sum + parseFloat(row["Reward sd Value"]),
+        0
+      );
+      
+      for (const row of rows) {
+        row["Share % per Protocol"] = ((parseFloat(row["Reward sd Value"]) / totalRewardSdValue) * 100).toFixed(2);
+      }
+      
+      // Generate CSV content
+      const csvContent = [
+        "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+        ...rows.map(row => 
+          `${row.Period};${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
+          `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
+          `${row["Share % per Protocol"]}`
+        )
+      ].join("\n");
+      
+      fs.writeFileSync(filePath, csvContent);
+      console.log(`Created OTC report for ${protocol}: ${filePath}`);
+      continue; // Skip the rest of the loop for Pendle
+    }
+
+    // For other protocols, continue with the existing logic
     const fileName = `${protocol}.csv`;
     const filePath = path.join(dirPath, fileName);
 
@@ -276,8 +319,8 @@ async function main() {
       console.log(`No existing file found for ${protocol}. Creating a new one.`);
     }
 
-    // Update CSV data by merging new entries and recomputing shares
     const newGaugeAddresses = new Set(data.map(row => row.gaugeAddress.toLowerCase()));
+    
     currentCsvData = currentCsvData.filter(row => {
       const isNewGauge = newGaugeAddresses.has(row["Gauge Address"].toLowerCase());
       const hasZeroSdValue = parseFloat(row["Reward sd Value"]) === 0;
@@ -292,6 +335,7 @@ async function main() {
 
     for (const newRow of data) {
       const key = `${newRow.gaugeAddress}-${newRow.rewardAddress}`;
+      
       if (currentCsvDict[key]) {
         currentCsvDict[key]["Reward Amount"] =
           (parseFloat(currentCsvDict[key]["Reward Amount"]) + newRow.rewardAmount).toString();
@@ -322,15 +366,12 @@ async function main() {
 
     const updatedCsvData = Object.values(currentCsvDict);
     const csvContent = [
-      protocol === "pendle" 
-        ? "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol"
-        : "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-      ...updatedCsvData.map((row: any) => {
-        const periodPrefix = protocol === "pendle" ? `${currentPeriod};` : "";
-        return `${periodPrefix}${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
-          `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
-          `${row["Share % per Protocol"]}`;
-      }),
+      "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+      ...updatedCsvData.map((row: any) =>
+        `${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
+        `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
+        `${row["Share % per Protocol"]}`
+      )
     ].join("\n");
 
     fs.writeFileSync(filePath, csvContent);

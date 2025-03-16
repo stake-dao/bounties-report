@@ -79,7 +79,7 @@ export const fetchLastProposalsIds = async (
  * @param currentTimestamp - Current timestamp
  * @returns Record of period timestamps to their corresponding proposal IDs
  */
-export const fetchProposalsIdsBasedOnPeriods = async (
+export const fetchProposalsIdsBasedOnExactPeriods = async (
   space: string,
   periods: string[],
   currentTimestamp: number
@@ -94,7 +94,7 @@ export const fetchProposalsIdsBasedOnPeriods = async (
         where: {
           space_in: ["${space}"]
           type: "weighted"
-          start_lt: ${currentTimestamp - WEEK}
+          start_lt: ${currentTimestamp}
           title_contains: "Gauge vote"
         }
       ) {
@@ -114,7 +114,7 @@ export const fetchProposalsIdsBasedOnPeriods = async (
   let associated_timestamps: Record<string, string> = {};
   for (const period of periods) {
     const periodTimestamp = parseInt(period);
-    const reportPeriod = (Math.floor(periodTimestamp / WEEK) * WEEK);
+    const reportPeriod = (Math.floor(periodTimestamp / WEEK) * WEEK) - WEEK;
 
     const matchingProposal = proposals.find((proposal: any) => {
       const proposalPeriod = Math.floor(proposal.created / WEEK) * WEEK;
@@ -126,7 +126,7 @@ export const fetchProposalsIdsBasedOnPeriods = async (
     } else {
       // Try to find the closest proposal before this period
       const closestProposal = proposals
-        .filter((proposal: any) => Math.floor(proposal.created / WEEK) * WEEK < reportPeriod)
+        .filter((proposal: any) => Math.floor(proposal.created / WEEK) * WEEK <= reportPeriod)
         .sort((a: any, b: any) => b.created - a.created)[0];
       
       if (closestProposal) {
