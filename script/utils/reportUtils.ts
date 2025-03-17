@@ -5,17 +5,50 @@ import {
   getAddress,
   keccak256,
   pad,
+  getContract,
+  formatUnits,
+  PublicClient,
+  Address,
+  erc20Abi,
 } from "viem";
 import { gql, request } from "graphql-request";
-import { getContract, formatUnits, PublicClient, Address } from "viem";
-import { erc20Abi } from "viem";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { getClosestBlockTimestamp } from "./chainUtils";
 import { Proposal } from "../interfaces/Proposal";
 
 const WEEK = 604800; // One week in seconds
 
-interface SwapEvent {
+// Interfaces
+interface TokenInfo {
+  symbol: string;
+  decimals: number;
+}
+
+export interface Bounty {
+  bountyId: string;
+  gauge: string;
+  amount: string;
+  rewardToken: string;
+  sdTokenAmount?: number;
+  gaugeName?: string;
+  nativeEquivalent?: number;
+  share?: number;
+  normalizedShare?: number;
+  chainId?: number;
+}
+
+export interface ClaimedBounties {
+  timestamp1: number;
+  timestamp2: number;
+  blockNumber1: number;
+  blockNumber2: number;
+  votemarket: Record<string, Record<string, Bounty>>;
+  votemarket_v2: Record<string, Record<string, Bounty>>;
+  warden: Record<string, Record<string, Bounty>>;
+  hiddenhand: Record<string, Record<string, Bounty>>;
+}
+
+export interface SwapEvent {
   blockNumber: number;
   logIndex: number;
   from: string;
@@ -24,35 +57,42 @@ interface SwapEvent {
   amount: bigint;
 }
 
-interface MatchedReward {
+export interface ProcessedSwapEvent extends SwapEvent {
+  formattedAmount: number;
+  symbol: string;
+}
+
+export interface MatchedReward {
   address: string;
   symbol: string;
   amount: number;
   weth: number;
 }
 
+interface GaugeInfo {
+  name: string;
+  shortName?: string;
+  address: string;
+  price?: string;
+}
+
+// Exported constants
 export const WETH_ADDRESS = getAddress(
   "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 );
-
 export const WBNB_ADDRESS = getAddress(
   "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
 );
-
 export const OTC_REGISTRY = getAddress(
   "0x9Cc16BDd233A74646e31100b2f13334810d12cB0"
 );
 export const ALL_MIGHT = getAddress(
   "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
 );
-export const BOSS = getAddress(
-  "0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765"
-);
-
+export const BOSS = getAddress("0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765");
 export const REWARDS_ALLOCATIONS_POOL = getAddress(
   "0xA3ECF0cc8E88136134203aaafB21F7bD2dA6359a"
 );
-
 export const HH_BALANCER_MARKET = getAddress(
   "0x45Bc37b18E73A42A4a826357a8348cDC042cCBBc"
 );
@@ -70,10 +110,11 @@ export const GOVERNANCE = getAddress(
 );
 export const BSC_CAKE_LOCKER = "0x1E6F87A9ddF744aF31157d8DaA1e3025648d042d";
 
+// Helper to fetch token info using ERC20 contract
 export async function getTokenInfo(
   publicClient: PublicClient,
   tokenAddress: string
-) {
+): Promise<TokenInfo> {
   const contract = getContract({
     address: tokenAddress as Address,
     abi: erc20Abi,
@@ -85,56 +126,44 @@ export async function getTokenInfo(
       contract.read.symbol(),
       contract.read.decimals(),
     ]);
-
     return { symbol, decimals };
   } catch (error) {
     console.error(`Error fetching info for token ${tokenAddress}:`, error);
-    return { symbol: "Unknown", decimals: 18 }; // Default values
+    return { symbol: "Unknown", decimals: 18 };
   }
 }
 
 /**
  * Retrieves timestamps and block numbers for a specified week.
- * @param {number | undefined} pastWeek - Number of weeks in the past (0 for current week).
- * @returns {Promise<{timestamp1: number, timestamp2: number, timestampEnd: number, blockNumber1: number, blockNumber2: number, blockNumberEnd: number}>}
  */
 export async function getTimestampsBlocks(
   publicClient: PublicClient,
   pastWeek?: number
 ) {
   const currentTimestamp = Math.floor(Date.now() / 1000);
-  let timestamp2: number;
-  let timestamp1: number;
+  let timestamp1: number, timestamp2: number;
 
-  if (pastWeek === undefined || pastWeek === 0) {
+  if (!pastWeek || pastWeek === 0) {
     console.log("No past week specified, using current week");
     timestamp2 = currentTimestamp;
-    timestamp1 = Math.floor(currentTimestamp / WEEK) * WEEK; // Rounded down to the start of the current week
+    timestamp1 = Math.floor(currentTimestamp / WEEK) * WEEK;
   } else {
     console.log(`Past week specified: ${pastWeek}`);
-
     timestamp2 = Math.floor(currentTimestamp / WEEK) * WEEK;
     timestamp1 = timestamp2 - pastWeek * WEEK;
   }
 
   const blockNumber1 = await getClosestBlockTimestamp("ethereum", timestamp1);
   const blockNumber2 =
-    pastWeek === undefined || pastWeek === 0
+    !pastWeek || pastWeek === 0
       ? Number(await publicClient.getBlockNumber())
       : await getClosestBlockTimestamp("ethereum", timestamp2);
-
-  return {
-    timestamp1,
-    timestamp2,
-    blockNumber1,
-    blockNumber2,
-  };
+  return { timestamp1, timestamp2, blockNumber1, blockNumber2 };
 }
 
 export function isValidAddress(address: string): address is `0x${string}` {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
-
 
 export const MAINNET_VM_PLATFORMS: {
   [key: string]: { platforms: string[]; locker: string };
@@ -194,7 +223,7 @@ export const PROTOCOLS_TOKENS: {
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 
-
+// Additional interfaces
 interface Timestamps {
   [key: number]: Proposal;
 }
@@ -203,16 +232,20 @@ interface BlockSwaps {
   [blockNumber: number]: bigint[];
 }
 
+/**
+ * Groups swap amounts by block.
+ */
 export function transformSwapEvents(swapEvents: SwapEvent[]): BlockSwaps {
   return swapEvents.reduce((acc: BlockSwaps, event) => {
-    if (!acc[event.blockNumber]) {
-      acc[event.blockNumber] = [];
-    }
+    if (!acc[event.blockNumber]) acc[event.blockNumber] = [];
     acc[event.blockNumber].push(event.amount);
     return acc;
   }, {});
 }
 
+/**
+ * Fetch proposals based on period and associate them with timestamps.
+ */
 export async function fetchProposalsIdsBasedOnPeriods(
   space: string,
   period: number
@@ -253,33 +286,24 @@ export async function fetchProposalsIdsBasedOnPeriods(
     (proposal: Proposal) => proposal.title.indexOf("Gauge vote") > -1
   );
 
-
-  let associated_timestamps: Timestamps = {};
-
+  let associatedTimestamps: Timestamps = {};
   for (const proposal of proposals) {
     const title = proposal.title;
     const dateStrings = title.match(/\d{1,2}\/\d{1,2}\/\d{4}/g);
-
     if (dateStrings && dateStrings.length >= 2) {
       const [date_a, date_b] = dateStrings;
-
       const parts_a = date_a.split("/");
       const parts_b = date_b.split("/");
-
-      // Convert dd/mm/yyyy to mm/dd/yyyy by swapping the first two elements
       const correctFormat_a = `${parts_a[1]}/${parts_a[0]}/${parts_a[2]}`;
       const correctFormat_b = `${parts_b[1]}/${parts_b[0]}/${parts_b[2]}`;
-
       const timestamp_a = new Date(correctFormat_a).getTime() / 1000;
       const timestamp_b = new Date(correctFormat_b).getTime() / 1000;
-
-      // Associate if the period is between a and b
       if (period + 82800 >= timestamp_a && period <= timestamp_b) {
-        associated_timestamps[period] = proposal;
+        associatedTimestamps[period] = proposal;
       }
     }
   }
-  return associated_timestamps;
+  return associatedTimestamps;
 }
 
 export async function getTokenBalance(
@@ -294,7 +318,6 @@ export async function getTokenBalance(
     functionName: "balanceOf",
     args: [contractAddress],
   });
-
   return Number(formatUnits(balance, decimals));
 }
 
@@ -303,17 +326,14 @@ export async function getRawTokenBalance(
   tokenAddress: Address,
   contractAddress: Address
 ): Promise<bigint> {
-  const balance = await publicClient.readContract({
+  return await publicClient.readContract({
     address: tokenAddress,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: [contractAddress],
   });
-
-  return balance;
 }
 
-// Define the ABI for the gauge controller contract
 const gaugeControllerAbi = [
   {
     name: "get_gauge_weight",
@@ -336,13 +356,160 @@ export async function getGaugeWeight(
       functionName: "get_gauge_weight",
       args: [gaugeAddress],
     });
-
-    // weight is returned in 1e18 scale
-    return Number(formatUnits(weight, 18));
+    return Number(formatUnits(weight, 18)); // Weight is in 1e18 scale
   } catch (error) {
     console.error(`Error fetching gauge weight for ${gaugeAddress}:`, error);
     return 0;
   }
+}
+
+/**
+ * Processes non-OTC swap events, filtering out duplicates and unwanted addresses.
+ */
+export function processSwaps(
+  swaps: SwapEvent[],
+  tokenInfos: Record<string, TokenInfo>
+): ProcessedSwapEvent[] {
+  const seen = new Set<string>();
+  return swaps
+    .filter(
+      (swap) =>
+        swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase() &&
+        swap.from.toLowerCase() !== BOTMARKET.toLowerCase() &&
+        swap.to.toLowerCase() !== GOVERNANCE.toLowerCase() &&
+        swap.to.toLowerCase() !== BOSS.toLowerCase()
+    )
+    .filter((swap) => {
+      const key = `${swap.blockNumber}-${swap.logIndex}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((swap) => formatSwap(swap, tokenInfos));
+}
+
+/**
+ * Processes OTC swap events.
+ */
+export function processSwapsOTC(
+  swaps: SwapEvent[],
+  tokenInfos: Record<string, TokenInfo>
+): ProcessedSwapEvent[] {
+  const seen = new Set<string>();
+  return swaps
+    .filter((swap) => swap.from.toLowerCase() === OTC_REGISTRY.toLowerCase())
+    .filter((swap) => {
+      const key = `${swap.blockNumber}-${swap.logIndex}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((swap) => formatSwap(swap, tokenInfos));
+}
+
+/**
+ * Merges bounty objects across protocols.
+ */
+export function aggregateBounties(
+  claimedBounties: ClaimedBounties
+): Record<string, Bounty[]> {
+  const protocols = ["curve", "balancer", "fxn", "frax"];
+  const aggregated: Record<string, Bounty[]> = {};
+  for (const protocol of protocols) {
+    aggregated[protocol] = [
+      ...Object.values(claimedBounties.votemarket[protocol] || {}),
+      ...Object.values(claimedBounties.votemarket_v2[protocol] || {}),
+      ...Object.values(claimedBounties.warden[protocol] || {}),
+      ...Object.values(claimedBounties.hiddenhand[protocol] || {}),
+    ];
+  }
+  return aggregated;
+}
+
+/**
+ * Formats a swap event with token info.
+ */
+export function formatSwap(
+  swap: SwapEvent,
+  tokenInfos: Record<string, TokenInfo>
+): ProcessedSwapEvent {
+  const tokenInfo = tokenInfos[swap.token.toLowerCase()];
+  const decimals = tokenInfo ? tokenInfo.decimals : 18;
+  return {
+    ...swap,
+    formattedAmount: Number(formatUnits(swap.amount, decimals)),
+    symbol: tokenInfo?.symbol || "UNKNOWN",
+  };
+}
+
+/**
+ * Collects all token addresses from bounty data.
+ */
+export function collectAllTokens(
+  bounties: Record<string, Bounty[]>,
+  protocols: typeof PROTOCOLS_TOKENS,
+  chainId: number = 1
+): Set<string> {
+  const allTokens = new Set<string>();
+  Object.values(bounties).forEach((protocolBounties) =>
+    protocolBounties.forEach((bounty) => {
+      const bountyChainId =
+        bounty.hasOwnProperty("isWrapped") && bounty.isWrapped === true
+          ? 1
+          : bounty.chainId || chainId;
+      if (bountyChainId === chainId) {
+        allTokens.add(bounty.rewardToken);
+      }
+    })
+  );
+  if (chainId === 1) {
+    allTokens.add(WETH_ADDRESS);
+    Object.values(protocols).forEach((protocolInfo) => {
+      allTokens.add(protocolInfo.native);
+      allTokens.add(protocolInfo.sdToken);
+    });
+  }
+  return allTokens;
+}
+
+/**
+ * Attaches gauge names to each bounty.
+ */
+export function addGaugeNamesToBounties(
+  bounties: Bounty[],
+  gaugesInfo: { name: string; address: string }[]
+): Bounty[] {
+  const gaugeMap = new Map(
+    gaugesInfo.map((g) => [g.address.toLowerCase(), g.name])
+  );
+  return bounties.map((bounty) => ({
+    ...bounty,
+    gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "UNKNOWN",
+  }));
+}
+
+/**
+ * Escapes CSV fields.
+ */
+export function escapeCSV(field: string): string {
+  if (field.includes(";") || field.includes('"') || field.includes("\n")) {
+    return `"${field.replace(/"/g, '""')}"`;
+  }
+  return field;
+}
+
+/**
+ * Fetch token information for a list of tokens.
+ */
+export async function fetchAllTokenInfos(
+  allTokens: string[],
+  publicClient: PublicClient
+): Promise<Record<string, TokenInfo>> {
+  const tokenInfos: Record<string, TokenInfo> = {};
+  for (const token of allTokens) {
+    tokenInfos[token.toLowerCase()] = await getTokenInfo(publicClient, token);
+  }
+  return tokenInfos;
 }
 
 export async function fetchSwapInEvents(
@@ -353,18 +520,12 @@ export async function fetchSwapInEvents(
   contractAddress: string
 ): Promise<SwapEvent[]> {
   const explorerUtils = createBlockchainExplorerUtils();
-
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
-
   const paddedContractAddress = pad(contractAddress as `0x${string}`, {
     size: 32,
   }).toLowerCase();
-
-  const topics = {
-    "0": transferHash,
-    "2": paddedContractAddress,
-  };
+  const topics = { "0": transferHash, "2": paddedContractAddress };
 
   const response = await explorerUtils.getLogsByAddressesAndTopics(
     rewardTokens,
@@ -382,7 +543,7 @@ export async function fetchSwapInEvents(
       from: `0x${log.topics[1].slice(26)}`,
       to: `0x${log.topics[2].slice(26)}`,
       token: log.address,
-      amount: amount,
+      amount,
     };
   });
 
@@ -401,18 +562,12 @@ export async function fetchSwapOutEvents(
   contractAddress: string
 ): Promise<SwapEvent[]> {
   const explorerUtils = createBlockchainExplorerUtils();
-
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
-
   const paddedContractAddress = pad(contractAddress as `0x${string}`, {
     size: 32,
   }).toLowerCase();
-
-  const topics = {
-    "0": transferHash,
-    "1": paddedContractAddress,
-  };
+  const topics = { "0": transferHash, "1": paddedContractAddress };
 
   const response = await explorerUtils.getLogsByAddressesAndTopics(
     rewardTokens,
@@ -430,7 +585,7 @@ export async function fetchSwapOutEvents(
       from: `0x${log.topics[1].slice(26)}`,
       to: `0x${log.topics[2].slice(26)}`,
       token: log.address,
-      amount: amount,
+      amount,
     };
   });
 
@@ -441,22 +596,19 @@ export async function fetchSwapOutEvents(
   );
 }
 
+/**
+ * Matches WETH inputs with corresponding reward outputs.
+ */
 export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
   const wethIn = blockData.wethIn || [];
   const rewardsOut = blockData.rewardsOut || [];
-
-  if (wethIn.length === 0 || rewardsOut.length === 0) {
-    return []; // Return empty array if either wethIn or rewardsOut is empty
-  }
-
+  if (wethIn.length === 0 || rewardsOut.length === 0) return [];
   if (wethIn.length !== rewardsOut.length) {
     console.warn(
       `Mismatch in WETH inputs (${wethIn.length}) and reward outputs (${rewardsOut.length})`
     );
   }
-
   const matchLength = Math.min(wethIn.length, rewardsOut.length);
-
   return wethIn
     .slice(0, matchLength)
     .map((wethAmount: number, index: number) => ({
@@ -465,13 +617,6 @@ export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
       amount: rewardsOut[index].amount,
       weth: wethAmount,
     }));
-}
-
-interface GaugeInfo {
-  name: string;
-  shortName?: string;
-  address: string;
-  price?: string;
 }
 
 export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
@@ -486,6 +631,8 @@ export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
       return getFxnGaugesInfos();
     case "cake":
       return getCakeGaugesInfos();
+    case "pendle":
+      return getPendleGaugesInfos();
     default:
       return [];
   }
@@ -506,9 +653,7 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
         .map(([_, gauge]: [string, any]) => {
           let gaugeName = gauge.shortName || "";
           const firstIndex = gaugeName.indexOf("(");
-          if (firstIndex > -1) {
-            gaugeName = gaugeName.slice(0, firstIndex);
-          }
+          if (firstIndex > -1) gaugeName = gaugeName.slice(0, firstIndex);
           return {
             name: gaugeName,
             address: (gauge.rootGauge || gauge.gauge).toLowerCase(),
@@ -530,15 +675,15 @@ async function getBalancerGaugesInfos(): Promise<GaugeInfo[]> {
   try {
     const response = await axios.post("https://api-v3.balancer.fi/", {
       query: `
-                query {
-                    veBalGetVotingList {
-                        gauge {
-                            address
-                        }
-                        symbol
-                    }
-                }
-            `,
+        query {
+          veBalGetVotingList {
+            gauge {
+              address
+            }
+            symbol
+          }
+        }
+      `,
     });
     if (response.status === 200 && response.data.data?.veBalGetVotingList) {
       return response.data.data.veBalGetVotingList.map((pool: any) => ({
@@ -580,7 +725,7 @@ async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
       return Object.entries(response.data.data).map(
         ([address, gauge]: [string, any]) => ({
           name: gauge.name || "",
-          address: address,
+          address,
         })
       );
     }
@@ -607,3 +752,30 @@ export async function getCakeGaugesInfos(): Promise<GaugeInfo[]> {
     return [];
   }
 }
+
+export const getPendleGaugesInfos = async (): Promise<GaugeInfo[]> => {
+  try {
+    const chains = [1, 42161, 5000, 56, 8453];
+    const responses = await Promise.all(
+      chains.map(chainId =>
+        axios.get(`https://api-v2.pendle.finance/core/v1/${chainId}/markets/active`)
+      )
+    );
+    
+    const allMarkets = responses.flatMap(r => r.data.markets);
+
+    if (Array.isArray(allMarkets)) {
+      return allMarkets.map((market: any) => ({
+        name: `${market.name} - ${new Date(market.expiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase().replace(/ /g, '')}`,
+        address: market.address,
+      }));
+    } else {
+      console.error('Failed to fetch Pendle gauges: Invalid response format');
+      return [];
+    }
+  } catch (error) {
+    console.error('Error fetching Pendle gauges:', error);
+    return [];
+  }
+};
+

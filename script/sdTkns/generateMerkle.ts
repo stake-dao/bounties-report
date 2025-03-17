@@ -2,7 +2,7 @@ import axios from "axios";
 import * as dotenv from "dotenv";
 import {
   fetchLastProposalsIds,
-  fetchProposalsIdsBasedOnPeriods,
+  fetchProposalsIdsBasedOnExactPeriods,
 } from "../utils/snapshot";
 import {
   abi,
@@ -145,7 +145,7 @@ const main = async () => {
       undefined;
 
     if (isPendle) {
-      let proposalsPeriods = await fetchProposalsIdsBasedOnPeriods(
+      let proposalsPeriods = await fetchProposalsIdsBasedOnExactPeriods(
         space,
         Object.keys(csvResult),
         currentPeriodTimestamp
@@ -181,7 +181,7 @@ const main = async () => {
         const otcTimestamps = Object.keys(otcCsvResult);
         const proposalsPeriodsOTC: Record<string, string> = {};
         for (const timestamp of otcTimestamps) {
-          const proposalId = await fetchProposalsIdsBasedOnPeriods(
+          const proposalId = await fetchProposalsIdsBasedOnExactPeriods(
             space,
             [timestamp],
             parseInt(timestamp)
@@ -225,8 +225,7 @@ const main = async () => {
       sdFXSWorkingData,
       sdCakeWorkingData,
       {
-        "sdcrv.eth": 1330,
-        "sdbal.eth": 48
+        "sdcake.eth": 772,
       }
     );
 
