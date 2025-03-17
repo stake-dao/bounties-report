@@ -1,7 +1,7 @@
 import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
 import { processAllDelegators } from "./cacheUtils";
-import { DELEGATION_ADDRESS } from "./constants";
+import { DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
@@ -19,7 +19,6 @@ export const getForwardedDelegators = async (
     transport: http("https://rpc.flashbots.net"),
   });
 
-  const contractAddress = "0x92e6E43f99809dF84ed2D533e1FD8017eb966ee2";
   const abi = [
     {
       name: "batchAddressCheck",
@@ -32,7 +31,7 @@ export const getForwardedDelegators = async (
 
   try {
     const forwarded = (await client.readContract({
-      address: contractAddress as `0x${string}`,
+      address: VOTIUM_FORWARDER_REGISTRY as `0x${string}`,
       abi,
       functionName: "batchAddressCheck",
       args: [delegators],

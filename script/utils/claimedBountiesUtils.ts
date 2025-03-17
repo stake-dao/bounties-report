@@ -911,7 +911,7 @@ const fetchVotiumClaimedBounties = async (
     VOTIUM_MERKLE,
     block_min,
     block_max,
-    { 
+    {
       "0": claimedHash,
       "2": paddedRecipient 
     },
@@ -938,7 +938,6 @@ const fetchVotiumClaimedBounties = async (
     return {
       rewardToken: getAddress(decodedLog.args.token),
       amount: decodedLog.args.amount,
-      update: decodedLog.args.update,
     };
   });
 
