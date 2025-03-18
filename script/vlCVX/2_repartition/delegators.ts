@@ -132,7 +132,7 @@ export const computeDelegationSummary = (
 
   // Calculate forwarders amount first for SDT
   totalSDTPerGroup.forwarders = (SDT_DELEGATORS_REWARD * BigInt(Math.floor(totalForwardersShare * 1e6)) / 1000000n).toString();
-  
+
   // Calculate non-forwarders as the remainder to ensure exact total for SDT
   totalSDTPerGroup.nonForwarders = (SDT_DELEGATORS_REWARD - BigInt(totalSDTPerGroup.forwarders)).toString();
 

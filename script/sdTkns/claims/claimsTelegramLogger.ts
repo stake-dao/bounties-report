@@ -187,24 +187,25 @@ export class ClaimsTelegramLogger {
   ): Promise<void> {
     const aggregated = this.aggregateClaims(claims);
 
-    let protocol = title.split("/")[0];
+    let displayProtocol = title.split("/")[0];
     const fileName = title.split("/")[1];
 
     if (fileName.includes("convex")) {
-      protocol = protocol + "-convex";
+      displayProtocol = displayProtocol + "-convex";
     }
 
     // Build the message
     const reportUrl = `https://github.com/stake-dao/bounties-report/tree/main/weekly-bounties/${currentPeriod}/${title}`;
-    let message = `<a href="${reportUrl}"><b>[Distribution] Claimed bounties for ${protocol.toUpperCase()}</b></a>\n\n`;
+    let message = `<a href="${reportUrl}"><b>[Distribution] Claimed bounties for ${displayProtocol.toUpperCase()}</b></a>\n\n`;
     message += `<b>Period:</b> ${
       new Date(currentPeriod * 1000).toLocaleDateString('fr-FR')
     }\n\n`;
 
     // Process each protocol
     for (const protocol in aggregated) {
-      message += `<b>${protocol.toUpperCase()}</b>\n`;
-      message += `\n`;
+      // Show the protocol field if it exists in the claims data
+      const protocolDisplay = protocol.toUpperCase();
+      message += `<b>${protocolDisplay}</b>\n\n`;
 
       // Process each token in this protocol
       for (const tokenAddress in aggregated[protocol]) {
@@ -212,13 +213,15 @@ export class ClaimsTelegramLogger {
           // Find chainId and isWrapped from the first claim for this token in this protocol
           let chainId = defaultChainId;
           let isWrapped = false;
+          let protocolInfo = "";
 
-          // Look for a claim with this token to get its chainId and isWrapped status
+          // Look for a claim with this token to get its chainId, isWrapped status, and protocol info
           for (const claimIndex in claims[protocol]) {
             const claim = claims[protocol][claimIndex];
             if (claim.rewardToken === tokenAddress) {
               if (claim.chainId) chainId = claim.chainId;
               if (claim.isWrapped !== undefined) isWrapped = claim.isWrapped;
+              if (claim.protocol) protocolInfo = ` (${claim.protocol})`;
               break;
             }
           }
@@ -236,10 +239,9 @@ export class ClaimsTelegramLogger {
 
           // Add to message with chain ID indicator and wrapped status if applicable
           const wrappedIndicator = isWrapped ? " [Wrapped]" : "";
-          message += `• ${tokenInfo.symbol}: <code>${parseFloat(
+          message += `• ${tokenInfo.symbol}${protocolInfo}: <code>${parseFloat(
             formattedAmount
-          ).toFixed(2)}</code> [Chain: ${chainId}]${wrappedIndicator}\n`;
-          message += `\n`;
+          ).toFixed(2)}</code> [Chain: ${chainId}]${wrappedIndicator}\n\n`;
         } catch (err) {
           console.error(`Error processing token ${tokenAddress}: ${err}`);
           // Use address as fallback with shortened format
@@ -250,11 +252,9 @@ export class ClaimsTelegramLogger {
           message += `• Token ${shortAddress}: ${formatUnits(
             aggregated[protocol][tokenAddress],
             18
-          )} [Chain: Unknown]\n`;
+          )} [Chain: Unknown]\n\n`;
         }
       }
-
-      message += "\n";
     }
 
     // Send the message
