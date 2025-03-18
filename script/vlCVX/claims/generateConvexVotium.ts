@@ -80,9 +80,18 @@ function ensureDirExists(dirPath) {
 // ---------------------------------------------------------------------
 // fetchProposalVotes returns all votes (without filtering by delegation)
 // and attaches gauge info based on the proposal choices.
-async function fetchProposalVotes(space, filter, gaugeFetcher, transformGauges = false) {
+async function fetchProposalVotes(
+  space,
+  filter,
+  gaugeFetcher,
+  transformGauges = false
+) {
   const now = Math.floor(Date.now() / 1000);
-  const proposalIdPerSpace = await fetchLastProposalsIdsCurrentPeriod([space], now, filter);
+  const proposalIdPerSpace = await fetchLastProposalsIdsCurrentPeriod(
+    [space],
+    now,
+    filter
+  );
   const proposalId = proposalIdPerSpace[space];
   const proposal = await getProposal(proposalId);
 
@@ -146,7 +155,9 @@ async function fetchProposalVotes(space, filter, gaugeFetcher, transformGauges =
 async function fetchBribes(chain) {
   const roundsUrl = `https://api.llama.airforce/bribes/votium/${chain}/rounds`;
   const roundsData = await fetch(roundsUrl).then((res) => res.json());
-  const lastRoundNumber = roundsData.rounds ? Math.max(...roundsData.rounds) : null;
+  const lastRoundNumber = roundsData.rounds
+    ? Math.max(...roundsData.rounds)
+    : null;
   if (!lastRoundNumber) return null;
   const bribesUrl = `https://api.llama.airforce/bribes/votium/${chain}/${lastRoundNumber}`;
   const bribesData = await fetch(bribesUrl).then((res) => res.json());
@@ -174,7 +185,9 @@ function computeDelegationShareForGauge(votes, gaugeChoiceId) {
         totalEffectiveVp += effectiveVp;
         if (
           vote.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase() ||
-          vote.voter.toLowerCase() === "0x717c4624365beb1aea1b1486d87372d488794a21".toLowerCase() // TODO: add all delegators who forwarded        ) {
+          vote.voter.toLowerCase() ===
+            "0x717c4624365beb1aea1b1486d87372d488794a21".toLowerCase() // TODO: add all delegators who forwarded
+        ) {
           delegationEffectiveVp += effectiveVp;
         }
       }
@@ -202,7 +215,10 @@ async function generateConvexVotiumBounties() {
       abi,
       functionName: "currentEpoch",
     });
-    const blockNumber1 = await getClosestBlockTimestamp("ethereum", Number(currentEpoch));
+    const blockNumber1 = await getClosestBlockTimestamp(
+      "ethereum",
+      Number(currentEpoch)
+    );
     const latestBlock = await ethereumClient.getBlockNumber();
 
     // This object will accumulate the delegation's claim (for each token) based on effective VP shares.
@@ -214,12 +230,18 @@ async function generateConvexVotiumBounties() {
     let votesCurveResult;
     try {
       const curveFilter = "^(?!FXN ).*Gauge Weight for Week of";
-      votesCurveResult = await fetchProposalVotes(CVX_SPACE, curveFilter, getAllCurveGauges);
+      votesCurveResult = await fetchProposalVotes(
+        CVX_SPACE,
+        curveFilter,
+        getAllCurveGauges
+      );
     } catch (error) {
       console.error("Error processing Curve proposal:", error);
     }
     const curveVotes = votesCurveResult ? votesCurveResult.votes : [];
-    const curveGaugeMapping = votesCurveResult ? votesCurveResult.gaugeMapping : {};
+    const curveGaugeMapping = votesCurveResult
+      ? votesCurveResult.gaugeMapping
+      : {};
     const curveBribes = await fetchBribes("cvx-crv");
 
     for (const gaugeKey in curveGaugeMapping) {
@@ -227,15 +249,21 @@ async function generateConvexVotiumBounties() {
       const votesForGauge = curveVotes.filter(
         (vote) => vote.choice && vote.choice[gaugeInfo.choiceId] !== undefined
       );
-      const delegationShare = computeDelegationShareForGauge(votesForGauge, gaugeInfo.choiceId);
+      const delegationShare = computeDelegationShareForGauge(
+        votesForGauge,
+        gaugeInfo.choiceId
+      );
       const matchingCurveBribes =
         curveBribes && curveBribes.epoch && curveBribes.epoch.bribes
           ? curveBribes.epoch.bribes.filter(
-              (bribe) => bribe.gauge.toLowerCase() === gaugeInfo.gauge.toLowerCase()
+              (bribe) =>
+                bribe.gauge.toLowerCase() === gaugeInfo.gauge.toLowerCase()
             )
           : [];
       matchingCurveBribes.forEach((bribe) => {
-        const delegatedClaim = BigInt(Math.floor(Number(bribe.amount) * delegationShare));
+        const delegatedClaim = BigInt(
+          Math.floor(Number(bribe.amount) * delegationShare)
+        );
         if (!matchingBribesAggregated[bribe.token]) {
           matchingBribesAggregated[bribe.token] = {
             curveAmount: BigInt(0),
@@ -259,7 +287,12 @@ async function generateConvexVotiumBounties() {
     let votesFxnResult;
     try {
       const fxnFilter = "^FXN .*Gauge Weight for Week of";
-      votesFxnResult = await fetchProposalVotes(CVX_SPACE, fxnFilter, () => getGaugesInfos("fxn"), true);
+      votesFxnResult = await fetchProposalVotes(
+        CVX_SPACE,
+        fxnFilter,
+        () => getGaugesInfos("fxn"),
+        true
+      );
     } catch (error) {
       console.error("Error processing FXN proposal:", error);
     }
@@ -272,15 +305,21 @@ async function generateConvexVotiumBounties() {
       const votesForGauge = fxnVotes.filter(
         (vote) => vote.choice && vote.choice[gaugeInfo.choiceId] !== undefined
       );
-      const delegationShare = computeDelegationShareForGauge(votesForGauge, gaugeInfo.choiceId);
+      const delegationShare = computeDelegationShareForGauge(
+        votesForGauge,
+        gaugeInfo.choiceId
+      );
       const matchingFxnBribes =
         fxnBribes && fxnBribes.epoch && fxnBribes.epoch.bribes
           ? fxnBribes.epoch.bribes.filter(
-              (bribe) => bribe.gauge.toLowerCase() === gaugeInfo.gauge.toLowerCase()
+              (bribe) =>
+                bribe.gauge.toLowerCase() === gaugeInfo.gauge.toLowerCase()
             )
           : [];
       matchingFxnBribes.forEach((bribe) => {
-        const delegatedClaim = BigInt(Math.floor(Number(bribe.amount) * delegationShare));
+        const delegatedClaim = BigInt(
+          Math.floor(Number(bribe.amount) * delegationShare)
+        );
         if (!matchingBribesAggregated[bribe.token]) {
           matchingBribesAggregated[bribe.token] = {
             curveAmount: BigInt(0),
@@ -301,7 +340,10 @@ async function generateConvexVotiumBounties() {
     // --------------------------
     // Compute final bounty distributions
     // --------------------------
-    let votiumConvexBounties = await fetchVotiumClaimedBounties(blockNumber1, Number(latestBlock));
+    let votiumConvexBounties = await fetchVotiumClaimedBounties(
+      blockNumber1,
+      Number(latestBlock)
+    );
 
     // Split each reward amount by 2 (for two-week distribution)
     const splitBounties = votiumConvexBounties.votium.map((bounty) => ({
@@ -325,7 +367,8 @@ async function generateConvexVotiumBounties() {
     for (const tokenSymbol in matchingBribesAggregated) {
       const matchingAddress = tokenSymbolToAddress[tokenSymbol];
       if (matchingAddress) {
-        tokenAddressToBribes[matchingAddress] = matchingBribesAggregated[tokenSymbol];
+        tokenAddressToBribes[matchingAddress] =
+          matchingBribesAggregated[tokenSymbol];
       }
     }
 
@@ -346,8 +389,12 @@ async function generateConvexVotiumBounties() {
           curveShare = curveAmount / total;
           fxnShare = fxnAmount / total;
         } else {
-          const hasCurveBribes = matching.bribes.some((bribe) => bribe.type === "curve");
-          const hasFxnBribes = matching.bribes.some((bribe) => bribe.type === "fxn");
+          const hasCurveBribes = matching.bribes.some(
+            (bribe) => bribe.type === "curve"
+          );
+          const hasFxnBribes = matching.bribes.some(
+            (bribe) => bribe.type === "fxn"
+          );
           if (hasCurveBribes && !hasFxnBribes) {
             curveShare = 1;
             fxnShare = 0;
@@ -379,7 +426,8 @@ async function generateConvexVotiumBounties() {
     // Add a protocol field to each bounty based on the split.
     votiumConvexBounties.votium = votiumConvexBounties.votium.map((bounty) => {
       const protocol =
-        fxnBounties[bounty.rewardToken] > BigInt(0) && curveBounties[bounty.rewardToken] > BigInt(0)
+        fxnBounties[bounty.rewardToken] > BigInt(0) &&
+        curveBounties[bounty.rewardToken] > BigInt(0)
           ? "both"
           : fxnBounties[bounty.rewardToken] > BigInt(0)
           ? "fxn"
@@ -396,7 +444,11 @@ async function generateConvexVotiumBounties() {
 
     const nowTimestamp = Math.floor(Date.now() / 1000);
     const currentPeriodTimestamp = Math.floor(nowTimestamp / WEEK) * WEEK;
-    const periodFolder = path.join(weeklyBountiesDir, currentPeriodTimestamp.toString(), "votium");
+    const periodFolder = path.join(
+      weeklyBountiesDir,
+      currentPeriodTimestamp.toString(),
+      "votium"
+    );
     ensureDirExists(periodFolder);
 
     const fileName = path.join(periodFolder, "claimed_bounties_convex.json");
@@ -405,7 +457,11 @@ async function generateConvexVotiumBounties() {
     console.log(`Convex locker votium bounties saved to ${fileName}`);
 
     const telegramLogger = new ClaimsTelegramLogger();
-    await telegramLogger.logClaims("votium/claimed_bounties_convex.json", currentPeriodTimestamp, votiumConvexBounties);
+    await telegramLogger.logClaims(
+      "votium/claimed_bounties_convex.json",
+      currentPeriodTimestamp,
+      votiumConvexBounties
+    );
   } catch (error) {
     console.error("Error generating votium bounties:", error);
     process.exit(1);
