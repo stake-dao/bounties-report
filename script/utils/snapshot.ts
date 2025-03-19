@@ -72,6 +72,77 @@ export const fetchLastProposalsIds = async (
   return proposalIdPerSpace;
 };
 
+
+
+/**
+ * Fetch last proposal ID for all specified spaces with an optional global filter.
+ * @param spaces - Array of space IDs
+ * @param currentTimestamp - Current timestamp
+ * @param filter - "all" to fetch without filtering or a regex pattern string to match titles
+ * @returns Record of space IDs to their last proposal IDs
+ */
+export const fetchLastProposalsIdsCurrentPeriod = async (
+  spaces: string[],
+  currentTimestamp: number,
+  filter: string = "all"
+): Promise<Record<string, string>> => {
+  const query = gql`
+    query Proposals($spaces: [String!], $start_lt: Int!) {
+      proposals(
+        first: 1000
+        skip: 0
+        orderBy: "created"
+        orderDirection: desc
+        where: { space_in: $spaces, type: "weighted", start_lt: $start_lt }
+      ) {
+        id
+        title
+        space {
+          id
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    spaces,
+    start_lt: currentTimestamp,
+  };
+
+  const result = await request(SNAPSHOT_ENDPOINT, query, variables);
+  let proposals = result.proposals;
+
+  if (filter !== "all") {
+    let regex: RegExp;
+
+    try {
+      // Modify the filter string to make it a valid regex pattern
+      const modifiedFilter = filter.replace(/^\*/, ".*");
+      regex = new RegExp(modifiedFilter);
+    } catch (error) {
+      throw new Error(`Invalid regex pattern provided for filter: "${filter}"`);
+    }
+
+    // Filter proposals based on the regex pattern
+    proposals = proposals.filter((proposal: any) => regex.test(proposal.title));
+  }
+
+  const proposalIdPerSpace: Record<string, string> = {};
+  for (const space of spaces) {
+    for (const proposal of proposals) {
+      if (proposal.space.id !== space) {
+        continue;
+      }
+
+      proposalIdPerSpace[space] = proposal.id;
+      break; // Stop after finding the latest matching proposal for the space
+    }
+  }
+
+  return proposalIdPerSpace;
+};
+
+
 /**
  * Fetch proposal IDs based on specified periods for a space
  * @param space - Space ID

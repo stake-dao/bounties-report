@@ -177,7 +177,10 @@ const main = async () => {
       );
 
       if (fs.existsSync(otcCsvPath)) {
-        const otcCsvResult: Record<string, Record<string, number>> = await extractOTCCSV(otcCsvPath);
+        const otcCsvResult: Record<
+          string,
+          Record<string, number>
+        > = await extractOTCCSV(otcCsvPath);
         const otcTimestamps = Object.keys(otcCsvResult);
         const proposalsPeriodsOTC: Record<string, string> = {};
         for (const timestamp of otcTimestamps) {
@@ -224,9 +227,7 @@ const main = async () => {
       pendleRewards,
       sdFXSWorkingData,
       sdCakeWorkingData,
-      {
-        "sdcake.eth": 772,
-      }
+      {}
     );
 
     newMerkles.push(merkleStat.merkle);
@@ -312,20 +313,24 @@ const main = async () => {
     throw new Error("Distribution is not ok");
   }
 
-  fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/merkle.json`, JSON.stringify(newMerkles));
+  fs.writeFileSync(
+    `./bounties-reports/${currentPeriodTimestamp}/merkle.json`,
+    JSON.stringify(newMerkles)
+  );
 
   for (const key of Object.keys(delegationAPRs)) {
     if (delegationAPRs[key] === -1) {
       delegationAPRs[key] = delegationAPRsClone[key] || 0;
     }
   }
-  fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+  fs.writeFileSync(
+    `./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`,
+    JSON.stringify(delegationAPRs)
+  );
   fs.writeFileSync(`delegationsAPRs.json`, JSON.stringify(delegationAPRs)); // TODO : Remove , adapt the logger to fetch from current period
-
 
   // Add delegation APRS in logData
   logData["DelegationsAPRsDetails"] = delegationAPRs;
-
 
   // Add totals in the log
   logData["TotalRewards"] = {};
@@ -350,19 +355,22 @@ const main = async () => {
     "delegationsAPRs.json"
   );
 
-
   // Write here if no --log, else write after the comparison
   if (!process.argv.includes("--log")) {
     const logPath = path.join(__dirname, "..", "..", "log.json");
     fs.writeFileSync(logPath, JSON.stringify(logData));
-    process.stdout.write(logPath + '\n');
+    process.stdout.write(logPath + "\n");
   }
 
   // Compare merkle trees and log the distribution details.
   // Run the merkle check only if the --log flag is passed.
   if (process.argv.includes("--log")) {
     // Write comparison output to stderr
-    const comparisonOutput = await compareMerkleTrees(newMerkles, lastMerkles, logData);
+    const comparisonOutput = await compareMerkleTrees(
+      newMerkles,
+      lastMerkles,
+      logData
+    );
     process.stderr.write(comparisonOutput);
   }
 };
@@ -459,7 +467,10 @@ const checkDistribution = async (
     // Allow a small threshold of 0.01
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
       console.error("Distribution is not ok for token " + tokenSymbol);
-      console.error("Difference", totalAmount - (sdTknBalanceInMerkle + amountToDistribute));
+      console.error(
+        "Difference",
+        totalAmount - (sdTknBalanceInMerkle + amountToDistribute)
+      );
       return false;
     }
   }
@@ -508,7 +519,9 @@ async function compareMerkleTrees(
 
     if (!prevMerkle) {
       output += "\nNEW DISTRIBUTION\n";
-      output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${merkle.symbol}\n`;
+      output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${
+        merkle.symbol
+      }\n`;
       continue;
     }
 
@@ -574,9 +587,15 @@ async function compareMerkleTrees(
         : 0;
 
     output += "\nDistribution Changes:\n";
-    output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${merkle.symbol}\n`;
-    output += `Pending Allocation (Cumulative Total - Contract Balance): ${pendingAllocation.toFixed(2)} ${merkle.symbol}\n`;
-    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}\n`;
+    output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${
+      merkle.symbol
+    }\n`;
+    output += `Pending Allocation (Cumulative Total - Contract Balance): ${pendingAllocation.toFixed(
+      2
+    )} ${merkle.symbol}\n`;
+    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${
+      merkle.symbol
+    }\n`;
 
     // --- Holder Distribution ---
     const addresses = new Set([
@@ -626,8 +645,8 @@ async function compareMerkleTrees(
         const newDistShare = hasClaimed
           ? totalShare
           : weeklyReportedReward > 0
-            ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
-            : 0;
+          ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
+          : 0;
         return {
           address: h.address,
           newAmount: h.newAmount,
@@ -643,7 +662,8 @@ async function compareMerkleTrees(
 
     output += "\nHolder Distribution:\n";
     output += "-".repeat(120) + "\n";
-    output += "Address                                      New Dist Share  Total Share  Prev Amount    New Amount     Week Change    Status\n";
+    output +=
+      "Address                                      New Dist Share  Total Share  Prev Amount    New Amount     Week Change    Status\n";
     output += "-".repeat(120) + "\n";
     for (const holder of holders) {
       const newDistShareStr = holder.newDistShare.toFixed(2).padStart(6) + "%";
@@ -653,8 +673,13 @@ async function compareMerkleTrees(
       const changeStr =
         (holder.weekChange > 0 ? "+" : "") + holder.weekChange.toFixed(2);
       const claimStatus = holder.hasClaimed ? "CLAIMED" : "PENDING";
-      output +=
-        `${holder.address.padEnd(42)} ${newDistShareStr.padEnd(14)} ${totalShareStr.padEnd(12)} ${prevAmountStr.padEnd(14)} ${newAmountStr.padEnd(14)} ${changeStr.padEnd(14)} ${claimStatus.padEnd(10)}\n`;
+      output += `${holder.address.padEnd(42)} ${newDistShareStr.padEnd(
+        14
+      )} ${totalShareStr.padEnd(12)} ${prevAmountStr.padEnd(
+        14
+      )} ${newAmountStr.padEnd(14)} ${changeStr.padEnd(
+        14
+      )} ${claimStatus.padEnd(10)}\n`;
     }
     output += "-".repeat(120) + "\n";
 
@@ -664,18 +689,29 @@ async function compareMerkleTrees(
 
     output += "\nDistribution Summary:\n";
     output += `Total Holders: ${totalHolders}\n`;
-    output += `Claimed Since Last Distribution: ${claimedCount} (${((claimedCount / totalHolders) * 100).toFixed(2)}%)\n`;
-    output += `Pending Claims: ${pendingCount} (${((pendingCount / totalHolders) * 100).toFixed(2)}%)\n`;
-    output += `Active Users this Week: ${holders.filter((h) => h.weekChange > 0).length}\n`;
-    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol}\n`;
-
+    output += `Claimed Since Last Distribution: ${claimedCount} (${(
+      (claimedCount / totalHolders) *
+      100
+    ).toFixed(2)}%)\n`;
+    output += `Pending Claims: ${pendingCount} (${(
+      (pendingCount / totalHolders) *
+      100
+    ).toFixed(2)}%)\n`;
+    output += `Active Users this Week: ${
+      holders.filter((h) => h.weekChange > 0).length
+    }\n`;
+    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${
+      merkle.symbol
+    }\n`;
 
     // Log data
     logData["DistributionSurplus"][merkle.symbol] = distributionSurplus;
     logData["MerkleRoots"].push(merkle.root);
     logData["TotalHolders"][merkle.symbol] = holders.length;
     logData["ClaimedSinceLastDistrib"][merkle.symbol] = claimedCount;
-    logData["ActiveUsers"][merkle.symbol] = holders.filter((h) => h.weekChange > 0).length;
+    logData["ActiveUsers"][merkle.symbol] = holders.filter(
+      (h) => h.weekChange > 0
+    ).length;
 
     // Storing top 5 holders before/after
     logData["TopHolders"][merkle.symbol] = holders.slice(0, 5).map((h) => ({
@@ -688,8 +724,7 @@ async function compareMerkleTrees(
 
   const logPath = path.join(__dirname, "..", "..", "log.json");
   fs.writeFileSync(logPath, JSON.stringify(logData));
-  process.stdout.write(logPath + '\n');
-
+  process.stdout.write(logPath + "\n");
 
   return output;
 }

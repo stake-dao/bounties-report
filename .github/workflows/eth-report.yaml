@@ -22,6 +22,7 @@ on:
         - fxn
         - frax
         - pendle
+        - votium
         default: 'all'
 
 jobs:
@@ -95,6 +96,16 @@ jobs:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
           GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Run generateVotiumReport script
+        if: env.ACTION_TYPE == 'normal' && (env.PROTOCOL == 'all' || env.PROTOCOL == 'votium')
+        run: |
+          pnpm tsx script/vlCVX/claims/generateConvexVotium.ts
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
       - name: Run generateOTCReport script (curve)
         if: env.ACTION_TYPE == 'otc' && env.PROTOCOL == 'curve'
