@@ -46,6 +46,7 @@ async function generateConvexVotemarketV2Bounties(pastWeek: number = 0) {
     );
 
     const votemarketV2ConvexBounties = await fetchVotemarketV2ClaimedBounties(
+      "curve",
       timestamp1,
       timestamp2,
       CONVEX_LOCKER
