@@ -1,0 +1,37 @@
+{
+  "merkleRoot": "0x5abfae0e6994809520ae4da5b47072d0e4aa5550ace7e3a224f7bedb08983bfe",
+  "claims": {
+    "0x2D8304750A8AC17DC1B9A5Da1c85c0a55f12c3D3": {
+      "tokens": {
+        "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415": {
+          "amount": "1026252410480599642831",
+          "proof": [
+            "0x227c4360d605ea0ce8bfee0cf39216afb8ffd9547bf617c3eef3c96d15b66032",
+            "0xd86526c3b0d5cacf3e7f5a9fdb50606a934867e8e07c2073720a5ff36b40ffc9"
+          ]
+        }
+      }
+    },
+    "0xC3d09017A4D34006bB6269f164E41d3088a5cE03": {
+      "tokens": {
+        "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415": {
+          "amount": "58642994884605700989",
+          "proof": [
+            "0xb9c869ecfa6dc36f4434c407aec73429424d571a27b42af77dab1fbdb113d237",
+            "0xd86526c3b0d5cacf3e7f5a9fdb50606a934867e8e07c2073720a5ff36b40ffc9"
+          ]
+        }
+      }
+    },
+    "0x5505F7442fcBAD24F65265c422f8A055993815c4": {
+      "tokens": {
+        "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415": {
+          "amount": "26592990981238474967",
+          "proof": [
+            "0x9d6525f5e37a3772595ea9d0ecffd91a8e4d8f16f4157ab4be53fd06afd5aab6"
+          ]
+        }
+      }
+    }
+  }
+}
