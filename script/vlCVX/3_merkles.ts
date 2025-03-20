@@ -130,10 +130,9 @@ async function checkDistribution(
 }
 
 /**
- * Generates Merkle tree for delegators based on shares (forwarded)
- * Take the amount crvUSD + cumulative shares of all forwarded for SDT
+ * Generates Merkle tree for delegators based on their sdCRV allocation
  */
-async function generateForwardedDelegatorMerkleTree(
+async function generateDelegatorMerkleTree(
   minBlock: number,
   maxBlock: number,
   delegationDistribution: DelegationDistribution | null,
