@@ -42,6 +42,7 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
   const { timestamp1, timestamp2 } = await getTimestampsBlocks(ethereumClient, pastWeek);
 
   const votemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
+    "curve",
     timestamp1,
     timestamp2,
     STAKE_DAO_LOCKER
