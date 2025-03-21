@@ -4,7 +4,10 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
-import { STAKE_DAO_LOCKER } from "../../utils/constants";
+import {
+  BALANCER_STAKE_DAO_LOCKER,
+  STAKE_DAO_LOCKER,
+} from "../../utils/constants";
 import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
 
 const WEEK = 604800;
@@ -39,14 +42,29 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
-  const { timestamp1, timestamp2 } = await getTimestampsBlocks(ethereumClient, pastWeek);
+  const { timestamp1, timestamp2 } = await getTimestampsBlocks(
+    ethereumClient,
+    pastWeek
+  );
 
-  const votemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
+  const curveVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
     "curve",
     timestamp1,
     timestamp2,
     STAKE_DAO_LOCKER
   );
+
+  const balancerVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
+    "balancer",
+    timestamp1,
+    timestamp2,
+    BALANCER_STAKE_DAO_LOCKER
+  );
+
+  const votemarketV2Bounties = {
+    ...curveVotemarketV2Bounties,
+    ...balancerVotemarketV2Bounties,
+  };
 
   const rootDir = path.resolve(__dirname, "../../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
@@ -54,7 +72,11 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
     fs.mkdirSync(weeklyBountiesDir, { recursive: true });
   }
 
-  const periodFolder = path.join(weeklyBountiesDir, currentPeriod.toString(), 'votemarket-v2');
+  const periodFolder = path.join(
+    weeklyBountiesDir,
+    currentPeriod.toString(),
+    "votemarket-v2"
+  );
   if (!fs.existsSync(periodFolder)) {
     fs.mkdirSync(periodFolder, { recursive: true });
   }
@@ -66,7 +88,11 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
 
   // Log aggregated claim sums to Telegram (chain id for mainnet is 1)
   const telegramLogger = new ClaimsTelegramLogger();
-  await telegramLogger.logClaims("votemarket-v2/claimed_bounties.json", currentPeriod, votemarketV2Bounties);
+  await telegramLogger.logClaims(
+    "votemarket-v2/claimed_bounties.json",
+    currentPeriod,
+    votemarketV2Bounties
+  );
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;

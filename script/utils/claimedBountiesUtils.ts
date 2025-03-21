@@ -318,7 +318,10 @@ const fetchVotemarketV2ClaimedBounties = async (
         ];
       } else {
         vmAddresses = [
-          ContractRegistry.getAddress(protocol.toUpperCase() + "_VOTEMARKET_V2", chain),
+          ContractRegistry.getAddress(
+            protocol.toUpperCase() + "_VOTEMARKET_V2",
+            chain
+          ),
         ];
       }
 
@@ -346,7 +349,10 @@ const fetchVotemarketV2ClaimedBounties = async (
 
       if (!mergedLogs.length) return;
 
-      const tokenFactoryAddress = ContractRegistry.getAddress("TOKEN_FACTORY", chain);
+      const tokenFactoryAddress = ContractRegistry.getAddress(
+        "TOKEN_FACTORY",
+        chain
+      );
 
       // Process logs and convert them to VotemarketV2Bounty objects
       const bountyPromises = mergedLogs.map(async (log: any) => {
@@ -565,7 +571,7 @@ const fetchWardenClaimedBounties = async (
           if (
             decodedLog.args.account &&
             getAddress(decodedLog.args.account.toLowerCase()) !=
-            getAddress(BOTMARKET.toLowerCase())
+              getAddress(BOTMARKET.toLowerCase())
           ) {
             continue;
           }
@@ -597,7 +603,7 @@ const fetchWardenClaimedBounties = async (
           quest.questId === bounty.questID &&
           quest.period === bounty.period &&
           getAddress(quest.distributor.toLowerCase()) ==
-          getAddress(bounty.distributor.toLowerCase())
+            getAddress(bounty.distributor.toLowerCase())
         ) {
           if (!protocolBounties[protocol]) {
             protocolBounties[protocol] = [];
@@ -939,7 +945,7 @@ const fetchVotiumClaimedBounties = async (
     block_max,
     {
       "0": claimedHash,
-      "2": paddedRecipient
+      "2": paddedRecipient,
     },
     1
   );
