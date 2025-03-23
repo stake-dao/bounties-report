@@ -41,7 +41,7 @@ interface CSVRow {
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.ankr.com/eth"),
+  transport: http("https://rpc.flashbots.net"),
 });
 
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
