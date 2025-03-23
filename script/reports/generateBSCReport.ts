@@ -87,7 +87,7 @@ interface ProtocolData {
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http("https://bsc-dataseed.bnbchain.org"),
 });
 
 async function fetchAllTokenInfos(

@@ -17,7 +17,7 @@ import { formatAddress } from "../utils/address";
 
 const client = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.ankr.com/eth"),
+  transport: http("https://rpc.flashbots.net"),
 });
 
 function setupLogging(proposalId: string): string {

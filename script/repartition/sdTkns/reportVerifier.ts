@@ -16,12 +16,12 @@ const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
 
 const ethereumClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.ankr.com/eth"),
+  transport: http("https://rpc.flashbots.net"),
 });
 
 const bscClient = createPublicClient({
   chain: bsc,
-  transport: http("https://rpc.ankr.com/bsc"),
+  transport: http("https://bsc-dataseed.bnbchain.org"),
 });
 
 interface ProtocolData {
