@@ -167,8 +167,8 @@ async function generateDelegatorMerkleTree(
   // Remove worth 0.00001 of crvUSD from totalCrvUsd (for round issues)
   totalCrvUsd -= BigInt(10 ** 14);
 
-  // Add SDT (5k)
-  let totalSDT = 5000n * BigInt(10 ** 18);
+  // Add SDT (3.75k)
+  let totalSDT = 3750n * BigInt(10 ** 18);
 
   // Remove worth 0.00001 of sdt from totalSDT (for round issues)
   totalSDT -= BigInt(10 ** 14);
