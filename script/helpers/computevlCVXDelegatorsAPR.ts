@@ -168,7 +168,11 @@ async function getRewards(
 }
 
 async function computeAPR(): Promise<
-  APRResult & { annualizedAPRWithoutSDT: number; sdtAPR: number; crvusdAPR: number }
+  APRResult & {
+    annualizedAPRWithoutSDT: number;
+    sdtAPR: number;
+    crvusdAPR: number;
+  }
 > {
   const now = moment.utc().unix();
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
@@ -193,7 +197,7 @@ async function computeAPR(): Promise<
     now,
     filter
   );
-      // Try to find the address with different casing
+  // Try to find the address with different casing
   const proposalId = proposalIdPerSpace[CVX_SPACE];
   console.log("Using proposal:", proposalId);
 
@@ -255,24 +259,31 @@ async function computeAPR(): Promise<
   for (const skippedUser of skippedUsers) {
     // Normalize the skipped user address
     const normalizedSkippedUser = getAddress(skippedUser);
-    
+
     // Check if this user exists in the delegator voting powers
     if (delegatorVotingPowers[normalizedSkippedUser]) {
       delegationVPSDT -= delegatorVotingPowers[normalizedSkippedUser];
-      console.log(`Subtracted ${delegatorVotingPowers[normalizedSkippedUser].toFixed(2)} VP from skipped user ${normalizedSkippedUser}`);
-    } else {      
+      console.log(
+        `Subtracted ${delegatorVotingPowers[normalizedSkippedUser].toFixed(
+          2
+        )} VP from skipped user ${normalizedSkippedUser}`
+      );
+    } else {
       // Try to find the address with different casing
       const foundAddress = Object.keys(delegatorVotingPowers).find(
-        addr => addr.toLowerCase() === normalizedSkippedUser.toLowerCase()
+        (addr) => addr.toLowerCase() === normalizedSkippedUser.toLowerCase()
       );
-      
+
       if (foundAddress) {
         delegationVPSDT -= delegatorVotingPowers[foundAddress];
-        console.log(`Found and subtracted ${delegatorVotingPowers[foundAddress].toFixed(2)} VP from skipped user ${foundAddress}`);
+        console.log(
+          `Found and subtracted ${delegatorVotingPowers[foundAddress].toFixed(
+            2
+          )} VP from skipped user ${foundAddress}`
+        );
       }
     }
   }
-
 
   // Get all rewards on the Week received by the Merkles
   // Get block numbers
@@ -289,10 +300,9 @@ async function computeAPR(): Promise<
     return acc;
   }, {} as Record<string, bigint>);
 
-  const prices = await getTokenPrices(
-    REWARD_TOKENS.concat([CVX]),
-    currentPeriodTimestamp
-  );
+  const prices = await getTokenPrices(REWARD_TOKENS, currentPeriodTimestamp);
+
+  const cvxPrice = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
 
   // Calculate individual token reward values
   const tokenRewardValues: Record<string, number> = {};
@@ -301,31 +311,28 @@ async function computeAPR(): Promise<
 
   for (const price of prices) {
     const tokenAmount = sumPerToken[getAddress(price.address)] || 0n;
-    const valueUSD = price.price * (Number(tokenAmount) / Math.pow(10, price.decimals));
-    
+    const valueUSD =
+      price.price * (Number(tokenAmount) / Math.pow(10, price.decimals));
+
     tokenRewardValues[price.address] = valueUSD;
     rewardValueUSD += valueUSD;
-    
+
     // Exclude SDT from the without-SDT calculation
     if (price.address.toLowerCase() !== SDT.toLowerCase()) {
       rewardValueUSDWithoutSDT += valueUSD;
     }
   }
 
-  // Get CVX price from prices array
-  const cvxPrice =
-    prices.find((p) => p.address.toLowerCase() === CVX.toLowerCase())?.price ||
-    0;
-
   // Calculate APRs for individual tokens
   const sdtValue = tokenRewardValues[getAddress(SDT)] || 0;
   const crvusdValue = tokenRewardValues[getAddress(CRVUSD)] || 0;
-  
+
   const annualizedSDT = sdtValue * 52;
   const annualizedCRVUSD = crvusdValue * 52;
-  
+
   const sdtAPR = (annualizedSDT / (cvxPrice * delegationVPSDT)) * 100;
-  const crvusdAPR = (annualizedCRVUSD / (cvxPrice * delegationVotingPower)) * 100;
+  const crvusdAPR =
+    (annualizedCRVUSD / (cvxPrice * delegationVotingPower)) * 100;
 
   // Calculate total APRs
   const annualizedRewards = rewardValueUSD * 52;

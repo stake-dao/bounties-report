@@ -22,8 +22,6 @@ import {
   CVX_SPACE,
   WEEK,
   VLCVX_NON_DELEGATORS_MERKLE,
-  CRVUSD,
-  SDT,
   CVX,
 } from "../utils/constants";
 import { extractCSV, getHistoricalTokenPrice } from "../utils/utils";
@@ -119,7 +117,8 @@ async function getRewards(
   // Remove duplicates with same transactionHash AND token address
   const uniqueTransfers = responseBotmarket.result.filter(
     (transfer, index, self) =>
-      index === self.findIndex(
+      index ===
+      self.findIndex(
         (t) =>
           t.transactionHash === transfer.transactionHash &&
           t.address === transfer.address
@@ -245,10 +244,9 @@ async function computeAPR(): Promise<APRResult> {
     return acc;
   }, {} as Record<string, bigint>);
 
-  const prices = await getTokenPrices(
-    tokens.concat([CVX]),
-    currentPeriodTimestamp
-  );
+  const prices = await getTokenPrices(tokens, currentPeriodTimestamp);
+
+  const cvxPrice = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
 
   // Calculate total reward value in USD
   const rewardValueUSD = prices.reduce((total, price) => {
@@ -257,11 +255,6 @@ async function computeAPR(): Promise<APRResult> {
       price.price * (Number(tokenAmount) / Math.pow(10, price.decimals));
     return total + valueUSD;
   }, 0);
-
-  // Get CVX price from prices array
-  const cvxPrice =
-    prices.find((p) => p.address.toLowerCase() === CVX.toLowerCase())?.price ||
-    0;
 
   // Calculate APR
   const annualizedRewards = rewardValueUSD * 52; // Multiply weekly rewards by 52 weeks
@@ -290,7 +283,7 @@ async function main() {
     // Read existing file if it exists
     let existingData = {};
     try {
-      existingData = JSON.parse(readFileSync(outputPath, 'utf8'));
+      existingData = JSON.parse(readFileSync(outputPath, "utf8"));
     } catch (error) {
       // File doesn't exist or is invalid, start fresh
     }
@@ -298,7 +291,7 @@ async function main() {
     // Merge new data with existing
     const updatedData = {
       ...existingData,
-      votersApr: result.annualizedAPR
+      votersApr: result.annualizedAPR,
     };
 
     writeFileSync(outputPath, JSON.stringify(updatedData, null, 2));
