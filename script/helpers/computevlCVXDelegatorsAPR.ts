@@ -335,9 +335,6 @@ async function computeAPR(): Promise<
     (annualizedCRVUSD / (cvxPrice * delegationVotingPower)) * 100;
 
   // Calculate total APRs
-  const annualizedRewards = rewardValueUSD * 52;
-  const annualizedRewardsWithoutSDT = rewardValueUSDWithoutSDT * 52;
-
   const annualizedAPR = sdtAPR + crvusdAPR; // Sum of individual APRs
   const annualizedAPRWithoutSDT = crvusdAPR; // Just the CRVUSD APR
 

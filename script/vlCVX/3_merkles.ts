@@ -28,11 +28,29 @@ import { createPublicClient, http, getAddress, Chain } from "viem";
 import { mainnet, arbitrum, optimism, base, polygon } from "viem/chains";
 import { getCRVUsdTransfer, generateMerkleTree } from "./utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { CRVUSD, DELEGATION_ADDRESS, SDT } from "../utils/constants";
+import {
+  CRVUSD,
+  CVX,
+  CVX_SPACE,
+  DELEGATION_ADDRESS,
+  SDT,
+  WEEK,
+} from "../utils/constants";
 import { MerkleData } from "../interfaces/MerkleData";
 import { DelegationDistribution } from "../interfaces/DelegationDistribution";
 import { createCombineDistribution } from "../utils/merkle";
 import { fetchTokenInfos } from "../utils/tokens";
+import {
+  associateGaugesPerId,
+  fetchLastProposalsIds,
+  getProposal,
+  getVoters,
+  getVotingPower,
+} from "../utils/snapshot";
+import moment from "moment";
+import { CvxCSVType, extractCSV, getHistoricalTokenPrice } from "../utils/utils";
+import { getAllCurveGauges } from "../utils/curveApi";
+import { processAllDelegators } from "../utils/cacheUtils";
 
 const IGNORED_TOKENS = [
   "0xd9879d9dbdc5042d8f1c2710be293909b985dc90", // reYWA (vested)
@@ -129,6 +147,149 @@ async function checkDistribution(
   return distribution;
 }
 
+async function fetchSDTAmount(maxSDT: number) {
+  // TODO : Store that on step 2 ?
+  // Reach 10%, with Max SDT
+  const now = moment.utc().unix();
+
+  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+
+  // Get CVX report to identify relevant gauges
+  console.log("Extracting CSV report...");
+  const csvResult = (await extractCSV(
+    currentPeriodTimestamp,
+    CVX_SPACE
+  )) as CvxCSVType;
+  if (!csvResult) throw new Error("No CSV report found");
+
+  // Get relevant gauges from CSV
+  const gauges = Object.keys(csvResult);
+  console.log(`Found ${gauges.length} gauges in report`);
+
+  console.log("Fetching latest proposal...");
+  const filter: string = "^(?!FXN ).*Gauge Weight for Week of"; // TODO : compute with both FXN and Curve for 10%
+  const proposalIdPerSpace = await fetchLastProposalsIds(
+    [CVX_SPACE],
+    now,
+    filter
+  );
+
+  // Try to find the address with different casing
+  const proposalId = proposalIdPerSpace[CVX_SPACE];
+  console.log("Using proposal:", proposalId);
+
+  const proposal = await getProposal(proposalId);
+  const votes = await getVoters(proposalId);
+  const curveGauges = await getAllCurveGauges();
+  const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
+
+  let totalVotingPower = 0;
+  let delegationVotingPower = 0;
+
+  // Process votes for each gauge
+  for (const gauge of gauges) {
+    const gaugeInfo = gaugePerChoiceId[gauge.toLowerCase()];
+    if (!gaugeInfo) {
+      console.warn(`Warning: No gauge info found for ${gauge}`);
+      continue;
+    }
+
+    const votesForGauge = votes.filter(
+      (vote) => vote.choice[gaugeInfo.choiceId] !== undefined
+    );
+
+    for (const vote of votesForGauge) {
+      let vpChoiceSum = 0;
+      let currentChoiceIndex = 0;
+
+      for (const [choiceIndex, value] of Object.entries(vote.choice)) {
+        if (gaugeInfo.choiceId === parseInt(choiceIndex)) {
+          currentChoiceIndex = value;
+        }
+        vpChoiceSum += value;
+      }
+
+      if (currentChoiceIndex > 0) {
+        const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
+        const effectiveVp = (vote.vp * ratio) / 100;
+
+        totalVotingPower += effectiveVp;
+        if (vote.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
+          delegationVotingPower += effectiveVp;
+        }
+      }
+    }
+  }
+
+  // Get delegators and their voting powers
+  console.log("Fetching delegator data...");
+  const delegators = await processAllDelegators(
+    CVX_SPACE,
+    proposal.created,
+    DELEGATION_ADDRESS
+  );
+  const delegatorVotingPowers = await getVotingPower(proposal, delegators);
+
+  const skippedUsers = new Set([
+    getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"), // Bent
+  ]);
+
+  // Calculate delegationVPSDT by subtracting skipped users' voting power
+  let delegationVPSDT = delegationVotingPower;
+  for (const skippedUser of skippedUsers) {
+    // Normalize the skipped user address
+    const normalizedSkippedUser = getAddress(skippedUser);
+
+    // Check if this user exists in the delegator voting powers
+    if (delegatorVotingPowers[normalizedSkippedUser]) {
+      delegationVPSDT -= delegatorVotingPowers[normalizedSkippedUser];
+      console.log(
+        `Subtracted ${delegatorVotingPowers[normalizedSkippedUser].toFixed(
+          2
+        )} VP from skipped user ${normalizedSkippedUser}`
+      );
+    } else {
+      // Try to find the address with different casing
+      const foundAddress = Object.keys(delegatorVotingPowers).find(
+        (addr) => addr.toLowerCase() === normalizedSkippedUser.toLowerCase()
+      );
+
+      if (foundAddress) {
+        delegationVPSDT -= delegatorVotingPowers[foundAddress];
+        console.log(
+          `Found and subtracted ${delegatorVotingPowers[foundAddress].toFixed(
+            2
+          )} VP from skipped user ${foundAddress}`
+        );
+      }
+    }
+  }
+
+  // Get SDT + CVX price
+  const cvxPrice = await getHistoricalTokenPrice(Number(proposal.start), "ethereum", CVX);
+  const sdtPrice = await getHistoricalTokenPrice(now, "ethereum", SDT);
+
+  // Calculate the required SDT amount to reach a 5% APR.
+  // Rearranged from: (sdtAmount * sdtPrice * 52) / (cvxPrice * delegationVPSDT) * 100 = 5
+  let requiredSDTAmount = (0.05 * (cvxPrice * delegationVPSDT)) / (52 * sdtPrice);
+
+  // Ensure we do not exceed the max SDT allowed
+  requiredSDTAmount = Math.min(requiredSDTAmount, Number(maxSDT));
+
+  // Now recalc the SDT value and annualized SDT based on the capped amount.
+  const sdtValue = requiredSDTAmount * sdtPrice;
+  const annualizedSDT = sdtValue * 52;
+  const sdtAPR = (annualizedSDT / (cvxPrice * delegationVPSDT)) * 100;
+
+  console.log(`Using SDT Amount: ${requiredSDTAmount.toFixed(2)}`);
+  console.log("SDT APR:", sdtAPR.toFixed(2) + "%");
+
+  // TODO : Store the SDT amount for withdraw job
+
+  return BigInt(requiredSDTAmount * 10 ** 18);
+
+}
+
 /**
  * Generates Merkle tree for delegators based on their sdCRV allocation
  */
@@ -167,8 +328,7 @@ async function generateDelegatorMerkleTree(
   // Remove worth 0.00001 of crvUSD from totalCrvUsd (for round issues)
   totalCrvUsd -= BigInt(10 ** 14);
 
-  // Add SDT (3.75k)
-  let totalSDT = 3750n * BigInt(10 ** 18);
+  let totalSDT = await fetchSDTAmount(3750) // (Max SDT) // TODO : const + that function on utils
 
   // Remove worth 0.00001 of sdt from totalSDT (for round issues)
   totalSDT -= BigInt(10 ** 14);
@@ -225,7 +385,9 @@ async function generateDelegatorMerkleTree(
       if (share <= 0) return; // Ignore invalid shares
       if (skippedUsers.has(normalizedAddress)) return;
 
-      const sdtAmount = (totalSDTOut * BigInt(Math.floor(share * 1e18))) / BigInt(Math.floor(totalValidShares * 1e18));
+      const sdtAmount =
+        (totalSDTOut * BigInt(Math.floor(share * 1e18))) /
+        BigInt(Math.floor(totalValidShares * 1e18));
       distribution[normalizedAddress].tokens[SDT] += sdtAmount;
     });
   }
@@ -371,13 +533,13 @@ async function getAvailableChains(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/vlCVX`
   );
-  
+
   // Check if directory exists, if not return empty array
   if (!fs.existsSync(dirPath)) {
     console.log(`Directory does not exist: ${dirPath}`);
     return [];
   }
-  
+
   const files = fs.readdirSync(dirPath);
 
   // Find all repartition files with chain IDs
@@ -404,13 +566,13 @@ async function generateMerkles(generateDelegatorsMerkle: boolean = false) {
   // Calculate period timestamps
   const WEEK = 604800;
   const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
-  
+
   // Ensure the directory structure exists
   const currentPeriodDir = path.join(
     __dirname,
     `../../bounties-reports/${currentPeriodTimestamp}/vlCVX`
   );
-  
+
   if (!fs.existsSync(currentPeriodDir)) {
     console.log(`Creating directory structure: ${currentPeriodDir}`);
     fs.mkdirSync(currentPeriodDir, { recursive: true });
