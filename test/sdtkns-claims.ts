@@ -26,7 +26,7 @@ const sdTokens = [
 // --------------------------------------------------------------------------------
 const getMerkleData = () => {
   const currentTimestamp = Math.floor(Date.now() / 1000);
-  const currentWeek =  Math.floor(currentTimestamp / WEEK) * WEEK;
+  const currentWeek = Math.floor(currentTimestamp / WEEK) * WEEK;
   const merkleFilePath = `../bounties-reports/${currentWeek}/merkle.json`;
   console.log(`Loading Merkle data from: ${merkleFilePath}`);
   return JSON.parse(
@@ -40,7 +40,7 @@ const merkleNewData = getMerkleData();
  * Helper function to format token amounts to human-readable format
  */
 const formatTokenAmount = (amount: bigint): string => {
-  return (Number(amount) / 10**18).toFixed(6);
+  return (Number(amount) / 10 ** 18).toFixed(6);
 };
 
 /**
@@ -60,7 +60,7 @@ const setupTest = async () => {
 
   // 2) ERC20 token contracts for each sdToken
   const tokenContracts = await Promise.all(
-    sdTokens.map((token) => hre.viem.getContractAt("IERC20", token))
+    sdTokens.map((token) => hre.viem.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", token))
   );
 
   // 3) Botmarket contract
@@ -107,7 +107,7 @@ const setupTest = async () => {
     sdFXNHolder,
     "0x56BC75E2D63100000", // 100 ETH
   ]);
-  const sdFXNContract = await hre.viem.getContractAt("IERC20", sdTokens[3]); // sdFXN
+  const sdFXNContract = await hre.viem.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", sdTokens[3]); // sdFXN
   await sdFXNContract.write.transfer([MERKLE_CONTRACT_ADDRESS, missingAmount], {
     account: sdFXNHolder,
   });
@@ -118,7 +118,10 @@ const setupTest = async () => {
 
     // Freeze by setting merkleRoot = 0x00
     await contract.write.updateMerkleRoot(
-      [sdToken, "0x0000000000000000000000000000000000000000000000000000000000000000"],
+      [
+        sdToken,
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      ],
       {
         account: OWNER_ADDRESS,
       }
@@ -221,12 +224,18 @@ describe("MultiMerkleStash - Botmarket Withdraw + New Merkle Test", function () 
         MERKLE_CONTRACT_ADDRESS,
       ]);
       console.log(
-        `Merkle contract balance BEFORE claims: ${balanceMerkleBefore} (${formatTokenAmount(balanceMerkleBefore)} tokens)`
+        `Merkle contract balance BEFORE claims: ${balanceMerkleBefore} (${formatTokenAmount(
+          balanceMerkleBefore
+        )} tokens)`
       );
-      
+
       const merkleTotal = BigInt(targetNewMerkle.total.hex);
-      console.log(`New Merkle total: ${merkleTotal} (${formatTokenAmount(merkleTotal)} tokens)`);
-      
+      console.log(
+        `New Merkle total: ${merkleTotal} (${formatTokenAmount(
+          merkleTotal
+        )} tokens)`
+      );
+
       const diff = BigInt(balanceMerkleBefore) - merkleTotal;
       console.log(`Diff: ${diff} (${formatTokenAmount(diff)} tokens)`);
 
@@ -248,20 +257,24 @@ describe("MultiMerkleStash - Botmarket Withdraw + New Merkle Test", function () 
         MERKLE_CONTRACT_ADDRESS,
       ]);
       console.log(
-        `Merkle contract balance AFTER claims: ${balanceMerkleAfter} (${formatTokenAmount(balanceMerkleAfter)} tokens)`
+        `Merkle contract balance AFTER claims: ${balanceMerkleAfter} (${formatTokenAmount(
+          balanceMerkleAfter
+        )} tokens)`
       );
 
       const balanceDelta = balanceMerkleBefore - balanceMerkleAfter;
       console.log(
-        `Total tokens withdrawn via claims: ${balanceDelta} (${formatTokenAmount(balanceDelta)} tokens)`
+        `Total tokens withdrawn via claims: ${balanceDelta} (${formatTokenAmount(
+          balanceDelta
+        )} tokens)`
       );
-      
+
       // Check totalClaimed matches merkle total
       expect(totalClaimed).to.equal(
         merkleTotal,
         "Total claimed doesn't match merkle total"
       );
-      
+
       // Check balanceDelta == totalClaimed
       expect(balanceDelta).to.equal(
         totalClaimed,

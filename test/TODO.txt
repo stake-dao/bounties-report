@@ -1,0 +1,3 @@
+- Check non delegators vlCVX claims
+- CI for distribution, just after file committed (merkles)
+- Combine with verification, per address; doing latest week claims / new week claims -> diff, comparison w repartition
