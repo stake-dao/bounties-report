@@ -385,10 +385,6 @@ export const getVotingPower = async (
   includeExistingVp: boolean = false
 ): Promise<Record<string, number>> => {
   try {
-    console.log("parseInt(proposal.snapshot)", parseInt(proposal.snapshot));
-    console.log("proposal.strategies", proposal.strategies);
-    console.log("proposal.space.id", proposal.space.id);
-    console.log("addresses", addresses);
     const { data } = await axios.post<ScoreResponse>(
       "https://score.snapshot.org/api/scores",
       {
