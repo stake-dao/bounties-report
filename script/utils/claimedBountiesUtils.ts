@@ -571,7 +571,7 @@ const fetchWardenClaimedBounties = async (
           if (
             decodedLog.args.account &&
             getAddress(decodedLog.args.account.toLowerCase()) !=
-              getAddress(BOTMARKET.toLowerCase())
+            getAddress(BOTMARKET.toLowerCase())
           ) {
             continue;
           }
@@ -603,7 +603,7 @@ const fetchWardenClaimedBounties = async (
           quest.questId === bounty.questID &&
           quest.period === bounty.period &&
           getAddress(quest.distributor.toLowerCase()) ==
-            getAddress(bounty.distributor.toLowerCase())
+          getAddress(bounty.distributor.toLowerCase())
         ) {
           if (!protocolBounties[protocol]) {
             protocolBounties[protocol] = [];
@@ -955,7 +955,7 @@ const fetchVotiumClaimedBounties = async (
     !claimedResponse.result ||
     claimedResponse.result.length === 0
   ) {
-    return { votium: [] };
+    return {};
   }
 
   // Process the logs to extract token and amount information
@@ -973,7 +973,7 @@ const fetchVotiumClaimedBounties = async (
     };
   });
 
-  return { votium: votiumBounties };
+  return { votiumBounties };
 };
 
 export {

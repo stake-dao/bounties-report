@@ -335,7 +335,7 @@ async function generateConvexVotiumBounties() {
         return (
           forwardedMap[delegator.toLowerCase()] &&
           forwardedMap[delegator.toLowerCase()] ===
-            VOTIUM_FORWARDER.toLowerCase()
+          VOTIUM_FORWARDER.toLowerCase()
         );
       })
       .map((addr: string) => addr.toLowerCase());
@@ -397,9 +397,9 @@ async function generateConvexVotiumBounties() {
       const matchingCurveBribes =
         curveBribes && curveBribes.epoch && curveBribes.epoch.bribes
           ? curveBribes.epoch.bribes.filter(
-              (bribe: any) =>
-                bribe.gauge.toLowerCase() === gaugeInfo.gauge.toLowerCase()
-            )
+            (bribe: any) =>
+              bribe.gauge.toLowerCase() === gaugeInfo.gauge.toLowerCase()
+          )
           : [];
 
       matchingCurveBribes.forEach((bribe: any) => {
@@ -474,9 +474,9 @@ async function generateConvexVotiumBounties() {
       const matchingFxnBribes =
         fxnBribes && fxnBribes.epoch && fxnBribes.epoch.bribes
           ? fxnBribes.epoch.bribes.filter(
-              (bribe: any) =>
-                bribe.gauge.toLowerCase() === gaugeInfo.gauge.toLowerCase()
-            )
+            (bribe: any) =>
+              bribe.gauge.toLowerCase() === gaugeInfo.gauge.toLowerCase()
+          )
           : [];
       matchingFxnBribes.forEach((bribe: any) => {
         trackedAddresses.forEach((addr) => {
@@ -521,15 +521,9 @@ async function generateConvexVotiumBounties() {
       Number(latestBlock)
     );
 
-    // Split each reward amount by 2 (for two-week distribution)
-    const splitBounties = votiumConvexBounties.votium.map((bounty: any) => ({
-      rewardToken: bounty.rewardToken,
-      amount: bounty.amount / BigInt(2),
-    }));
-
     // Create a mapping of token symbols to addresses concurrently.
     const tokenSymbolPairs = await Promise.all(
-      splitBounties.map(async (bounty: any) => {
+      votiumConvexBounties.votiumBounties.map(async (bounty: any) => {
         const symbol = await getTokenSymbol(bounty.rewardToken);
         return symbol ? [symbol, bounty.rewardToken] : null;
       })
@@ -548,11 +542,13 @@ async function generateConvexVotiumBounties() {
       }
     }
 
-    // Determine share percentages per token and compute final distributions.
-    const curveBounties: any = {};
-    const fxnBounties: any = {};
+    // Group by protocol with proper amount splitting
+    const protocolBounties = {
+      curve: [],
+      fxn: []
+    };
 
-    splitBounties.forEach((bounty: any) => {
+    votiumConvexBounties.votiumBounties.forEach((bounty: any) => {
       const matching = tokenAddressToBribes[bounty.rewardToken];
       let curveShare = 0;
       let fxnShare = 0;
@@ -582,36 +578,28 @@ async function generateConvexVotiumBounties() {
             fxnShare = 0.5;
           }
         }
+
+        // Add to curve bounties if there's a curve share
+        if (curveShare > 0) {
+          protocolBounties.curve.push({
+            ...bounty,
+            amount: BigInt(Math.floor(Number(bounty.amount) * curveShare))
+          });
+        }
+
+        // Add to fxn bounties if there's an fxn share
+        if (fxnShare > 0) {
+          protocolBounties.fxn.push({
+            ...bounty,
+            amount: BigInt(Math.floor(Number(bounty.amount) * fxnShare))
+          });
+        }
       } else {
         throw new Error(
           `Token ${bounty.rewardToken} not found in any bribes. Cannot determine allocation.`
         );
       }
-
-      const splitAmount = Number(bounty.amount);
-      const amountCRV = BigInt(Math.floor(splitAmount * curveShare));
-      const amountFXN = BigInt(Math.floor(splitAmount * fxnShare));
-
-      curveBounties[bounty.rewardToken] = amountCRV;
-      fxnBounties[bounty.rewardToken] = amountFXN;
     });
-
-    console.log("Aggregate Curve Bounties:", curveBounties);
-    console.log("Aggregate FXN Bounties:", fxnBounties);
-
-    // Add a protocol field to each bounty based on the split.
-    votiumConvexBounties.votium = votiumConvexBounties.votium.map(
-      (bounty: any) => {
-        const protocol =
-          fxnBounties[bounty.rewardToken] > BigInt(0) &&
-          curveBounties[bounty.rewardToken] > BigInt(0)
-            ? "both"
-            : fxnBounties[bounty.rewardToken] > BigInt(0)
-            ? "fxn"
-            : "curve";
-        return { ...bounty, protocol };
-      }
-    );
 
     // ---------------------------------------------------------------------
     // Write output to file.
@@ -632,7 +620,7 @@ async function generateConvexVotiumBounties() {
     const jsonString = JSON.stringify(votiumConvexBounties, customReplacer, 2);
     fs.writeFileSync(fileName, jsonString);
     console.log(`Convex locker votium bounties saved to ${fileName}`);
-
+    /*
     // Prepare a per-address breakdown output
     const perAddressOutput = {
       curveVotes: curveAddressBreakdown,
@@ -648,6 +636,7 @@ async function generateConvexVotiumBounties() {
       JSON.stringify(perAddressOutput, customReplacer, 2)
     );
     console.log(`Per-address breakdown saved to ${perAddressFileName}`);
+    */
 
     // Optionally log claims via Telegram.
     // const telegramLogger = new ClaimsTelegramLogger();
