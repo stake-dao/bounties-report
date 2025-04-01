@@ -302,7 +302,8 @@ async function computeAPR(): Promise<
 
   const prices = await getTokenPrices(REWARD_TOKENS, currentPeriodTimestamp);
 
-  const cvxPrice = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
+  const cvxPriceResponse = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
+  const cvxPrice = cvxPriceResponse[0].price;
 
   // Calculate individual token reward values
   const tokenRewardValues: Record<string, number> = {};
