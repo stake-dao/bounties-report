@@ -10,11 +10,15 @@ import { createPublicClient, http } from "viem";
 import { createCombineDistribution } from "../../utils/merkle";
 import { generateMerkleTree } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
-import { CVX_SPACE, SDT, CRVUSD } from "../../utils/constants";
+import { CVX_SPACE, SDT, CRVUSD, CVX, DELEGATION_ADDRESS } from "../../utils/constants";
 import { getCRVUsdTransfer } from "../utils";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
 import { distributionVerifier } from "../../utils/distributionVerifier";
-import { fetchLastProposalsIds } from "../../utils/snapshot";
+import { fetchLastProposalsIds, getProposal, getVoters, getVotingPower } from "../../utils/snapshot";
+import { getHistoricalTokenPrice } from "../../utils/utils";
+import { getAllCurveGauges } from "../../utils/curveApi";
+import { associateGaugesPerId } from "../../utils/snapshot";
+import { processAllDelegators } from "../../utils/cacheUtils";
 
 // Number of seconds in one week
 const WEEK = 604800;
@@ -55,6 +59,60 @@ if (totalForwardersShare <= 0) {
   process.exit(0);
 }
 
+async function calculateSDTAmount(maxSDT: bigint): Promise<bigint> {
+  const now = moment.utc().unix();
+  const filter = "^(?!FXN ).*Gauge Weight for Week of";
+  
+  // Get proposal and votes
+  const proposalIdPerSpace = await fetchLastProposalsIds([CVX_SPACE], now, filter);
+  const proposalId = proposalIdPerSpace[CVX_SPACE];
+  const proposal = await getProposal(proposalId);
+  const votes = await getVoters(proposalId);
+  const curveGauges = await getAllCurveGauges();
+  const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
+
+  let totalVotingPower = 0;
+  let delegationVotingPower = 0;
+
+  // Process votes for each gauge
+  for (const vote of votes) {
+    let vpChoiceSum = 0;
+    let currentChoiceIndex = 0;
+
+    for (const [choiceIndex, value] of Object.entries(vote.choice)) {
+      vpChoiceSum += value;
+    }
+
+    if (vpChoiceSum > 0) {
+      const effectiveVp = vote.vp;
+      totalVotingPower += effectiveVp;
+      if (vote.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
+        delegationVotingPower += effectiveVp;
+      }
+    }
+  }
+
+  // Get CVX and SDT prices
+  const cvxPrice = await getHistoricalTokenPrice(Number(proposal.start), "ethereum", CVX);
+  const sdtPrice = await getHistoricalTokenPrice(now, "ethereum", SDT);
+
+  // Calculate required SDT amount for 5% APR
+  // Formula: (sdtAmount * sdtPrice * 52) / (cvxPrice * delegationVPSDT) * 100 = 5
+  let requiredSDTAmount = (0.05 * (cvxPrice * delegationVotingPower)) / (52 * sdtPrice);
+
+  // Cap at the provided maxSDT
+  requiredSDTAmount = Math.min(requiredSDTAmount, maxSDT);
+
+  console.log(`SDT Amount for 5% APR: ${requiredSDTAmount.toFixed(2)}`);
+  const sdtValue = requiredSDTAmount * sdtPrice;
+  const annualizedSDT = sdtValue * 52;
+  const sdtAPR = (annualizedSDT / (cvxPrice * delegationVotingPower)) * 100;
+  console.log(`Actual SDT APR: ${sdtAPR.toFixed(2)}%`);
+
+  // Convert to BigInt with 18 decimals
+  return BigInt(Math.floor(requiredSDTAmount * 1e18));
+}
+
 /**
  * Main function to compute forwarder rewards, build a Merkle tree,
  * and run the distribution verifier.
@@ -86,43 +144,45 @@ async function processForwarders() {
   totalCrvUsd -= BigInt(10 ** 14);
   console.log("Total crvUSD for distribution:", totalCrvUsd.toString());
 
-  // Similarly, retrieve the SDT amount to distribute from the delegation summary
-  // If it's missing, we'll use a default fallback of 5000 SDT
-  let totalSDT = 0n;
-  if (
-    delegationSummary.totalSDTPerGroup &&
-    delegationSummary.totalSDTPerGroup.forwarders
-  ) {
-    totalSDT = BigInt(delegationSummary.totalSDTPerGroup.forwarders);
-    console.log(
-      "Total SDT for distribution to forwarders:",
-      totalSDT.toString()
-    );
-  } else {
-    // Fallback to 5000 SDT (with 18 decimals) if not specified in the summary
-    totalSDT = 5000n * BigInt(10 ** 18);
-    console.log("Using default 5000 SDT for distribution");
-  }
+  // Calculate SDT amount based on 5% APR
+  const totalSDT = await calculateSDTAmount(3750); // Max SDT cap
+  console.log("Total SDT for distribution:", totalSDT.toString());
 
-  // Again subtract a small buffer for rounding issues
-  totalSDT -= BigInt(10 ** 14);
+  const skippedUsers = new Set([
+    getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"), // Bent
+  ]);
+
+  // Calculate total valid shares (excluding skipped users)
+  let totalValidShares = 0;
+  for (const [address, shareStr] of Object.entries(delegationSummary.forwarders)) {
+    const share = parseFloat(shareStr);
+    if (share <= 0) continue;
+    
+    const addr = getAddress(address);
+    if (!skippedUsers.has(addr)) {
+      totalValidShares += share;
+    }
+  }
 
   // Iterate over each forwarder from the delegation summary
   // Calculate their portion of both crvUSD and SDT
-  for (const [address, shareStr] of Object.entries(
-    delegationSummary.forwarders
-  )) {
+  for (const [address, shareStr] of Object.entries(delegationSummary.forwarders)) {
     const share = parseFloat(shareStr);
     if (share <= 0) continue; // Skip any zero or negative shares
 
-    // Convert the share to a BigInt-based fraction and multiply by total token amounts
-    const crvUsdAmount =
-      (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-    const sdtAmount =
-      (totalSDT * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-
     // Convert the address to EIP-55 format
     const addr = getAddress(address);
+
+    // Calculate crvUSD amount for everyone
+    const crvUsdAmount = (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
+
+    // Calculate SDT amount only for non-skipped users
+    let sdtAmount = 0n;
+    if (!skippedUsers.has(addr)) {
+      // Adjust share relative to total valid shares for SDT distribution
+      const adjustedShare = share / totalValidShares;
+      sdtAmount = (totalSDT * BigInt(Math.floor(adjustedShare * 1e18))) / BigInt(1e18);
+    }
 
     // Only add if the user gets a non-zero allocation
     if (crvUsdAmount > 0n || sdtAmount > 0n) {

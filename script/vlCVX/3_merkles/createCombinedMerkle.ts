@@ -71,7 +71,6 @@ function processChain(
 ) {
   console.log(`\nProcessing chain ${chainId}...`);
 
-  // This object will store the final distribution for the chain
   const combined: {
     [address: string]: { tokens: { [token: string]: bigint } };
   } = {};
@@ -98,12 +97,12 @@ function processChain(
     );
   }
 
-  // 2. Load DELEGATION data (required to continue; if missing, we skip this chain)
+  // 2. Load DELEGATION data
   if (!fs.existsSync(delegationFilePath)) {
     console.error(
       `Delegation file not found for chain ${chainId}: ${delegationFilePath}`
     );
-    return; // No file => no distribution can be merged
+    return;
   }
 
   const delegationData = JSON.parse(
@@ -111,7 +110,7 @@ function processChain(
   );
   const delegationSummary = delegationData.distribution;
 
-  // Extract the total tokens and the share for "non-forwarders" from the delegation summary
+  // Extract the total tokens and the share for "non-forwarders"
   const delegationTotalTokens = delegationSummary.totalTokens;
   const totalNonForwardersShare = parseFloat(
     delegationSummary.totalNonForwardersShare
@@ -121,8 +120,8 @@ function processChain(
   const delegationPool: { [token: string]: bigint } = {};
   if (totalNonForwardersShare > 0) {
     for (const [token, totalStr] of Object.entries(delegationTotalTokens)) {
-      // Skip SDT on Mainnet for now (it's handled separately below)
-      if (chainId === "1" && getAddress(token) === getAddress(SDT)) continue;
+      // Skip SDT token entirely as it's not distributed to non-forwarders
+      if (getAddress(token) === getAddress(SDT)) continue;
 
       // Attempt to use token-specific "nonForwarders" amounts from the delegation summary
       if (
@@ -141,7 +140,6 @@ function processChain(
       }
     }
 
-    // Log some details for reference
     console.log(`Delegation Non-Forwarders Pool for chain ${chainId}:`);
     for (const [token, pool] of Object.entries(delegationPool)) {
       console.log(`${token}: ${pool.toString()}`);
@@ -150,7 +148,6 @@ function processChain(
     console.warn(
       `No delegation non-forwarded rewards to add for chain ${chainId}.`
     );
-    // If "combined" is empty, there's nothing left to do
     if (Object.keys(combined).length === 0) {
       return;
     }
@@ -183,84 +180,13 @@ function processChain(
     }
   }
 
-  // 5. SDT distribution (Mainnet-only)
-  if (
-    chainId === "1" &&
-    totalNonForwardersShare > 0 &&
-    delegationSummary.totalSDTPerGroup &&
-    delegationSummary.totalSDTPerGroup.nonForwarders
-  ) {
-    console.log(
-      "Total SDT Pool (to be distributed to non forwarders):",
-      delegationSummary.totalSDTPerGroup.nonForwarders
-    );
-
-    // First, identify skipped addresses and calculate total valid share
-    const skippedUsers = new Set([
-      getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"),
-    ]);
-    let totalValidShare = 0;
-
-    let totalSDTReward = 0;
-
-    for (const [address, shareStr] of Object.entries(
-      delegationSummary.nonForwarders
-    )) {
-      const addr = address.toLowerCase();
-      // Check if address should be skipped (not in combined distribution)
-      if (!combined[addr]) {
-        skippedUsers.add(addr);
-      } else {
-        totalValidShare += parseFloat(shareStr);
-      }
-    }
-
-    console.log(`Skipped ${skippedUsers.size} addresses for SDT distribution`);
-
-    // If totalValidShare is 0, we can't redistribute (avoid division by zero)
-    if (totalValidShare === 0) {
-      console.warn("No valid addresses for SDT distribution, skipping");
-    } else {
-      // Distribute SDT to each valid "non-forwarder" address with adjusted shares
-      for (const [address, shareStr] of Object.entries(
-        delegationSummary.nonForwarders
-      )) {
-        const addr = address.toLowerCase();
-
-        // Skip addresses not in combined distribution
-        if (skippedUsers.has(addr)) continue;
-
-        // Calculate adjusted share (original share / total valid share)
-        const originalShare = parseFloat(shareStr);
-        const adjustedShare = originalShare / totalValidShare;
-
-        // Calculate reward using adjusted share
-        const reward = BigInt(
-          Math.floor(
-            adjustedShare *
-              Number(delegationSummary.totalSDTPerGroup.nonForwarders)
-          )
-        );
-
-        totalSDTReward += Number(reward);
-
-        // Add reward to combined distribution
-        combined[addr].tokens[SDT] =
-          (combined[addr].tokens[SDT] || 0n) + reward;
-      }
-    }
-
-    console.log("Total SDT reward", totalSDTReward);
-    process.exit(0);
-  }
-
   // If no addresses are in "combined" by this point, there's nothing to do
   if (Object.keys(combined).length === 0) {
     console.log(`No distributions to process for chain ${chainId}`);
     return;
   }
 
-  // 6. Load previous Merkle data for this chain from "latest" directory
+  // 5. Load previous Merkle data and generate new tree
   const merkleFileName =
     chainId === "1" ? "vlcvx_merkle.json" : `vlcvx_merkle_${chainId}.json`;
 
@@ -285,9 +211,8 @@ function processChain(
     );
   }
 
-  // 7. Generate the new Merkle tree
+  // Generate the new Merkle tree
   const currentDistribution = { distribution: combined };
-  // "createCombineDistribution" merges current with previous, so addresses get an updated total
   const universalMerkle = createCombineDistribution(
     currentDistribution,
     previousMerkleData
@@ -296,20 +221,19 @@ function processChain(
 
   console.log(`Merkle Root for chain ${chainId}:`, newMerkleData.merkleRoot);
 
-  // Save the new Merkle data in this week's directory
+  // Save the new Merkle data
   const outputPath = path.join(reportsDir, merkleFileName);
   fs.writeFileSync(outputPath, JSON.stringify(newMerkleData, null, 2));
   console.log(
     `Merkle tree for chain ${chainId} generated and saved as ${merkleFileName}`
   );
 
-  // 8. For Mainnet only, run the distribution verifier
+  // Run the distribution verifier for Mainnet
   if (chainId === "1") {
     const filter = "^(?!FXN ).*Gauge Weight for Week of";
     const now = Math.floor(Date.now() / 1000);
 
     (async () => {
-      // Fetch the latest relevant proposal
       const proposalIdPerSpace = await fetchLastProposalsIds(
         [CVX_SPACE],
         now,
@@ -318,7 +242,6 @@ function processChain(
       const proposalId = proposalIdPerSpace[CVX_SPACE];
       console.log("proposalId", proposalId);
 
-      // Run verification with the old + new merkle data
       distributionVerifier(
         CVX_SPACE,
         mainnet,
