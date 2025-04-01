@@ -114,7 +114,7 @@ export const delegationLogger = async (
   }
 };
 
-const fetchDelegatorData = async (
+export const fetchDelegatorData = async (
   space: string,
   proposal: any
 ): Promise<DelegatorDataAugmented | null> => {
