@@ -373,6 +373,7 @@ async function generateConvexVotiumBounties() {
 
     const curveBribes = await fetchBribes("cvx-crv");
 
+
     // Prepare per-address token allocations
     const perAddressTokenAllocations: Record<
       string,
@@ -616,27 +617,88 @@ async function generateConvexVotiumBounties() {
     );
     ensureDirExists(periodFolder);
 
-    const fileName = path.join(periodFolder, "claimed_bounties_convex.json");
-    const jsonString = JSON.stringify(votiumConvexBounties, customReplacer, 2);
-    fs.writeFileSync(fileName, jsonString);
-    console.log(`Convex locker votium bounties saved to ${fileName}`);
-    /*
-    // Prepare a per-address breakdown output
+    // ----------------------
+    // File 1: Totals claimed (protocolBounties)
+    const totalsFileName = path.join(periodFolder, "claimed_bounties_convex.json");
+    fs.writeFileSync(
+      totalsFileName,
+      JSON.stringify(protocolBounties, customReplacer, 2) // pretty printed
+    );
+    console.log(`Protocol bounties saved to ${totalsFileName}`);
+
+    // ----------------------
+    // File 2: Per-address breakdown (cleaned up)
+    // Before writing, clean the per-address data to remove entries that are empty or have only zero values.
+    // ----------------------
+    function cleanPerAddressOutput(perAddressOutput, tokenSymbolToAddress) {
+      const cleaned = {};
+
+      // Clean votes sections: remove addresses with empty vote objects.
+      ["curveVotes", "fxnVotes"].forEach((section) => {
+        if (perAddressOutput[section]) {
+          const newSection = {};
+          for (const addr in perAddressOutput[section]) {
+            const entry = perAddressOutput[section][addr];
+            // Only keep if the object has at least one property.
+            if (entry && Object.keys(entry).length > 0) {
+              newSection[addr] = entry;
+            }
+          }
+          if (Object.keys(newSection).length > 0) {
+            cleaned[section] = newSection;
+          }
+        }
+      });
+
+      // Clean tokenAllocations: for each address, remove tokens with a zero allocation.
+      if (perAddressOutput.tokenAllocations) {
+        const cleanedAllocations = {};
+        for (const addr in perAddressOutput.tokenAllocations) {
+          const tokens = perAddressOutput.tokenAllocations[addr];
+          const newTokens = {};
+          for (const token in tokens) {
+            const allocation = tokens[token];
+            // Convert allocation to a number and skip if zero.
+            if (Number(allocation) === 0) continue;
+            // Use token address if available.
+            const newTokenKey =
+              tokenSymbolToAddress && tokenSymbolToAddress[token]
+                ? tokenSymbolToAddress[token]
+                : token;
+            newTokens[newTokenKey] = allocation;
+          }
+          // Only include this address if there's at least one token with nonzero allocation.
+          if (Object.keys(newTokens).length > 0) {
+            cleanedAllocations[addr] = newTokens;
+          }
+        }
+        if (Object.keys(cleanedAllocations).length > 0) {
+          cleaned.tokenAllocations = cleanedAllocations;
+        }
+      }
+      return cleaned;
+    }
+
+    // --- Usage when writing the per-address breakdown file ---
+
     const perAddressOutput = {
       curveVotes: curveAddressBreakdown,
       fxnVotes: fxnAddressBreakdown,
       tokenAllocations: perAddressTokenAllocations,
     };
-    const perAddressFileName = path.join(
-      periodFolder,
-      "per_address_breakdown.json"
-    );
+
+    // Clean the data.
+    const cleanedPerAddressOutput = cleanPerAddressOutput(perAddressOutput, tokenSymbolToAddress);
+
+    // Write the cleaned output in compact form.
+    const perAddressFileName = path.join(periodFolder, "forwarders_voted_rewards.json");
     fs.writeFileSync(
       perAddressFileName,
-      JSON.stringify(perAddressOutput, customReplacer, 2)
+      JSON.stringify(cleanedPerAddressOutput, customReplacer)
     );
-    console.log(`Per-address breakdown saved to ${perAddressFileName}`);
-    */
+    console.log(`Cleaned per-address breakdown saved to ${perAddressFileName}`);
+
+
 
     // Optionally log claims via Telegram.
     // const telegramLogger = new ClaimsTelegramLogger();
