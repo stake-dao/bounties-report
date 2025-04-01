@@ -188,7 +188,17 @@ const main = async () => {
     1: {} as DelegationSummary,
   };
 
-  // Initialize a chain-specific DelegationSummary structure whenever we encounter a new chain
+  // Add chain 1 (Ethereum mainnet) with the core delegation summary structure
+  delegationSummaryByChain[1] = {
+    totalTokens: {},
+    totalPerGroup: {},
+    totalForwardersShare: delegationSummary.totalForwardersShare,
+    totalNonForwardersShare: delegationSummary.totalNonForwardersShare,
+    forwarders: delegationSummary.forwarders,
+    nonForwarders: delegationSummary.nonForwarders,
+  };
+
+  // Initialize other chains with the same structure
   Object.keys(tokenChainIds).forEach((token) => {
     const chainId = tokenChainIds[token.toLowerCase()];
     if (!delegationSummaryByChain[chainId]) {
@@ -202,17 +212,6 @@ const main = async () => {
       };
     }
   });
-
-  // Add chain 1 (Ethereum mainnet) with the core delegation summary structure
-  delegationSummaryByChain[1] = {
-    totalTokens: {},
-    totalPerGroup: {},
-    totalSDTPerGroup: delegationSummary.totalSDTPerGroup,
-    totalForwardersShare: delegationSummary.totalForwardersShare,
-    totalNonForwardersShare: delegationSummary.totalNonForwardersShare,
-    forwarders: delegationSummary.forwarders,
-    nonForwarders: delegationSummary.nonForwarders,
-  };
 
   // Sort tokens into the correct chain's "totalTokens"
   Object.entries(delegationSummary.totalTokens).forEach(([token, amount]) => {
