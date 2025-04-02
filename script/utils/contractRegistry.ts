@@ -65,6 +65,14 @@ export class ContractRegistry {
     137: "0xDD2FaD5606cD8ec0c3b93Eb4F9849572b598F4c7",
   } as const;
 
+  private static readonly FXN_VOTEMARKET_V2: ChainAddresses = {
+    1: null,
+    42161: "0x155a7Cf21F8853c135BdeBa27FEA19674C65F2b4",
+    10: "0x155a7Cf21F8853c135BdeBa27FEA19674C65F2b4",
+    8453: "0x155a7Cf21F8853c135BdeBa27FEA19674C65F2b4",
+    137: "0x155a7Cf21F8853c135BdeBa27FEA19674C65F2b4",
+  } as const;
+
   private static readonly TOKEN_FACTORY: ChainAddresses = {
     1: "0x96006425Da428E45c282008b00004a00002B345e",
     42161: "0x96006425Da428E45c282008b00004a00002B345e",

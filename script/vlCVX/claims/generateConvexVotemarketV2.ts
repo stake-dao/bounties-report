@@ -1,7 +1,7 @@
 import { fetchVotemarketV2ClaimedBounties } from "../../utils/claimedBountiesUtils";
 import fs from "fs";
 import path from "path";
-import { CONVEX_LOCKER } from "../../utils/constants";
+import { CONVEX_LOCKER, FXN_CONVEX_LOCKER } from "../../utils/constants";
 import { getTimestampsBlocks } from "../../utils/reportUtils";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
@@ -45,12 +45,26 @@ async function generateConvexVotemarketV2Bounties(pastWeek: number = 0) {
       pastWeek
     );
 
-    const votemarketV2ConvexBounties = await fetchVotemarketV2ClaimedBounties(
+    // Fetch bounties for multiple protocols
+    const curveVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
       "curve",
       timestamp1,
       timestamp2,
       CONVEX_LOCKER
     );
+
+    const fxnVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
+      "fxn",
+      timestamp1,
+      timestamp2,
+      FXN_CONVEX_LOCKER
+    );
+
+    // Combine all protocol bounties
+    const votemarketV2ConvexBounties = {
+      ...curveVotemarketV2Bounties,
+      ...fxnVotemarketV2Bounties,
+    };
 
     // Ensure directories exist
     const rootDir = path.resolve(__dirname, "../../..");
@@ -80,8 +94,11 @@ async function generateConvexVotemarketV2Bounties(pastWeek: number = 0) {
 
     // Log aggregated claim sums to Telegram (chain id for mainnet is 1)
     const telegramLogger = new ClaimsTelegramLogger();
-    await telegramLogger.logClaims("votemarket-v2/claimed_bounties_convex.json", currentPeriod, votemarketV2ConvexBounties);
-  
+    await telegramLogger.logClaims(
+      "votemarket-v2/claimed_bounties_convex.json",
+      currentPeriod,
+      votemarketV2ConvexBounties
+    );
   } catch (error) {
     console.error("Error generating votemarket v2 bounties:", error);
     process.exit(1);
