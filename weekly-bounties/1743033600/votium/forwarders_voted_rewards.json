@@ -1,0 +1,25 @@
+{
+    "curveVotes": {
+        "0xf3df39bb5d9876e1c89d1a99b0f1e81d9b469f40": {
+            "0": {
+                "proposalId": "0x4d0918231f34052557fb460f96988bcb460688527e6a7a2b79ba99a300c05f06",
+                "gauge": "0x52618c40ddba3cbbb69f3aaa4cb26ae649844b17",
+                "choiceId": 391,
+                "weight": 1
+            }
+        },
+        "0x118ad981e3be9a5a16ec7136125425af9c2128f4": {
+            "0": {
+                "proposalId": "0x4d0918231f34052557fb460f96988bcb460688527e6a7a2b79ba99a300c05f06",
+                "gauge": "0x0b8750500484629c213437d70001e862685ce2d0",
+                "choiceId": 481,
+                "weight": 100
+            }
+        }
+    },
+    "tokenAllocations": {
+        "0xf3df39bb5d9876e1c89d1a99b0f1e81d9b469f40": {
+            "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": "339"
+        }
+    }
+}
