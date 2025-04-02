@@ -19,7 +19,7 @@
     },
     "tokenAllocations": {
         "0xf3df39bb5d9876e1c89d1a99b0f1e81d9b469f40": {
-            "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": "339"
+            "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": "339000000000000000000"
         }
     }
 }

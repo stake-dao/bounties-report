@@ -6,8 +6,9 @@ import {
   DELEGATION_ADDRESS,
   VOTIUM_FORWARDER_REGISTRY,
   VOTIUM_FORWARDER,
+  clients,
 } from "../../utils/constants";
-import { getGaugesInfos } from "../../utils/reportUtils";
+import { getGaugesInfos, getTokenInfo } from "../../utils/reportUtils";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
@@ -373,7 +374,6 @@ async function generateConvexVotiumBounties() {
 
     const curveBribes = await fetchBribes("cvx-crv");
 
-
     // Prepare per-address token allocations
     const perAddressTokenAllocations: Record<
       string,
@@ -651,6 +651,7 @@ async function generateConvexVotiumBounties() {
       });
 
       // Clean tokenAllocations: for each address, remove tokens with a zero allocation.
+
       if (perAddressOutput.tokenAllocations) {
         const cleanedAllocations = {};
         for (const addr in perAddressOutput.tokenAllocations) {
@@ -689,6 +690,42 @@ async function generateConvexVotiumBounties() {
 
     // Clean the data.
     const cleanedPerAddressOutput = cleanPerAddressOutput(perAddressOutput, tokenSymbolToAddress);
+
+    // Format amounts properly using tokens infos
+    const publicClient = clients[mainnet.id];
+
+    let allTokens: string[] = [];
+
+    // Build a list of unique token addresses present in the allocations.
+    for (const voter in cleanedPerAddressOutput.tokenAllocations) {
+      for (const token in cleanedPerAddressOutput.tokenAllocations[voter]) {
+        if (!allTokens.includes(token)) {
+          allTokens.push(token);
+        }
+      }
+    }
+
+    // Create an output object for formatted token allocations.
+    const formattedOutput = {
+      tokenAllocations: {} as Record<string, Record<string, string>>
+    };
+
+    // For each voter, format each token amount by multiplying with 10**decimals.
+    for (const voter in cleanedPerAddressOutput.tokenAllocations) {
+      formattedOutput.tokenAllocations[voter] = {};
+      for (const token of allTokens) {
+        const rawAmount = cleanedPerAddressOutput.tokenAllocations[voter][token];
+        if (rawAmount) {
+          const tokenInfo = await getTokenInfo(publicClient, token);
+          // Multiply the raw amount by 10**decimals using BigInt arithmetic.
+          const multiplier = 10n ** BigInt(tokenInfo.decimals);
+          const fullAmount = (rawAmount * multiplier).toString();
+          formattedOutput.tokenAllocations[voter][token] = fullAmount;
+
+          cleanedPerAddressOutput.tokenAllocations[voter][token] = fullAmount;
+        }
+      }
+    }
 
     // Write the cleaned output in compact form.
     const perAddressFileName = path.join(periodFolder, "forwarders_voted_rewards.json");

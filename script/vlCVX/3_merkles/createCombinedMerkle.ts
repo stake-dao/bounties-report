@@ -9,78 +9,80 @@ import { mainnet } from "viem/chains";
 import { createCombineDistribution } from "../../utils/merkle";
 import { generateMerkleTree } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
-import { CVX_SPACE, SDT, TWOWEEKS, WEEK } from "../../utils/constants";
+import { CVX_SPACE, TWOWEEKS, WEEK } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/distributionVerifier";
 import { fetchLastProposalsIds, getProposal } from "../../utils/snapshot";
 
-// Round current UTC time down to the nearest week to get the current period timestamp
+// Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
-
 const currentVotiumPeriod = Math.floor(moment.utc().unix() / TWOWEEKS) * TWOWEEKS;
 
+// Define the two gauge types to process
+const gaugeTypes = ["curve", "fxn"];
 
-// Construct the directory path for this week's bounties reports
-const reportsDir = path.join(
-  "bounties-reports",
-  currentPeriodTimestamp.toString(),
-  "vlCVX"
-);
-
-// Mainnet files that hold non-delegator and delegator data
-const NON_DELEGATORS_FILE = path.join(reportsDir, "repartition.json");
-const DELEGATION_FILE = path.join(reportsDir, "repartition_delegation.json");
-
-// Process Mainnet first (chainId "1")
-processChain("1", NON_DELEGATORS_FILE, DELEGATION_FILE);
-
-// Process other chains
-const otherChainIds = ["42161", "10", "8453", "137"];
-for (const chainId of otherChainIds) {
-  // The "nonDelegatorsFile" for these chains (if it exists) is named "repartition_{chainId}.json"
-  const nonDelegatorsFile = path.join(
-    reportsDir,
-    `repartition_${chainId}.json`
-  );
-  // The "delegationFile" for these chains is named "repartition_delegation_{chainId}.json"
-  const delegationFile = path.join(
-    reportsDir,
-    `repartition_delegation_${chainId}.json`
-  );
-
-  // Only process if a delegation file exists for that chain
-  processChain(chainId, nonDelegatorsFile, delegationFile);
+// For each gauge type, process the corresponding reports
+for (const gaugeType of gaugeTypes) {
+  processGaugeType(gaugeType);
 }
 
 /**
- * Processes data for a single chain:
- * 1. Loads non-delegators file (if it exists) and adds it to a combined distribution map.
- * 2. Merges that data with delegation-based distributions.
- * 3. Creates or updates a Merkle tree with the new distribution.
- * 4. Saves out a new Merkle file and (for mainnet) runs the distribution verifier.
+ * Processes one gauge type (either "curve" or "fxn") by:
+ * - Defining the output directory for the current period and gauge type.
+ * - Processing Mainnet (chainId "1") and additional chains.
  *
- * @param chainId - the chain identifier as a string ("1", "42161", etc.)
- * @param nonDelegatorsFilePath - path to the chain's non-delegators JSON file
- * @param delegationFilePath - path to the chain's delegation JSON file
+ * @param gaugeType - "curve" or "fxn"
+ */
+function processGaugeType(gaugeType: string) {
+  // Construct the base directory for the current period and gauge type.
+  const reportsDir = path.join("bounties-reports", currentPeriodTimestamp.toString(), "vlCVX", gaugeType);
+  console.log(`\nProcessing gauge type "${gaugeType}" in directory ${reportsDir}`);
+
+  // File paths for Mainnet (chainId "1")
+  const NON_DELEGATORS_FILE = path.join(reportsDir, "repartition.json");
+  const DELEGATION_FILE = path.join(reportsDir, "repartition_delegation.json");
+
+  // Process Mainnet first
+  processChain(gaugeType, "1", NON_DELEGATORS_FILE, DELEGATION_FILE, reportsDir);
+
+  // Process additional chains
+  const otherChainIds = ["42161", "10", "8453", "137"];
+  for (const chainId of otherChainIds) {
+    const nonDelegatorsFile = path.join(reportsDir, `repartition_${chainId}.json`);
+    const delegationFile = path.join(reportsDir, `repartition_delegation_${chainId}.json`);
+    processChain(gaugeType, chainId, nonDelegatorsFile, delegationFile, reportsDir);
+  }
+}
+
+/**
+ * Processes data for a given chain:
+ * 1. Loads non-delegators data (if available) and builds a combined distribution.
+ * 2. Merges in delegation-based distributions (if available).
+ * 3. (For curve only) Reads forwarders' voted rewards from the weekly-bounties folder and adds them.
+ * 4. Loads previous Merkle data from the previous week period folder (for this gauge type).
+ * 5. Generates a new Merkle tree and saves it.
+ * 6. (For Mainnet only) Runs the distribution verifier.
+ *
+ * @param gaugeType - The gauge type ("curve" or "fxn")
+ * @param chainId - The chain identifier (e.g. "1", "42161")
+ * @param nonDelegatorsFilePath - Path to the non-delegators JSON file for the chain.
+ * @param delegationFilePath - Path to the delegation JSON file for the chain.
+ * @param reportsDir - The base directory for the current gauge type reports.
  */
 function processChain(
+  gaugeType: string,
   chainId: string,
   nonDelegatorsFilePath: string,
-  delegationFilePath: string
+  delegationFilePath: string,
+  reportsDir: string
 ) {
-  console.log(`\nProcessing chain ${chainId}...`);
+  console.log(`\nProcessing chain ${chainId} for gauge type "${gaugeType}"...`);
 
-  const combined: {
-    [address: string]: { tokens: { [token: string]: bigint } };
-  } = {};
+  const combined: { [address: string]: { tokens: { [token: string]: bigint } } } = {};
 
-  // 1. Load NON-DELEGATORS data (if available)
+  // 1. Load non-delegators data (if the file exists)
   if (fs.existsSync(nonDelegatorsFilePath)) {
-    const nonDelegatorsData = JSON.parse(
-      fs.readFileSync(nonDelegatorsFilePath, "utf8")
-    );
+    const nonDelegatorsData = JSON.parse(fs.readFileSync(nonDelegatorsFilePath, "utf8"));
     const nonDelegators = nonDelegatorsData.distribution;
-
-    // Add each address's distribution to our combined structure
     for (const [address, data] of Object.entries(nonDelegators)) {
       const addr = address.toLowerCase();
       combined[addr] = { tokens: {} };
@@ -90,87 +92,63 @@ function processChain(
     }
     console.log(`Loaded non-delegators data for chain ${chainId}`);
   } else {
-    console.log(
-      `No non-delegators file found for chain ${chainId}, continuing with delegation data only`
-    );
+    console.log(`No non-delegators file found for chain ${chainId}; continuing with delegation data only`);
   }
 
-  // 2. Load DELEGATION data (if available and in the expected format)
+  // 2. Load delegation data (if available)
   let delegationSummary: any = null;
   if (fs.existsSync(delegationFilePath)) {
-    const delegationData = JSON.parse(
-      fs.readFileSync(delegationFilePath, "utf8")
-    );
+    const delegationData = JSON.parse(fs.readFileSync(delegationFilePath, "utf8"));
     delegationSummary = delegationData.distribution;
   } else {
-    console.warn(
-      `Delegation file not found for chain ${chainId}: ${delegationFilePath}. Using only non-delegators data.`
-    );
+    console.warn(`Delegation file not found for chain ${chainId}: ${delegationFilePath}. Using only non-delegators data.`);
   }
 
-  // Process delegation data only if it's available and properly formatted
+  // 3. Process delegation data (if it exists and is in the expected format)
   if (
     delegationSummary &&
     delegationSummary.totalTokens &&
     delegationSummary.totalNonForwardersShare !== undefined
   ) {
     const delegationTotalTokens = delegationSummary.totalTokens;
-    const totalNonForwardersShare = parseFloat(
-      delegationSummary.totalNonForwardersShare
-    );
+    const totalNonForwardersShare = parseFloat(delegationSummary.totalNonForwardersShare);
 
-    // 3. Build a pool for tokens to be distributed based on "non-forwarders" share
+    // Build the delegation pool for tokens
     const delegationPool: { [token: string]: bigint } = {};
     if (totalNonForwardersShare > 0) {
       for (const [token, totalStr] of Object.entries(delegationTotalTokens)) {
-        // Use token-specific "nonForwarders" amounts if available
         if (
           delegationSummary.totalPerGroup &&
           delegationSummary.totalPerGroup[token] &&
           delegationSummary.totalPerGroup[token].nonForwarders
         ) {
-          delegationPool[token] = BigInt(
-            delegationSummary.totalPerGroup[token].nonForwarders
-          );
+          delegationPool[token] = BigInt(delegationSummary.totalPerGroup[token].nonForwarders);
         } else {
-          // Fallback to a calculation multiplying total by share
           const total = BigInt(totalStr);
-          delegationPool[token] = BigInt(
-            Math.floor(Number(total) * totalNonForwardersShare)
-          );
+          delegationPool[token] = BigInt(Math.floor(Number(total) * totalNonForwardersShare));
         }
       }
-
       console.log(`Delegation Non-Forwarders Pool for chain ${chainId}:`);
       for (const [token, pool] of Object.entries(delegationPool)) {
         console.log(`${token}: ${pool.toString()}`);
       }
     } else {
-      console.warn(
-        `No delegation non-forwarded rewards to add for chain ${chainId}.`
-      );
+      console.warn(`No delegation non-forwarded rewards to add for chain ${chainId}.`);
     }
 
-    // 4. Distribute tokens from that pool to each address based on their share
+    // Distribute rewards from the delegation pool based on each address's share
     if (totalNonForwardersShare > 0 && delegationSummary.nonForwarders) {
-      for (const [address, shareStr] of Object.entries(
-        delegationSummary.nonForwarders
-      )) {
+      for (const [address, shareStr] of Object.entries(delegationSummary.nonForwarders)) {
         const share = parseFloat(shareStr);
-
-        // Calculate each address's reward for each token as their share of the pool
         const rewardsForAddress: { [token: string]: bigint } = {};
         for (const [token, pool] of Object.entries(delegationPool)) {
           const reward = BigInt(Math.floor(share * Number(pool)));
           rewardsForAddress[token] = reward;
         }
-
-        // Merge these rewards into the combined structure
         const addr = address.toLowerCase();
         if (combined[addr]) {
           for (const [token, reward] of Object.entries(rewardsForAddress)) {
-            combined[addr].tokens[token] =
-              (combined[addr].tokens[token] || 0n) + reward;
+            combined[addr].tokens[token] = (combined[addr].tokens[token] || 0n) + reward;
           }
         } else {
           combined[addr] = { tokens: rewardsForAddress };
@@ -178,80 +156,91 @@ function processChain(
       }
     }
   } else {
-    console.warn(
-      `Delegation data for chain ${chainId} is not available or not in the expected format. Skipping delegation processing.`
-    );
+    console.warn(`Delegation data for chain ${chainId} is not available or not in the expected format. Skipping delegation processing.`);
   }
 
-  // If no addresses exist in "combined", then there's nothing to process
   if (Object.keys(combined).length === 0) {
     console.log(`No distributions to process for chain ${chainId}`);
     return;
   }
 
-  // 5. Load previous Merkle data and generate a new tree
-  const merkleFileName =
-    chainId === "1" ? "vlcvx_merkle.json" : `vlcvx_merkle_${chainId}.json`;
+  // 3. (On curve merkle, just to add one time) Reads forwarders' voted rewards from the weekly-bounties folder and adds them.
+  if (gaugeType === "curve" && chainId === "1") {
+    // Build the path based on the current votium period (using TWOWEEKS)
+    const votiumRewardsDir = path.join("weekly-bounties", currentVotiumPeriod.toString(), "votium");
+    const forwardersRewardsFile = path.join(votiumRewardsDir, "forwarders_voted_rewards.json");
+    if (fs.existsSync(forwardersRewardsFile)) {
+      console.log("Loading forwarders voted rewards from", forwardersRewardsFile);
+      const forwardersData = JSON.parse(fs.readFileSync(forwardersRewardsFile, "utf8"));
+      if (forwardersData.tokenAllocations) {
+        const tokenAllocations = forwardersData.tokenAllocations;
+        for (const address in tokenAllocations) {
+          const lowerAddress = address.toLowerCase();
+          // If the address doesn't exist in our combined distribution, create it.
+          if (!combined[lowerAddress]) {
+            combined[lowerAddress] = { tokens: {} };
+          }
+          for (const token in tokenAllocations[address]) {
+            const amountStr = tokenAllocations[address][token];
+            const amountBigInt = BigInt(amountStr);
 
-  const previousMerkleDataPath = path.join(
-    "bounties-reports",
-    "latest",
-    "vlCVX",
-    merkleFileName
-  );
+            console.log("amountBigInt", amountBigInt);
+
+            if (!combined[lowerAddress].tokens[token]) {
+              combined[lowerAddress].tokens[token] = amountBigInt;
+            } else {
+              combined[lowerAddress].tokens[token] += amountBigInt;
+            }
+          }
+        }
+        console.log("Added forwarders rewards to combined distribution.");
+      } else {
+        console.warn("Forwarders data does not contain tokenAllocations property.");
+      }
+    } else {
+      console.log("No forwarders voted rewards file found at", forwardersRewardsFile);
+    }
+  }
+
+  // 4. Load previous Merkle data from the prev week period folder (for this gauge type)
+  const prevPeriodTimestamp = currentPeriodTimestamp - WEEK;
+  const prevReportsDir = path.join("bounties-reports", prevPeriodTimestamp.toString(), "vlCVX", gaugeType);
+
+  const merkleFileName = chainId === "1" ? "merkle_data_non_delegators.json" : `merkle_data_non_delegators_${chainId}.json`;
+  const previousMerkleDataPath = path.join(prevReportsDir, merkleFileName);
+
+  console.log("previousMerkleDataPath", previousMerkleDataPath);
 
   let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
   if (fs.existsSync(previousMerkleDataPath)) {
-    previousMerkleData = JSON.parse(
-      fs.readFileSync(previousMerkleDataPath, "utf8")
-    );
-    console.log(
-      `Loaded previous merkle data for chain ${chainId} from latest directory`
-    );
+    previousMerkleData = JSON.parse(fs.readFileSync(previousMerkleDataPath, "utf8"));
+    console.log(`Loaded previous merkle data for chain ${chainId} from ${reportsDir}`);
   } else {
-    console.log(
-      `No previous merkle data found for chain ${chainId} in latest directory`
-    );
+    console.log(`No previous merkle data found for chain ${chainId} in ${reportsDir}`);
   }
 
-  // Generate the new Merkle tree
+  // 5. Generate the new Merkle tree
   const currentDistribution = { distribution: combined };
-  const universalMerkle = createCombineDistribution(
-    currentDistribution,
-    previousMerkleData
-  );
+  const universalMerkle = createCombineDistribution(currentDistribution, previousMerkleData);
   const newMerkleData: MerkleData = generateMerkleTree(universalMerkle);
-
-  // Add rewards from Votium forwarders which voted themselves
-  // TODO
 
   console.log(`Merkle Root for chain ${chainId}:`, newMerkleData.merkleRoot);
 
-  // Save the new Merkle data
-  const outputName =
-    chainId === "1"
-      ? "merkle_data_non_delegators.json"
-      : `merkle_data_non_delegators_${chainId}.json`;
+  // 6. Save the new Merkle data to the same reports directory
+  const outputName = chainId === "1" ? "merkle_data_non_delegators.json" : `merkle_data_non_delegators_${chainId}.json`;
   const outputPath = path.join(reportsDir, outputName);
   fs.writeFileSync(outputPath, JSON.stringify(newMerkleData, null, 2));
-  console.log(
-    `Merkle tree for chain ${chainId} generated and saved as ${outputName}`
-  );
+  console.log(`Merkle tree for chain ${chainId} generated and saved as ${outputName}`);
 
-  // Run the distribution verifier for Mainnet
+  // 7. For Mainnet only, run the distribution verifier.
   if (chainId === "1") {
-    const filter = "^(?!FXN ).*Gauge Weight for Week of";
+    // Use a filter that depends on gauge type
+    const filter = gaugeType === "fxn" ? "^FXN.*Gauge Weight for Week of" : "^(?!FXN ).*Gauge Weight for Week of";
     const now = Math.floor(Date.now() / 1000);
-
     (async () => {
-      const proposalIdPerSpace = await fetchLastProposalsIds(
-        [CVX_SPACE],
-        now,
-        filter
-      );
+      const proposalIdPerSpace = await fetchLastProposalsIds([CVX_SPACE], now, filter);
       const proposalId = proposalIdPerSpace[CVX_SPACE];
       console.log("proposalId", proposalId);
-
       distributionVerifier(
         CVX_SPACE,
         mainnet,
