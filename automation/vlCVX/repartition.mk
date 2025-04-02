@@ -21,7 +21,7 @@ run-report: setup install-deps
 
 run-repartition: setup install-deps
 	@echo "Running repartition generation..."
-	@$(PNPM) tsx script/vlCVX/2_repartition.ts
+	@$(PNPM) tsx script/vlCVX/2_repartition/index.ts
 
 commit-and-push:
 	@echo "Committing and pushing changes..."

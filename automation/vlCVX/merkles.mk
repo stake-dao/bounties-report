@@ -20,10 +20,10 @@ run-merkles: setup install-deps
 	@echo "Running merkles generation..."
 	@if [ "$(TYPE)" = "delegators" ]; then \
 		echo "Generating delegators merkle..."; \
-		$(PNPM) tsx script/vlCVX/3_merkles.ts --delegators; \
+		$(PNPM) tsx script/vlCVX/3_merkles/createDelegatorsMerkle.ts; \
 	else \
 		echo "Generating non-delegators merkle..."; \
-		$(PNPM) tsx script/vlCVX/3_merkles.ts; \
+		$(PNPM) tsx script/vlCVX/3_merkles/createCombinedMerkle.ts; \
 	fi
 
 commit-and-push:
