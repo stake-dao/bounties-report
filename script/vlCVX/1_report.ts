@@ -15,6 +15,7 @@ interface ClaimedBounties {
     curve: VotemarketBounty[];
   };
   votemarket_v2: {
+    fxn: VotemarketV2Bounty[];
     curve: VotemarketV2Bounty[];
   };
 }
@@ -111,6 +112,9 @@ async function generateReport() {
   const curveV2Bounties = claimedBounties.votemarket_v2?.curve
     ? Object.values(claimedBounties.votemarket_v2.curve)
     : [];
+  const fxnBounties = claimedBounties.votemarket_v2?.fxn
+    ? Object.values(claimedBounties.votemarket_v2.fxn)
+    : [];
 
   const allTokens = new Set<string>([
     ...curveBounties.map((bounty) => "1:" + bounty.rewardToken),
@@ -119,21 +123,31 @@ async function generateReport() {
         ? "1:" + bounty.rewardToken
         : bounty.chainId + ":" + bounty.rewardToken
     ),
+    ...fxnBounties.map((bounty) =>
+      bounty.isWrapped
+        ? "1:" + bounty.rewardToken
+        : bounty.chainId + ":" + bounty.rewardToken
+    ),
   ]);
 
   const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens));
 
-  const gaugesInfo = await getGaugesInfos("curve");
+  const curveGaugesInfo = await getGaugesInfos("curve");
+  const fxnGaugesInfo = await getGaugesInfos("fxn");
 
   const gaugeMap = new Map(
-    gaugesInfo.map((g) => [g.address.toLowerCase(), g.name])
+    [...curveGaugesInfo, ...fxnGaugesInfo].map((g) => [
+      g.address.toLowerCase(),
+      g.name,
+    ])
   );
 
-  const rows: CSVRow[] = [];
+  const curveRows: CSVRow[] = [];
+  const fxnRows: CSVRow[] = [];
 
   // Filter out unknown gauges and log them
-  const allBounties = [...curveBounties, ...curveV2Bounties];
-  const filteredBounties = allBounties.filter((bounty) => {
+  const curveBountiesAll = [...curveBounties, ...curveV2Bounties];
+  const filteredCurveBounties = curveBountiesAll.filter((bounty) => {
     const hasGauge = gaugeMap.has(bounty.gauge.toLowerCase());
     if (!hasGauge) {
       console.log(`Unknown gauge: ${bounty.gauge}`);
@@ -141,10 +155,11 @@ async function generateReport() {
     return hasGauge;
   });
 
-  for (const bounty of filteredBounties) {
+  // Process Curve bounties
+  for (const bounty of filteredCurveBounties) {
     const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
 
-    rows.push({
+    curveRows.push({
       chainId: tokenInfo.chainId,
       gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "Unknown",
       gaugeAddress: bounty.gauge,
@@ -154,10 +169,32 @@ async function generateReport() {
     });
   }
 
-  return rows;
+  // Process FXN bounties
+  const filteredFxnBounties = fxnBounties.filter((bounty) => {
+    const hasGauge = gaugeMap.has(bounty.gauge.toLowerCase());
+    if (!hasGauge) {
+      console.log(`Unknown FXN gauge: ${bounty.gauge}`);
+    }
+    return hasGauge;
+  });
+
+  for (const bounty of filteredFxnBounties) {
+    const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
+
+    fxnRows.push({
+      chainId: tokenInfo.chainId,
+      gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "Unknown",
+      gaugeAddress: bounty.gauge,
+      rewardToken: tokenInfo.symbol,
+      rewardAddress: bounty.rewardToken,
+      rewardAmount: bounty.amount.toString(),
+    });
+  }
+
+  return { curveRows, fxnRows };
 }
 
-function writeReportToCSV(rows: CSVRow[]) {
+function writeReportToCSV(rows: { curveRows: CSVRow[], fxnRows: CSVRow[] }) {
   const dirPath = path.join(
     __dirname,
     "..",
@@ -167,18 +204,25 @@ function writeReportToCSV(rows: CSVRow[]) {
   );
   fs.mkdirSync(dirPath, { recursive: true });
 
-  const csvContent = [
+  // Helper function to create CSV content
+  const createCSVContent = (dataRows: CSVRow[]) => [
     "ChainId;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;",
-    ...rows.map(
+    ...dataRows.map(
       (row) =>
         `${row.chainId};${row.gaugeName};${row.gaugeAddress};${row.rewardToken};${row.rewardAddress};` +
         `${row.rewardAmount};`
     ),
   ].join("\n");
 
-  const fileName = `cvx.csv`;
-  fs.writeFileSync(path.join(dirPath, fileName), csvContent);
-  console.log(`Report generated for Curve Convex: ${fileName}`);
+  // Write Curve CSV
+  const curveFileName = `cvx.csv`;
+  fs.writeFileSync(path.join(dirPath, curveFileName), createCSVContent(rows.curveRows));
+  console.log(`Report generated for Curve Convex: ${curveFileName}`);
+
+  // Write FXN CSV
+  const fxnFileName = `cvx_fxn.csv`;
+  fs.writeFileSync(path.join(dirPath, fxnFileName), createCSVContent(rows.fxnRows));
+  console.log(`Report generated for FXN Convex: ${fxnFileName}`);
 }
 
 async function main() {

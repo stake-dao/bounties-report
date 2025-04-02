@@ -718,6 +718,7 @@ async function getFraxGaugesInfos(): Promise<GaugeInfo[]> {
 
 async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
   try {
+    // First attempt to get data from the primary API
     const response = await axios.get(
       "https://api.aladdin.club/api1/get_fx_gauge_list"
     );
@@ -729,12 +730,43 @@ async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
         })
       );
     }
-    console.error("Failed to fetch FXN gauges: Invalid response format");
-    return [];
+    
+    // If primary API fails, try the fallback GitHub repository
+    console.log("Primary FXN API failed, trying GitHub fallback source");
+    return await getFxnGaugesFromGithub();
   } catch (error) {
-    console.error("Error fetching FXN gauges:", error);
-    return [];
+    console.error("Error fetching FXN gauges from primary API:", error);
+    
+    // Try fallback on any error
+    try {
+      console.log("Attempting to fetch FXN gauges from GitHub fallback");
+      return await getFxnGaugesFromGithub();
+    } catch (fallbackError) {
+      console.error("Error fetching FXN gauges from fallback:", fallbackError);
+      return [];
+    }
   }
+}
+
+/**
+ * Fetches FXN gauge information from the GitHub repository as a fallback.
+ */
+async function getFxnGaugesFromGithub(): Promise<GaugeInfo[]> {
+  const response = await axios.get(
+    "https://raw.githubusercontent.com/stake-dao/votemarket-data/main/gauges/fxn.json"
+  );
+  
+  if (response.status === 200 && response.data.data) {
+    return Object.entries(response.data.data).map(
+      ([address, gauge]: [string, any]) => ({
+        name: gauge.name || "",
+        address: address.toLowerCase(),
+      })
+    );
+  }
+  
+  console.error("Failed to fetch FXN gauges from GitHub: Invalid response format");
+  return [];
 }
 
 export async function getCakeGaugesInfos(): Promise<GaugeInfo[]> {
@@ -757,25 +789,33 @@ export const getPendleGaugesInfos = async (): Promise<GaugeInfo[]> => {
   try {
     const chains = [1, 42161, 5000, 56, 8453];
     const responses = await Promise.all(
-      chains.map(chainId =>
-        axios.get(`https://api-v2.pendle.finance/core/v1/${chainId}/markets/active`)
+      chains.map((chainId) =>
+        axios.get(
+          `https://api-v2.pendle.finance/core/v1/${chainId}/markets/active`
+        )
       )
     );
-    
-    const allMarkets = responses.flatMap(r => r.data.markets);
+
+    const allMarkets = responses.flatMap((r) => r.data.markets);
 
     if (Array.isArray(allMarkets)) {
       return allMarkets.map((market: any) => ({
-        name: `${market.name} - ${new Date(market.expiry).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase().replace(/ /g, '')}`,
+        name: `${market.name} - ${new Date(market.expiry)
+          .toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+          .toUpperCase()
+          .replace(/ /g, "")}`,
         address: market.address,
       }));
     } else {
-      console.error('Failed to fetch Pendle gauges: Invalid response format');
+      console.error("Failed to fetch Pendle gauges: Invalid response format");
       return [];
     }
   } catch (error) {
-    console.error('Error fetching Pendle gauges:', error);
+    console.error("Error fetching Pendle gauges:", error);
     return [];
   }
 };
-

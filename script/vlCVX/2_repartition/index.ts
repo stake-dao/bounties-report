@@ -1,6 +1,11 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
-import { CVX_SPACE, WEEK, DELEGATION_ADDRESS } from "../../utils/constants";
+import {
+  CVX_SPACE,
+  WEEK,
+  DELEGATION_ADDRESS,
+  CVX_FXN_SPACE,
+} from "../../utils/constants";
 import {
   associateGaugesPerId,
   fetchLastProposalsIds,
@@ -17,45 +22,47 @@ import {
   DelegationDistribution,
   DelegationSummary,
 } from "./delegators";
-import { computeNonDelegatorsDistribution, Distribution } from "./nonDelegators";
+import {
+  computeNonDelegatorsDistribution,
+  Distribution,
+} from "./nonDelegators";
+import { getGaugesInfos } from "../../utils/reportUtils";
 
 dotenv.config();
 
-/**
- * Type representing CSV-based distribution data keyed by token,
- * where each token maps to an array of items containing the
- * reward address, reward amount, and (optionally) chainId.
- */
 type CvxCSVType = Record<
   string,
   { rewardAddress: string; rewardAmount: bigint; chainId?: number }[]
 >;
 
-/**
- * Main entry point for generating the weekly vlCVX "repartition":
- * 1. Loads gauge data from Curve.
- * 2. Extracts CSV data for the current epoch.
- * 3. Determines non-delegator distribution and delegation distribution.
- * 4. Persists data, split by chain (mainnet vs. other).
- */
-const main = async () => {
-  console.log("Starting vlCVX repartition generation...");
+const processGaugeProposal = async (
+  space: string,
+  gaugeType: "curve" | "fxn"
+) => {
+  console.log(`Starting ${gaugeType} repartition generation...`);
 
-  // Calculate the current "epoch" timestamp by rounding down to the nearest week
+  // Calculate current "epoch"
   const now = moment.utc().unix();
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
   // --- 1) Gauge-based distribution (non-delegation) ---
 
-  console.log("Fetching Curve gauges...");
-  const curveGauges = await getAllCurveGauges();
+  let gauges;
+  if (gaugeType === "curve") {
+    console.log("Fetching Curve gauges...");
+    gauges = await getAllCurveGauges();
+  } else {
+    gauges = await getGaugesInfos("fxn");
+  }
 
   console.log("Extracting CSV report...");
-  // Attempt to load the CSV data for the current week from the CVX_SPACE
-  const csvResult = (await extractCSV(currentPeriodTimestamp, CVX_SPACE)) as CvxCSVType;
+  const csvResult = (await extractCSV(
+    currentPeriodTimestamp,
+    gaugeType === "curve" ? CVX_SPACE : CVX_FXN_SPACE
+  )) as CvxCSVType;
   if (!csvResult) throw new Error("No CSV report found");
 
-  // Summarize total rewards per token from the CSV for debugging/logging
+  // Summarize total rewards per token for logging
   const totalPerToken = Object.values(csvResult).reduce((acc, rewardArray) => {
     rewardArray.forEach(({ rewardAddress, rewardAmount }) => {
       acc[rewardAddress] = (acc[rewardAddress] || BigInt(0)) + rewardAmount;
@@ -65,38 +72,54 @@ const main = async () => {
   console.log("Total rewards per token in CSV:", totalPerToken);
 
   console.log("Fetching proposal and votes...");
-  // Find the relevant proposal ID based on filter
-  const filter = "^(?!FXN ).*Gauge Weight for Week of";
-  const proposalIdPerSpace = await fetchLastProposalsIds([CVX_SPACE], now, filter);
-  const proposalId = proposalIdPerSpace[CVX_SPACE];
+  // Set the filter depending on the gaugeType.
+  // For fxn proposals, assume they start with "FXN", while for vlCVX, filter them out.
+  const filter =
+    gaugeType === "fxn"
+      ? "^FXN.*Gauge Weight for Week of"
+      : "^(?!FXN ).*Gauge Weight for Week of";
+
+  const proposalIdPerSpace = await fetchLastProposalsIds([space], now, filter);
+  const proposalId = proposalIdPerSpace[space];
   console.log("proposalId", proposalId);
 
-  // Retrieve the proposal details, map them to curve gauges, and then fetch voters
   const proposal = await getProposal(proposalId);
-  const gaugeMapping = associateGaugesPerId(proposal, curveGauges);
+
+  // If FXN
+  if (gaugeType === "fxn") {
+    gauges = gauges.map((gauge: any) => ({
+      ...gauge,
+      shortName: gauge.name,
+      gauge: gauge.address,
+    }));
+  }
+
+  const gaugeMapping = associateGaugesPerId(proposal, gauges);
   const votes = await getVoters(proposalId);
 
   // --- 2) Process StakeDAO Delegators ---
-
   console.log("Fetching StakeDAO delegators...");
-  // Check if the special delegation address is in the list of voters
   const isDelegationAddressVoter = votes.some(
     (voter) => voter.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
   );
 
   let stakeDaoDelegators: string[] = [];
   if (isDelegationAddressVoter) {
-    console.log("Delegation address is among voters; fetching StakeDAO delegators...");
-    // Retrieve the addresses that delegated to the special address
+    console.log(
+      "Delegation address is among voters; fetching StakeDAO delegators..."
+    );
     stakeDaoDelegators = await processAllDelegators(
-      CVX_SPACE,
+      space,
       proposal.created,
       DELEGATION_ADDRESS
     );
-
-    // Filter out any delegator who cast their own direct vote
+    // Remove any delegator who voted directly.
     for (const delegator of stakeDaoDelegators) {
-      if (votes.some((voter) => voter.voter.toLowerCase() === delegator.toLowerCase())) {
+      if (
+        votes.some(
+          (voter) => voter.voter.toLowerCase() === delegator.toLowerCase()
+        )
+      ) {
         console.log("Removing delegator (voted by himself):", delegator);
         stakeDaoDelegators = stakeDaoDelegators.filter(
           (d) => d.toLowerCase() !== delegator.toLowerCase()
@@ -105,53 +128,43 @@ const main = async () => {
     }
     console.log("Final StakeDAO delegators:", stakeDaoDelegators);
   } else {
-    console.log("Delegation address is not among voters; skipping StakeDAO delegators computation");
+    console.log(
+      "Delegation address is not among voters; skipping StakeDAO delegators computation"
+    );
   }
 
   // --- 3) Compute Non-Delegators Distribution ---
-
   console.log("Computing non-delegators distribution...");
-  // This calculates how each voter (who isn't delegating) should receive rewards,
-  // based on the gaugeMapping and CSV results
-  const nonDelegatorsDistribution: Distribution = computeNonDelegatorsDistribution(
-    csvResult,
-    gaugeMapping,
-    votes
-  );
+  const nonDelegatorsDistribution: Distribution =
+    computeNonDelegatorsDistribution(csvResult, gaugeMapping, votes);
 
   // --- 4) Compute Delegation Distribution & Summary ---
-
   let delegationDistribution: DelegationDistribution = {};
   if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
-    // If the delegation address itself received tokens, we process them further
-    for (const [voter, { tokens }] of Object.entries(nonDelegatorsDistribution)) {
+    for (const [voter, { tokens }] of Object.entries(
+      nonDelegatorsDistribution
+    )) {
       if (voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
-        // Compute how these tokens are sub-distributed among the delegators
         delegationDistribution = await computeStakeDaoDelegation(
           proposal,
           stakeDaoDelegators,
           tokens,
           voter
         );
-        // Remove the delegation address from the non-delegators, since we'll handle it separately
         delete nonDelegatorsDistribution[voter];
         break;
       }
     }
   }
 
-  // Summarize the delegation data (e.g. total forwarder / non-forwarder shares, etc.)
-  const delegationSummary: DelegationSummary = computeDelegationSummary(delegationDistribution);
+  const delegationSummary: DelegationSummary = computeDelegationSummary(
+    delegationDistribution
+  );
 
   // --- 5) Break Down Distributions by Chain ---
-
-  // This object will store non-delegator distributions keyed by chain ID
   const distributionsByChain: Record<number, Distribution> = { 1: {} };
-
-  // We'll track which token belongs to which chain (if chainId != 1)
   const tokenChainIds: Record<string, number> = {};
 
-  // Identify tokens that belong to non-mainnet chains based on CSV data
   Object.values(csvResult).forEach((rewardInfos) => {
     rewardInfos.forEach(({ chainId, rewardAddress }) => {
       if (chainId !== 1 && chainId != null) {
@@ -160,18 +173,13 @@ const main = async () => {
     });
   });
 
-  // Distribute each voter's tokens among the appropriate chain entries
   Object.entries(nonDelegatorsDistribution).forEach(([voter, { tokens }]) => {
-    // Temporary map of chain => token => amount for the current voter
     const tokensByChain: Record<number, Record<string, bigint>> = { 1: {} };
-    // For each token, see if it belongs to chain 1 or another chain
     Object.entries(tokens).forEach(([tokenAddress, amount]) => {
       const chainId = tokenChainIds[tokenAddress.toLowerCase()] || 1;
       if (!tokensByChain[chainId]) tokensByChain[chainId] = {};
       tokensByChain[chainId][tokenAddress] = amount;
     });
-
-    // Merge tokens back into distributionsByChain
     Object.entries(tokensByChain).forEach(([chainId, chainTokens]) => {
       const numChainId = Number(chainId);
       if (!distributionsByChain[numChainId]) {
@@ -183,12 +191,9 @@ const main = async () => {
     });
   });
 
-  // Store delegation summaries by chain ID
   const delegationSummaryByChain: Record<number, DelegationSummary> = {
     1: {} as DelegationSummary,
   };
-
-  // Add chain 1 (Ethereum mainnet) with the core delegation summary structure
   delegationSummaryByChain[1] = {
     totalTokens: {},
     totalPerGroup: {},
@@ -198,7 +203,6 @@ const main = async () => {
     nonForwarders: delegationSummary.nonForwarders,
   };
 
-  // Initialize other chains with the same structure
   Object.keys(tokenChainIds).forEach((token) => {
     const chainId = tokenChainIds[token.toLowerCase()];
     if (!delegationSummaryByChain[chainId]) {
@@ -213,22 +217,18 @@ const main = async () => {
     }
   });
 
-  // Sort tokens into the correct chain's "totalTokens"
   Object.entries(delegationSummary.totalTokens).forEach(([token, amount]) => {
     const chainId = tokenChainIds[token.toLowerCase()] || 1;
     delegationSummaryByChain[chainId].totalTokens[token] = amount;
   });
 
-  // Sort tokens into the correct chain's "totalPerGroup" 
-  Object.entries(delegationSummary.totalPerGroup).forEach(([token, groupData]) => {
-    const chainId = tokenChainIds[token.toLowerCase()] || 1;
-    delegationSummaryByChain[chainId].totalPerGroup[token] = groupData;
-  });
+  Object.entries(delegationSummary.totalPerGroup).forEach(
+    ([token, groupData]) => {
+      const chainId = tokenChainIds[token.toLowerCase()] || 1;
+      delegationSummaryByChain[chainId].totalPerGroup[token] = groupData;
+    }
+  );
 
-  /**
-   * Convert the distribution BigInt amounts to string form,
-   * so they can be readily serialized to JSON.
-   */
   const convertToJsonFormat = (dist: Distribution) => {
     return Object.entries(dist).reduce((acc, [voter, { tokens }]) => {
       acc[voter] = {
@@ -241,37 +241,55 @@ const main = async () => {
     }, {} as Record<string, { tokens: Record<string, string> }>);
   };
 
-  // Create the output directory if it doesn't exist
-  const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX`;
+  // --- 6) Save Results to Files ---
+  // Use a folder name based on the gaugeType (curve or fxn)
+  const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX/${gaugeType}`;
   fs.mkdirSync(dirPath, { recursive: true });
 
-  // 6) Save Non-Delegator Distributions by Chain
-  Object.entries(distributionsByChain).forEach(([chainId, chainDistribution]) => {
-    const filename = chainId === "1" ? "repartition.json" : `repartition_${chainId}.json`;
-    fs.writeFileSync(
-      `${dirPath}/${filename}`,
-      JSON.stringify({ distribution: convertToJsonFormat(chainDistribution) }, null, 2)
-    );
-  });
-
-  // 7) Save Delegation Summaries by Chain
-  Object.entries(delegationSummaryByChain).forEach(([chainId, chainDelegationSummary]) => {
-    // Only save if there's actually some distribution for this chain
-    if (Object.keys(chainDelegationSummary.totalTokens).length > 0) {
-      const filename = chainId === "1"
-        ? "repartition_delegation.json"
-        : `repartition_delegation_${chainId}.json`;
+  // Save Non-Delegator Distributions by Chain
+  Object.entries(distributionsByChain).forEach(
+    ([chainId, chainDistribution]) => {
+      const filename =
+        chainId === "1" ? "repartition.json" : `repartition_${chainId}.json`;
       fs.writeFileSync(
         `${dirPath}/${filename}`,
-        JSON.stringify({ distribution: chainDelegationSummary }, null, 2)
+        JSON.stringify(
+          { distribution: convertToJsonFormat(chainDistribution) },
+          null,
+          2
+        )
       );
     }
-  });
+  );
 
-  console.log("vlCVX repartition generation completed successfully.");
+  // Save Delegation Summaries by Chain
+  Object.entries(delegationSummaryByChain).forEach(
+    ([chainId, chainDelegationSummary]) => {
+      if (Object.keys(chainDelegationSummary.totalTokens).length > 0) {
+        const filename =
+          chainId === "1"
+            ? "repartition_delegation.json"
+            : `repartition_delegation_${chainId}.json`;
+        fs.writeFileSync(
+          `${dirPath}/${filename}`,
+          JSON.stringify({ distribution: chainDelegationSummary }, null, 2)
+        );
+      }
+    }
+  );
+
+  console.log(`${gaugeType} repartition generation completed successfully.`);
 };
 
-// Kick off the script
+// Main entry point that processes both proposal types
+const main = async () => {
+  // Process curve gauge weight proposal
+  // await processGaugeProposal(CVX_SPACE, "curve");
+
+  // If you have a separate space or constant for fxn proposals, replace CVX_SPACE with it.
+  await processGaugeProposal(CVX_SPACE, "fxn");
+};
+
 main().catch((error) => {
   console.error("An error occurred:", error);
   process.exit(1);

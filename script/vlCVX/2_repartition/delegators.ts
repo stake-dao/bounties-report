@@ -1,5 +1,5 @@
 import { getAddress } from "viem";
-import { SDT_DELEGATORS_REWARD, VOTIUM_FORWARDER } from "../../utils/constants";
+import { VOTIUM_FORWARDER } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getVotingPower } from "../../utils/snapshot";
 
@@ -29,11 +29,6 @@ export const computeStakeDaoDelegation = async (
   delegationVoter: string
 ): Promise<DelegationDistribution> => {
   const delegationDistribution: DelegationDistribution = {};
-
-  // Define the set of skipped users (whose SDT shares will be 0)
-  const skippedUsers = new Set([
-    getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"),
-  ]);
 
   // Store the delegation voter's token totals.
   delegationDistribution[delegationVoter] = { tokens: { ...tokens } };

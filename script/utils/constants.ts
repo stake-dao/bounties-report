@@ -59,6 +59,7 @@ export const SDPENDLE_SPACE = "sdpendle.eth";
 export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
 export const CVX_SPACE = "cvx.eth";
+export const CVX_FXN_SPACE = "cvx_fxn.eth";
 export const SPECTRA_SPACE = "sdapw.eth";
 
 export const VLCVX_RECIPIENT = "0x0000000095310137125f82f37FBe5D2F99279947";
@@ -118,6 +119,7 @@ export const LABELS_TO_SPACE: Record<string, string> = {
   cake: SDCAKE_SPACE,
   fxn: SDFXN_SPACE,
   cvx: CVX_SPACE,
+  cvx_fxn: CVX_FXN_SPACE,
   spectra: SPECTRA_SPACE,
 };
 

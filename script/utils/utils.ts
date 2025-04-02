@@ -3,6 +3,7 @@ import {
   abi,
   AUTO_VOTER_CONTRACT,
   AUTO_VOTER_DELEGATION_ADDRESS,
+  CVX_FXN_SPACE,
   CVX_SPACE,
   LABELS_TO_SPACE,
   MERKLE_CREATION_BLOCK_BSC,
@@ -112,7 +113,7 @@ export const extractCSV = async (
           row["reward sd value"]
         );
       }
-    } else if (space === CVX_SPACE) {
+    } else if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
       const cvxResponse = response as CvxCSVType;
       const rewardAddress = row["reward address"].toLowerCase();
       const rewardAmount = BigInt(row["reward amount"]);
