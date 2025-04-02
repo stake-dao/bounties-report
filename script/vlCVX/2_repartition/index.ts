@@ -284,7 +284,7 @@ const processGaugeProposal = async (
 // Main entry point that processes both proposal types
 const main = async () => {
   // Process curve gauge weight proposal
-  // await processGaugeProposal(CVX_SPACE, "curve");
+  await processGaugeProposal(CVX_SPACE, "curve");
 
   // If you have a separate space or constant for fxn proposals, replace CVX_SPACE with it.
   await processGaugeProposal(CVX_SPACE, "fxn");
