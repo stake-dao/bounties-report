@@ -12,10 +12,12 @@ import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
 import { MerkleData } from "../interfaces/MerkleData";
 import { UniversalMerkle } from "../interfaces/UniversalMerkle";
-  
+
 export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   const explorerUtils = createBlockchainExplorerUtils();
-  const crvUsdAddress = getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E");
+  const crvUsdAddress = getAddress(
+    "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"
+  );
 
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
@@ -49,10 +51,7 @@ export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   let latestBlockNumber = 0;
 
   for (const transfer of response.result) {
-    const [amount] = decodeAbiParameters(
-      [{ type: "uint256" }],
-      transfer.data
-    );
+    const [amount] = decodeAbiParameters([{ type: "uint256" }], transfer.data);
     totalAmount += BigInt(amount);
 
     const blockNumber = parseInt(transfer.blockNumber, 16);
@@ -103,10 +102,7 @@ export async function getTokenTransfersOut(
   });
 }
 
-export async function getWethTransfersIn(
-  chainId: number,
-  blockNumber: number
-) {
+export async function getWethTransfersIn(chainId: number, blockNumber: number) {
   const explorerUtils = createBlockchainExplorerUtils();
 
   const transferSig = "Transfer(address,address,uint256)";
@@ -172,7 +168,6 @@ export function calculateTokenSdCrvShares(
   return tokenSdCrvShares;
 }
 
-
 export interface CombinedMerkleData {
   delegators: MerkleData;
   nonDelegators: MerkleData;
@@ -186,18 +181,18 @@ export function generateMerkleTree(distribution: UniversalMerkle): MerkleData {
   const checksummedDistribution = Object.entries(distribution).reduce(
     (acc, [address, tokens]) => {
       const checksumAddress = getAddress(address);
-      
+
       // Initialize or merge with existing tokens for this address
       if (!acc[checksumAddress]) {
         acc[checksumAddress] = {};
       }
-      
+
       // Merge tokens for this address
       Object.entries(tokens).forEach(([tokenAddress, amount]) => {
         const checksumTokenAddress = getAddress(tokenAddress);
         acc[checksumAddress][checksumTokenAddress] = amount;
       });
-      
+
       return acc;
     },
     {} as { [address: string]: { [tokenAddress: string]: string } }
@@ -254,4 +249,67 @@ export function generateMerkleTree(distribution: UniversalMerkle): MerkleData {
   });
 
   return { merkleRoot, claims };
+}
+
+
+/**
+ * Merges two Merkle trees (of the same format) into a single Merkle tree.
+ * When an address appears in both trees, token amounts are summed.
+ *
+ * @param merkleA - First Merkle tree
+ * @param merkleB - Second Merkle tree
+ * @returns A new Merkle tree with merged claims
+ */
+export function mergeMerkleData(
+  merkleA: MerkleData,
+  merkleB: MerkleData
+): MerkleData {
+  // Build a combined distribution mapping addresses to token amounts as bigints.
+  const combinedDistribution: {
+    [address: string]: { [tokenAddress: string]: bigint };
+  } = {};
+
+  // Helper function to add claims from a MerkleData into combinedDistribution.
+  function addClaims(merkle: MerkleData) {
+    for (const [address, claim] of Object.entries(merkle.claims)) {
+      // Normalize the address to checksum format.
+      const checksumAddress = getAddress(address);
+      if (!combinedDistribution[checksumAddress]) {
+        combinedDistribution[checksumAddress] = {};
+      }
+      // Sum token amounts, normalizing token addresses.
+      for (const [token, tokenClaim] of Object.entries(claim.tokens)) {
+        const checksumToken = getAddress(token);
+        const amount = BigInt(tokenClaim.amount);
+        if (combinedDistribution[checksumAddress][checksumToken]) {
+          combinedDistribution[checksumAddress][checksumToken] += amount;
+        } else {
+          combinedDistribution[checksumAddress][checksumToken] = amount;
+        }
+      }
+    }
+  }
+
+  addClaims(merkleA);
+  addClaims(merkleB);
+
+  // If no claims were found, return an empty MerkleData.
+  if (Object.keys(combinedDistribution).length === 0) {
+    return { merkleRoot: "", claims: {} };
+  }
+
+  // Convert BigInt amounts to string values to match UniversalMerkle type.
+  const universalMerkle: UniversalMerkle = Object.entries(combinedDistribution).reduce(
+    (acc, [address, tokens]) => {
+      acc[address] = Object.entries(tokens).reduce((tokenAcc, [token, amount]) => {
+        tokenAcc[token] = amount.toString();
+        return tokenAcc;
+      }, {} as { [token: string]: string });
+      return acc;
+    },
+    {} as { [address: string]: { [token: string]: string } }
+  );
+
+  // Generate and return the new merged Merkle tree.
+  return generateMerkleTree(universalMerkle);
 }

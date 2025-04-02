@@ -6,6 +6,7 @@ import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
 import {
   BALANCER_STAKE_DAO_LOCKER,
+  FXN_STAKE_DAO_LOCKER,
   STAKE_DAO_LOCKER,
 } from "../../utils/constants";
 import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
@@ -61,9 +62,17 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
     BALANCER_STAKE_DAO_LOCKER
   );
 
+  const fxnVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
+    "fxn",
+    timestamp1,
+    timestamp2,
+    FXN_STAKE_DAO_LOCKER
+  );
+
   const votemarketV2Bounties = {
     ...curveVotemarketV2Bounties,
     ...balancerVotemarketV2Bounties,
+    ...fxnVotemarketV2Bounties,
   };
 
   const rootDir = path.resolve(__dirname, "../../..");
