@@ -9,13 +9,12 @@ import { mainnet } from "viem/chains";
 import { createCombineDistribution } from "../../utils/merkle";
 import { generateMerkleTree, mergeMerkleData } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
-import { CVX_SPACE, TWOWEEKS, WEEK } from "../../utils/constants";
+import { CVX_SPACE, WEEK } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/distributionVerifier";
 import { fetchLastProposalsIds, getProposal } from "../../utils/snapshot";
 
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
-const currentVotiumPeriod = Math.floor(moment.utc().unix() / TWOWEEKS) * TWOWEEKS;
 
 // Global variables to hold Mainnet (chainId "1") Merkle data for each gauge type
 let mainnetMerkleCurve: MerkleData | undefined;
@@ -203,7 +202,7 @@ function processChain(
 
   // 3. (On curve merkle, just to add one time) Reads forwarders' voted rewards from the weekly-bounties folder and adds them.
   if (gaugeType === "curve" && chainId === "1") {
-    const votiumRewardsDir = path.join("weekly-bounties", currentVotiumPeriod.toString(), "votium");
+    const votiumRewardsDir = path.join("weekly-bounties", currentPeriodTimestamp.toString(), "votium");
     const forwardersRewardsFile = path.join(votiumRewardsDir, "forwarders_voted_rewards.json");
     if (fs.existsSync(forwardersRewardsFile)) {
       console.log("Loading forwarders voted rewards from", forwardersRewardsFile);
