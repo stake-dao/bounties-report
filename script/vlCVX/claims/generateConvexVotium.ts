@@ -3,7 +3,6 @@ import fs from "fs";
 import path from "path";
 import {
   CVX_SPACE,
-  DELEGATION_ADDRESS,
   VOTIUM_FORWARDER_REGISTRY,
   VOTIUM_FORWARDER,
   clients,
@@ -609,7 +608,7 @@ async function generateConvexVotiumBounties() {
     ensureDirExists(weeklyBountiesDir);
 
     const nowTimestamp = Math.floor(Date.now() / 1000);
-    const currentPeriodTimestamp = Math.floor(nowTimestamp / WEEK) * WEEK;
+    const currentPeriodTimestamp = Math.floor(nowTimestamp / WEEK) * WEEK + WEEK; // has it's on tuesday, and used on thursday
     const periodFolder = path.join(
       weeklyBountiesDir,
       currentPeriodTimestamp.toString(),
@@ -735,11 +734,8 @@ async function generateConvexVotiumBounties() {
     );
     console.log(`Cleaned per-address breakdown saved to ${perAddressFileName}`);
 
-
-
-    // Optionally log claims via Telegram.
-    // const telegramLogger = new ClaimsTelegramLogger();
-    // await telegramLogger.logClaims("votium/claimed_bounties_convex.json", currentPeriodTimestamp, votiumConvexBounties);
+    const telegramLogger = new ClaimsTelegramLogger();
+    await telegramLogger.logClaims("votium/claimed_bounties_convex.json", currentPeriodTimestamp, votiumConvexBounties);
   } catch (error) {
     console.error("Error generating votium bounties:", error);
     process.exit(1);
