@@ -1,4 +1,11 @@
-import { Chain, createPublicClient, erc20Abi, getAddress, http, parseAbi } from "viem";
+import {
+  Chain,
+  createPublicClient,
+  erc20Abi,
+  getAddress,
+  http,
+  parseAbi,
+} from "viem";
 import { Distribution } from "../interfaces/Distribution";
 import { DistributionRow } from "../interfaces/DistributionRow";
 import { MerkleData } from "../interfaces/MerkleData";
@@ -14,7 +21,10 @@ const merkleAbi = parseAbi([
   "function claimed(address,address) external view returns(uint256)",
 ]);
 
-export const getAllTokensInfos = async (tokenAddresses: string[], chain: Chain) => {
+export const getAllTokensInfos = async (
+  tokenAddresses: string[],
+  chain: Chain
+) => {
   const client = createPublicClient({
     chain,
     transport: http(),
@@ -37,12 +47,20 @@ export const getAllTokensInfos = async (tokenAddresses: string[], chain: Chain) 
   const decimalsResults = await client.multicall({ contracts: decimalsCalls });
   const symbolResults = await client.multicall({ contracts: symbolCalls });
 
-  const tokenInfoMap: { [token: string]: { decimals: number; symbol: string } } = {};
+  const tokenInfoMap: {
+    [token: string]: { decimals: number; symbol: string };
+  } = {};
   for (let i = 0; i < tokenAddresses.length; i++) {
     const normalizedAddress = getAddress(tokenAddresses[i]);
     tokenInfoMap[normalizedAddress] = {
-      decimals: decimalsResults[i].status === 'success' ? (decimalsResults[i].result as number) : 18,
-      symbol: symbolResults[i].status === 'success' ? (symbolResults[i].result as string) : normalizedAddress,
+      decimals:
+        decimalsResults[i].status === "success"
+          ? (decimalsResults[i].result as number)
+          : 18,
+      symbol:
+        symbolResults[i].status === "success"
+          ? (symbolResults[i].result as string)
+          : normalizedAddress,
     };
   }
   return tokenInfoMap;
@@ -115,7 +133,7 @@ export const distributionVerifier = async (
     merkleAddress,
     tokenInfos
   );
-  logDistributionRowsToFile(comparisonRows, log);
+  logDistributionRowsToFile(comparisonRows, tokenInfos, log);
 
   // --- Log formatted week-change totals per token ---
   const weekChangeTotals: { [token: string]: bigint } = {};
@@ -125,9 +143,12 @@ export const distributionVerifier = async (
     for (const tokenAddr in currentClaims.tokens) {
       const normToken = getAddress(tokenAddr);
       const currentAmount = BigInt(currentClaims.tokens[tokenAddr].amount);
-      const previousAmount = previousClaims.tokens[tokenAddr] ? BigInt(previousClaims.tokens[tokenAddr].amount) : 0n;
+      const previousAmount = previousClaims.tokens[tokenAddr]
+        ? BigInt(previousClaims.tokens[tokenAddr].amount)
+        : 0n;
       const change = currentAmount - previousAmount;
-      weekChangeTotals[normToken] = (weekChangeTotals[normToken] || 0n) + change;
+      weekChangeTotals[normToken] =
+        (weekChangeTotals[normToken] || 0n) + change;
     }
   }
   console.log("\n=== Formatted Merkle Week Change Totals ===");
@@ -177,36 +198,48 @@ const compareMerkleData = async (
 
     for (const tokenAddress in currentClaims.tokens) {
       const normalizedTokenAddress = getAddress(tokenAddress);
-      const tokenInfo = tokenInfos[normalizedTokenAddress] || { decimals: 18, symbol: "UNKNOWN" };
+      const tokenInfo = tokenInfos[normalizedTokenAddress] || {
+        decimals: 18,
+        symbol: "UNKNOWN",
+      };
 
       const currentTokenClaim = currentClaims.tokens[tokenAddress];
-      const previousTokenClaim = previousClaims.tokens[tokenAddress] || { amount: "0" };
+      const previousTokenClaim = previousClaims.tokens[tokenAddress] || {
+        amount: "0",
+      };
 
       const previousClaim = BigInt(previousTokenClaim.amount || "0");
-      const weekChange = BigInt(currentTokenClaim.amount) - previousClaim;
+      const currentClaim = BigInt(currentTokenClaim.amount);
+      const weekChangeRaw = currentClaim - previousClaim;
 
-      let distributionAmount = 0n;
+      // Lookup distribution amount for this address and token (raw value)
+      let distributionAmountRaw = 0n;
       const distributionUser = Object.keys(distribution).find(
         (user) => user.toLowerCase() === address.toLowerCase()
       );
       if (distributionUser) {
-        const distributionToken = Object.keys(distribution[distributionUser].tokens)
-          .find((token) => token.toLowerCase() === tokenAddress.toLowerCase());
+        const distributionToken = Object.keys(
+          distribution[distributionUser].tokens
+        ).find((token) => token.toLowerCase() === tokenAddress.toLowerCase());
         if (distributionToken) {
-          distributionAmount = BigInt(distribution[distributionUser].tokens[distributionToken]);
+          distributionAmountRaw = BigInt(
+            distribution[distributionUser].tokens[distributionToken]
+          );
         }
       }
 
-      const isAmountDifferent = distributionAmount !== (BigInt(currentTokenClaim.amount) - previousClaim);
+      // Use the raw values (in token's smallest units) in the row.
       const claimedAmount = BigInt((results.shift()?.result as bigint) || "0");
+      const isAmountDifferent =
+        distributionAmountRaw !== currentClaim - previousClaim;
 
       const row: DistributionRow = {
         address,
         symbol: tokenInfo.symbol,
-        prevAmount: previousClaim / 10n ** BigInt(tokenInfo.decimals),
-        newAmount: BigInt(currentTokenClaim.amount) / 10n ** BigInt(tokenInfo.decimals),
-        weekChange: weekChange / 10n ** BigInt(tokenInfo.decimals),
-        distributionAmount: distributionAmount / 10n ** BigInt(tokenInfo.decimals),
+        prevAmount: previousClaim,
+        newAmount: currentClaim,
+        weekChange: weekChangeRaw,
+        distributionAmount: distributionAmountRaw,
         claimed: claimedAmount === previousClaim,
         isError: isAmountDifferent,
       };
@@ -220,6 +253,7 @@ const compareMerkleData = async (
 
 const logDistributionRowsToFile = (
   distributionRows: DistributionRow[],
+  tokenInfos: { [token: string]: { decimals: number; symbol: string } },
   log: (message: string) => void
 ) => {
   distributionRows.sort((a, b) => {
@@ -240,22 +274,38 @@ const logDistributionRowsToFile = (
     "Distribution correct",
   ];
 
-  const rows = distributionRows.map((row) => [
-    formatAddress(row.address),
-    row.symbol.toUpperCase(),
-    row.prevAmount.toString(),
-    row.newAmount.toString(),
-    row.weekChange.toString(),
-    row.distributionAmount.toString(),
-    row.claimed ? "✅" : "❌",
-    row.isError ? "❌" : "✅",
-  ]);
+  const rows = distributionRows.map((row) => {
+    const tokenInfo = tokenInfos[row.tokenAddress] || {
+      decimals: 18,
+      symbol: row.symbol,
+    };
+    const decimals = tokenInfo.decimals;
+    // Convert raw BigInt values to floating point numbers for display
+    const formattedPrev = Number(row.prevAmount) / 10 ** decimals;
+    const formattedNew = Number(row.newAmount) / 10 ** decimals;
+    const formattedWeekChange = Number(row.weekChange) / 10 ** decimals;
+    const formattedDistribution =
+      Number(row.distributionAmount) / 10 ** decimals;
+
+    return [
+      formatAddress(row.address),
+      tokenInfo.symbol.toUpperCase(),
+      formattedPrev.toFixed(2),
+      formattedNew.toFixed(2),
+      formattedWeekChange.toFixed(2),
+      formattedDistribution.toFixed(2),
+      row.claimed ? "✅" : "❌",
+      row.isError ? "❌" : "✅",
+    ];
+  });
 
   const columnWidths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => row[index].length))
   );
 
-  const headerLine = headers.map((h, i) => h.padEnd(columnWidths[i])).join(" | ");
+  const headerLine = headers
+    .map((h, i) => h.padEnd(columnWidths[i]))
+    .join(" | ");
   const separatorLine = columnWidths.map((w) => "-".repeat(w)).join("-|-");
   const formattedRows = rows.map((row) =>
     row.map((cell, i) => cell.padEnd(columnWidths[i])).join(" | ")
@@ -263,17 +313,4 @@ const logDistributionRowsToFile = (
   const fileContent = [headerLine, separatorLine, ...formattedRows].join("\n");
 
   log(fileContent + "\n\n");
-
-  const tokenTotals: { [key: string]: { symbol: string; total: bigint } } = {};
-  for (const row of distributionRows) {
-    const key = row.symbol;
-    if (!tokenTotals[key]) {
-      tokenTotals[key] = { symbol: row.symbol, total: 0n };
-    }
-    tokenTotals[key].total += row.weekChange;
-  }
-  log("=== Token Week Change Totals ===");
-  for (const [token, data] of Object.entries(tokenTotals)) {
-    log(`${data.symbol.toUpperCase()} (${formatAddress(token)}): ${data.total.toString()}`);
-  }
 };
