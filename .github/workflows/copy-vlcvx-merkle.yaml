@@ -47,10 +47,10 @@ jobs:
           # Copy merkle files from bounties-reports directory
           if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "non-delegators" ]; then
             # Copy main merkle file
-            cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_non_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle.json"
+            cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/vlcvx_merkle.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle.json"
 
             # Find and copy chain-specific merkle files
-            for file in bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_non_delegators_*.json; do
+            for file in bounties-reports/${CURRENT_PERIOD}/vlCVX/vlcvx_merkle_*.json; do
               if [ -f "$file" ]; then
                 # Extract chain ID from filename
                 CHAIN_ID=$(echo "$file" | sed 's/.*_\([0-9]*\)\.json/\1/')
@@ -61,22 +61,6 @@ jobs:
           elif [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
             cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
           fi
-
-      - name: Compute voters APR
-        run: |
-          if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "non-delegators" ]; then
-            pnpm tsx script/helpers/computevlCVXVotersAPR.ts
-          fi
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
-
-      - name: Compute delegation APR
-        run: |
-          if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
-            pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
-          fi
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
   
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
