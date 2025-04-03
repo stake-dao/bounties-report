@@ -22,9 +22,28 @@ let mainnetMerkleFxn: MerkleData | undefined;
 // Define the two gauge types to process
 const gaugeTypes = ["curve", "fxn"];
 
-// For each gauge type, process the corresponding reports
-for (const gaugeType of gaugeTypes) {
-  processGaugeType(gaugeType);
+// After processing, generate the global merkle for Mainnet.
+// If both curve and fxn are available, merge them. Otherwise, use the available one.
+let globalMerkle: MerkleData | undefined;
+if (mainnetMerkleCurve && mainnetMerkleFxn) {
+  globalMerkle = mergeMerkleData(mainnetMerkleCurve, mainnetMerkleFxn);
+  console.log("Both gauge types available; merged global merkle data created.");
+} else if (mainnetMerkleCurve) {
+  globalMerkle = mainnetMerkleCurve;
+  console.log("Only curve merkle data available; using curve merkle data as global.");
+} else if (mainnetMerkleFxn) {
+  globalMerkle = mainnetMerkleFxn;
+  console.log("Only fxn merkle data available; using fxn merkle data as global.");
+} else {
+  console.error("No merkle data available for Mainnet.");
+}
+
+if (globalMerkle) {
+  const reportsDir = path.join("bounties-reports", currentPeriodTimestamp.toString(), "vlCVX");
+  const outputName = "vlcvx_merkle.json";
+  const outputPath = path.join(reportsDir, outputName);
+  fs.writeFileSync(outputPath, JSON.stringify(globalMerkle, null, 2));
+  console.log(`Global merkle generated and saved as ${outputName}`);
 }
 
 // After processing, merge both Mainnet merkles (curve + fxn)
