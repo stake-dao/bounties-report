@@ -17,47 +17,50 @@ import { fetchLastProposalsIds, getProposal } from "../../utils/snapshot";
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 const currentVotiumPeriod = Math.floor(moment.utc().unix() / TWOWEEKS) * TWOWEEKS;
 
+// Global variables to hold Mainnet (chainId "1") Merkle data for each gauge type
 let mainnetMerkleCurve: MerkleData | undefined;
 let mainnetMerkleFxn: MerkleData | undefined;
+
 // Define the two gauge types to process
 const gaugeTypes = ["curve", "fxn"];
 
-// After processing, generate the global merkle for Mainnet.
-// If both curve and fxn are available, merge them. Otherwise, use the available one.
-let globalMerkle: MerkleData | undefined;
-if (mainnetMerkleCurve && mainnetMerkleFxn) {
-  globalMerkle = mergeMerkleData(mainnetMerkleCurve, mainnetMerkleFxn);
-  console.log("Both gauge types available; merged global merkle data created.");
-} else if (mainnetMerkleCurve) {
-  globalMerkle = mainnetMerkleCurve;
-  console.log("Only curve merkle data available; using curve merkle data as global.");
-} else if (mainnetMerkleFxn) {
-  globalMerkle = mainnetMerkleFxn;
-  console.log("Only fxn merkle data available; using fxn merkle data as global.");
-} else {
-  console.error("No merkle data available for Mainnet.");
+/**
+ * Main function: process all gauge types and then merge the Mainnet Merkle data.
+ */
+async function main() {
+  console.log("Running merkles generation...");
+
+  // Process each gauge type.
+  for (const gaugeType of gaugeTypes) {
+    processGaugeType(gaugeType);
+  }
+
+  // After processing, generate the global merkle for Mainnet.
+  // If both curve and fxn are available, merge them; otherwise, use whichever exists.
+  let globalMerkle: MerkleData | undefined;
+  if (mainnetMerkleCurve && mainnetMerkleFxn) {
+    globalMerkle = mergeMerkleData(mainnetMerkleCurve, mainnetMerkleFxn);
+    console.log("Both gauge types available; merged global merkle data created.");
+  } else if (mainnetMerkleCurve) {
+    globalMerkle = mainnetMerkleCurve;
+    console.log("Only curve merkle data available; using curve merkle data as global.");
+  } else if (mainnetMerkleFxn) {
+    globalMerkle = mainnetMerkleFxn;
+    console.log("Only fxn merkle data available; using fxn merkle data as global.");
+  } else {
+    console.error("No merkle data available for Mainnet.");
+  }
+
+  if (globalMerkle) {
+    const reportsDir = path.join("bounties-reports", currentPeriodTimestamp.toString(), "vlCVX");
+    const outputName = "vlcvx_merkle.json";
+    const outputPath = path.join(reportsDir, outputName);
+    fs.writeFileSync(outputPath, JSON.stringify(globalMerkle, null, 2));
+    console.log(`Global merkle generated and saved as ${outputName}`);
+  }
 }
 
-if (globalMerkle) {
-  const reportsDir = path.join("bounties-reports", currentPeriodTimestamp.toString(), "vlCVX");
-  const outputName = "vlcvx_merkle.json";
-  const outputPath = path.join(reportsDir, outputName);
-  fs.writeFileSync(outputPath, JSON.stringify(globalMerkle, null, 2));
-  console.log(`Global merkle generated and saved as ${outputName}`);
-}
-
-// After processing, merge both Mainnet merkles (curve + fxn)
-if (mainnetMerkleCurve && mainnetMerkleFxn) {
-  const merged = mergeMerkleData(mainnetMerkleCurve, mainnetMerkleFxn);
-  const reportsDir = path.join("bounties-reports", currentPeriodTimestamp.toString(), "vlCVX");
-  const outputName = "vlcvx_merkle.json";
-  const outputPath = path.join(reportsDir, outputName);
-  fs.writeFileSync(outputPath, JSON.stringify(merged, null, 2));
-  console.log(`Global merkle generated and saved as ${outputName}`);
-
-} else {
-  console.error("Could not merge merkle data because one of them is missing.");
-}
+main().catch(console.error);
 
 /**
  * Processes one gauge type (either "curve" or "fxn") by:
@@ -91,10 +94,10 @@ function processGaugeType(gaugeType: string) {
  * Processes data for a given chain:
  * 1. Loads non-delegators data (if available) and builds a combined distribution.
  * 2. Merges in delegation-based distributions (if available).
- * 3. (For curve only) Reads forwarders' voted rewards from the weekly-bounties folder and adds them.
+ * 3. (For curve only on Mainnet) Reads forwarders' voted rewards from the weekly-bounties folder and adds them.
  * 4. Loads previous Merkle data from the previous week period folder (for this gauge type).
  * 5. Generates a new Merkle tree and saves it.
- * 6. (For Mainnet only) Runs the distribution verifier.
+ * 6. (For Mainnet only) Runs the distribution verifier and stores the resulting Merkle.
  *
  * @param gaugeType - The gauge type ("curve" or "fxn")
  * @param chainId - The chain identifier (e.g. "1", "42161")
@@ -200,7 +203,6 @@ function processChain(
 
   // 3. (On curve merkle, just to add one time) Reads forwarders' voted rewards from the weekly-bounties folder and adds them.
   if (gaugeType === "curve" && chainId === "1") {
-    // Build the path based on the current votium period (using TWOWEEKS)
     const votiumRewardsDir = path.join("weekly-bounties", currentVotiumPeriod.toString(), "votium");
     const forwardersRewardsFile = path.join(votiumRewardsDir, "forwarders_voted_rewards.json");
     if (fs.existsSync(forwardersRewardsFile)) {
@@ -210,16 +212,12 @@ function processChain(
         const tokenAllocations = forwardersData.tokenAllocations;
         for (const address in tokenAllocations) {
           const lowerAddress = address.toLowerCase();
-          // If the address doesn't exist in our combined distribution, create it.
           if (!combined[lowerAddress]) {
             combined[lowerAddress] = { tokens: {} };
           }
           for (const token in tokenAllocations[address]) {
             const amountStr = tokenAllocations[address][token];
             const amountBigInt = BigInt(amountStr);
-
-            console.log("amountBigInt", amountBigInt);
-
             if (!combined[lowerAddress].tokens[token]) {
               combined[lowerAddress].tokens[token] = amountBigInt;
             } else {
@@ -236,28 +234,25 @@ function processChain(
     }
   }
 
-  // 4. Load previous Merkle data from the prev week period folder (for this gauge type)
+  // 4. Load previous Merkle data from the previous week period folder (for this gauge type)
   const prevPeriodTimestamp = currentPeriodTimestamp - WEEK;
   const prevReportsDir = path.join("bounties-reports", prevPeriodTimestamp.toString(), "vlCVX", gaugeType);
-
   const merkleFileName = chainId === "1" ? "merkle_data_non_delegators.json" : `merkle_data_non_delegators_${chainId}.json`;
   const previousMerkleDataPath = path.join(prevReportsDir, merkleFileName);
-
   console.log("previousMerkleDataPath", previousMerkleDataPath);
 
   let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
   if (fs.existsSync(previousMerkleDataPath)) {
     previousMerkleData = JSON.parse(fs.readFileSync(previousMerkleDataPath, "utf8"));
-    console.log(`Loaded previous merkle data for chain ${chainId} from ${reportsDir}`);
+    console.log(`Loaded previous merkle data for chain ${chainId} from ${prevReportsDir}`);
   } else {
-    console.log(`No previous merkle data found for chain ${chainId} in ${reportsDir}`);
+    console.log(`No previous merkle data found for chain ${chainId} in ${prevReportsDir}`);
   }
 
   // 5. Generate the new Merkle tree
   const currentDistribution = { distribution: combined };
   const universalMerkle = createCombineDistribution(currentDistribution, previousMerkleData);
   const newMerkleData: MerkleData = generateMerkleTree(universalMerkle);
-
   console.log(`Merkle Root for chain ${chainId}:`, newMerkleData.merkleRoot);
 
   // 6. Save the new Merkle data to the same reports directory
@@ -266,16 +261,14 @@ function processChain(
   fs.writeFileSync(outputPath, JSON.stringify(newMerkleData, null, 2));
   console.log(`Merkle tree for chain ${chainId} generated and saved as ${outputName}`);
 
-  // 7. For Mainnet only, run the distribution verifier.
+  // 7. For Mainnet only, run the distribution verifier and store the Mainnet merkle.
   if (chainId === "1") {
-    // Save Mainnet Merkle for merging later.
     if (gaugeType === "curve") {
       mainnetMerkleCurve = newMerkleData;
     } else if (gaugeType === "fxn") {
       mainnetMerkleFxn = newMerkleData;
     }
 
-    // Use a filter that depends on gauge type
     const filter = gaugeType === "fxn" ? "^FXN.*Gauge Weight for Week of" : "^(?!FXN ).*Gauge Weight for Week of";
     const now = Math.floor(Date.now() / 1000);
     (async () => {
