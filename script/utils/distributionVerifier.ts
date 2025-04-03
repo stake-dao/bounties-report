@@ -14,8 +14,6 @@ const merkleAbi = parseAbi([
   "function claimed(address,address) external view returns(uint256)",
 ]);
 
-// TODO : on utils
-
 export const getAllTokensInfos = async (tokenAddresses: string[], chain: Chain) => {
   const client = createPublicClient({
     chain,
@@ -48,8 +46,7 @@ export const getAllTokensInfos = async (tokenAddresses: string[], chain: Chain) 
     };
   }
   return tokenInfoMap;
-}
-
+};
 
 const setupLogging = (proposalId: string): string => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -78,7 +75,7 @@ export const distributionVerifier = async (
       tokenSums[token] = (tokenSums[token] || 0n) + amount;
     }
   }
-  console.log("Token totals in current distribution:");
+  console.log("Token totals in current distribution (absolute):");
   for (const [token, sum] of Object.entries(tokenSums)) {
     console.log(`${token}: ${sum.toString()}`);
   }
@@ -120,19 +117,23 @@ export const distributionVerifier = async (
   );
   logDistributionRowsToFile(comparisonRows, log);
 
-  // --- Log formatted Merkle totals per token ---
-  const merkleTokenTotals: { [token: string]: bigint } = {};
-  for (const claim of Object.values(currentMerkleData.claims)) {
-    for (const tokenAddr in claim.tokens) {
+  // --- Log formatted week-change totals per token ---
+  const weekChangeTotals: { [token: string]: bigint } = {};
+  for (const address in currentMerkleData.claims) {
+    const currentClaims = currentMerkleData.claims[address];
+    const previousClaims = previousMerkleData.claims[address] || { tokens: {} };
+    for (const tokenAddr in currentClaims.tokens) {
       const normToken = getAddress(tokenAddr);
-      merkleTokenTotals[normToken] = (merkleTokenTotals[normToken] || 0n) + BigInt(claim.tokens[tokenAddr].amount);
+      const currentAmount = BigInt(currentClaims.tokens[tokenAddr].amount);
+      const previousAmount = previousClaims.tokens[tokenAddr] ? BigInt(previousClaims.tokens[tokenAddr].amount) : 0n;
+      const change = currentAmount - previousAmount;
+      weekChangeTotals[normToken] = (weekChangeTotals[normToken] || 0n) + change;
     }
   }
-
-  console.log("\n=== Formatted Merkle Totals ===");
+  console.log("\n=== Formatted Merkle Week Change Totals ===");
   for (const tokenAddr of tokenAddresses) {
     const info = tokenInfos[tokenAddr] || { decimals: 18, symbol: "UNKNOWN" };
-    const total = merkleTokenTotals[tokenAddr] || 0n;
+    const total = weekChangeTotals[tokenAddr] || 0n;
     const formatted = Number(total) / 10 ** info.decimals;
     console.log(`${info.symbol} (${tokenAddr}): ${formatted.toFixed(2)}`);
   }
@@ -141,7 +142,7 @@ export const distributionVerifier = async (
 const compareMerkleData = async (
   currentMerkleData: MerkleData,
   previousMerkleData: MerkleData,
-  distribution: Distribution,
+  distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
   chain: Chain,
   merkleAddress: `0x${string}`,
   tokenInfos: { [token: string]: { decimals: number; symbol: string } }
@@ -167,10 +168,7 @@ const compareMerkleData = async (
     }
   }
 
-  const results = await client.multicall({
-    contracts: calls,
-  });
-
+  const results = await client.multicall({ contracts: calls });
   const distributionRows: DistributionRow[] = [];
 
   for (const address in currentMerkleData.claims) {
@@ -199,7 +197,7 @@ const compareMerkleData = async (
         }
       }
 
-      const isAmountDifferent = distributionAmount !== BigInt(currentTokenClaim.amount) - previousClaim;
+      const isAmountDifferent = distributionAmount !== (BigInt(currentTokenClaim.amount) - previousClaim);
       const claimedAmount = BigInt((results.shift()?.result as bigint) || "0");
 
       const row: DistributionRow = {
