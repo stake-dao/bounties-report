@@ -9,10 +9,14 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { mainnet } from "viem/chains";
 import { getAllCurveGauges } from "../utils/curveApi";
+import { getGaugesInfos } from "../utils/reportUtils";
 import { DELEGATION_ADDRESS } from "../utils/constants";
 import fs from "fs";
 import path from "path";
-import { delegationLogger, proposalInformationLogger } from "../utils/delegationHelper";
+import {
+  delegationLogger,
+  proposalInformationLogger,
+} from "../utils/delegationHelper";
 import { formatAddress } from "../utils/address";
 
 const client = createPublicClient({
@@ -26,13 +30,16 @@ function setupLogging(proposalId: string): string {
     fs.mkdirSync(tempDir, { recursive: true });
   }
   const currentDate = new Date().toISOString().split("T")[0];
-  const logPath = path.join(tempDir, `${currentDate}-proposal-${proposalId}.log`);
-  
+  const logPath = path.join(
+    tempDir,
+    `${currentDate}-proposal-${proposalId}.log`
+  );
+
   // Empty the log file if it already exists
   if (fs.existsSync(logPath)) {
     fs.writeFileSync(logPath, "");
   }
-  
+
   return logPath;
 }
 
@@ -44,7 +51,15 @@ async function main() {
     })
     .option("space", {
       type: "string",
-      description: "Space id to fetch the last proposal from (e.g., sdcrv.eth, cvx.eth)",
+      description:
+        "Space id to fetch the last proposal from (e.g., sdcrv.eth, cvx.eth)",
+    })
+    // New option to choose gauge type
+    .option("gaugeType", {
+      type: "string",
+      description: "Gauge type to fetch (curve or fxn)",
+      default: "curve",
+      choices: ["curve", "fxn"],
     })
     .option("gauges", {
       type: "array",
@@ -58,6 +73,7 @@ async function main() {
         return arg;
       },
     })
+
     .option("delegators", {
       type: "boolean",
       description: "Show detailed delegator information",
@@ -75,15 +91,33 @@ async function main() {
     let proposalId: string | undefined = argv.proposalId;
     if (!proposalId) {
       if (!argv.space) {
-        console.error("Error: You must provide either a --proposalId or a --space");
+        console.error(
+          "Error: You must provide either a --proposalId or a --space"
+        );
         process.exit(1);
       }
-      
+
       const spaceId = argv.space;
       const now = Math.floor(Date.now() / 1000);
-      const filter = spaceId === "cvx.eth" ? "^(?!FXN ).*Gauge Weight*" : "*Gauge vote.*$";
+      let filter: string;
 
-      console.log(`Fetching latest proposal for space ${spaceId}...`);
+      // When using cvx.eth, allow an override with gaugeType (e.g., fxn)
+      if (spaceId === "cvx.eth") {
+        if (
+          argv.gaugeType &&
+          argv.gaugeType.toLowerCase() === "fxn"
+        ) {
+          filter = "^FXN.*Gauge Weight for Week of";
+        } else {
+          filter = "^(?!FXN ).*Gauge Weight*";
+        }
+      } else {
+        filter = "*Gauge vote.*$";
+      }
+
+      console.log(
+        `Fetching latest proposal for space ${spaceId} with filter ${filter}...`
+      );
       const proposalIds = await fetchLastProposalsIds([spaceId], now, filter);
       if (proposalIds.length === 0) {
         console.error(`No proposals found for space ${spaceId}`);
@@ -91,6 +125,14 @@ async function main() {
       }
       proposalId = proposalIds[spaceId];
       console.log(`Using latest proposal: ${proposalId}`);
+    } else {
+      // If a proposal ID is passed directly for cvx.eth, require gaugeType to be provided.
+      if (argv.space === "cvx.eth" && !argv.gaugeType) {
+        console.error(
+          "Error: For cvx.eth proposals, when passing a proposal ID directly, you must also provide --gaugeType (e.g., fxn)."
+        );
+        process.exit(1);
+      }
     }
 
     // Set up logging
@@ -116,23 +158,45 @@ async function main() {
     log("=== Proposal Information ===");
     proposalInformationLogger(space, proposal, log);
     log(`Snapshot Date: ${dateSnapshot}`);
-    
+
     // Calculate epoch distribution
     const WEEK = 604800; // seconds in a week
     const currentEpoch = Math.floor(proposal.end / WEEK) * WEEK + WEEK; // One week after the end of the proposal
     const secondEpoch = currentEpoch + WEEK;
     log("\n=== Epoch Distribution ===");
-    log(`First Epoch (rounded down on Thursday): ${new Date(currentEpoch * 1000).toUTCString()} (${currentEpoch})`);
-    
+    log(
+      `First Epoch (rounded down on Thursday): ${new Date(
+        currentEpoch * 1000
+      ).toUTCString()} (${currentEpoch})`
+    );
+
     // Calculate Tuesday distribution date for first epoch (5 days after Thursday)
-    const firstTuesdayDistrib = new Date((currentEpoch + (5 * 86400)) * 1000);
-    log(`Tuesday distrib: ${firstTuesdayDistrib.getDate().toString().padStart(2, '0')}/${(firstTuesdayDistrib.getMonth() + 1).toString().padStart(2, '0')}`);
-    
-    log(`Second Epoch: ${new Date(secondEpoch * 1000).toUTCString()} (${secondEpoch})`);
-    
+    const firstTuesdayDistrib = new Date((currentEpoch + 5 * 86400) * 1000);
+    log(
+      `Tuesday distrib: ${firstTuesdayDistrib
+        .getDate()
+        .toString()
+        .padStart(2, "0")}/${(firstTuesdayDistrib.getMonth() + 1)
+        .toString()
+        .padStart(2, "0")}`
+    );
+
+    log(
+      `Second Epoch: ${new Date(
+        secondEpoch * 1000
+      ).toUTCString()} (${secondEpoch})`
+    );
+
     // Calculate Tuesday distribution date for second epoch (5 days after Thursday)
-    const secondTuesdayDistrib = new Date((secondEpoch + (5 * 86400)) * 1000);
-    log(`Tuesday distrib: ${secondTuesdayDistrib.getDate().toString().padStart(2, '0')}/${(secondTuesdayDistrib.getMonth() + 1).toString().padStart(2, '0')}`);
+    const secondTuesdayDistrib = new Date((secondEpoch + 5 * 86400) * 1000);
+    log(
+      `Tuesday distrib: ${secondTuesdayDistrib
+        .getDate()
+        .toString()
+        .padStart(2, "0")}/${(secondTuesdayDistrib.getMonth() + 1)
+        .toString()
+        .padStart(2, "0")}`
+    );
 
     // Fetch votes
     const votes = await getVoters(proposal.id);
@@ -156,9 +220,22 @@ async function main() {
 
     // Gauge analysis
     if (argv.gauges || argv.full) {
-      // Fetch gauge data
-      const curveGauges = await getAllCurveGauges();
-      const gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
+      // Choose gauge fetching method based on gaugeType
+      let gauges;
+      if (argv.gaugeType === "curve") {
+        console.log("Fetching Curve gauges...");
+        gauges = await getAllCurveGauges();
+      } else {
+        console.log("Fetching FXN gauges...");
+        gauges = await getGaugesInfos("fxn");
+        gauges = gauges.map((gauge: any) => ({
+          ...gauge,
+          shortName: gauge.name,
+          gauge: gauge.address,
+        }));
+      }
+
+      const gaugePerChoiceId = associateGaugesPerId(proposal, gauges);
 
       let gaugePerChoiceIdWithShortName: {
         [key: string]: { shortName: string; choiceId: number };
@@ -166,8 +243,12 @@ async function main() {
 
       // Iterate over choices and add shortName
       for (const gauge of Object.keys(gaugePerChoiceId)) {
-        for (const gaugeInfo of curveGauges) {
-          if (gaugeInfo.gauge.toLowerCase() === gauge.toLowerCase() || (gaugeInfo.rootGauge && gaugeInfo.rootGauge.toLowerCase() === gauge.toLowerCase())) {
+        for (const gaugeInfo of gauges) {
+          if (
+            gaugeInfo.gauge.toLowerCase() === gauge.toLowerCase() ||
+            (gaugeInfo.rootGauge &&
+              gaugeInfo.rootGauge.toLowerCase() === gauge.toLowerCase())
+          ) {
             gaugePerChoiceIdWithShortName[gauge] = {
               shortName: gaugeInfo.shortName,
               choiceId: gaugePerChoiceId[gauge].choiceId,
@@ -179,10 +260,10 @@ async function main() {
 
       if (argv.gauges) {
         log("\n=== Gauge Details ===");
-        let gauges = argv.gauges as string[];
-        gauges = gauges.map((g) => g.trim().toLowerCase());
+        let gaugesArg = argv.gauges as string[];
+        gaugesArg = gaugesArg.map((g) => g.trim().toLowerCase());
 
-        for (const gauge of gauges) {
+        for (const gauge of gaugesArg) {
           log("\n-------------------");
           if (gaugePerChoiceIdWithShortName[gauge]) {
             const gaugeInfo = gaugePerChoiceIdWithShortName[gauge];
@@ -249,7 +330,9 @@ async function main() {
                 log(`Effective VP: 0`);
               }
 
-              log(`Timestamp: ${new Date(vote.created * 1000).toLocaleString()}`);
+              log(
+                `Timestamp: ${new Date(vote.created * 1000).toLocaleString()}`
+              );
             }
 
             // Print vote distribution summary
@@ -265,7 +348,8 @@ async function main() {
             );
 
             for (const [voter, effectiveVp] of sortedVoters) {
-              const shareOfGauge = (effectiveVp * 100) / totalEffectiveVpForGauge;
+              const shareOfGauge =
+                (effectiveVp * 100) / totalEffectiveVpForGauge;
               const voterDisplay =
                 voter === DELEGATION_ADDRESS
                   ? "STAKE DELEGATION (0x52ea...)"
@@ -284,12 +368,14 @@ async function main() {
         }
       } else if (argv.full) {
         log("\n=== All Available Gauges ===");
-        Object.entries(gaugePerChoiceIdWithShortName).forEach(([gauge, info]) => {
-          log("\n-------------------");
-          log(`Address: ${gauge}`);
-          log(`Name: ${info.shortName}`);
-          log(`Choice ID: ${info.choiceId}`);
-        });
+        Object.entries(gaugePerChoiceIdWithShortName).forEach(
+          ([gauge, info]) => {
+            log("\n-------------------");
+            log(`Address: ${gauge}`);
+            log(`Name: ${info.shortName}`);
+            log(`Choice ID: ${info.choiceId}`);
+          }
+        );
       }
     }
 
