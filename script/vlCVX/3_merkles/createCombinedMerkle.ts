@@ -7,7 +7,7 @@ dotenv.config();
 import { getAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { createCombineDistribution } from "../../utils/merkle";
-import { generateMerkleTree } from "../utils";
+import { generateMerkleTree, mergeMerkleData } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { CVX_SPACE, TWOWEEKS, WEEK } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/distributionVerifier";
@@ -17,12 +17,27 @@ import { fetchLastProposalsIds, getProposal } from "../../utils/snapshot";
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 const currentVotiumPeriod = Math.floor(moment.utc().unix() / TWOWEEKS) * TWOWEEKS;
 
+let mainnetMerkleCurve: MerkleData | undefined;
+let mainnetMerkleFxn: MerkleData | undefined;
 // Define the two gauge types to process
 const gaugeTypes = ["curve", "fxn"];
 
 // For each gauge type, process the corresponding reports
 for (const gaugeType of gaugeTypes) {
   processGaugeType(gaugeType);
+}
+
+// After processing, merge both Mainnet merkles (curve + fxn)
+if (mainnetMerkleCurve && mainnetMerkleFxn) {
+  const merged = mergeMerkleData(mainnetMerkleCurve, mainnetMerkleFxn);
+  const reportsDir = path.join("bounties-reports", currentPeriodTimestamp.toString(), "vlCVX");
+  const outputName = "vlcvx_merkle.json";
+  const outputPath = path.join(reportsDir, outputName);
+  fs.writeFileSync(outputPath, JSON.stringify(merged, null, 2));
+  console.log(`Global merkle generated and saved as ${outputName}`);
+
+} else {
+  console.error("Could not merge merkle data because one of them is missing.");
 }
 
 /**
@@ -234,6 +249,13 @@ function processChain(
 
   // 7. For Mainnet only, run the distribution verifier.
   if (chainId === "1") {
+    // Save Mainnet Merkle for merging later.
+    if (gaugeType === "curve") {
+      mainnetMerkleCurve = newMerkleData;
+    } else if (gaugeType === "fxn") {
+      mainnetMerkleFxn = newMerkleData;
+    }
+
     // Use a filter that depends on gauge type
     const filter = gaugeType === "fxn" ? "^FXN.*Gauge Weight for Week of" : "^(?!FXN ).*Gauge Weight for Week of";
     const now = Math.floor(Date.now() / 1000);
