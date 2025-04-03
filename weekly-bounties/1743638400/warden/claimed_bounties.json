@@ -1,0 +1,12 @@
+{
+  "curve": {
+    "0": {
+      "amount": "116810287223924174174",
+      "rewardToken": "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF",
+      "gauge": "0xB251c0885c7c1975D773B57e67c138FBcEaa6db4",
+      "questID": "226",
+      "period": "1743033600",
+      "distributor": "0x1327C85CE6F3C83faBC4f5C294F57ac05bCb51eB"
+    }
+  }
+}
