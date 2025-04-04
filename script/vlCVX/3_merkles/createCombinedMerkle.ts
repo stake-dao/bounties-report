@@ -4,14 +4,13 @@ import * as moment from "moment";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { getAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { createCombineDistribution } from "../../utils/merkle";
 import { generateMerkleTree, mergeMerkleData } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { CVX_SPACE, WEEK } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/distributionVerifier";
-import { fetchLastProposalsIds, getProposal } from "../../utils/snapshot";
+import { fetchLastProposalsIds } from "../../utils/snapshot";
 
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;

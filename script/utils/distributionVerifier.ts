@@ -6,7 +6,6 @@ import {
   http,
   parseAbi,
 } from "viem";
-import { Distribution } from "../interfaces/Distribution";
 import { DistributionRow } from "../interfaces/DistributionRow";
 import { MerkleData } from "../interfaces/MerkleData";
 import { formatAddress } from "./address";
