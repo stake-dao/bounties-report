@@ -25,8 +25,8 @@ const getMerkleData = (delegators: boolean) => {
   const currentTimestamp = Math.floor(Date.now() / 1000);
   const currentWeek = Math.floor(currentTimestamp / WEEK) * WEEK;
   const filePath = delegators
-    ? `../bounties-reports/${currentWeek}/vlCVX/merkle_data_delegators.json`
-    : `../bounties-reports/${currentWeek}/vlCVX/merkle_data_non_delegators.json`;
+    ? `../bounties-reports/${currentWeek}/vlCVX/fxn/merkle_data_non_delegators.json`
+    : `../bounties-reports/${currentWeek}/vlCVX/fxn/merkle_data_non_delegators.json`;
   console.log(`Loading Merkle data from: ${filePath}`);
   return JSON.parse(fs.readFileSync(path.join(__dirname, filePath), "utf-8"));
 };
@@ -37,7 +37,7 @@ const getMerkleData = (delegators: boolean) => {
 const getRepartitionTokens = () => {
   const currentTimestamp = Math.floor(Date.now() / 1000);
   const currentWeek = Math.floor(currentTimestamp / WEEK) * WEEK;
-  const nonDelegatorsFilePath = `../bounties-reports/${currentWeek}/vlCVX/repartition.json`;
+  const nonDelegatorsFilePath = `../bounties-reports/${currentWeek}/vlCVX/fxn/repartition.json`;
   console.log(`Loading repartition data from: ${nonDelegatorsFilePath}`);
   const repartitionData = JSON.parse(
     fs.readFileSync(path.join(__dirname, nonDelegatorsFilePath), "utf-8")
@@ -81,6 +81,8 @@ const getTokenAddressesFromMerkleData = (merkleData: any): string[] => {
 const merkleVotersData = getMerkleData(false);
 const merkleDelegatorsData = getMerkleData(true);
 const repartitionNonDelegators = getRepartitionTokens();
+
+console.log(repartitionNonDelegators);
 
 // Helper to format amounts (assumes 18 decimals)
 const formatTokenAmount = (amount: bigint): string => {
@@ -290,7 +292,7 @@ async function delegatorsFixture() {
 /* =======================================================================
    Test: Non‑Delegators (voters) – Botmarket withdrawal should occur (if allocated)
 ======================================================================= */
-describe("UUD - Non Delegators Test", function () {
+describe("AA", function () {
   it("should process new merkle roots for non delegators", async function () {
     const { contract, tokenContracts, tokenAddresses, merkleData } =
       await loadFixture(nonDelegatorsFixture);

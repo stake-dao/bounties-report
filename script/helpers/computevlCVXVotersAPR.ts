@@ -1,7 +1,6 @@
 import {
   createPublicClient,
   http,
-  formatEther,
   keccak256,
   encodePacked,
   pad,
@@ -27,9 +26,10 @@ import {
 import { extractCSV, getHistoricalTokenPrice } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { BOTMARKET, REWARDS_ALLOCATIONS_POOL } from "../utils/reportUtils";
+import { BOTMARKET } from "../utils/reportUtils";
 import { writeFileSync, readFileSync } from "fs";
 import { join } from "path";
+import { getAllRewardsForVotersOnChain, computeAnnualizedAPR } from "./utils";
 
 interface APRResult {
   totalVotingPower: number;
@@ -162,6 +162,7 @@ async function computeAPR(): Promise<APRResult> {
   );
   console.log(`Found ${gauges.length} gauges in report`);
 
+  /*
   // Get relevant tokens from CSV
   const tokens = Array.from(
     new Set(
@@ -170,6 +171,7 @@ async function computeAPR(): Promise<APRResult> {
       )
     )
   );
+  */
 
   // Fetch last proposal
   console.log("Fetching latest proposal...");
@@ -236,6 +238,7 @@ async function computeAPR(): Promise<APRResult> {
     "ethereum",
     currentPeriodTimestamp
   );
+  /*
   const rewards = await getRewards(minBlock, currentBlock, tokens);
 
   const sumPerToken = rewards.reduce((acc, reward) => {
@@ -243,6 +246,10 @@ async function computeAPR(): Promise<APRResult> {
       (acc[getAddress(reward.token)] || 0n) + reward.amount;
     return acc;
   }, {} as Record<string, bigint>);
+  */
+  const allRewards = getAllRewardsForVotersOnChain(1, currentPeriodTimestamp);
+  const tokens = Object.keys(allRewards);
+  const sumPerToken = allRewards as Record<string, bigint>;
 
   const prices = await getTokenPrices(tokens, currentPeriodTimestamp);
 
@@ -258,10 +265,11 @@ async function computeAPR(): Promise<APRResult> {
   }, 0);
 
   // Calculate APR
-  const annualizedRewards = rewardValueUSD * 52; // Multiply weekly rewards by 52 weeks
-  const annualizedAPR =
-    (annualizedRewards / (cvxPrice * totalVotingPower)) * 100; // Multiply by 100 for percentage
-
+  const annualizedAPR = computeAnnualizedAPR(
+    totalVotingPower,
+    rewardValueUSD,
+    cvxPrice
+  );
   return {
     totalVotingPower,
     rewardValueUSD,
@@ -276,6 +284,7 @@ async function computeAPR(): Promise<APRResult> {
 async function main() {
   try {
     const result = await computeAPR();
+
     const outputPath = join(
       __dirname,
       "../../bounties-reports/latest/vlCVX/APRs.json"
