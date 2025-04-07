@@ -80,3 +80,13 @@ export const createCombineDistribution = (
     return normalizedMerkleDistribution;
 }
 
+
+export const createSimpleDistribution = (distribution: Distribution): UniversalMerkle => {
+    return Object.entries(distribution).reduce((acc, [address, data]) => {
+        acc[address] = Object.entries(data.tokens).reduce((tokenAcc, [tokenAddress, amount]) => {
+            tokenAcc[tokenAddress] = amount.toString();
+            return tokenAcc;
+        }, {} as { [tokenAddress: string]: string });
+        return acc;
+    }, {} as { [address: string]: { [tokenAddress: string]: string } });
+}
