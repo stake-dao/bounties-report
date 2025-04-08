@@ -13,6 +13,9 @@ import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import * as chains from 'viem/chains'
 import moment from "moment";
 import { CvxCSVType, extractCSV, getHistoricalTokenPrice } from "../utils/utils";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 const SPECTRA_ADDRESS = "0x64fcc3a02eeeba05ef701b7eed066c6ebd5d4e51";
 const OLD_APW_ADDRESS = "0x4104b135dbc9609fc1a9490e61369036497660c8";
@@ -39,7 +42,7 @@ export async function getSpectraDistribution() {
   
   const baseClient = createPublicClient({
     chain: base,
-    transport: http("https://lb.drpc.org/ogrpc?network=base&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9")
+    transport: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`)
   });
 
   // Fetch new claims from the start of the current epoch to now
