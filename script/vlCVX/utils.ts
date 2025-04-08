@@ -49,6 +49,7 @@ export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
 
   let totalAmount = 0n;
   let latestBlockNumber = 0;
+  const txHashes: string[] = [];
 
   for (const transfer of response.result) {
     const [amount] = decodeAbiParameters([{ type: "uint256" }], transfer.data);
@@ -58,11 +59,17 @@ export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
     if (blockNumber > latestBlockNumber) {
       latestBlockNumber = blockNumber;
     }
+
+    // Add transaction hash to the array if it doesn't already exist
+    if (!txHashes.includes(transfer.transactionHash)) {
+      txHashes.push(transfer.transactionHash);
+    }
   }
 
   return {
     amount: totalAmount,
     blockNumber: latestBlockNumber,
+    txHashes,
   };
 }
 

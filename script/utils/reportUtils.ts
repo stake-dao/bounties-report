@@ -15,6 +15,7 @@ import { gql, request } from "graphql-request";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { getClosestBlockTimestamp } from "./chainUtils";
 import { Proposal } from "../interfaces/Proposal";
+import { Interface } from "ethers/lib/utils";
 
 const WEEK = 604800; // One week in seconds
 
@@ -80,6 +81,11 @@ interface GaugeInfo {
 export const WETH_ADDRESS = getAddress(
   "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 );
+
+export const CRV_ADDRESS = getAddress(
+  "0xD533a949740bb3306d119CC777fa900bA034cd52"
+);
+
 export const WBNB_ADDRESS = getAddress(
   "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
 );
@@ -619,6 +625,114 @@ export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
     }));
 }
 
+// Using direclty receipts
+const transferInterface = new Interface([
+  {
+    anonymous: false,
+    type: "event",
+    name: "Transfer",
+    inputs: [
+      { indexed: true, name: "from", type: "address" },
+      { indexed: true, name: "to", type: "address" },
+      { indexed: false, name: "value", type: "uint256" },
+    ],
+  },
+]);
+
+export async function mapTokenSwapsToOutToken(
+  publicClient: PublicClient,
+  txHash: string,
+  tokenList: Set<string>, // tokens that were swapped to outToken
+  outToken: string,
+  targetTo: string // only consider events where the transfer is from or to this address
+): Promise<Record<string, bigint>> {
+  const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+  const TRANSFER_TOPIC =
+    "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+  // Collect input events: tokens in tokenList that are transferred from targetTo
+  const transfersIn: { token: string; amount: bigint; logIndex: number }[] = [];
+  // Collect output events: outToken transfers that go to targetTo
+  const transfersOut: { amount: bigint; logIndex: number }[] = [];
+
+  // Transform tokenList has .lower, to not miss any case
+  const tokenListLower = new Set(
+    Array.from(tokenList).map((token) => token.toLowerCase())
+  );
+
+  // Process each log in the transaction receipt
+  for (const log of receipt.logs) {
+    if (log.topics[0].toLowerCase() !== TRANSFER_TOPIC) continue;
+    try {
+      const decoded = transferInterface.parseLog(log);
+      const tokenAddress = log.address.toLowerCase();
+      const value = BigInt(decoded.args.value.toString());
+
+      // For an input event, ensure:
+      //   1. The token is one of the tokens being swapped (tokenList)
+      //   2. The transfer is sent FROM targetTo
+      if (
+        tokenListLower.has(tokenAddress) &&
+        (decoded.args.from as string).toLowerCase() === targetTo.toLowerCase()
+      ) {
+        transfersIn.push({
+          token: tokenAddress,
+          amount: value,
+          logIndex: log.logIndex,
+        });
+      }
+
+      // For an output event, ensure:
+      //   1. The token is the outToken (e.g. WETH)
+      //   2. The transfer is sent TO targetTo
+      if (
+        tokenAddress === outToken.toLowerCase() &&
+        (decoded.args.to as string).toLowerCase() === targetTo.toLowerCase()
+      ) {
+        transfersOut.push({ amount: value, logIndex: log.logIndex });
+      }
+    } catch (e) {
+      console.error("Error decoding event:", e);
+      // Skip decoding errors
+      continue;
+    }
+  }
+
+  // Sort both arrays by log index to respect chronological order
+  transfersIn.sort((a, b) => a.logIndex - b.logIndex);
+  transfersOut.sort((a, b) => a.logIndex - b.logIndex);
+
+  // Pair input events with output events based on log index order.
+  // For each input event, find the first output event (that hasn't been paired yet)
+  // with a log index greater than the input event's log index.
+  const pairedOut = new Array(transfersOut.length).fill(false);
+  const tokenToOut: Record<string, bigint> = {};
+
+  for (const input of transfersIn) {
+    for (let i = 0; i < transfersOut.length; i++) {
+      if (!pairedOut[i] && transfersOut[i].logIndex > input.logIndex) {
+        tokenToOut[input.token] =
+          (tokenToOut[input.token] || 0n) + transfersOut[i].amount;
+        pairedOut[i] = true;
+        break;
+      }
+    }
+  }
+
+  return tokenToOut;
+}
+
+export function mergeTokenMaps(
+  map1: Record<string, bigint>,
+  map2: Record<string, bigint>
+): Record<string, bigint> {
+  const merged: Record<string, bigint> = { ...map1 };
+  for (const [token, amount] of Object.entries(map2)) {
+    merged[token] = (merged[token] || 0n) + amount;
+  }
+  return merged;
+}
+
 export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
   switch (protocol) {
     case "curve":
@@ -730,13 +844,13 @@ async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
         })
       );
     }
-    
+
     // If primary API fails, try the fallback GitHub repository
     console.log("Primary FXN API failed, trying GitHub fallback source");
     return await getFxnGaugesFromGithub();
   } catch (error) {
     console.error("Error fetching FXN gauges from primary API:", error);
-    
+
     // Try fallback on any error
     try {
       console.log("Attempting to fetch FXN gauges from GitHub fallback");
@@ -755,7 +869,7 @@ async function getFxnGaugesFromGithub(): Promise<GaugeInfo[]> {
   const response = await axios.get(
     "https://raw.githubusercontent.com/stake-dao/votemarket-data/main/gauges/fxn.json"
   );
-  
+
   if (response.status === 200 && response.data.data) {
     return Object.entries(response.data.data).map(
       ([address, gauge]: [string, any]) => ({
@@ -764,8 +878,10 @@ async function getFxnGaugesFromGithub(): Promise<GaugeInfo[]> {
       })
     );
   }
-  
-  console.error("Failed to fetch FXN gauges from GitHub: Invalid response format");
+
+  console.error(
+    "Failed to fetch FXN gauges from GitHub: Invalid response format"
+  );
   return [];
 }
 
