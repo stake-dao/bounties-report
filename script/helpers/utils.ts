@@ -21,7 +21,12 @@ interface DelegationGroupData {
 
 interface RepartitionDelegationData {
   distribution: {
+    totalTokens: Record<string, string>;
     totalPerGroup: DelegationGroupData;
+    totalForwardersShare: string;
+    totalNonForwardersShare: string;
+    forwarders: Record<string, string>;
+    nonForwarders: Record<string, string>;
   };
 }
 
@@ -54,10 +59,8 @@ function sumTokensFromDelegation(
   data: RepartitionDelegationData
 ): TokenRewards {
   const result: TokenRewards = {};
-  for (const [token, group] of Object.entries(
-    data.distribution.totalPerGroup
-  )) {
-    result[token] = (result[token] || 0n) + BigInt(group.nonForwarders);
+  for (const [token, amount] of Object.entries(data.distribution.totalTokens)) {
+    result[token] = BigInt(amount);
   }
   return result;
 }
@@ -70,22 +73,26 @@ export function getAllRewardsForVotersOnChain(
 ): TokenRewards {
   const basePath = path.join("bounties-reports", `${periodTimestamp}`, "vlCVX");
 
-  const getRepartitionPath = (subdir: string): string =>
-    chainId === 1
+  const getRepartitionPath = (subdir: string, isDelegation: boolean): string =>
+    isDelegation
+      ? path.join(basePath, subdir, `repartition_delegation.json`)
+      : chainId === 1
       ? path.join(basePath, subdir, `repartition.json`)
       : path.join(basePath, subdir, `repartition_${chainId}.json`);
 
   const curveRepartition = loadJSON<RepartitionData>(
-    getRepartitionPath("curve"),
+    getRepartitionPath("curve", false),
     {
       distribution: {},
     }
   );
 
-  const fxnRepartition = loadJSON<RepartitionData>(getRepartitionPath("fxn"), {
-    distribution: {},
-  });
-
+  const fxnRepartition = loadJSON<RepartitionData>(
+    getRepartitionPath("fxn", false),
+    {
+      distribution: {},
+    }
+  );
   const rewards: TokenRewards = {
     ...sumTokensFromRepartition(curveRepartition),
   };
@@ -104,12 +111,70 @@ export function getAllRewardsForVotersOnChain(
   return formattedRewards;
 }
 
-const getAllRewardsForDelegators = (periodTimestamp: number) => {};
-/*
-  const annualizedRewards = rewardValueUSD * 52; // Multiply weekly rewards by 52 weeks
-  const annualizedAPR =
-    (annualizedRewards / (cvxPrice * totalVotingPower)) * 100; // Multiply by 100 for percentage
-*/
+export function getAllRewardsForDelegators(periodTimestamp: number): {
+  rewards: TokenRewards;
+  forwarders: string[];
+} {
+  const basePath = path.join("bounties-reports", `${periodTimestamp}`, "vlCVX");
+
+  // Delegation repartition (forwarders)
+  const getRepartitionPath = (subdir: string): string =>
+    path.join(basePath, subdir, `repartition_delegation.json`);
+
+  const curveRepartition = loadJSON<RepartitionDelegationData>(
+    getRepartitionPath("curve"),
+    {
+      distribution: {
+        totalPerGroup: {},
+      },
+    }
+  );
+
+  const fxnRepartition = loadJSON<RepartitionDelegationData>(
+    getRepartitionPath("fxn"),
+    {
+      distribution: {
+        totalPerGroup: {},
+      },
+    }
+  );
+
+  const rewards: TokenRewards = {
+    ...sumTokensFromDelegation(curveRepartition),
+  };
+
+  const fxnRewards = sumTokensFromDelegation(fxnRepartition);
+  for (const [token, amount] of Object.entries(fxnRewards)) {
+    rewards[token] = (rewards[token] || 0n) + amount;
+  }
+
+  // Format properly token addresses
+  let formattedRewards: Record<string, bigint> = {};
+  for (const [token, amount] of Object.entries(rewards)) {
+    formattedRewards[getAddress(token)] = amount;
+  }
+
+  // Extract forwarders addresses from both repartitions
+  const curveForwarders = Object.keys(
+    curveRepartition.distribution.forwarders || {}
+  );
+  const fxnForwarders = Object.keys(
+    fxnRepartition.distribution.forwarders || {}
+  );
+
+  // Combine and deduplicate forwarders
+  const allForwarders = [...new Set([...curveForwarders, ...fxnForwarders])];
+
+  // Format forwarder addresses to checksum format
+  const formattedForwarders = allForwarders.map((address) =>
+    getAddress(address)
+  );
+
+  return {
+    rewards: formattedRewards,
+    forwarders: formattedForwarders,
+  };
+}
 
 export function computeAnnualizedAPR(
   totalVotingPower: number,

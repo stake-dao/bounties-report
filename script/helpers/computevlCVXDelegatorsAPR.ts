@@ -34,7 +34,7 @@ import { ALL_MIGHT, REWARDS_ALLOCATIONS_POOL } from "../utils/reportUtils";
 import { writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import { processAllDelegators } from "../utils/cacheUtils";
-
+import { getAllRewardsForDelegators } from "./utils";
 const REWARD_TOKENS = [CRVUSD, SDT];
 
 interface APRResult {
@@ -48,7 +48,6 @@ interface APRResult {
   periodEndBlock: number;
   timestamp: number;
   sdtAPR: number;
-  crvusdAPR: number;
 }
 
 interface TokenTransfer {
@@ -171,7 +170,6 @@ async function computeAPR(): Promise<
   APRResult & {
     annualizedAPRWithoutSDT: number;
     sdtAPR: number;
-    crvusdAPR: number;
   }
 > {
   const now = moment.utc().unix();
@@ -294,13 +292,44 @@ async function computeAPR(): Promise<
   );
   const rewards = await getRewards(minBlock, currentBlock, REWARD_TOKENS);
 
+  // First, calculate sumPerToken from the rewards array
   const sumPerToken = rewards.reduce((acc, reward) => {
-    acc[getAddress(reward.token)] =
-      (acc[getAddress(reward.token)] || 0n) + reward.amount;
+    const normalizedAddress = getAddress(reward.token);
+    acc[normalizedAddress] = (acc[normalizedAddress] || 0n) + reward.amount;
     return acc;
   }, {} as Record<string, bigint>);
 
-  const prices = await getTokenPrices(REWARD_TOKENS, currentPeriodTimestamp);
+  console.log("sumPerToken", sumPerToken);
+
+  // Get Thursday rewards and merge them with sumPerToken
+  const thursdayRewards = getAllRewardsForDelegators(currentPeriodTimestamp);
+
+  console.log("thursdayRewards", thursdayRewards.rewards);
+  console.log("thursdayForwarders", thursdayRewards.forwarders);
+
+  // Create a Set of forwarder addresses for efficient lookup
+  const forwardersSet = new Set(thursdayRewards.forwarders.map(addr => addr.toLowerCase()));
+
+  // Calculate delegationVPForwarders by only including voting power from forwarders
+  let delegationVPForwarders = 0;
+  for (const [address, votingPower] of Object.entries(delegatorVotingPowers)) {
+    if (forwardersSet.has(address.toLowerCase())) {
+      delegationVPForwarders += votingPower;
+      console.log(`Including forwarder ${address} with VP: ${votingPower.toFixed(2)}`);
+    }
+  }
+
+  console.log(`Total forwarders VP: ${delegationVPForwarders.toFixed(2)}`);
+  
+  // Properly merge Thursday rewards with sumPerToken
+  for (const [token, amount] of Object.entries(thursdayRewards.rewards)) {
+    const normalizedAddress = getAddress(token);
+    sumPerToken[normalizedAddress] =
+      (sumPerToken[normalizedAddress] || 0n) + amount;
+  }
+
+  const tokens = Object.keys(sumPerToken);
+  const prices = await getTokenPrices(tokens, currentPeriodTimestamp);
 
   const cvxPriceResponse = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
   const cvxPrice = cvxPriceResponse[0].price;
@@ -326,35 +355,39 @@ async function computeAPR(): Promise<
 
   // Calculate APRs for individual tokens
   const sdtValue = tokenRewardValues[getAddress(SDT)] || 0;
-  const crvusdValue = tokenRewardValues[getAddress(CRVUSD)] || 0;
+
+  // Calculate total non-SDT rewards
+  const nonSdtValue = rewardValueUSD - sdtValue;
 
   const annualizedSDT = sdtValue * 52;
-  const annualizedCRVUSD = crvusdValue * 52;
+  const annualizedNonSDT = nonSdtValue * 52;
 
-  const sdtAPR = (annualizedSDT / (cvxPrice * delegationVPSDT)) * 100;
-  const crvusdAPR =
-    (annualizedCRVUSD / (cvxPrice * delegationVotingPower)) * 100;
+  // Use delegationVPForwarders for SDT APR calculation only
+  const sdtAPR = (annualizedSDT / (cvxPrice * delegationVPForwarders)) * 100;
+  
+  // Use regular delegationVotingPower for non-SDT APR calculation
+  const nonSdtAPR =
+    (annualizedNonSDT / (cvxPrice * delegationVotingPower)) * 100;
 
   // Calculate total APRs
-  const annualizedAPR = sdtAPR + crvusdAPR; // Sum of individual APRs
-  const annualizedAPRWithoutSDT = crvusdAPR; // Just the CRVUSD APR
+  const annualizedAPR = sdtAPR + nonSdtAPR; // Sum of individual APRs
+  const annualizedAPRWithoutSDT = nonSdtAPR; // All APRs except SDT
 
   console.log("SDT Value:", sdtValue);
-  console.log("CRVUSD Value:", crvusdValue);
-  console.log("SDT APR:", sdtAPR.toFixed(2) + "%");
-  console.log("CRVUSD APR:", crvusdAPR.toFixed(2) + "%");
+  console.log("Non-SDT Value:", nonSdtValue);
+  console.log("SDT APR (using forwarders VP):", sdtAPR.toFixed(2) + "%");
+  console.log("Non-SDT APR (using regular VP):", nonSdtAPR.toFixed(2) + "%");
   console.log("Total APR:", annualizedAPR.toFixed(2) + "%");
 
   return {
     totalVotingPower,
-    delegationVotingPower: delegationVPSDT, // Use the adjusted voting power
-    delegationShare: delegationVPSDT / totalVotingPower,
+    delegationVotingPower, // Keep using regular VP for the return value
+    delegationShare: delegationVotingPower / totalVotingPower,
     rewardValueUSD,
     cvxPrice,
     annualizedAPR,
     annualizedAPRWithoutSDT,
     sdtAPR,
-    crvusdAPR,
     periodStartBlock: Number(proposal.snapshot),
     periodEndBlock: Number(proposal.end),
     timestamp: currentPeriodTimestamp,
@@ -398,7 +431,6 @@ async function main() {
     console.log(`Period Reward Value: $${result.rewardValueUSD.toFixed(2)}`);
     console.log(`CVX Price: $${result.cvxPrice.toFixed(2)}`);
     console.log(`SDT APR: ${result.sdtAPR.toFixed(2)}%`);
-    console.log(`CRVUSD APR: ${result.crvusdAPR.toFixed(2)}%`);
     console.log(`Total Annualized APR: ${result.annualizedAPR.toFixed(2)}%`);
     console.log(
       `Annualized APR (without SDT): ${result.annualizedAPRWithoutSDT.toFixed(
