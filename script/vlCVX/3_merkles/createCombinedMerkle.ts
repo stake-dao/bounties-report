@@ -19,40 +19,74 @@ const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 let mainnetMerkleCurve: MerkleData | undefined;
 let mainnetMerkleFxn: MerkleData | undefined;
 
+// Global variables to hold Merkle data for each gauge type and chain
+let merkleDataByChain: {
+  [chainId: string]: {
+    curve?: MerkleData;
+    fxn?: MerkleData;
+  };
+} = {};
+
 // Define the two gauge types to process
 const gaugeTypes = ["curve", "fxn"];
 
+// Define all supported chain IDs
+const supportedChainIds = ["1", "42161", "10", "8453", "137"];
+
 /**
- * Main function: process all gauge types and then merge the Mainnet Merkle data.
+ * Main function: process all gauge types and then merge the Merkle data for each chain.
  */
 async function main() {
   console.log("Running merkles generation...");
+
+  // Initialize the merkle data structure for all chains
+  supportedChainIds.forEach(chainId => {
+    merkleDataByChain[chainId] = {};
+  });
 
   // Process each gauge type.
   for (const gaugeType of gaugeTypes) {
     processGaugeType(gaugeType);
   }
 
-  // After processing, generate the global merkle for Mainnet.
+  // After processing, generate the global merkle for each chain.
+  for (const chainId of supportedChainIds) {
+    generateGlobalMerkleForChain(chainId);
+  }
+}
+
+/**
+ * Generates and saves a global merkle file for a specific chain by merging curve and fxn data if available.
+ * 
+ * @param chainId - The chain identifier (e.g. "1", "42161")
+ */
+function generateGlobalMerkleForChain(chainId: string) {
+  const chainData = merkleDataByChain[chainId];
+  if (!chainData) {
+    console.log(`No merkle data structure initialized for chain ${chainId}`);
+    return;
+  }
+
   // If both curve and fxn are available, merge them; otherwise, use whichever exists.
   let globalMerkle: MerkleData | undefined;
-  if (mainnetMerkleCurve && mainnetMerkleFxn) {
-    globalMerkle = mergeMerkleData(mainnetMerkleCurve, mainnetMerkleFxn);
+  if (chainData.curve && chainData.fxn) {
+    globalMerkle = mergeMerkleData(chainData.curve, chainData.fxn);
     console.log(
-      "Both gauge types available; merged global merkle data created."
+      `Chain ${chainId}: Both gauge types available; merged global merkle data created.`
     );
-  } else if (mainnetMerkleCurve) {
-    globalMerkle = mainnetMerkleCurve;
+  } else if (chainData.curve) {
+    globalMerkle = chainData.curve;
     console.log(
-      "Only curve merkle data available; using curve merkle data as global."
+      `Chain ${chainId}: Only curve merkle data available; using curve merkle data as global.`
     );
-  } else if (mainnetMerkleFxn) {
-    globalMerkle = mainnetMerkleFxn;
+  } else if (chainData.fxn) {
+    globalMerkle = chainData.fxn;
     console.log(
-      "Only fxn merkle data available; using fxn merkle data as global."
+      `Chain ${chainId}: Only fxn merkle data available; using fxn merkle data as global.`
     );
   } else {
-    console.error("No merkle data available for Mainnet.");
+    console.log(`No merkle data available for chain ${chainId}.`);
+    return;
   }
 
   if (globalMerkle) {
@@ -61,10 +95,21 @@ async function main() {
       currentPeriodTimestamp.toString(),
       "vlCVX"
     );
-    const outputName = "vlcvx_merkle.json";
+    
+    // Create the directory if it doesn't exist
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true });
+    }
+    
+    // For Mainnet (chainId "1"), use "vlcvx_merkle.json"
+    // For other chains, use "vlcvx_merkle_${chainId}.json"
+    const outputName = chainId === "1" 
+      ? "vlcvx_merkle.json" 
+      : `vlcvx_merkle_${chainId}.json`;
+      
     const outputPath = path.join(reportsDir, outputName);
     fs.writeFileSync(outputPath, JSON.stringify(globalMerkle, null, 2));
-    console.log(`Global merkle generated and saved as ${outputName}`);
+    console.log(`Global merkle for chain ${chainId} generated and saved as ${outputName}`);
   }
 }
 
@@ -130,7 +175,7 @@ function processGaugeType(gaugeType: string) {
  * 3. (For curve only on Mainnet) Reads forwarders' voted rewards from the weekly-bounties folder and adds them.
  * 4. Loads previous Merkle data from the previous week period folder (for this gauge type).
  * 5. Generates a new Merkle tree and saves it.
- * 6. (For Mainnet only) Runs the distribution verifier and stores the resulting Merkle.
+ * 6. Stores the resulting Merkle in the global merkleDataByChain structure.
  *
  * @param gaugeType - The gauge type ("curve" or "fxn")
  * @param chainId - The chain identifier (e.g. "1", "42161")
@@ -356,7 +401,13 @@ function processChain(
     `Merkle tree for chain ${chainId} generated and saved as ${outputName}`
   );
 
-  // 7. For Mainnet only, run the distribution verifier and store the Mainnet merkle.
+  // 7. Store the merkle data in the global structure
+  if (merkleDataByChain[chainId]) {
+    merkleDataByChain[chainId][gaugeType as 'curve' | 'fxn'] = newMerkleData;
+    console.log(`Stored ${gaugeType} merkle data for chain ${chainId} in global structure`);
+  }
+
+  // For backward compatibility, also store in the old global variables for Mainnet
   if (chainId === "1") {
     if (gaugeType === "curve") {
       mainnetMerkleCurve = newMerkleData;
