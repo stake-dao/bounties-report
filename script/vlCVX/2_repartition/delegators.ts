@@ -2,6 +2,7 @@ import { getAddress } from "viem";
 import { VOTIUM_FORWARDER } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getVotingPower } from "../../utils/snapshot";
+import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
 
 export type DelegationDistribution = Record<
   string,
@@ -37,8 +38,10 @@ export const computeStakeDaoDelegation = async (
   const vps = await getVotingPower(proposal, stakeDaoDelegators);
   const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
 
+  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.end, "after", 1);
+
   // Get forwarded status for each delegator (via multicall).
-  const forwardedArray = await getForwardedDelegators(stakeDaoDelegators);
+  const forwardedArray = await getForwardedDelegators(stakeDaoDelegators, blockSnapshotEnd);
   const forwardedMap: Record<string, string> = {};
   stakeDaoDelegators.forEach((delegator, idx) => {
     forwardedMap[delegator.toLowerCase()] = forwardedArray[idx].toLowerCase();

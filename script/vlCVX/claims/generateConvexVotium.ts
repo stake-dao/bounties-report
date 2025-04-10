@@ -11,7 +11,7 @@ import { getGaugesInfos, getTokenInfo } from "../../utils/reportUtils";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
-import { getClosestBlockTimestamp } from "../../utils/chainUtils";
+import { getBlockNumberByTimestamp, getClosestBlockTimestamp } from "../../utils/chainUtils";
 import {
   associateGaugesPerId,
   fetchLastProposalsIdsCurrentPeriod,
@@ -297,6 +297,8 @@ async function generateConvexVotiumBounties() {
       v.voter.toLowerCase()
     );
 
+    const blockSnapshotEnd = await getBlockNumberByTimestamp(curveProposal.end, "after", 1);
+
     // Fetch delegation data for the space.
     const delegatorData = await fetchDelegatorData(CVX_SPACE, curveProposal);
     let forwardedMap: Record<string, string> = {};
@@ -306,7 +308,8 @@ async function generateConvexVotiumBounties() {
       delegatorData.delegators.length > 0
     ) {
       const forwardedAddresses = await getForwardedDelegators(
-        delegatorData.delegators
+        delegatorData.delegators,
+        blockSnapshotEnd
       );
       // Build mapping from delegator to its forwarded address.
       delegatorData.delegators.forEach((delegator: string, index: number) => {

@@ -8,7 +8,8 @@ import { VOTIUM_FORWARDER } from "./constants";
 
 // VOTIUM
 export const getForwardedDelegators = async (
-  delegators: string[]
+  delegators: string[],
+  blockSnapshotEnd: number
 ): Promise<string[]> => {
   // Assumes RPC_URL is set in your environment variables
   const { createPublicClient, http } = await import("viem");
@@ -35,6 +36,7 @@ export const getForwardedDelegators = async (
       abi,
       functionName: "batchAddressCheck",
       args: [delegators],
+      blockNumber: BigInt(blockSnapshotEnd),
     })) as string[];
 
     return forwarded;
