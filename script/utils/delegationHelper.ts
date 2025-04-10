@@ -5,6 +5,7 @@ import { DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
+import { getBlockNumberByTimestamp } from "./chainUtils";
 
 // VOTIUM
 export const getForwardedDelegators = async (
@@ -56,6 +57,8 @@ export const delegationLogger = async (
   log(`\nSpace: ${space}`);
   const delegatorData = await fetchDelegatorData(space, proposal);
 
+  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.snapshot, "after", 1);
+
   // If space is cvx.eth, fetch forwarded addresses
   let forwardedMap: Record<string, string> = {};
   if (
@@ -64,7 +67,8 @@ export const delegationLogger = async (
     delegatorData.delegators.length > 0
   ) {
     const forwardedAddresses = await getForwardedDelegators(
-      delegatorData.delegators
+      delegatorData.delegators,
+      blockSnapshotEnd
     );
     // Create a mapping from delegator to its forwarded address based on the input order
     delegatorData.delegators.forEach((delegator, index) => {
