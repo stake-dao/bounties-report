@@ -229,7 +229,7 @@ export const clients: Record<number, PublicClient> = {
   [1124]: createPublicClient({ chain: fraxtal, transport: http() }),
   [8453]: createPublicClient({ chain: base, transport: http() }),
   [137]: createPublicClient({ chain: polygon, transport: http() }),
-  [42161]: createPublicClient({ chain: arbitrum, transport: http() }),
+  [42161]: createPublicClient({ chain: arbitrum, transport: http("https://1rpc.io/arb") }),
 };
 
 export const VOTEMARKET_PLATFORM_CONFIGS: PlatformConfigs = {
