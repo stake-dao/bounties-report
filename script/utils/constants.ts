@@ -229,7 +229,7 @@ export const clients: Record<number, PublicClient> = {
   [1124]: createPublicClient({ chain: fraxtal, transport: http() }),
   [8453]: createPublicClient({ chain: base, transport: http() }),
   [137]: createPublicClient({ chain: polygon, transport: http() }),
-  [42161]: createPublicClient({ chain: arbitrum, transport: http("https://1rpc.io/arb") }),
+  [42161]: createPublicClient({ chain: arbitrum, transport: http(`https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`) }),
 };
 
 export const VOTEMARKET_PLATFORM_CONFIGS: PlatformConfigs = {
