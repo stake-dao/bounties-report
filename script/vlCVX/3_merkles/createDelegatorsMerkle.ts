@@ -157,6 +157,29 @@ async function calculateSDTAmount(maxSDT: bigint): Promise<bigint> {
   const sdtAPR = (annualizedSDT / (cvxPrice * delegationVotingPower)) * 100;
   console.log(`Actual SDT APR: ${sdtAPR.toFixed(2)}%`);
 
+  // Store SDT amount in a JSON file
+  const sdtInfo = {
+    amount: requiredSDTAmount,
+    timestamp: now,
+    period: currentPeriodTimestamp,
+    sdtPrice,
+    cvxPrice,
+    delegationVotingPower,
+    apr: sdtAPR,
+  };
+
+  // Ensure directory exists
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
+
+  // Write to SDT.json file
+  fs.writeFileSync(
+    path.join(reportsDir, "SDT.json"),
+    JSON.stringify(sdtInfo, null, 2)
+  );
+  console.log(`SDT information saved to ${path.join(reportsDir, "SDT.json")}`);
+
   // Convert to BigInt with 18 decimals
   return BigInt(Math.floor(requiredSDTAmount * 1e18));
 }
@@ -242,19 +265,31 @@ async function getProtocolShares(
     "votium",
     "claimed_bounties_convex.json"
   );
-  const votiumClaimedBounties = JSON.parse(
-    fs.readFileSync(votiumClaimedBountiesFilePath, "utf8")
-  );
 
-  const votiumForwardPath = path.join(
-    "weekly-bounties",
-    currentPeriodTimestamp.toString(),
-    "votium",
-    "forwarders_voted_rewards.json"
-  );
-  const votiumForwarders = JSON.parse(
-    fs.readFileSync(votiumForwardPath, "utf8")
-  );
+  let votiumClaimedBounties = { curve: {}, fxn: {} };
+  let votiumForwarders = { tokenAllocations: {} };
+
+  // Make Votium file optional
+  if (fs.existsSync(votiumClaimedBountiesFilePath)) {
+    votiumClaimedBounties = JSON.parse(
+      fs.readFileSync(votiumClaimedBountiesFilePath, "utf8")
+    );
+
+    const votiumForwardPath = path.join(
+      "weekly-bounties",
+      currentPeriodTimestamp.toString(),
+      "votium",
+      "forwarders_voted_rewards.json"
+    );
+
+    if (fs.existsSync(votiumForwardPath)) {
+      votiumForwarders = JSON.parse(fs.readFileSync(votiumForwardPath, "utf8"));
+    } else {
+      console.log("Votium forwarders file not found, using empty data");
+    }
+  } else {
+    console.log("Votium claimed bounties file not found, using empty data");
+  }
 
   let totalCurveVotium: { [token: string]: bigint } = {};
   let totalFxnVotium: { [token: string]: bigint } = {};
@@ -299,20 +334,26 @@ async function getProtocolShares(
 
   let votiumTxHashes: string[] = [];
   let vmTxHashes: string[] = [];
-  for (const txHash of txHashes) {
-    const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
-    const isVotium = receipt.logs.some((log) => {
-      if (log.topics[0].toLowerCase() !== TRANSFER_TOPIC.toLowerCase())
-        return false;
-      return (
-        (log.topics[1] as string).toLowerCase() ===
-        PADDED_VOTIUM_DELEGATION_ADDRESS
-      );
-    });
-    if (isVotium) {
-      votiumTxHashes.push(txHash);
-    } else {
-      vmTxHashes.push(txHash);
+
+  // Skip this part if no txHashes
+  if (txHashes.length > 0) {
+    for (const txHash of txHashes) {
+      const receipt = await publicClient.getTransactionReceipt({
+        hash: txHash,
+      });
+      const isVotium = receipt.logs.some((log) => {
+        if (log.topics[0].toLowerCase() !== TRANSFER_TOPIC.toLowerCase())
+          return false;
+        return (
+          (log.topics[1] as string).toLowerCase() ===
+          PADDED_VOTIUM_DELEGATION_ADDRESS
+        );
+      });
+      if (isVotium) {
+        votiumTxHashes.push(txHash);
+      } else {
+        vmTxHashes.push(txHash);
+      }
     }
   }
 
@@ -329,39 +370,50 @@ async function getProtocolShares(
   votiumTokens.delete(CRV_ADDRESS.toLowerCase());
 
   // --- Map Tokens to WETH and CRVUSD ---
-  const rawVmTokenToWeth = await mapTokenSwapsToOutToken(
-    publicClient,
-    vmTxHashes[0],
-    vmTokens,
-    WETH_ADDRESS,
-    "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
-  );
-  const rawVotiumTokenToWeth = await mapTokenSwapsToOutToken(
-    publicClient,
-    votiumTxHashes[0],
-    votiumTokens,
-    WETH_ADDRESS,
-    "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
-  );
-  const vmTokenToWeth = normalizeMap(rawVmTokenToWeth);
-  const votiumTokenToWeth = normalizeMap(rawVotiumTokenToWeth);
+  let vmTokenToWeth: Record<string, bigint> = {};
+  let votiumTokenToWeth: Record<string, bigint> = {};
+  let vmTokenToCrvUSD: Record<string, bigint> = {};
+  let votiumTokenToCrvUSD: Record<string, bigint> = {};
 
-  const rawVmTokenToCrvUSD = await mapTokenSwapsToOutToken(
-    publicClient,
-    vmTxHashes[0],
-    new Set([WETH_ADDRESS.toLowerCase(), CRV_ADDRESS.toLowerCase()]),
-    CRVUSD,
-    "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
-  );
-  const rawVotiumTokenToCrvUSD = await mapTokenSwapsToOutToken(
-    publicClient,
-    votiumTxHashes[0],
-    new Set([WETH_ADDRESS.toLowerCase(), CRV_ADDRESS.toLowerCase()]),
-    CRVUSD,
-    "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
-  );
-  const vmTokenToCrvUSD = normalizeMap(rawVmTokenToCrvUSD);
-  const votiumTokenToCrvUSD = normalizeMap(rawVotiumTokenToCrvUSD);
+  if (vmTxHashes.length > 0) {
+    const rawVmTokenToWeth = await mapTokenSwapsToOutToken(
+      publicClient,
+      vmTxHashes[0],
+      vmTokens,
+      WETH_ADDRESS,
+      "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
+    );
+    vmTokenToWeth = normalizeMap(rawVmTokenToWeth);
+
+    const rawVmTokenToCrvUSD = await mapTokenSwapsToOutToken(
+      publicClient,
+      vmTxHashes[0],
+      new Set([WETH_ADDRESS.toLowerCase(), CRV_ADDRESS.toLowerCase()]),
+      CRVUSD,
+      "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
+    );
+    vmTokenToCrvUSD = normalizeMap(rawVmTokenToCrvUSD);
+  }
+
+  if (votiumTxHashes.length > 0) {
+    const rawVotiumTokenToWeth = await mapTokenSwapsToOutToken(
+      publicClient,
+      votiumTxHashes[0],
+      votiumTokens,
+      WETH_ADDRESS,
+      "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
+    );
+    votiumTokenToWeth = normalizeMap(rawVotiumTokenToWeth);
+
+    const rawVotiumTokenToCrvUSD = await mapTokenSwapsToOutToken(
+      publicClient,
+      votiumTxHashes[0],
+      new Set([WETH_ADDRESS.toLowerCase(), CRV_ADDRESS.toLowerCase()]),
+      CRVUSD,
+      "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
+    );
+    votiumTokenToCrvUSD = normalizeMap(rawVotiumTokenToCrvUSD);
+  }
 
   const tokenToWeth = mergeTokenMaps(vmTokenToWeth, votiumTokenToWeth);
   const tokenToCrvUSD = mergeTokenMaps(vmTokenToCrvUSD, votiumTokenToCrvUSD);
@@ -531,7 +583,6 @@ async function processForwarders() {
   );
 
   // Split : Curve & FXN
-
   const curveCombined = await computeShares(
     protocolShares.curveCrvUsdAmount,
     totalSDT,

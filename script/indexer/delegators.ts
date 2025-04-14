@@ -18,6 +18,9 @@ const indexDelegators = async () => {
 
   // BSC
   await fetchAllDelegators("56", [DELEGATION_ADDRESS]);
+
+  // Base
+  await fetchAllDelegators("8453", [DELEGATION_ADDRESS]);
 };
 
 const main = async () => {

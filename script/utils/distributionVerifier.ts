@@ -150,7 +150,7 @@ export const distributionVerifier = async (
         (weekChangeTotals[normToken] || 0n) + change;
     }
   }
-  console.log("\n=== Formatted Merkle Week Change Totals ===");
+  console.log("\n=== Week Changes ===");
   for (const tokenAddr of tokenAddresses) {
     const info = tokenInfos[tokenAddr] || { decimals: 18, symbol: "UNKNOWN" };
     const total = weekChangeTotals[tokenAddr] || 0n;
