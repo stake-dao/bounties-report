@@ -770,7 +770,8 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
           if (firstIndex > -1) gaugeName = gaugeName.slice(0, firstIndex);
           return {
             name: gaugeName,
-            address: (gauge.rootGauge || gauge.gauge).toLowerCase(),
+            address: gauge.gauge.toLowerCase(),
+            rootGauge: gauge.rootGauge?.toLowerCase(),
             price: gauge.lpTokenPrice,
           };
         });

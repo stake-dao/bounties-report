@@ -187,7 +187,20 @@ async function main() {
       gaugesInfo = await getGaugesInfos("pendle");
       break;
   }
-  aggregatedBounties = { [protocol]: addGaugeNamesToBounties(aggregatedBounties[protocol], gaugesInfo) };
+  aggregatedBounties = { [protocol]: addGaugeNamesToBounties(aggregatedBounties[protocol], gaugesInfo ?? []) };
+
+
+  // Replace gauge address per gauge address (if curve + is root gauge + != root gauge and gauge )
+
+  for (const bounty of aggregatedBounties[protocol]) {
+    if (protocol === "curve") {
+      const gaugeInfo = gaugesInfo?.find(gauge => gauge.address.toLowerCase() === bounty.gauge.toLowerCase() || gauge.rootGauge?.toLowerCase() === bounty.gauge.toLowerCase());
+      if (gaugeInfo) {
+        bounty.gauge = gaugeInfo.address;
+        bounty.gaugeName = gaugeInfo.name;
+      }
+    }
+  }
 
   // Fetch swap events
   const swapIn = await fetchSwapInEvents(1, blockNumber1, blockNumber2, Array.from(allTokens), ALL_MIGHT);
