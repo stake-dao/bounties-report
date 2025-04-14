@@ -13,10 +13,11 @@ import {
   DELEGATE_REGISTRY,
   DELEGATE_REGISTRY_CREATION_BLOCK_BSC,
   DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
+  DELEGATE_REGISTRY_CREATION_BLOCK_BASE,
   SPACE_TO_CHAIN_ID,
 } from "./constants";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
-import { bsc, mainnet } from "viem/chains";
+import { base, bsc, mainnet } from "viem/chains";
 import * as parquet from "parquetjs";
 import { formatBytes32String } from "ethers/lib/utils";
 
@@ -63,7 +64,11 @@ export const fetchAllDelegators = async (
       endBlock
     );
 
-    const oldDelegators = await readParquetFile(getDelegationsFilePath(chainId, delegationAddress));
+    // Ensure directory exists before trying to read file
+    const filePath = getDelegationsFilePath(chainId, delegationAddress);
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    
+    const oldDelegators = await readParquetFile(filePath);
 
     // Remove EndBlock entries from both arrays
     const filteredOldDelegators = oldDelegators.filter(d => d.event !== "EndBlock");
@@ -142,7 +147,9 @@ function initializeChainData(chainId: string) {
   const DELEGATION_REGISTRY_CREATION_BLOCK =
     chainId === "1"
       ? DELEGATE_REGISTRY_CREATION_BLOCK_ETH
-      : DELEGATE_REGISTRY_CREATION_BLOCK_BSC;
+      : chainId === "56"
+      ? DELEGATE_REGISTRY_CREATION_BLOCK_BSC
+      : DELEGATE_REGISTRY_CREATION_BLOCK_BASE;
 
   let rpcUrl: string;
   let chain: typeof mainnet | typeof bsc;
@@ -157,6 +164,11 @@ function initializeChainData(chainId: string) {
       chain = bsc;
       rpcUrl =
         "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+      break;
+    case "8453":
+      chain = base;
+      rpcUrl =
+        "https://lb.drpc.org/ogrpc?network=base&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
       break;
     default:
       throw new Error(`Unsupported chain ID: ${chainId}`);
@@ -387,15 +399,25 @@ async function storeDelegatorsAsParquet(
 }
 
 async function readParquetFile(filePath: string) {
-  const { asyncBufferFromFile, parquetRead } = await import("hyparquet");
+  // Check if file exists first
+  if (!fs.existsSync(filePath)) {
+    return [];
+  }
 
-  let data: any[] = [];
-  await parquetRead({
-    file: await asyncBufferFromFile(filePath),
-    rowFormat: "object",
-    onComplete: (result: any[]) => {
-      data = result;
-    },
-  });
-  return data;
+  try {
+    const { asyncBufferFromFile, parquetRead } = await import("hyparquet");
+
+    let data: any[] = [];
+    await parquetRead({
+      file: await asyncBufferFromFile(filePath),
+      rowFormat: "object",
+      onComplete: (result: any[]) => {
+        data = result;
+      },
+    });
+    return data;
+  } catch (error) {
+    console.error(`Error reading Parquet file ${filePath}:`, error);
+    return [];
+  }
 }

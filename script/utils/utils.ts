@@ -279,9 +279,6 @@ export const getHistoricalTokenPrice = async (
       `https://coins.llama.fi/prices/historical/${timestamp}/${key}`
     );
 
-    console.log("tokenAddress", tokenAddress);
-    console.log("resp", resp.data);
-
     const price = resp.data.coins[key].price;
     if (price === 0) {
       throw new Error(`${tokenAddress} price equals to 0`);
