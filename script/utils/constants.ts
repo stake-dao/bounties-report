@@ -39,7 +39,8 @@ export const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 export const SD_FRAX_DELEG_TEST = "0x5180db0237291A6449DdA9ed33aD90a38787621c";
 export const DELEGATE_REGISTRY = "0x469788fE6E9E9681C6ebF3bF78e7Fd26Fc015446";
 export const VOTIUM_FORWARDER = "0xAe86A3993D13C8D77Ab77dBB8ccdb9b7Bc18cd09"; // 0xCC2a0F5e95C88AAbD7b8E0Db5C5252820Cd47f91 => The Union
-export const VOTIUM_FORWARDER_REGISTRY = "0x92e6E43f99809dF84ed2D533e1FD8017eb966ee2"
+export const VOTIUM_FORWARDER_REGISTRY =
+  "0x92e6E43f99809dF84ed2D533e1FD8017eb966ee2";
 
 export const DELEGATE_REGISTRY_CREATION_BLOCK_ETH = 11225329;
 export const DELEGATE_REGISTRY_CREATION_BLOCK_BSC = 10963355;
@@ -64,15 +65,19 @@ export const CVX_FXN_SPACE = "cvx_fxn.eth";
 export const SPECTRA_SPACE = "sdapw.eth";
 
 export const VLCVX_RECIPIENT = "0x0000000095310137125f82f37FBe5D2F99279947";
-export const VLCVX_DELEGATORS_RECIPIENT = "0x00000000b0FF0700adf86A929df3aC3f88E48583";
-export const VLCVX_DELEGATORS_MERKLE = "0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380";
-export const VLCVX_NON_DELEGATORS_MERKLE = "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
-export const SPECTRA_SAFE_MODULE = "0xD5C838E6176A0606710aBdee1426Ac86B3E84543" as `0x${string}`;
+export const VLCVX_DELEGATORS_RECIPIENT =
+  "0x00000000b0FF0700adf86A929df3aC3f88E48583";
+export const VLCVX_DELEGATORS_MERKLE =
+  "0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380";
+export const VLCVX_NON_DELEGATORS_MERKLE =
+  "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
+export const SPECTRA_SAFE_MODULE =
+  "0xA3ec797267Ad92199a11125FE31B94fac4A06C38" as `0x${string}`;
 export const WEEK = 604800;
-export const TWOWEEKS = WEEK*2;
+export const TWOWEEKS = WEEK * 2;
 
 // TOTAL SDT AS ADDITIONAL REWARD FOR DELEGATORS
-export const SDT_DELEGATORS_REWARD = 3750n * (10n ** 18n);
+export const SDT_DELEGATORS_REWARD = 3750n * 10n ** 18n;
 
 // Stake DAO locker
 export const STAKE_DAO_LOCKER = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";
@@ -80,10 +85,12 @@ export const STAKE_DAO_LOCKER = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";
 export const CONVEX_LOCKER = "0x989AEb4d175e16225E39E87d0D97A3360524AD80";
 
 // Balancer Stake DAO locker
-export const BALANCER_STAKE_DAO_LOCKER = "0xea79d1A83Da6DB43a85942767C389fE0ACf336A5";
+export const BALANCER_STAKE_DAO_LOCKER =
+  "0xea79d1A83Da6DB43a85942767C389fE0ACf336A5";
 
 // FXN Stake DAO locker
-export const FXN_STAKE_DAO_LOCKER = "0x75736518075a01034fa72D675D36a47e9B06B2Fb";
+export const FXN_STAKE_DAO_LOCKER =
+  "0x75736518075a01034fa72D675D36a47e9B06B2Fb";
 
 // FXN Convex locker
 export const FXN_CONVEX_LOCKER = "0xd11a4Ee017cA0BECA8FA45fF2abFe9C6267b7881";
@@ -92,8 +99,12 @@ export const FXN_CONVEX_LOCKER = "0xd11a4Ee017cA0BECA8FA45fF2abFe9C6267b7881";
 export const SD_CRV = getAddress("0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5");
 export const SD_BAL = getAddress("0xF24d8651578a55b0C119B9910759a351A3458895");
 export const SD_FXS = getAddress("0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36");
-export const SD_ANGLE = getAddress("0x752B4c6e92d96467fE9b9a2522EF07228E00F87c");
-export const SD_PENDLE = getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9");
+export const SD_ANGLE = getAddress(
+  "0x752B4c6e92d96467fE9b9a2522EF07228E00F87c"
+);
+export const SD_PENDLE = getAddress(
+  "0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9"
+);
 export const SD_FXN = getAddress("0xe19d1c837B8A1C83A56cD9165b2c0256D39653aD");
 export const SD_CAKE = getAddress("0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A");
 
@@ -224,13 +235,26 @@ export const abi = parseAbi([
 ]);
 
 export const clients: Record<number, PublicClient> = {
-  [1]: createPublicClient({ chain: mainnet, transport: http("https://rpc.flashbots.net") }),
+  [1]: createPublicClient({
+    chain: mainnet,
+    transport: http("https://rpc.flashbots.net"),
+  }),
   [56]: createPublicClient({ chain: bsc, transport: http() }),
   [10]: createPublicClient({ chain: optimism, transport: http() }),
   [1124]: createPublicClient({ chain: fraxtal, transport: http() }),
-  [8453]: createPublicClient({ chain: base, transport: http() }),
+  [8453]: createPublicClient({
+    chain: base,
+    transport: http(
+      `https://base-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
+    ),
+  }),
   [137]: createPublicClient({ chain: polygon, transport: http() }),
-  [42161]: createPublicClient({ chain: arbitrum, transport: http(`https://arb-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`) }),
+  [42161]: createPublicClient({
+    chain: arbitrum,
+    transport: http(
+      `https://arb-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
+    ),
+  }),
 };
 
 export const VOTEMARKET_PLATFORM_CONFIGS: PlatformConfigs = {

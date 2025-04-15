@@ -7,13 +7,18 @@ import {
   formatUnits,
 } from "viem";
 import { SPECTRA_SAFE_MODULE, SPECTRA_SPACE, WEEK } from "../utils/constants";
-import { base } from "viem/chains";
+import { base, ethereum } from "viem/chains";
 import SpectraSafeModuleABI from "../../abis/SpectraSafeModule.json";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import * as chains from 'viem/chains'
+import * as chains from "viem/chains";
 import moment from "moment";
-import { CvxCSVType, extractCSV, getHistoricalTokenPrice } from "../utils/utils";
+import {
+  CvxCSVType,
+  extractCSV,
+  getHistoricalTokenPrice,
+} from "../utils/utils";
 import * as dotenv from "dotenv";
+import { clients } from "../utils/constants";
 
 dotenv.config();
 
@@ -31,30 +36,26 @@ export interface SpectraClaimed {
 }
 
 const poolAbi = parseAbi([
-  'function coins(uint256 id) external view returns(address)',
+  "function coins(uint256 id) external view returns(address)",
 ]);
 const ptAbi = parseAbi([
-  'function symbol() external view returns(string)',
-  'function maturity() external view returns(uint256)',
+  "function symbol() external view returns(string)",
+  "function maturity() external view returns(uint256)",
 ]);
 
 export async function getSpectraDistribution() {
-  
-  const baseClient = createPublicClient({
-    chain: base,
-    transport: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`)
-  });
+  const baseClient = clients[8453];
 
   // Fetch new claims from the start of the current epoch to now
   const currentTimestamp = Math.floor(Date.now() / 1000);
   const currentEpoch = Math.floor(currentTimestamp / WEEK) * WEEK;
   const blockNumber1 = await getClosestBlockTimestamp("base", currentEpoch);
-  const blockNumber2 = await baseClient.getBlockNumber()
+  const blockNumber2 = await baseClient.getBlockNumber();
 
   const logs = await baseClient.getContractEvents({
     address: SPECTRA_SAFE_MODULE,
     abi: SpectraSafeModuleABI,
-    eventName: 'Claimed',
+    eventName: "Claimed",
     fromBlock: BigInt(blockNumber1),
     toBlock: blockNumber2,
   });
@@ -64,7 +65,7 @@ export async function getSpectraDistribution() {
     const topics = decodeEventLog({
       abi: SpectraSafeModuleABI,
       data: log.data,
-      topics: log.topics
+      topics: log.topics,
     });
 
     if (!topics.args) {
@@ -76,7 +77,7 @@ export async function getSpectraDistribution() {
     const tokenRewardSymbol = await baseClient.readContract({
       address: tokenAddress,
       abi: erc20Abi,
-      functionName: 'symbol',
+      functionName: "symbol",
     });
 
     claimeds.push({
@@ -97,17 +98,14 @@ export async function getSpectraDistribution() {
       continue;
     }
 
-    const client = createPublicClient({
-      chain: chain,
-      transport: http()
-    });
+    const client = clients[claim.chainId];
 
     // @ts-ignore
     const coinPT = await client.readContract({
       address: claim.poolAddress as `0x${string}`,
       abi: poolAbi,
-      functionName: 'coins',
-      args: [BigInt(1)] // PT
+      functionName: "coins",
+      args: [BigInt(1)], // PT
     });
 
     if (coinPT === undefined) {
@@ -117,16 +115,20 @@ export async function getSpectraDistribution() {
     const symbol = await client.readContract({
       address: coinPT,
       abi: ptAbi,
-      functionName: 'symbol',
+      functionName: "symbol",
     });
 
     const splits = symbol.split("-");
     const maturity = parseInt(splits.pop() as string);
 
     const maturityFormatted = moment.unix(maturity).format("L");
-    const chainName = getChainIdName(claim.chainId).toLowerCase().replace(" ", "");
+    const chainName = getChainIdName(claim.chainId)
+      .toLowerCase()
+      .replace(" ", "");
 
-    claim.name = `${chainName}-${splits.join("-")}-${maturityFormatted}`.replace("-PT", "");
+    claim.name = `${chainName}-${splits.join(
+      "-"
+    )}-${maturityFormatted}`.replace("-PT", "");
   }
 
   return claimeds;
@@ -134,7 +136,7 @@ export async function getSpectraDistribution() {
 
 const getChain = (chainId: number): chains.Chain | undefined => {
   for (const chain of Object.values(chains)) {
-    if ('id' in chain) {
+    if ("id" in chain) {
       if (chain.id === chainId) {
         return chain;
       }
@@ -142,11 +144,11 @@ const getChain = (chainId: number): chains.Chain | undefined => {
   }
 
   return undefined;
-}
+};
 
 const getChainIdName = (chainId: number): string => {
   for (const chain of Object.values(chains)) {
-    if ('id' in chain) {
+    if ("id" in chain) {
       if (chain.id === chainId) {
         return chain.name;
       }
@@ -154,17 +156,16 @@ const getChainIdName = (chainId: number): string => {
   }
 
   return chainId.toString();
-}
+};
 
-export const getSpectraReport = async (currentPeriodTimestamp: number): Promise<CvxCSVType> => {
-  const _csvResult = (await extractCSV(
-      currentPeriodTimestamp,
-      SPECTRA_SPACE
-    ));
-    if (!_csvResult) throw new Error("No CSV report found");
-  
-    return _csvResult as CvxCSVType;
-}
+export const getSpectraReport = async (
+  currentPeriodTimestamp: number
+): Promise<CvxCSVType> => {
+  const _csvResult = await extractCSV(currentPeriodTimestamp, SPECTRA_SPACE);
+  if (!_csvResult) throw new Error("No CSV report found");
+
+  return _csvResult as CvxCSVType;
+};
 
 export const getSpectraDelegationAPR = async (
   tokens: {
@@ -173,11 +174,7 @@ export const getSpectraDelegationAPR = async (
   currentPeriodTimestamp: number,
   delegationVp: number
 ): Promise<number> => {
-
-  const publicClient = createPublicClient({
-    chain: base,
-    transport: http(),
-  });
+  const publicClient = clients[8453]; // Use the shared Base client from constants
 
   // Fetch reward token prices and compute the total USD distributed
   let totalDistributedUSD = 0;
@@ -189,15 +186,20 @@ export const getSpectraDelegationAPR = async (
         address: rewardAddress as `0x${string}`,
         abi: erc20Abi,
         functionName: "decimals",
-      })
+      }),
     ]);
-    totalDistributedUSD += (parseFloat(formatUnits(tokens[rewardAddress], decimals)) * tokenPrice);
+    totalDistributedUSD +=
+      parseFloat(formatUnits(tokens[rewardAddress], decimals)) * tokenPrice;
   }
 
   // Fetch Spectra price
   const [spectraPrice, oldApwPrice] = await Promise.all([
     getHistoricalTokenPrice(currentPeriodTimestamp, "base", SPECTRA_ADDRESS),
-    getHistoricalTokenPrice(currentPeriodTimestamp, "ethereum", OLD_APW_ADDRESS)
+    getHistoricalTokenPrice(
+      currentPeriodTimestamp,
+      "ethereum",
+      OLD_APW_ADDRESS
+    ),
   ]);
 
   const ratio = spectraPrice / oldApwPrice;
@@ -207,7 +209,7 @@ export const getSpectraDelegationAPR = async (
 
   // Because we do a weekly distribution
   totalDistributedUSD *= 52;
-  let apr = totalDistributedUSD * 100 / delegationVpUsd; 
+  let apr = (totalDistributedUSD * 100) / delegationVpUsd;
 
   return apr * ratio;
-}
+};

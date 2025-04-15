@@ -76,6 +76,9 @@ const main = async () => {
 
   Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
     let choiceId = (proposal.choices as string[]).findIndex((choice: string) => choice.toLowerCase() === gauge.toLowerCase());
+
+    console.log("choiceId", choiceId);
+
     if (choiceId === -1) {
       throw new Error(`Choice ID not found for gauge: ${gauge}`);
     }
