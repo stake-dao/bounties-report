@@ -190,7 +190,7 @@ async function main() {
   aggregatedBounties = { [protocol]: addGaugeNamesToBounties(aggregatedBounties[protocol], gaugesInfo ?? []) };
 
 
-  // Replace gauge address per gauge address (if curve + is root gauge + != root gauge and gauge )
+  // Replace gauge address per root gauge address (if curve + is root gauge + != root gauge and gauge is not root gauge)
 
   for (const bounty of aggregatedBounties[protocol]) {
     if (protocol === "curve") {

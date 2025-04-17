@@ -135,6 +135,14 @@ async function generateReport() {
   const curveGaugesInfo = await getGaugesInfos("curve");
   const fxnGaugesInfo = await getGaugesInfos("fxn");
 
+
+  // Replace gauge address per root gauge address (if curve + is root gauge + != root gauge and gauge is not root gauge)
+  for (const gauge of curveGaugesInfo) {
+    if (gauge.rootGauge && gauge.rootGauge !== gauge.address) {
+      gauge.address = gauge.rootGauge;
+    }
+  }
+
   const gaugeMap = new Map(
     [...curveGaugesInfo, ...fxnGaugesInfo].map((g) => [
       g.address.toLowerCase(),
@@ -150,7 +158,7 @@ async function generateReport() {
   const filteredCurveBounties = curveBountiesAll.filter((bounty) => {
     const hasGauge = gaugeMap.has(bounty.gauge.toLowerCase());
     if (!hasGauge) {
-      console.log(`Unknown gauge: ${bounty.gauge}`);
+      throw new Error(`Unknown gauge: ${bounty.gauge}`);
     }
     return hasGauge;
   });

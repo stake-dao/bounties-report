@@ -1,12 +1,12 @@
 {
   "distribution": {
     "totalTokens": {
-      "0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": "629146221389054000631566"
+      "0x8ee73c484a26e0a5df2ee2a4960b789967dd0415": "7447591675254203989252"
     },
     "totalPerGroup": {
-      "0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
-        "forwarders": "226213298777762700251083",
-        "nonForwarders": "402932922611291300380483"
+      "0x8ee73c484a26e0a5df2ee2a4960b789967dd0415": {
+        "forwarders": "2677826272387700569559",
+        "nonForwarders": "4769765402866503419693"
       }
     },
     "totalForwardersShare": "0.3595566724742155",
