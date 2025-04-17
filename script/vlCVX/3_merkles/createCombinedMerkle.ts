@@ -15,10 +15,6 @@ import { fetchLastProposalsIds } from "../../utils/snapshot";
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
-// Global variables to hold Mainnet (chainId "1") Merkle data for each gauge type
-let mainnetMerkleCurve: MerkleData | undefined;
-let mainnetMerkleFxn: MerkleData | undefined;
-
 // Global variables to hold Merkle data for each gauge type and chain
 let merkleDataByChain: {
   [chainId: string]: {
@@ -341,7 +337,7 @@ function processChain(
         console.log("Added forwarders rewards to combined distribution.");
       } else {
         console.warn(
-          "Forwarders data does not contain tokenAllocations property."
+          "VOTIUM : Forwarders data does not contain tokenAllocations property."
         );
       }
     } else {
@@ -406,14 +402,6 @@ function processChain(
     merkleDataByChain[chainId][gaugeType as 'curve' | 'fxn'] = newMerkleData;
     console.log(`Stored ${gaugeType} merkle data for chain ${chainId} in global structure`);
   }
-
-  // For backward compatibility, also store in the old global variables for Mainnet
-  if (chainId === "1") {
-    if (gaugeType === "curve") {
-      mainnetMerkleCurve = newMerkleData;
-    } else if (gaugeType === "fxn") {
-      mainnetMerkleFxn = newMerkleData;
-    }
 
     const filter =
       gaugeType === "fxn"
