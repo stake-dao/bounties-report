@@ -36,7 +36,7 @@ async function main() {
   console.log("Running merkles generation...");
 
   // Initialize the merkle data structure for all chains
-  supportedChainIds.forEach(chainId => {
+  supportedChainIds.forEach((chainId) => {
     merkleDataByChain[chainId] = {};
   });
 
@@ -53,7 +53,7 @@ async function main() {
 
 /**
  * Generates and saves a global merkle file for a specific chain by merging curve and fxn data if available.
- * 
+ *
  * @param chainId - The chain identifier (e.g. "1", "42161")
  */
 function generateGlobalMerkleForChain(chainId: string) {
@@ -91,21 +91,22 @@ function generateGlobalMerkleForChain(chainId: string) {
       currentPeriodTimestamp.toString(),
       "vlCVX"
     );
-    
+
     // Create the directory if it doesn't exist
     if (!fs.existsSync(reportsDir)) {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
-    
+
     // For Mainnet (chainId "1"), use "vlcvx_merkle.json"
     // For other chains, use "vlcvx_merkle_${chainId}.json"
-    const outputName = chainId === "1" 
-      ? "vlcvx_merkle.json" 
-      : `vlcvx_merkle_${chainId}.json`;
-      
+    const outputName =
+      chainId === "1" ? "vlcvx_merkle.json" : `vlcvx_merkle_${chainId}.json`;
+
     const outputPath = path.join(reportsDir, outputName);
     fs.writeFileSync(outputPath, JSON.stringify(globalMerkle, null, 2));
-    console.log(`Global merkle for chain ${chainId} generated and saved as ${outputName}`);
+    console.log(
+      `Global merkle for chain ${chainId} generated and saved as ${outputName}`
+    );
   }
 }
 
@@ -399,32 +400,33 @@ function processChain(
 
   // 7. Store the merkle data in the global structure
   if (merkleDataByChain[chainId]) {
-    merkleDataByChain[chainId][gaugeType as 'curve' | 'fxn'] = newMerkleData;
-    console.log(`Stored ${gaugeType} merkle data for chain ${chainId} in global structure`);
+    merkleDataByChain[chainId][gaugeType as "curve" | "fxn"] = newMerkleData;
+    console.log(
+      `Stored ${gaugeType} merkle data for chain ${chainId} in global structure`
+    );
   }
 
-    const filter =
-      gaugeType === "fxn"
-        ? "^FXN.*Gauge Weight for Week of"
-        : "^(?!FXN ).*Gauge Weight for Week of";
-    const now = Math.floor(Date.now() / 1000);
-    (async () => {
-      const proposalIdPerSpace = await fetchLastProposalsIds(
-        [CVX_SPACE],
-        now,
-        filter
-      );
-      const proposalId = proposalIdPerSpace[CVX_SPACE];
-      console.log("proposalId", proposalId);
-      distributionVerifier(
-        CVX_SPACE,
-        mainnet,
-        "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
-        newMerkleData,
-        previousMerkleData,
-        currentDistribution.distribution,
-        proposalId
-      );
-    })().catch(console.error);
-  }
+  const filter =
+    gaugeType === "fxn"
+      ? "^FXN.*Gauge Weight for Week of"
+      : "^(?!FXN ).*Gauge Weight for Week of";
+  const now = Math.floor(Date.now() / 1000);
+  (async () => {
+    const proposalIdPerSpace = await fetchLastProposalsIds(
+      [CVX_SPACE],
+      now,
+      filter
+    );
+    const proposalId = proposalIdPerSpace[CVX_SPACE];
+    console.log("proposalId", proposalId);
+    distributionVerifier(
+      CVX_SPACE,
+      mainnet,
+      "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+      newMerkleData,
+      previousMerkleData,
+      currentDistribution.distribution,
+      proposalId
+    );
+  })().catch(console.error);
 }
