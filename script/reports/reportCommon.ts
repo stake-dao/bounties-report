@@ -304,12 +304,21 @@ function processReport(
           (t) => t.address.toLowerCase() === rewardToken
         );
         if (tokenSummary) {
-          const localShare = formattedAmount / tokenSummary.amount;
+          // --- Compute the true total of this token across all bounties (in case some OTCs / non swapped totally) ---
+          const totalForToken = bounties
+            .filter(b => b.rewardToken.toLowerCase() === rewardToken)
+            .reduce((sum, b) => {
+              const dec = tokenInfos[rewardToken]?.decimals || 18;
+              return sum + Number(b.amount) / 10 ** dec;
+            }, 0);
+          const localShare = formattedAmount / totalForToken;
           nativeEquivalent = tokenSummary.weth * localShare * wethToNativeRatio;
         }
       }
+
       bounty.nativeEquivalent = nativeEquivalent;
     });
+
 
     const totalNativeEquivalent = bounties.reduce(
       (acc, bounty) => acc + (bounty.nativeEquivalent || 0),
