@@ -73,10 +73,14 @@ const curveDelegationData = JSON.parse(
 );
 const curveDelegationSummary = curveDelegationData.distribution;
 
-const fxnDelegationData = JSON.parse(
-  fs.readFileSync(FXN_DELEGATION_FILE, "utf8")
-);
-const fxnDelegationSummary = fxnDelegationData.distribution;
+let fxnDelegationData = null;
+let fxnDelegationSummary = null;
+try {
+  fxnDelegationData = JSON.parse(fs.readFileSync(FXN_DELEGATION_FILE, "utf8"));
+  fxnDelegationSummary = fxnDelegationData.distribution;
+} catch (error) {
+  console.log("No FXN delegation data found, allocating all to Curve delegators");
+}
 
 // Object where we'll accumulate final forwarder distributions
 const curveCombined: {
@@ -91,7 +95,7 @@ const totalCurveForwardersShare = parseFloat(
   curveDelegationSummary.totalForwardersShare
 );
 const totalFxnForwardersShare = parseFloat(
-  fxnDelegationSummary.totalForwardersShare
+  fxnDelegationSummary?.totalForwardersShare || 0
 );
 
 // If no forwarders are present, there's no need to do anything
@@ -216,11 +220,13 @@ async function getProtocolShares(
   }
 
   let fxnDelegationSummary: any = null;
-  if (fs.existsSync(fxnDelegationFilePath)) {
+  let hasFxnDelegation = false;
+  try {
     const data = JSON.parse(fs.readFileSync(fxnDelegationFilePath, "utf8"));
     fxnDelegationSummary = data.distribution;
-  } else {
-    throw new Error("FXN delegation file not found");
+    hasFxnDelegation = true;
+  } catch (error) {
+    console.log("No FXN delegation file found, allocating all to Curve");
   }
 
   // --- Helper for Normalizing Keys ---
@@ -248,7 +254,7 @@ async function getProtocolShares(
     }
   }
 
-  if (fxnDelegationSummary.totalPerGroup) {
+  if (fxnDelegationSummary?.totalPerGroup) {
     for (const [token, amount] of Object.entries(
       fxnDelegationSummary.totalPerGroup
     )) {
@@ -284,8 +290,22 @@ async function getProtocolShares(
 
     if (fs.existsSync(votiumForwardPath)) {
       votiumForwarders = JSON.parse(fs.readFileSync(votiumForwardPath, "utf8"));
+      
+      // Only process forwarders if we have valid data
+      if (votiumForwarders.tokenAllocations) {
+        // Subtract forwarders amounts
+        for (const [_, data] of Object.entries(votiumForwarders.tokenAllocations)) {
+          for (const [token, amount] of Object.entries(
+            data as Record<string, string>
+          )) {
+            const key = token.toLowerCase();
+            if (totalCurveVM[key]) totalCurveVM[key] -= BigInt(amount);
+            if (totalFxnVM[key]) totalFxnVM[key] -= BigInt(amount);
+          }
+        }
+      }
     } else {
-      console.log("Votium forwarders file not found, using empty data");
+      console.log("Votium forwarders file not found, skipping forwarders processing");
     }
   } else {
     console.log("Votium claimed bounties file not found, using empty data");
@@ -302,17 +322,6 @@ async function getProtocolShares(
   for (const [_, data] of Object.entries(votiumClaimedBounties.fxn)) {
     const token = (data.rewardToken as string).toLowerCase();
     totalFxnVotium[token] = (totalFxnVotium[token] || 0n) + BigInt(data.amount);
-  }
-
-  // Subtract forwarders amounts
-  for (const [_, data] of Object.entries(votiumForwarders.tokenAllocations)) {
-    for (const [token, amount] of Object.entries(
-      data as Record<string, string>
-    )) {
-      const key = token.toLowerCase();
-      if (totalCurveVotium[key]) totalCurveVotium[key] -= BigInt(amount);
-      if (totalFxnVotium[key]) totalFxnVotium[key] -= BigInt(amount);
-    }
   }
 
   // --- Merge Delegation & Votium Tokens ---
@@ -447,6 +456,14 @@ async function getProtocolShares(
   delete finalTokenCrvUSD[WETH_ADDRESS.toLowerCase()];
   console.log("Final crvUSD per token:", finalTokenCrvUSD);
 
+  // If no FXN delegation, return all to Curve
+  if (!hasFxnDelegation) {
+    return {
+      curveCrvUsdAmount: totalCrvUsd,
+      fxnCrvUsdAmount: 0n
+    };
+  }
+
   // --- Calculate Protocol-Specific crvUSD Amounts ---
   let curveCrvUsdAmount = 0n;
   let fxnCrvUsdAmount = 0n;
@@ -475,9 +492,14 @@ async function computeShares(
   delegationSummary: any,
   skippedUsers: Set<string>
 ) {
+  // Return empty distribution if no delegation summary
+  if (!delegationSummary || !delegationSummary.forwarders) {
+    return {};
+  }
+
   let totalValidShares = 0;
-  let combined: { [address: string]: { tokens: { [token: string]: bigint } } } =
-    {};
+  let combined: { [address: string]: { tokens: { [token: string]: bigint } } } = {};
+  
   // If SDT : Curve (SDT)
   if (totalSDT > 0n) {
     for (const [address, shareStr] of Object.entries(
@@ -590,12 +612,14 @@ async function processForwarders() {
     skippedUsers
   );
 
-  const fxnCombined = await computeShares(
-    protocolShares.fxnCrvUsdAmount,
-    0n,
-    fxnDelegationSummary,
-    skippedUsers
-  );
+  const fxnCombined = fxnDelegationSummary 
+    ? await computeShares(
+        protocolShares.fxnCrvUsdAmount,
+        0n,
+        fxnDelegationSummary,
+        skippedUsers
+      )
+    : {};
 
   // Merge the two distributions (sum token amounts if same address)
   const combined: {
