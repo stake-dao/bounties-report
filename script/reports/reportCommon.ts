@@ -324,6 +324,7 @@ function processReport(
       (acc, bounty) => acc + (bounty.nativeEquivalent || 0),
       0
     );
+
     let totalShares = 0;
     bounties.forEach((bounty) => {
       bounty.share = bounty.nativeEquivalent
@@ -333,26 +334,31 @@ function processReport(
     });
 
     // Normalize shares and compute SD token amounts.
-    bounties.forEach((bounty) => {
-      if (bounty.rewardToken.toLowerCase() === sdToken) {
-        const tokenInfo = tokenInfos[bounty.rewardToken];
-        bounty.sdTokenAmount =
-          Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
-      } else {
-        bounty.normalizedShare = bounty.share ? bounty.share / totalShares : 0;
-        bounty.sdTokenAmount = bounty.normalizedShare
-          ? bounty.normalizedShare * totalSdTokenIn
-          : 0;
-      }
+    const sdTokenBounties = bounties.filter(
+      (b) => b.rewardToken.toLowerCase() === sdToken
+    );
+    const nonSdTokenBounties = bounties.filter(
+      (b) => b.rewardToken.toLowerCase() !== sdToken
+    );
+
+    // First handle direct sdToken bounties
+    sdTokenBounties.forEach((bounty) => {
+      const tokenInfo = tokenInfos[bounty.rewardToken];
+      bounty.sdTokenAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
     });
 
-    const totalSdTokenAmount = bounties.reduce(
+    // Calculate remaining sdToken to distribute based on shares
+    const directSdTokenAmount = sdTokenBounties.reduce(
       (acc, bounty) => acc + (bounty.sdTokenAmount || 0),
       0
     );
-    bounties.forEach((bounty) => {
-      bounty.share = bounty.sdTokenAmount
-        ? bounty.sdTokenAmount / totalSdTokenAmount
+    const remainingSdTokenAmount = totalSdTokenIn - directSdTokenAmount;
+
+    // Then distribute remaining sdToken to other bounties based on their shares
+    nonSdTokenBounties.forEach((bounty) => {
+      bounty.normalizedShare = bounty.share ? bounty.share / totalShares : 0;
+      bounty.sdTokenAmount = bounty.normalizedShare
+        ? bounty.normalizedShare * remainingSdTokenAmount
         : 0;
     });
   });
