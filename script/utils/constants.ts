@@ -49,6 +49,8 @@ export const DELEGATE_REGISTRY_CREATION_BLOCK_BASE = 17894724;
 // Networks
 export const ETHEREUM = "ethereum";
 export const ETH_CHAIN_ID = "1";
+export const BASE = "base";
+export const BASE_CHAIN_ID = "8453";
 export const BSC = "bsc";
 
 export const BSC_CHAIN_ID = "56";
@@ -62,7 +64,7 @@ export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
 export const CVX_SPACE = "cvx.eth";
 export const CVX_FXN_SPACE = "cvx_fxn.eth";
-export const SPECTRA_SPACE = "sdapw.eth";
+export const SPECTRA_SPACE = "sdspectra.eth";
 
 export const VLCVX_RECIPIENT = "0x0000000095310137125f82f37FBe5D2F99279947";
 export const VLCVX_DELEGATORS_RECIPIENT =
@@ -143,6 +145,7 @@ export const SPACE_TO_NETWORK: Record<string, string> = {
   [SDPENDLE_SPACE]: ETHEREUM,
   [SDFXN_SPACE]: ETHEREUM,
   [SDCAKE_SPACE]: BSC,
+  [SPECTRA_SPACE]: BASE,
 };
 
 export const SPACE_TO_CHAIN_ID: Record<string, string> = {
@@ -154,7 +157,7 @@ export const SPACE_TO_CHAIN_ID: Record<string, string> = {
   [SDFXN_SPACE]: ETH_CHAIN_ID,
   [SDCAKE_SPACE]: BSC_CHAIN_ID,
   [CVX_SPACE]: ETH_CHAIN_ID,
-  [SPECTRA_SPACE]: ETH_CHAIN_ID,
+  [SPECTRA_SPACE]: BASE_CHAIN_ID,
 };
 
 export const NETWORK_TO_STASH: Record<string, string> = {
