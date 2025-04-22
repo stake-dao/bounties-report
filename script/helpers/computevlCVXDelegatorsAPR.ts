@@ -321,6 +321,7 @@ async function computeAPR(): Promise<
 
   console.log(`Total forwarders VP: ${delegationVPForwarders.toFixed(2)}`);
   
+  // TODO : Add side delegs tokens
   // Properly merge Thursday rewards with sumPerToken
   for (const [token, amount] of Object.entries(thursdayRewards.rewards)) {
     const normalizedAddress = getAddress(token);
@@ -352,6 +353,9 @@ async function computeAPR(): Promise<
       rewardValueUSDWithoutSDT += valueUSD;
     }
   }
+  // TODO : remove, side chains rewards
+  rewardValueUSD += 5000; // EYWA non forwarders
+  rewardValueUSD += 2917; // Base CRV non forwarders
 
   // Calculate APRs for individual tokens
   const sdtValue = tokenRewardValues[getAddress(SDT)] || 0;

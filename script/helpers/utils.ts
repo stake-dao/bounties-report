@@ -125,7 +125,12 @@ export function getAllRewardsForDelegators(periodTimestamp: number): {
     getRepartitionPath("curve"),
     {
       distribution: {
+        totalTokens: {},
         totalPerGroup: {},
+        totalForwardersShare: "0",
+        totalNonForwardersShare: "0",
+        forwarders: {},
+        nonForwarders: {},
       },
     }
   );
@@ -134,7 +139,12 @@ export function getAllRewardsForDelegators(periodTimestamp: number): {
     getRepartitionPath("fxn"),
     {
       distribution: {
+        totalTokens: {},
         totalPerGroup: {},
+        totalForwardersShare: "0",
+        totalNonForwardersShare: "0",
+        forwarders: {},
+        nonForwarders: {},
       },
     }
   );
