@@ -304,9 +304,6 @@ async function computeAPR(): Promise<
   // Get Thursday rewards and merge them with sumPerToken
   const thursdayRewards = getAllRewardsForDelegators(currentPeriodTimestamp);
 
-  console.log("thursdayRewards", thursdayRewards.rewards);
-  console.log("thursdayForwarders", thursdayRewards.forwarders);
-
   // Create a Set of forwarder addresses for efficient lookup
   const forwardersSet = new Set(thursdayRewards.forwarders.map(addr => addr.toLowerCase()));
 
@@ -322,8 +319,8 @@ async function computeAPR(): Promise<
   console.log(`Total forwarders VP: ${delegationVPForwarders.toFixed(2)}`);
   
   // TODO : Add side delegs tokens
-  // Properly merge Thursday rewards with sumPerToken
-  for (const [token, amount] of Object.entries(thursdayRewards.rewards)) {
+  // Properly merge Thursday rewards with sumPerToken - using only nonForwarders part
+  for (const [token, amount] of Object.entries(thursdayRewards.rewardsPerGroup.nonForwarders)) {
     const normalizedAddress = getAddress(token);
     sumPerToken[normalizedAddress] =
       (sumPerToken[normalizedAddress] || 0n) + amount;
@@ -353,6 +350,10 @@ async function computeAPR(): Promise<
       rewardValueUSDWithoutSDT += valueUSD;
     }
   }
+
+  // Log token reward values
+  console.log("tokenRewardValues", tokenRewardValues);
+
   // TODO : remove, side chains rewards
   rewardValueUSD += 5000; // EYWA non forwarders
   rewardValueUSD += 2917; // Base CRV non forwarders

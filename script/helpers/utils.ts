@@ -114,6 +114,10 @@ export function getAllRewardsForVotersOnChain(
 export function getAllRewardsForDelegators(periodTimestamp: number): {
   rewards: TokenRewards;
   forwarders: string[];
+  rewardsPerGroup: {
+    forwarders: TokenRewards;
+    nonForwarders: TokenRewards;
+  };
 } {
   const basePath = path.join("bounties-reports", `${periodTimestamp}`, "vlCVX");
 
@@ -158,10 +162,37 @@ export function getAllRewardsForDelegators(periodTimestamp: number): {
     rewards[token] = (rewards[token] || 0n) + amount;
   }
 
+  // Initialize rewards per group
+  const forwardersRewards: TokenRewards = {};
+  const nonForwardersRewards: TokenRewards = {};
+
+  // Extract rewards per group from curve repartition
+  for (const [token, groups] of Object.entries(curveRepartition.distribution.totalPerGroup || {})) {
+    forwardersRewards[token] = BigInt(groups.forwarders || "0");
+    nonForwardersRewards[token] = BigInt(groups.nonForwarders || "0");
+  }
+
+  // Add rewards per group from fxn repartition
+  for (const [token, groups] of Object.entries(fxnRepartition.distribution.totalPerGroup || {})) {
+    forwardersRewards[token] = (forwardersRewards[token] || 0n) + BigInt(groups.forwarders || "0");
+    nonForwardersRewards[token] = (nonForwardersRewards[token] || 0n) + BigInt(groups.nonForwarders || "0");
+  }
+
   // Format properly token addresses
   let formattedRewards: Record<string, bigint> = {};
+  let formattedForwardersRewards: Record<string, bigint> = {};
+  let formattedNonForwardersRewards: Record<string, bigint> = {};
+
   for (const [token, amount] of Object.entries(rewards)) {
     formattedRewards[getAddress(token)] = amount;
+  }
+
+  for (const [token, amount] of Object.entries(forwardersRewards)) {
+    formattedForwardersRewards[getAddress(token)] = amount;
+  }
+
+  for (const [token, amount] of Object.entries(nonForwardersRewards)) {
+    formattedNonForwardersRewards[getAddress(token)] = amount;
   }
 
   // Extract forwarders addresses from both repartitions
@@ -183,6 +214,10 @@ export function getAllRewardsForDelegators(periodTimestamp: number): {
   return {
     rewards: formattedRewards,
     forwarders: formattedForwarders,
+    rewardsPerGroup: {
+      forwarders: formattedForwardersRewards,
+      nonForwarders: formattedNonForwardersRewards,
+    }
   };
 }
 
