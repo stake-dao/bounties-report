@@ -1,13 +1,10 @@
 import {
-  createPublicClient,
-  http,
   decodeEventLog,
   parseAbi,
   erc20Abi,
   formatUnits,
 } from "viem";
 import { SPECTRA_SAFE_MODULE, SPECTRA_SPACE, WEEK } from "../utils/constants";
-import { base, ethereum } from "viem/chains";
 import SpectraSafeModuleABI from "../../abis/SpectraSafeModule.json";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import * as chains from "viem/chains";
