@@ -22,7 +22,6 @@ import {
   WardenBounty,
   GaugeShare,
   VotemarketV2Bounty,
-  PlatformConfig,
   PlatformConfigs,
 } from "./types";
 import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
@@ -653,7 +652,8 @@ const fetchHiddenHandClaimedBounties = async (
     !claimedResponse.result ||
     claimedResponse.result.length === 0
   ) {
-    throw new Error("No logs found");
+    console.log("No logs found for Hidden Hand");
+    return {};
   }
 
   for (const log of claimedResponse.result) {
