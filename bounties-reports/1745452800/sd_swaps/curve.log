@@ -1,0 +1,60 @@
+Stake DAO - Swap Report
+Protocol: CURVE
+Timestamp: 1745452800
+Date: 2025-04-24 00:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 CURVE Swap Report
+
+🔄 https://etherscan.io/tx/0xa853d0f7921b1caf18729ac21d7558e92b863c82b5bc7c624c54dbc50313045d Transaction
+├─ https://etherscan.io/token/0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5 sdCRV: 30,898.16 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 8.3181
+└─ https://etherscan.io/token/0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68 INV: 520.75 → 8.3181 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (23.1%)
+
+🔄 https://etherscan.io/tx/0xe4abf2568acdcdfd2e31c286d4e0f7309963ae07d398b86f759cf93885418187 Transaction
+├─ https://etherscan.io/token/0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5 sdCRV: 25,938.20 • https://etherscan.io/token/0xD533a949740bb3306d119CC777fa900bA034cd52 CRV: 18,068.53 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 7.0092
+└─ https://etherscan.io/token/0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68 INV: 444.39 → 7.0092 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (19.4%)
+
+🔄 https://etherscan.io/tx/0xd388affa6db31a194f6e49707ab824c9ef750aab84c6ff3fec6e7dafa9730001 Transaction
+├─ https://etherscan.io/token/0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5 sdCRV: 22,456.15 • https://etherscan.io/token/0xD533a949740bb3306d119CC777fa900bA034cd52 CRV: 15,742.64 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 6.0144
+└─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 10,794.55 → 6.0144 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (16.7%)
+
+🔄 https://etherscan.io/tx/0xec8aaeeb62976533255f7b95ff72944ae37f1cac1b464704487e87800aeeb374 Transaction
+├─ https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 11.7070
+├─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 9,472.64 → 5.2395 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (14.5%)
+└─ https://etherscan.io/token/0x090185f2135308bad17527004364ebcc2d37e5f6 SPELL: 18,592,645.88 → 6.4674 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (17.9%)
+
+🔄 https://etherscan.io/tx/0x2d2b41a192ecdf84912c6b40f66484a0c66f8589ec8d74528f0d93bdf6a4f7cf Transaction
+├─ https://etherscan.io/token/0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5 sdCRV: 8,035.04 • https://etherscan.io/token/0xD533a949740bb3306d119CC777fa900bA034cd52 CRV: 5,511.03 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 2.1590
+├─ https://etherscan.io/token/0xdbdb4d16eda451d0503b854cf79d55697f90c8df ALCX: 92.43 → 0.4985 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (1.4%)
+├─ https://etherscan.io/token/0x30d20208d987713f46dfd34ef128bb16c404d10f SD: 3,470.56 → 0.9789 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (2.7%)
+└─ https://etherscan.io/token/0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b CVX: 417.21 → 0.6816 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (1.9%)
+
+🔄 https://etherscan.io/tx/0x6a426819e26eee37a59be4beba28f39c2d257ed136b2f76f393127b13a211cf3 Transaction
+├─ https://etherscan.io/token/0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5 sdCRV: 3,156.90 • https://etherscan.io/token/0xD533a949740bb3306d119CC777fa900bA034cd52 CRV: 2,172.03 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 0.8511
+├─ https://etherscan.io/token/0xf939e0a03fb07f59a73314e73794be0e57ac1b4e crvUSD: 377.13 → 0.2098 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (0.6%)
+├─ https://etherscan.io/token/0x2a8e1e676ec238d8a992307b495b45b3feaa5e86 OUSD: 39.12 → 0.0217 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (0.1%)
+├─ https://etherscan.io/token/0x8207c1ffc5b6804f6024322ccf34f29c3541ae26 OGN: 7,081.87 → 0.2462 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (0.7%)
+└─ https://etherscan.io/token/0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0 FXS: 279.35 → 0.3734 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (1.0%)
+
+🔄 https://etherscan.io/tx/0xfcc4ff7762e7d59a7ebe98ec43d7e17c382128ef04e8c5c32721c0ee6d634a6c Transaction
+├─ https://etherscan.io/token/0xD533a949740bb3306d119CC777fa900bA034cd52 CRV: 54.09 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 0.0207
+└─ https://etherscan.io/token/0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3 OETH: 0.02 → 0.0207 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (0.1%)
+
+
+🔍 Token Contributions:
+├─ https://etherscan.io/token/0x41d5d79431a913c4ae7d69a668ecdfe5ff9dfb68 INV: 965.14 → 15.3274 WETH (42.5%)
+├─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 20,267.19 → 11.2539 WETH (31.2%)
+├─ https://etherscan.io/token/0x090185f2135308bad17527004364ebcc2d37e5f6 SPELL: 18,592,645.88 → 6.4674 WETH (17.9%)
+├─ https://etherscan.io/token/0x30d20208d987713f46dfd34ef128bb16c404d10f SD: 3,470.56 → 0.9789 WETH (2.7%)
+├─ https://etherscan.io/token/0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b CVX: 417.21 → 0.6816 WETH (1.9%)
+├─ https://etherscan.io/token/0xdbdb4d16eda451d0503b854cf79d55697f90c8df ALCX: 92.43 → 0.4985 WETH (1.4%)
+├─ https://etherscan.io/token/0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0 FXS: 279.35 → 0.3734 WETH (1.0%)
+├─ https://etherscan.io/token/0x8207c1ffc5b6804f6024322ccf34f29c3541ae26 OGN: 7,081.87 → 0.2462 WETH (0.7%)
+├─ https://etherscan.io/token/0xf939e0a03fb07f59a73314e73794be0e57ac1b4e crvUSD: 377.13 → 0.2098 WETH (0.6%)
+├─ https://etherscan.io/token/0x2a8e1e676ec238d8a992307b495b45b3feaa5e86 OUSD: 39.12 → 0.0217 WETH (0.1%)
+├─ https://etherscan.io/token/0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3 OETH: 0.02 → 0.0207 WETH (0.1%)
+
+📈 Final Summary
+└─ 90,484.45 https://etherscan.io/token/0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5 sdCRV
+   └─ via 36.0794 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH
+      └─ to 41,548.31 https://etherscan.io/token/0xD533a949740bb3306d119CC777fa900bA034cd52 CRV
