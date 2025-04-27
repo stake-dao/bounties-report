@@ -116,6 +116,10 @@ export const GOVERNANCE = getAddress(
 );
 export const BSC_CAKE_LOCKER = "0x1E6F87A9ddF744aF31157d8DaA1e3025648d042d";
 
+export const SPECTRA_RECEIVER = getAddress(
+  "0xbb0a24dee350d29ee0535353ae0d8fd1222c26b9"
+);
+
 // Helper to fetch token info using ERC20 contract
 export async function getTokenInfo(
   publicClient: PublicClient,
@@ -224,6 +228,10 @@ export const PROTOCOLS_TOKENS: {
   pendle: {
     native: getAddress("0x808507121B80c02388fAd14726482e061B8da827"),
     sdToken: getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9"),
+  },
+  spectra: {
+    native: getAddress("0x64FCC3A02eeEba05Ef701b7eed066c6ebD5d4E51"),
+    sdToken: getAddress("0x8e7801bAC71E92993f6924e7D767D7dbC5fCE0AE"),
   },
 };
 
@@ -382,6 +390,7 @@ export function processSwaps(
       (swap) =>
         swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase() &&
         swap.from.toLowerCase() !== BOTMARKET.toLowerCase() &&
+        swap.from.toLowerCase() !== SPECTRA_RECEIVER.toLowerCase() &&
         swap.to.toLowerCase() !== GOVERNANCE.toLowerCase() &&
         swap.to.toLowerCase() !== BOSS.toLowerCase()
     )
@@ -606,6 +615,8 @@ export async function fetchSwapOutEvents(
  * Matches WETH inputs with corresponding reward outputs.
  */
 export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
+  console.log("BLOCK DATA");
+  console.log(blockData);
   const wethIn = blockData.wethIn || [];
   const rewardsOut = blockData.rewardsOut || [];
   if (wethIn.length === 0 || rewardsOut.length === 0) return [];

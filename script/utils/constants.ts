@@ -195,6 +195,13 @@ export const BOTMARKETS: Record<string, string> = {
   [BSC]: "0x1F18E2A3fB75D5f8d2a879fe11D7c30730236B8d",
 };
 
+export const WETH_CHAIN_IDS: Record<number, `0x${string}`> = {
+  1: getAddress("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"), // Ethereum
+  56: getAddress("0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"), // BSC
+  8453: getAddress("0x4200000000000000000000000000000000000006"), // Base
+  42161: getAddress("0x82aF49447D8a07e3bd95BD0d56f35241523fBab1") // Arbitrum
+};
+
 export const SPACES_IMAGE: Record<string, string> = {
   [SDCRV_SPACE]:
     "https://assets.coingecko.com/coins/images/27756/small/scCRV-2.png?1665654580",

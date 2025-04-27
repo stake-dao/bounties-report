@@ -1,7 +1,7 @@
+import { WETH_CHAIN_IDS } from "../utils/constants";
 import {
   PROTOCOLS_TOKENS,
-  matchWethInWithRewardsOut,
-  WETH_ADDRESS,
+  matchWethInWithRewardsOut
 } from "../utils/reportUtils";
 
 interface TokenInfo {
@@ -94,6 +94,7 @@ interface CSVRow {
  * Processes swap events and bounties to generate CSV rows grouped by protocol.
  */
 function processReport(
+  chainId: number,
   swapsIn: ProcessedSwapEvent[],
   swapsOut: ProcessedSwapEvent[],
   aggregatedBounties: Record<string, Bounty[]>,
@@ -123,15 +124,18 @@ function processReport(
     for (const swap of [...swapsIn, ...swapsOut]) {
       if (excludedSwapsInBlockNumbers.includes(swap.blockNumber)) continue;
       if (!swapsData[protocol][swap.blockNumber]) continue;
+      
+      console.log("SWAP");
+      console.log(swap);
 
       const token = swap.token.toLowerCase();
       const isNative = token === tokenConfig.native.toLowerCase();
-      const isWeth = token === WETH_ADDRESS.toLowerCase();
+      const isWeth = token === WETH_CHAIN_IDS[chainId].toLowerCase();
       const isSdToken = token === tokenConfig.sdToken.toLowerCase();
-      const isReward = ![WETH_ADDRESS, tokenConfig.native, tokenConfig.sdToken]
+      const isReward = ![WETH_CHAIN_IDS[chainId], tokenConfig.native, tokenConfig.sdToken]
         .map((t) => t.toLowerCase())
         .includes(token);
-
+      
       if (swapsIn.includes(swap)) {
         if (isNative) {
           swapsData[protocol][swap.blockNumber].nativeIn ??= [];
@@ -186,7 +190,7 @@ function processReport(
         ? [{ protocol, blockNumber: parseInt(blockNumber), matches }]
         : [];
     })
-  );
+  );  
 
   const orderedData = allMatches.reduce(
     (acc: ProtocolData, { protocol, blockNumber, matches }) => {
@@ -261,6 +265,9 @@ function processReport(
     });
   }
 
+  console.log("PROTOCOL SUMMARIES");
+  console.log(protocolSummaries);
+
   // Calculate bounty shares using protocol summaries.
   Object.entries(aggregatedBounties).forEach(([protocol, bounties]) => {
     const native = PROTOCOLS_TOKENS[protocol].native.toLowerCase();
@@ -297,7 +304,7 @@ function processReport(
 
       if (rewardToken === native) {
         nativeEquivalent = formattedAmount;
-      } else if (rewardToken === WETH_ADDRESS.toLowerCase()) {
+      } else if (rewardToken === WETH_CHAIN_IDS[chainId].toLowerCase()) {
         nativeEquivalent = formattedAmount * wethToNativeRatio;
       } else {
         const tokenSummary = protocolSummary.tokens.find(

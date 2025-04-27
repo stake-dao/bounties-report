@@ -262,6 +262,7 @@ async function main() {
   );
 
   const processedReport = processReport(
+    1,
     uniqueSwapsIn,
     uniqueSwapsOut,
     aggregatedBounties,
