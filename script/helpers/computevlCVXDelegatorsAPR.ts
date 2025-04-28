@@ -327,9 +327,9 @@ async function computeAPR(): Promise<
   }
 
   const tokens = Object.keys(sumPerToken);
-  const prices = await getTokenPrices(tokens, currentPeriodTimestamp);
+  const prices = await getTokenPrices("ethereum", tokens, currentPeriodTimestamp);
 
-  const cvxPriceResponse = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
+  const cvxPriceResponse = await getTokenPrices("ethereum", [CVX], Number(proposal.start)); // Price at the snapshot
   const cvxPrice = cvxPriceResponse[0].price;
 
   // Calculate individual token reward values

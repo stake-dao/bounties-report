@@ -13,11 +13,10 @@ import {
 } from "../utils/snapshot";
 import * as moment from "moment";
 import { processAllDelegators } from "../utils/cacheUtils";
-import { createPublicClient, getAddress, http } from "viem";
-import { getSpectraDelegationAPR, getSpectraReport } from "./utils";
-import axios from "axios";
+import { getAddress } from "viem";
+import {  getSpectraDelegationAPR, getSpectraReport } from "./utils";
 import { Distribution } from "../interfaces/Distribution";
-import { base } from "viem/chains";
+import { PROTOCOLS_TOKENS } from "../utils/reportUtils";
 
 dotenv.config();
 
@@ -38,20 +37,10 @@ const main = async () => {
 
   const votes = await getVoters(proposalId);
 
-
-
   // Distribute rewards
   console.log("Distributing rewards...");
   const distribution: Distribution = {};
-
-  const publicClient = createPublicClient({
-    chain: base,
-    transport: http(),
-  });
-
-  const csvEntries = Object.entries(csvResult);
-  const tokenDecimals: Record<`0x${string}`, number> = {};
-
+  /*
   for (const [gauge, rewardInfos] of csvEntries) {
     for (const rewardInfo of rewardInfos) {
       const address = getAddress(rewardInfo.rewardAddress);
@@ -73,11 +62,12 @@ const main = async () => {
       }
     }
   }
+  */
 
-  Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
+  Object.entries(csvResult).forEach(([gauge, rewardSdValue]) => {
     let choiceId = (proposal.choices as string[]).findIndex((choice: string) => choice.toLowerCase() === gauge.toLowerCase());
 
-    console.log("choiceId", choiceId);
+    console.log("choiceId for", gauge, choiceId);
 
     if (choiceId === -1) {
       throw new Error(`Choice ID not found for gauge: ${gauge}`);
@@ -130,37 +120,16 @@ const main = async () => {
       voterVps[voter.voter] = voterShare / totalVp;
     });
 
-    rewardInfos.forEach(({ rewardAddress, rewardAmount }) => {
-      // Rounding issue
-      //rewardAmount -= BigInt(10 ** tokenDecimals[getAddress(rewardAddress)]);
-      let remainingRewards = rewardAmount;
-      let processedVoters = 0;
-      const totalVoters = Object.keys(voterVps).length;
-
-      Object.entries(voterVps).forEach(([voter, share]) => {
-        processedVoters++;
-
-        let amount: bigint;
-        if (processedVoters === totalVoters) {
-          // Last voter gets remaining rewards to avoid dust
-          amount = remainingRewards;
-        } else {
-          // Simply multiply rewardAmount by the share
-          amount =
-            (rewardAmount * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-          remainingRewards -= amount;
-        }
-
-        if (amount > 0n) {
-          if (!distribution[voter]) {
-            distribution[voter] = {
-              tokens: {},
-            };
-          }
-          distribution[voter].tokens[rewardAddress] =
-            (distribution[voter].tokens[rewardAddress] || 0n) + amount;
-        }
-      });
+    // Distribute sdToken proportionnally to the voters
+    Object.entries(voterVps).forEach(([voter, share]) => {
+      if (!distribution[voter]) {
+        distribution[voter] = {
+          tokens: {},
+        };
+      }
+      const sdTokenAddress = PROTOCOLS_TOKENS.spectra.sdToken;
+      const amount = BigInt(Math.floor(Number(rewardSdValue) * share * 1e18));
+      distribution[voter].tokens[sdTokenAddress] = (distribution[voter].tokens[sdTokenAddress] || 0n) + amount;
     });
   });
 
@@ -224,7 +193,7 @@ const main = async () => {
           const tokens = delegationDistribution.tokens;
 
           // Get voting power for all delegators
-          const vps = await getVotingPower(proposal, stakeDaoDelegators);
+          const vps = await getVotingPower(proposal, stakeDaoDelegators, "8453");
 
           // Compute the total vp with 18 decimals precision
           const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
@@ -306,11 +275,13 @@ const main = async () => {
 
   // Save APR
   // TODO : As vlCVX, compute when distributing
+  /*
   const { data: delegationAPRs } = await axios.get(
     `https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json`
   );
   delegationAPRs[SPECTRA_SPACE] = delegationAPR;
   fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+  */
 
   // End
   console.log("Spectra repartition generation completed successfully.");

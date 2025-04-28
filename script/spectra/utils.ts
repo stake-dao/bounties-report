@@ -19,8 +19,8 @@ import { clients } from "../utils/constants";
 
 dotenv.config();
 
-const SPECTRA_ADDRESS = "0x64fcc3a02eeeba05ef701b7eed066c6ebd5d4e51";
-const OLD_APW_ADDRESS = "0x4104b135dbc9609fc1a9490e61369036497660c8";
+export const SPECTRA_ADDRESS = "0x64fcc3a02eeeba05ef701b7eed066c6ebd5d4e51";
+export const OLD_APW_ADDRESS = "0x4104b135dbc9609fc1a9490e61369036497660c8";
 
 export interface SpectraClaimed {
   tokenRewardAddress: `0x${string}`;
@@ -164,6 +164,7 @@ export const getSpectraReport = async (
   return _csvResult as CvxCSVType;
 };
 
+/*
 export const getSpectraDelegationAPR = async (
   tokens: {
     [tokenAddress: string]: bigint;
@@ -210,3 +211,4 @@ export const getSpectraDelegationAPR = async (
 
   return apr * ratio;
 };
+*/
