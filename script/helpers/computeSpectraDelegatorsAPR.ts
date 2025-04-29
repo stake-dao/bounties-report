@@ -5,12 +5,10 @@ import {
   encodePacked,
   pad,
   decodeAbiParameters,
-  getAddress,
 } from "viem";
 import { mainnet } from "viem/chains";
 import * as moment from "moment";
 import {
-  getProposal,
   getVoters,
   getLastClosedProposal,
 } from "../utils/snapshot";
@@ -19,17 +17,14 @@ import {
   SPECTRA_SPACE,
   WEEK,
   VLCVX_NON_DELEGATORS_MERKLE,
-  CVX,
-  OLD_APW_ADDRESS,
 } from "../utils/constants";
-import { extractCSV, getHistoricalTokenPrice } from "../utils/utils";
+import { getHistoricalTokenPrice } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { BOTMARKET, PROTOCOLS_TOKENS } from "../utils/reportUtils";
-import { writeFileSync, readFileSync } from "fs";
-import { join } from "path";
-import { getAllRewardsForVotersOnChain, computeAnnualizedAPR, getSpectraRewards, getsdSpectraDistributed } from "./utils";
+import { BOTMARKET } from "../utils/reportUtils";
+import { getSpectraRewards, getsdSpectraDistributed } from "./utils";
 import { SPECTRA_ADDRESS } from "../spectra/utils";
+import axios from "axios";
 
 interface APRResult {
   totalVotingPower: number;
@@ -226,9 +221,13 @@ async function computeAPR(): Promise<APRResult> {
 
   // Calculate annualized APRs
   // Because we do a weekly distribution, multiply by 52
-  const annualizedAPR = ((totalRewardUSD * 52) / (spectraPrice * delegationVotingPower)) * 100;
-  const wethAPR = ((wethRewardValueUSD * 52) / (spectraPrice * delegationVotingPower)) * 100;
-  const otherAPR = ((otherRewardValueUSD * 52) / (spectraPrice * delegationVotingPower)) * 100;
+  const {data: sdSpectraWorking} = await axios.get(
+    "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdspectra-working-supply.json"
+  )
+
+  const annualizedAPR = ((totalSdSpectraDistributed * 52) / ( sdSpectraWorking.total_vp)) * 100;
+  const wethAPR = ((wethRewardValueUSD * 52) / ( sdSpectraWorking.total_vp)) * 100;
+  const otherAPR = ((otherRewardValueUSD * 52) / ( sdSpectraWorking.total_vp)) * 100;
 
   console.log("\n=== APR Calculations ===");
   console.log("Weekly Reward:", totalRewardUSD);

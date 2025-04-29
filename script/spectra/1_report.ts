@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
 import { getSpectraDistribution, SpectraClaimed } from "./utils";
-import { ALL_MIGHT, escapeCSV, fetchAllTokenInfos, fetchS, fetchSwapInEvents, fetchSwapOutEvents, fetchSwapOutEventswapInEvents, getTimestampsBlocks, processSwaps, PROTOCOLS_TOKENS } from "../utils/reportUtils";
+import { ALL_MIGHT, escapeCSV, fetchAllTokenInfos, fetchSwapInEvents, fetchSwapOutEvents, getTimestampsBlocks, processSwaps, PROTOCOLS_TOKENS } from "../utils/reportUtils";
 import { clients } from "../utils/constants";
 import processReport from "../reports/reportCommon";
 

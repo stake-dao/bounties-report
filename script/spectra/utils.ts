@@ -16,6 +16,7 @@ import {
 } from "../utils/utils";
 import * as dotenv from "dotenv";
 import { clients } from "../utils/constants";
+import axios from "axios";
 
 dotenv.config();
 
@@ -164,51 +165,18 @@ export const getSpectraReport = async (
   return _csvResult as CvxCSVType;
 };
 
-/*
+
 export const getSpectraDelegationAPR = async (
   tokens: {
     [tokenAddress: string]: bigint;
-  },
-  currentPeriodTimestamp: number,
-  delegationVp: number
-): Promise<number> => {
-  const publicClient = clients[8453]; // Use the shared Base client from constants
-
-  // Fetch reward token prices and compute the total USD distributed
-  let totalDistributedUSD = 0;
-  for (const rewardAddress of Object.keys(tokens)) {
-    // Fetch token price and decimals
-    const [tokenPrice, decimals] = await Promise.all([
-      getHistoricalTokenPrice(currentPeriodTimestamp, "base", rewardAddress),
-      publicClient.readContract({
-        address: rewardAddress as `0x${string}`,
-        abi: erc20Abi,
-        functionName: "decimals",
-      }),
-    ]);
-    totalDistributedUSD +=
-      parseFloat(formatUnits(tokens[rewardAddress], decimals)) * tokenPrice;
   }
-
-  // Fetch Spectra price
-  const [spectraPrice, oldApwPrice] = await Promise.all([
-    getHistoricalTokenPrice(currentPeriodTimestamp, "base", SPECTRA_ADDRESS),
-    getHistoricalTokenPrice(
-      currentPeriodTimestamp,
-      "ethereum",
-      OLD_APW_ADDRESS
-    ),
-  ]);
-
-  const ratio = spectraPrice / oldApwPrice;
-
-  // Delegation vp USD
-  const delegationVpUsd = delegationVp * spectraPrice;
+): Promise<number> => {
+  const sumRewards = parseFloat(formatUnits(Object.values(tokens)[0], 18))
+  const {data: sdSpectraWorking} = await axios.get(
+    "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdspectra-working-supply.json"
+  )
 
   // Because we do a weekly distribution
-  totalDistributedUSD *= 52;
-  let apr = (totalDistributedUSD * 100) / delegationVpUsd;
-
-  return apr * ratio;
+  return sumRewards / sdSpectraWorking.total_vp * 52 * 100;
 };
-*/
+

@@ -17,6 +17,7 @@ import { getAddress } from "viem";
 import {  getSpectraDelegationAPR, getSpectraReport } from "./utils";
 import { Distribution } from "../interfaces/Distribution";
 import { PROTOCOLS_TOKENS } from "../utils/reportUtils";
+import axios from "axios";
 
 dotenv.config();
 
@@ -200,7 +201,7 @@ const main = async () => {
 
           // Compute the APR
           if (delegationAddress.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
-            delegationAPR = await getSpectraDelegationAPR(tokens, currentPeriodTimestamp, totalVp);
+            delegationAPR = await getSpectraDelegationAPR(tokens);
           }
 
           for (const stakeDaoDelegator of stakeDaoDelegators) {
@@ -274,14 +275,11 @@ const main = async () => {
   );
 
   // Save APR
-  // TODO : As vlCVX, compute when distributing
-  /*
   const { data: delegationAPRs } = await axios.get(
     `https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json`
   );
   delegationAPRs[SPECTRA_SPACE] = delegationAPR;
   fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`, JSON.stringify(delegationAPRs));
-  */
 
   // End
   console.log("Spectra repartition generation completed successfully.");
