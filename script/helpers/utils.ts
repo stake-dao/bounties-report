@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { getAddress } from "viem";
+const { parse } = require("csv-parse/sync");
 
 type TokenRewards = Record<string, bigint>;
 
@@ -77,8 +78,8 @@ export function getAllRewardsForVotersOnChain(
     isDelegation
       ? path.join(basePath, subdir, `repartition_delegation.json`)
       : chainId === 1
-      ? path.join(basePath, subdir, `repartition.json`)
-      : path.join(basePath, subdir, `repartition_${chainId}.json`);
+        ? path.join(basePath, subdir, `repartition.json`)
+        : path.join(basePath, subdir, `repartition_${chainId}.json`);
 
   const curveRepartition = loadJSON<RepartitionData>(
     getRepartitionPath("curve", false),
@@ -231,6 +232,55 @@ export function computeAnnualizedAPR(
     (annualizedRewards / (cvxPrice * totalVotingPower)) * 100; // Multiply by 100 for percentage
 
   return annualizedAPR;
+}
+
+// ============ Spectra ============
+
+export async function getSpectraRewards(periodTimestamp: number): Promise<Record<string, number>> {
+  const csvFilePath = path.join(
+    __dirname,
+    `../../bounties-reports/${periodTimestamp}/spectra.csv`
+  );
+
+  if (!csvFilePath || !fs.existsSync(csvFilePath)) {
+    throw new Error("No CSV report found");
+  }
+
+  const csvFile = fs.readFileSync(csvFilePath, "utf8");
+
+  let records = parse(csvFile, {
+    columns: true,
+    skip_empty_lines: true,
+    delimiter: ";",
+  });
+
+
+  // Get sum of all tokens + amounts
+  const rewards: Record<string, number> = {};
+  for (const record of records) {
+    const token = record["Reward Address"];
+    const amount = record["Reward Amount"];
+    rewards[token] = (rewards[token] || 0) + parseFloat(amount);
+  }
+  return rewards;
+}
+
+export function getsdSpectraDistributed(periodTimestamp: number): number {
+  const basePath = path.join("bounties-reports", `${periodTimestamp}`, "spectra");
+  const result = loadJSON<{ distribution: Record<string, { tokens: Record<string, string> }> }>(
+    path.join(basePath, `repartition.json`),
+    { distribution: {} }
+  );
+
+  let totalAmount = 0n;
+  const targetToken = "0x8e7801bAC71E92993f6924e7D767D7dbC5fCE0AE";
+
+  for (const gaugeData of Object.values(result.distribution)) {
+    if (gaugeData.tokens[targetToken]) {
+      totalAmount += BigInt(gaugeData.tokens[targetToken]);
+    }
+  }
+  return Number(totalAmount / 10n ** 18n);
 }
 
 // TEST

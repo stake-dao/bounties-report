@@ -145,31 +145,13 @@ export const extractCSV = async (
       totalPerToken[rewardAddress] =
         (totalPerToken[rewardAddress] as bigint) + rewardAmount;
     } else if (space === SPECTRA_SPACE) {
-      const spectraResponse = response as CvxCSVType;
-      const rewardAddress = row["reward address"].toLowerCase();
-      const rewardAmount = BigInt(row["reward amount"]);
-      const gaugeAddress = row["gauge name"].toLowerCase();
-
-      if (!spectraResponse[gaugeAddress]) {
-        spectraResponse[gaugeAddress] = [{ rewardAddress, rewardAmount }];
-      } else {
-        const existingRewardIndex = spectraResponse[gaugeAddress].findIndex(
-          (reward) => reward.rewardAddress === rewardAddress
-        );
-
-        if (existingRewardIndex >= 0) {
-          spectraResponse[gaugeAddress][existingRewardIndex].rewardAmount +=
-            rewardAmount;
-        } else {
-          spectraResponse[gaugeAddress].push({ rewardAddress, rewardAmount });
-        }
+      const otherResponse = response as OtherCSVType;
+      if (!otherResponse[gaugeName]) {
+        otherResponse[gaugeName] = 0;
       }
-
-      if (!totalPerToken[rewardAddress]) {
-        totalPerToken[rewardAddress] = BigInt(0);
+      if (row["reward sd value"]) {
+        otherResponse[gaugeName] += parseFloat(row["reward sd value"]);
       }
-      totalPerToken[rewardAddress] =
-        (totalPerToken[rewardAddress] as bigint) + rewardAmount;
     } else {
       const otherResponse = response as OtherCSVType;
       if (!otherResponse[gaugeAddress]) {

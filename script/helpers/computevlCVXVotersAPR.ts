@@ -64,6 +64,7 @@ const publicClient = createPublicClient({
 });
 
 async function getTokenPrices(
+  chain: string,
   tokens: string[],
   currentPeriodTimestamp: number
 ): Promise<TokenPrice[]> {
@@ -71,7 +72,7 @@ async function getTokenPrices(
     tokens.map(async (token) => {
       const price = await getHistoricalTokenPrice(
         currentPeriodTimestamp,
-        "ethereum",
+        chain,
         token
       );
       return { address: token, price, decimals: 18 };
@@ -251,9 +252,9 @@ async function computeAPR(): Promise<APRResult> {
   const tokens = Object.keys(allRewards);
   const sumPerToken = allRewards as Record<string, bigint>;
 
-  const prices = await getTokenPrices(tokens, currentPeriodTimestamp);
+  const prices = await getTokenPrices("ethereum", tokens, currentPeriodTimestamp);
 
-  const cvxPriceResponse = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
+  const cvxPriceResponse = await getTokenPrices("ethereum", [CVX], Number(proposal.start)); // Price at the snapshot
   const cvxPrice = cvxPriceResponse[0].price;
 
   // Calculate total reward value in USD
