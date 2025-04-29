@@ -60,7 +60,6 @@ export const SDBAL_SPACE = "sdbal.eth";
 export const SDFXS_SPACE = "sdfxs.eth";
 export const SDANGLE_SPACE = "sdangle.eth";
 export const SDPENDLE_SPACE = "sdpendle.eth";
-export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
 export const CVX_SPACE = "cvx.eth";
 export const CVX_FXN_SPACE = "cvx_fxn.eth";
@@ -121,7 +120,6 @@ export const SPACES: string[] = [
   SDANGLE_SPACE,
   SDPENDLE_SPACE,
   SDFXN_SPACE,
-  SDCAKE_SPACE,
 ];
 
 export const LABELS_TO_SPACE: Record<string, string> = {
@@ -130,7 +128,6 @@ export const LABELS_TO_SPACE: Record<string, string> = {
   balancer: SDBAL_SPACE,
   angle: SDANGLE_SPACE,
   pendle: SDPENDLE_SPACE,
-  cake: SDCAKE_SPACE,
   fxn: SDFXN_SPACE,
   cvx: CVX_SPACE,
   cvx_fxn: CVX_FXN_SPACE,
@@ -144,7 +141,6 @@ export const SPACE_TO_NETWORK: Record<string, string> = {
   [SDANGLE_SPACE]: ETHEREUM,
   [SDPENDLE_SPACE]: ETHEREUM,
   [SDFXN_SPACE]: ETHEREUM,
-  [SDCAKE_SPACE]: BSC,
   [SPECTRA_SPACE]: BASE,
 };
 
@@ -155,7 +151,6 @@ export const SPACE_TO_CHAIN_ID: Record<string, string> = {
   [SDANGLE_SPACE]: ETH_CHAIN_ID,
   [SDPENDLE_SPACE]: ETH_CHAIN_ID,
   [SDFXN_SPACE]: ETH_CHAIN_ID,
-  [SDCAKE_SPACE]: BSC_CHAIN_ID,
   [CVX_SPACE]: ETH_CHAIN_ID,
   [SPECTRA_SPACE]: BASE_CHAIN_ID,
 };
@@ -177,7 +172,6 @@ export const SPACES_TOKENS: Record<string, string> = {
   [SDANGLE_SPACE]: SD_ANGLE,
   [SDPENDLE_SPACE]: SD_PENDLE,
   [SDFXN_SPACE]: SD_FXN,
-  [SDCAKE_SPACE]: SD_CAKE,
 };
 
 export const SPACES_SYMBOL: Record<string, string> = {
@@ -186,7 +180,6 @@ export const SPACES_SYMBOL: Record<string, string> = {
   [SDFXS_SPACE]: "sdFXS",
   [SDANGLE_SPACE]: "sdANGLE",
   [SDPENDLE_SPACE]: "sdPENDLE",
-  [SDCAKE_SPACE]: "sdCAKE",
   [SDFXN_SPACE]: "sdFXN",
 };
 
@@ -212,8 +205,6 @@ export const SPACES_IMAGE: Record<string, string> = {
   [SDANGLE_SPACE]:
     "https://assets.coingecko.com/coins/images/19060/small/ANGLE_Token-light.png?1666774221",
   [SDPENDLE_SPACE]: "https://beta.stakedao.org/assets/pendle.svg",
-  [SDCAKE_SPACE]:
-    "https://cdn.stamp.fyi/space/sdcake.eth?s=96&cb=cd2ea5c12296e731",
   [SDFXN_SPACE]:
     "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad.png",
 };
@@ -224,7 +215,6 @@ export const SPACES_UNDERLYING_TOKEN: Record<string, string> = {
   [SDFXS_SPACE]: "0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0",
   [SDANGLE_SPACE]: "0x31429d1856ad1377a8a0079410b297e1a9e214c2",
   [SDPENDLE_SPACE]: "0x808507121b80c02388fad14726482e061b8da827",
-  [SDCAKE_SPACE]: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82",
   [SDFXN_SPACE]: "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09",
 };
 

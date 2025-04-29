@@ -76,7 +76,6 @@ const main = async () => {
     proposalIdPerSpace,
     { data: delegationAPRs },
     { data: sdFXSWorkingData },
-    { data: sdCakeWorkingData },
   ] = await Promise.all([
     axios.get(
       "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/merkle.json"
@@ -87,9 +86,6 @@ const main = async () => {
     ),
     axios.get(
       "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdfxs-working-supply.json"
-    ),
-    axios.get(
-      "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdcake-working-supply.json"
     ),
   ]);
 
@@ -226,7 +222,6 @@ const main = async () => {
       csvResult,
       pendleRewards,
       sdFXSWorkingData,
-      sdCakeWorkingData,
       {}
     );
 

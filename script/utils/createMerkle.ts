@@ -1,6 +1,6 @@
 import { formatUnits, parseEther } from "viem";
 import { BigNumber, utils } from "ethers";
-import { AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, SDCAKE_SPACE, SDCRV_SPACE, SDFXS_SPACE, SDPENDLE_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
+import { AUTO_VOTER_DELEGATION_ADDRESS, DELEGATION_ADDRESS, NETWORK_TO_MERKLE, SDCRV_SPACE, SDFXS_SPACE, SDPENDLE_SPACE, SPACE_TO_CHAIN_ID, SPACE_TO_NETWORK, SPACES_IMAGE, SPACES_SYMBOL, SPACES_TOKENS, SPACES_UNDERLYING_TOKEN } from "./constants";
 import { formatVotingPowerResult, getProposal, getVoters, getVotingPower } from "./snapshot";
 import { addVotersFromAutoVoter, ChoiceBribe, extractProposalChoices, getAllAccountClaimedSinceLastFreeze, getChoicesBasedOnReport, getChoiceWhereExistsBribe, getDelegationVotingPower } from "./utils";
 import { Log, MerkleStat } from "./types";
@@ -8,7 +8,7 @@ import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 import { processAllDelegators } from "./cacheUtils";
 
-export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, sdCakeWorkingData: any, additionalDelegatorRewards: Record<string, number> = {}): Promise<MerkleStat> => {
+export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, additionalDelegatorRewards: Record<string, number> = {}): Promise<MerkleStat> => {
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
     const logs: Log[] = [];
@@ -219,16 +219,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
             // Calculate delegation apr
             if (delegationVote.vp > 0) {
-                if (space === "sdcake.eth") {
-                    logs.push({
-                        id: "sdCAKE",
-                        content: [
-                            `Voting power : ${delegationVote.vp}`,
-                            `Rewards : ${delegationVote.totalRewards}`,
-                        ]
-                    });
-                }
-
                 aprs.push({
                     vp: delegationVote.vp,
                     amount: delegationVote.totalRewards,
@@ -336,8 +326,6 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
 
         if (space == SDFXS_SPACE) {
             apr = sumRewards / sdFXSWorkingData.total_vp * 52 * 100;
-        } else if (space === SDCAKE_SPACE) {
-            apr = sumRewards / sdCakeWorkingData.total_vp * 26 * 100;
         }
         else {
             const vpAverage = aprs.reduce((acc, aprData) => acc + aprData.vp, 0) / aprs.length;
