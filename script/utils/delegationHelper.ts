@@ -52,12 +52,13 @@ export const delegationLogger = async (
   space: string,
   proposal: Proposal,
   voters: string[],
-  log: (message: string) => void
+  log: (message: string) => void,
+  chainId: string = "1"
 ) => {
   log(`\nSpace: ${space}`);
-  const delegatorData = await fetchDelegatorData(space, proposal);
+  const delegatorData = await fetchDelegatorData(space, proposal, chainId);
 
-  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.snapshot, "after", 1);
+  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.snapshot, "after", parseInt(chainId));
 
   // If space is cvx.eth, fetch forwarded addresses
   let forwardedMap: Record<string, string> = {};
@@ -122,7 +123,8 @@ export const delegationLogger = async (
 
 export const fetchDelegatorData = async (
   space: string,
-  proposal: any
+  proposal: any,
+  chainId: string = "1"
 ): Promise<DelegatorDataAugmented | null> => {
   const delegators = await processAllDelegators(
     space,
@@ -132,7 +134,8 @@ export const fetchDelegatorData = async (
 
   if (delegators.length === 0) return null;
 
-  const votingPowers = await getVotingPower(proposal, delegators);
+
+  const votingPowers = await getVotingPower(proposal, delegators, chainId);
   const totalVotingPower = Object.values(votingPowers).reduce(
     (acc, vp) => acc + vp,
     0

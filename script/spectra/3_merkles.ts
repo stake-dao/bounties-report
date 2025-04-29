@@ -231,7 +231,7 @@ async function generateMerkles() {
   const proposal = await getLastClosedProposal(SPECTRA_SPACE);
   const proposalId = proposal.id;
 
-  distributionVerifier(SPECTRA_SPACE, base, MERKLE_ADDRESS, newMerkleData, previousMerkleData, currentDistribution.distribution, proposalId);
+  distributionVerifier(SPECTRA_SPACE, base, MERKLE_ADDRESS, newMerkleData, previousMerkleData, currentDistribution.distribution, proposalId, "8453");
 }
 
 generateMerkles().catch(console.error);

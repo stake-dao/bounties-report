@@ -13,7 +13,7 @@ import {
   delegationLogger,
   proposalInformationLogger,
 } from "./delegationHelper";
-import { getLastClosedProposal, getProposal, getVoters } from "./snapshot";
+import { getProposal, getVoters } from "./snapshot";
 import fs from "fs";
 import path from "path";
 const merkleAbi = parseAbi([
@@ -81,7 +81,8 @@ export const distributionVerifier = async (
   currentMerkleData: MerkleData,
   previousMerkleData: MerkleData,
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
-  proposalId: any
+  proposalId: any,
+  chainId: string = "1"
 ) => {
   const addressCount = Object.keys(distribution).length;
   console.log(`Current Distribution has ${addressCount} addresses.`);
@@ -120,7 +121,7 @@ export const distributionVerifier = async (
 
   proposalInformationLogger(space, activeProposal, log);
   log("\n=== Delegation Information ===");
-  await delegationLogger(space, activeProposal, votes, log);
+  await delegationLogger(space, activeProposal, votes, log, chainId);
   log(`\nTotal Votes: ${votes.length}`);
   log(`\nHolder Distribution:`);
 
