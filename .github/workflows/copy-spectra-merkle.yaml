@@ -23,7 +23,7 @@ jobs:
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
 
           cp "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data_tmp.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra_merkle.json"
-          cp "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/delegationsAPRs.json"
+          cp "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/delegationsAPRs.json"
           rm "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra/merkle_data_tmp.json"
 
       - uses: stefanzweifel/git-auto-commit-action@v5
