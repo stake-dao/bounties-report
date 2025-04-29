@@ -189,12 +189,14 @@ async function main() {
   }
   aggregatedBounties = { [protocol]: addGaugeNamesToBounties(aggregatedBounties[protocol], gaugesInfo ?? []) };
 
-
-  // Replace gauge address per root gauge address (if curve + is root gauge + != root gauge and gauge is not root gauge)
-
+  // Replace root gauge address per gauge address and add gauge names for Curve gauges
   for (const bounty of aggregatedBounties[protocol]) {
+
     if (protocol === "curve") {
-      const gaugeInfo = gaugesInfo?.find(gauge => gauge.address.toLowerCase() === bounty.gauge.toLowerCase() || gauge.rootGauge?.toLowerCase() === bounty.gauge.toLowerCase());
+      const gaugeInfo = gaugesInfo?.find(gauge => 
+        gauge.rootGauge?.toLowerCase() === bounty.gauge.toLowerCase() || 
+        gauge.address.toLowerCase() === bounty.gauge.toLowerCase()
+      );
       if (gaugeInfo) {
         bounty.gauge = gaugeInfo.address;
         bounty.gaugeName = gaugeInfo.name;
@@ -333,72 +335,50 @@ async function main() {
       console.log(`No existing file found for ${protocol}. Creating a new one.`);
     }
 
-    const newGaugeAddresses = new Set(data.map(row => row.gaugeAddress.toLowerCase()));
-
-    currentCsvData = currentCsvData.filter(row => {
-      const isNewGauge = newGaugeAddresses.has(row["Gauge Address"].toLowerCase());
-      const hasZeroSdValue = parseFloat(row["Reward sd Value"]) === 0;
-      return !(isNewGauge && hasZeroSdValue);
-    });
-
-    const currentCsvDict = currentCsvData.reduce((acc, row) => {
-      const key = `${row["Gauge Address"]}-${row["Reward Address"]}`;
-      acc[key] = row;
-      return acc;
-    }, {} as Record<string, any>);
-
     const merged: Record<string, any> = {};
 
-    // Iterate existing rows first to seed the map
+    // First, add all existing data
     for (const row of currentCsvData) {
-      const key = row["Gauge Address"].toLowerCase();
-      merged[key] = {
-        // copy the first‐seen info verbatim
-        gaugeName: row["Gauge Name"],
-        gaugeAddress: row["Gauge Address"],
-        rewardToken: row["Reward Token"],
-        rewardAddress: row["Reward Address"],
-        rewardAmount: Number(row["Reward Amount"]),
-        rewardSdValue: Number(row["Reward sd Value"]),
-      };
+      const key = `${row["Gauge Address"].toLowerCase()}-${row["Reward Address"].toLowerCase()}`;
+      merged[key] = row;  // Keep the row as is
     }
 
-    // Now merge in new data, sd‐values
+    // Now merge in new data - only merge if same gauge AND same reward address
     for (const newRow of data) {
-      const key = newRow.gaugeAddress.toLowerCase();
-
+      const key = `${newRow.gaugeAddress.toLowerCase()}-${newRow.rewardAddress.toLowerCase()}`;
       if (merged[key]) {
-        console.log(`Merging into existing gauge ${merged[key].gaugeName} (${merged[key].gaugeAddress}): +${newRow.rewardSdValue} sdTokens`);
-        merged[key].rewardSdValue += newRow.rewardSdValue;
+        // Same gauge and same reward token - add the sdValue
+        merged[key]["Reward sd Value"] = Number(merged[key]["Reward sd Value"]) + newRow.rewardSdValue;
       } else {
-        console.log(`Adding new gauge ${newRow.gaugeName} (${newRow.gaugeAddress})`);
+        // New combination - create new row
         merged[key] = {
-          gaugeName: newRow.gaugeName,
-          gaugeAddress: newRow.gaugeAddress,
-          rewardToken: newRow.rewardToken,
-          rewardAddress: newRow.rewardAddress,
-          rewardAmount: newRow.rewardAmount,
-          rewardSdValue: newRow.rewardSdValue,
+          "Gauge Name": newRow.gaugeName,
+          "Gauge Address": newRow.gaugeAddress,
+          "Reward Token": newRow.rewardToken,
+          "Reward Address": newRow.rewardAddress,
+          "Reward Amount": newRow.rewardAmount,
+          "Reward sd Value": newRow.rewardSdValue
         };
       }
     }
 
+    // Calculate total and percentages
     const totalRewardSdValue = Object.values(merged).reduce(
-      (sum: number, row: any) => sum + parseFloat(row["Reward sd Value"]),
+      (sum: number, row: any) => sum + Number(row["Reward sd Value"]),
       0
     );
 
-    for (const key in merged) {
-      const row = merged[key];
-      row["Share % per Protocol"] = ((parseFloat(row["Reward sd Value"]) / totalRewardSdValue) * 100).toFixed(2);
+    // Update percentages
+    for (const row of Object.values(merged)) {
+      row["Share % per Protocol"] = ((Number(row["Reward sd Value"]) / totalRewardSdValue) * 100).toFixed(2);
     }
-    
-    const updatedCsvData = Object.values(merged);
+
+    // Generate CSV
     const csvContent = [
       "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-      ...updatedCsvData.map((row: any) =>
+      ...Object.values(merged).map(row =>
         `${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
-        `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
+        `${Number(row["Reward Amount"]).toFixed(6)};${Number(row["Reward sd Value"]).toFixed(6)};` +
         `${row["Share % per Protocol"]}`
       )
     ].join("\n");
