@@ -169,14 +169,33 @@ export const getSpectraReport = async (
 export const getSpectraDelegationAPR = async (
   tokens: {
     [tokenAddress: string]: bigint;
-  }
+  },
+  stakeDaoDelegators: string[]
 ): Promise<number> => {
   const sumRewards = parseFloat(formatUnits(Object.values(tokens)[0], 18))
   const {data: sdSpectraWorking} = await axios.get(
     "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdspectra-working-supply.json"
   )
 
+  let totalVpDelegators = 0;
+  const users = Object.keys(sdSpectraWorking.users_working_balance)
+
+  for(const delegator of stakeDaoDelegators) {
+    let found = false
+    for(const user of users) {
+      if(delegator.toLowerCase() === user.toLowerCase()) {
+        totalVpDelegators += sdSpectraWorking.users_working_balance[user];
+        found = true
+        break;
+      }
+    }
+
+    if(!found) {
+      throw new Error("Delegator not found")
+    }
+  }
+  
   // Because we do a weekly distribution
-  return sumRewards / sdSpectraWorking.total_vp * 52 * 100;
+  return sumRewards / totalVpDelegators * 52 * 100;
 };
 

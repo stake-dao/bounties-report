@@ -201,7 +201,7 @@ const main = async () => {
 
           // Compute the APR
           if (delegationAddress.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
-            delegationAPR = await getSpectraDelegationAPR(tokens);
+            delegationAPR = await getSpectraDelegationAPR(tokens, stakeDaoDelegators);
           }
 
           for (const stakeDaoDelegator of stakeDaoDelegators) {
