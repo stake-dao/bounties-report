@@ -27,6 +27,9 @@ import {
   Distribution,
 } from "./nonDelegators";
 import { getGaugesInfos } from "../../utils/reportUtils";
+import { http } from "viem";
+import { createPublicClient } from "viem";
+import { mainnet } from "viem/chains";
 
 dotenv.config();
 
@@ -85,6 +88,16 @@ const processGaugeProposal = async (
 
   const proposal = await getProposal(proposalId);
 
+  // Get snapshot block timestamp
+  const publicClient = createPublicClient({
+    chain: mainnet,
+    transport: http(),
+  });
+  const block = await publicClient.getBlock({
+    blockNumber: BigInt(proposal.snapshot),
+  });
+  const snapshotBlockTimestamp = block.timestamp;
+
   // If FXN
   if (gaugeType === "fxn") {
     gauges = gauges.map((gauge: any) => ({
@@ -95,7 +108,14 @@ const processGaugeProposal = async (
   }
 
   const gaugeMapping = associateGaugesPerId(proposal, gauges);
-  const votes = await getVoters(proposalId);
+  let votes = await getVoters(proposalId);
+
+  if (gaugeType !== "fxn") {
+    // FOR THAT ROUND, TAKE FILE (TODO : Delete this)
+    votes = JSON.parse(
+      fs.readFileSync("script/vlCVX/fix_may_distrib/Round95_fixed.json", "utf8")
+    );
+  }
 
   // --- 2) Process StakeDAO Delegators ---
   console.log("Fetching StakeDAO delegators...");
@@ -110,7 +130,7 @@ const processGaugeProposal = async (
     );
     stakeDaoDelegators = await processAllDelegators(
       space,
-      proposal.created,
+      Number(snapshotBlockTimestamp),
       DELEGATION_ADDRESS
     );
     // Remove any delegator who voted directly.

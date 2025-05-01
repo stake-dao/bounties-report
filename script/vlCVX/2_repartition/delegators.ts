@@ -1,4 +1,3 @@
-import { getAddress } from "viem";
 import { VOTIUM_FORWARDER } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getVotingPower } from "../../utils/snapshot";
