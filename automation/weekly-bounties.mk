@@ -16,7 +16,7 @@ install-deps:
 	@$(PNPM) add -D tsx
 
 # Run all protocols
-run-all: run-votemarket run-votemarket-v2 run-warden run-hiddenhand
+run-all: run-votemarket run-votemarket-v2 run-warden run-hiddenhand run-spectra
 
 # Individual protocol targets for mainnet
 run-votemarket: setup install-deps
@@ -43,13 +43,12 @@ run-convex-v2: setup install-deps
 	@echo "Running Convex Votemarket V2 bounty generation..."
 	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarketV2.ts $(PAST_WEEK)
 
-# BSC specific target
-run-bsc: setup install-deps
-	@echo "Running BSC bounty generation..."
-	@$(PNPM) tsx script/sdTkns/generateBSCBounties.ts $(PAST_WEEK)
+run-spectra: setup install-deps
+	@echo "Running Spectra bounty generation..."
+	@$(PNPM) tsx script/spectra/claims/generateSpectra.ts $(PAST_WEEK)
 
 # Legacy targets for backward compatibility
-run-weekly: run-all run-bsc
+run-weekly: run-all 
 
 run-mainnet: run-all
 
