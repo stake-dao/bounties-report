@@ -95,7 +95,14 @@ const processGaugeProposal = async (
   }
 
   const gaugeMapping = associateGaugesPerId(proposal, gauges);
-  const votes = await getVoters(proposalId);
+  let votes = await getVoters(proposalId);
+
+  if (gaugeType !== "fxn") {
+    // FOR THAT ROUND, TAKE FILE (TODO : Delete this)
+    votes = JSON.parse(
+      fs.readFileSync("script/vlCVX/fix_may_distrib/Round95_fixed.json", "utf8")
+    );
+  }
 
   // --- 2) Process StakeDAO Delegators ---
   console.log("Fetching StakeDAO delegators...");
