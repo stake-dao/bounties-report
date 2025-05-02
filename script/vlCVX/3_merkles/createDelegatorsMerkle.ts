@@ -591,7 +591,7 @@ async function processForwarders() {
   console.log("Total crvUSD for distribution:", totalCrvUsd.toString());
 
   // Calculate SDT amount based on 5% APR
-  const totalSDT = await calculateSDTAmount(3750); // Max SDT cap
+  const totalSDT = await calculateSDTAmount(2500); // Max SDT cap
   console.log("Total SDT for distribution:", totalSDT.toString());
 
   const skippedUsers = new Set([
