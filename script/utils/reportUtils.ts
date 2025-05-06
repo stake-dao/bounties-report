@@ -148,7 +148,8 @@ export async function getTokenInfo(
  */
 export async function getTimestampsBlocks(
   publicClient: PublicClient,
-  pastWeek?: number
+  pastWeek?: number,
+  chain: string = "ethereum"
 ) {
   const currentTimestamp = Math.floor(Date.now() / 1000);
   let timestamp1: number, timestamp2: number;
@@ -163,11 +164,11 @@ export async function getTimestampsBlocks(
     timestamp1 = timestamp2 - pastWeek * WEEK;
   }
 
-  const blockNumber1 = await getClosestBlockTimestamp("ethereum", timestamp1);
+  const blockNumber1 = await getClosestBlockTimestamp(chain, timestamp1);
   const blockNumber2 =
     !pastWeek || pastWeek === 0
       ? Number(await publicClient.getBlockNumber())
-      : await getClosestBlockTimestamp("ethereum", timestamp2);
+      : await getClosestBlockTimestamp(chain, timestamp2);
   return { timestamp1, timestamp2, blockNumber1, blockNumber2 };
 }
 

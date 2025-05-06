@@ -35,10 +35,13 @@ function writeReportToCSV(rows: SpectraClaimed[]) {
 }
 
 async function main() {
+
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
     clients[8453],
-    0
+    0,
+    "base"
   );
+
   const firstReport = await getSpectraDistribution();
 
   // Transform the firstReport to the following format
