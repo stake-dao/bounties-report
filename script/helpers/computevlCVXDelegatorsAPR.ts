@@ -326,10 +326,12 @@ async function computeAPR(): Promise<
       (sumPerToken[normalizedAddress] || 0n) + amount;
   }
 
-  const tokens = Object.keys(sumPerToken);
-  const prices = await getTokenPrices("ethereum", tokens, currentPeriodTimestamp);
 
-  const cvxPriceResponse = await getTokenPrices("ethereum", [CVX], Number(proposal.start)); // Price at the snapshot
+  const tokens = Object.keys(sumPerToken);
+
+  const prices = await getTokenPrices(tokens, currentPeriodTimestamp);
+
+  const cvxPriceResponse = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
   const cvxPrice = cvxPriceResponse[0].price;
 
   // Calculate individual token reward values
@@ -355,8 +357,7 @@ async function computeAPR(): Promise<
   console.log("tokenRewardValues", tokenRewardValues);
 
   // TODO : remove, side chains rewards
-  rewardValueUSD += 5000; // EYWA non forwarders
-  rewardValueUSD += 2917; // Base CRV non forwarders
+  rewardValueUSD += 1859; // Base CRV non forwarders
 
   // Calculate APRs for individual tokens
   const sdtValue = tokenRewardValues[getAddress(SDT)] || 0;
