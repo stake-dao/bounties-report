@@ -3,7 +3,7 @@ name: "[Indexer] Get and push logs"
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 1 * * 4" # Runs every Thursday at 01:00 UTC
+    - cron: "0 0 * * 4" # Runs every Thursday at 00:00 UTC
 
 jobs:
   index-logs:
