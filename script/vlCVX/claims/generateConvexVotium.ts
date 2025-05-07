@@ -611,7 +611,7 @@ async function generateConvexVotiumBounties() {
     ensureDirExists(weeklyBountiesDir);
 
     const nowTimestamp = Math.floor(Date.now() / 1000);
-    const currentPeriodTimestamp = Math.floor(nowTimestamp / WEEK) * WEEK + WEEK; // has it's on tuesday, and used on thursday
+    const currentPeriodTimestamp = Math.floor(nowTimestamp / WEEK) * WEEK;
     const periodFolder = path.join(
       weeklyBountiesDir,
       currentPeriodTimestamp.toString(),
