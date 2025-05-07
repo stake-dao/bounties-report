@@ -2,6 +2,8 @@ name: "[Spectra] Merkle"
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 6" # Runs every Saturday at 00:00 UTC
   repository_dispatch:
     types: [generate-spectra-merkle]
 
