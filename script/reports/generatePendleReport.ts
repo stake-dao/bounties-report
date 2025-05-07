@@ -5,9 +5,19 @@ import { createPublicClient, http, formatUnits, pad } from "viem";
 import { mainnet } from "viem/chains";
 import { getAddress } from "viem";
 import { WEEK } from "../utils/constants";
-import { parseAbiItem, decodeEventLog, parseAbi, keccak256, encodePacked } from "viem";
+import {
+  parseAbiItem,
+  decodeEventLog,
+  parseAbi,
+  keccak256,
+  encodePacked,
+} from "viem";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { getTimestampsBlocks, OTC_REGISTRY, getPendleGaugesInfos } from "../utils/reportUtils";
+import {
+  getTimestampsBlocks,
+  OTC_REGISTRY,
+  getPendleGaugesInfos,
+} from "../utils/reportUtils";
 
 const REPO_PATH = "stake-dao/pendle-merkle-script";
 const DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
@@ -46,7 +56,7 @@ const publicClient = createPublicClient({
 
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
 const sdPENDLE = getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9");
-const WETH = getAddress("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+const USDT = getAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7");
 const explorerUtils = createBlockchainExplorerUtils();
 
 async function getLatestJson(
@@ -83,7 +93,9 @@ async function getLatestJson(
 
 async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
   const transferEventSignature = "Transfer(address,address,uint256)";
-  const transferHash = keccak256(encodePacked(["string"], [transferEventSignature]));
+  const transferHash = keccak256(
+    encodePacked(["string"], [transferEventSignature])
+  );
 
   const transferAbi = parseAbi([
     "event Transfer(address indexed from, address indexed to, uint256 value)",
@@ -124,16 +136,17 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
   for (const [txHash, txLogs] of Object.entries(txGroups)) {
     // Check if any transfer in this tx comes from OTC_REGISTRY
     let hasOTCTransfer = false;
-    
+
     // Get all sdPENDLE transfers in this transaction
-    const allSdPendleTransfersInTx = await explorerUtils.getLogsByAddressesAndTopics(
-      [sdPENDLE],
-      Number(txLogs[0].blockNumber),
-      Number(txLogs[0].blockNumber),
-      { "0": transferHash },
-      1,
-      txHash
-    );
+    const allSdPendleTransfersInTx =
+      await explorerUtils.getLogsByAddressesAndTopics(
+        [sdPENDLE],
+        Number(txLogs[0].blockNumber),
+        Number(txLogs[0].blockNumber),
+        { "0": transferHash },
+        1,
+        txHash
+      );
 
     if (allSdPendleTransfersInTx?.result) {
       for (const log of allSdPendleTransfersInTx.result) {
@@ -175,7 +188,7 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
 async function main() {
   try {
     const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
-    await getTimestampsBlocks(publicClient, 0);
+      await getTimestampsBlocks(publicClient, 0);
 
     // Fetch the repartition of rewards from Pendle scripts repo
     const latestRewards = await getLatestJson(REPO_PATH, DIRECTORY_PATH);
@@ -210,17 +223,18 @@ async function main() {
           const reward = BigInt(gaugeInfo.reward);
           totalRewardAmount += reward;
           const share = Number(reward) / Number(totalVoterRewards);
-          
+
           // Use the gauge name from our map if available, otherwise use the one from the rewards data
-          const gaugeName = gaugeNameMap[address.toLowerCase()] || gaugeInfo.name;
+          const gaugeName =
+            gaugeNameMap[address.toLowerCase()] || gaugeInfo.name;
 
           newData.push({
             Protocol: `${PROTOCOL}`,
-            "Period": period,
+            Period: period,
             "Gauge Name": gaugeName,
             "Gauge Address": address,
-            "Reward Token": "WETH",
-            "Reward Address": WETH,
+            "Reward Token": "USDT",
+            "Reward Address": USDT,
             "Reward Amount": Number(formatUnits(reward, 18)),
             "Reward sd Value": 0, // Will be computed later
             "Share % per Protocol": share * 100,
@@ -288,7 +302,9 @@ async function main() {
     const formattedDate = new Date(timestamp1 * 1000).toLocaleDateString(
       "en-GB"
     );
-    console.log(`Report generated for Pendle for the week of: ${formattedDate}`);
+    console.log(
+      `Report generated for Pendle for the week of: ${formattedDate}`
+    );
     console.log(`File saved at: ${filePath}`);
   } catch (error) {
     console.error("An error occurred:", error);
