@@ -45,7 +45,7 @@ run-convex-v2: setup install-deps
 
 run-spectra: setup install-deps
 	@echo "Running Spectra bounty generation..."
-	@$(PNPM) tsx script/spectra/claims/generateSpectra.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/claims/generateSpectra.ts $(PAST_WEEK)
 
 # Legacy targets for backward compatibility
 run-weekly: run-all 

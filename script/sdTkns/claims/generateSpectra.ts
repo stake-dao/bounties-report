@@ -1,16 +1,9 @@
 import { getSpectraDistribution } from "../../spectra/utils";
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http } from "viem";
-import { mainnet } from "viem/chains";
 import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
 
 const WEEK = 604800;
-
-const ethereumClient = createPublicClient({
-  chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
-});
 
 function customReplacer(key: string, value: any) {
   if (typeof value === "bigint") {
