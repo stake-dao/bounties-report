@@ -28,6 +28,7 @@ on:
           - convex
           - convex-v2
           - votium
+          - spectra
       pastWeek:
         description: "Number of weeks in the past (0 for current week)"
         required: true
@@ -117,7 +118,11 @@ jobs:
           if [ ! -f "$BASE_DIR/votemarket-v2/claimed_bounties_convex.json" ]; then
             make -f automation/weekly-bounties.mk run-convex-v2 PAST_WEEK=0 CHAIN=mainnet
           fi
-          
+
+          if [ ! -f "$BASE_DIR/spectra/claimed_bounties.json" ]; then
+            make -f automation/weekly-bounties.mk run-spectra PAST_WEEK=0 CHAIN=mainnet
+          fi
+
           if [ ! -f "$BASE_DIR/votium/claimed_bounties_convex.json" ]; then
             pnpm tsx script/vlCVX/claims/generateConvexVotium.ts 0
             # Run indexer after votium processing
