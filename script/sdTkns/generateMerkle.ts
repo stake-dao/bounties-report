@@ -6,8 +6,6 @@ import {
 } from "../utils/snapshot";
 import {
   abi,
-  AUTO_VOTER_DELEGATION_ADDRESS,
-  DELEGATION_ADDRESS,
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDPENDLE_SPACE,
@@ -121,52 +119,31 @@ const main = async () => {
     const isPendle = space === SDPENDLE_SPACE;
     const network = SPACE_TO_NETWORK[space];
 
-    if (!csvResult) {
+    // For Pendle, we need to check OTC even if there's no regular report
+    if (!csvResult && !isPendle) {
       continue;
     }
 
     let totalSDToken = 0;
-    if (isPendle) {
-      for (const period of Object.keys(csvResult)) {
-        totalSDToken += Object.values(csvResult[period]).reduce(
-          (acc, amount) => acc + amount,
-          0
-        );
-      }
-    } else {
-      totalSDToken = Object.values(csvResult).reduce(
-        (acc, amount) => acc + amount,
-        0
-      );
-    }
-
     let ids: string[] = [];
-    let pendleRewards: Record<string, Record<string, number>> | undefined =
-      undefined;
+    let pendleRewards: Record<string, Record<string, number>> | undefined = undefined;
 
     if (isPendle) {
-      let proposalsPeriods = await fetchProposalsIdsBasedOnExactPeriods(
-        space,
-        Object.keys(csvResult),
-        currentPeriodTimestamp
-      );
+      // Initialize pendleRewards
       pendleRewards = {};
-      for (const period in csvResult) {
-        const proposalId = proposalsPeriods[period];
-        if (!pendleRewards[proposalId]) {
-          pendleRewards[proposalId] = {};
-        }
-        const rewards = (csvResult as PendleCSVType)[period];
-        for (const address in rewards) {
-          if (pendleRewards[proposalId][address]) {
-            pendleRewards[proposalId][address] += rewards[address];
-          } else {
-            pendleRewards[proposalId][address] = rewards[address];
-          }
+      
+      // Process regular report if it exists
+      if (csvResult) {
+        for (const period of Object.keys(csvResult)) {
+          const periodRewards = (csvResult as PendleCSVType)[period];
+          totalSDToken += Object.values(periodRewards).reduce(
+            (acc, amount) => acc + amount,
+            0
+          );
         }
       }
 
-      // ----- PENDLE OTC CSV handling -----
+      // Process OTC report
       const otcCsvPath = path.join(
         __dirname,
         "..",
@@ -177,12 +154,10 @@ const main = async () => {
       );
 
       if (fs.existsSync(otcCsvPath)) {
-        const otcCsvResult: Record<
-          string,
-          Record<string, number>
-        > = await extractOTCCSV(otcCsvPath);
+        const otcCsvResult: Record<string, Record<string, number>> = await extractOTCCSV(otcCsvPath);
         const otcTimestamps = Object.keys(otcCsvResult);
         const proposalsPeriodsOTC: Record<string, string> = {};
+        
         for (const timestamp of otcTimestamps) {
           const proposalId = await fetchProposalsIdsBasedOnExactPeriods(
             space,
@@ -191,6 +166,7 @@ const main = async () => {
           );
           proposalsPeriodsOTC[timestamp] = proposalId[timestamp];
         }
+
         // Merge OTC rewards into pendleRewards and add to total
         for (const timestamp of otcTimestamps) {
           const proposalId = proposalsPeriodsOTC[timestamp];
@@ -205,8 +181,18 @@ const main = async () => {
           }
         }
       }
+
+      // Only process if we have either regular or OTC rewards
+      if (Object.keys(pendleRewards).length === 0) {
+        continue;
+      }
+
       ids = Object.keys(pendleRewards);
-    } else {
+    } else if (csvResult) {
+      totalSDToken = Object.values(csvResult).reduce(
+        (acc, amount) => acc + amount,
+        0
+      );
       ids = [proposalIdPerSpace[space]];
     }
 
