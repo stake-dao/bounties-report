@@ -326,6 +326,8 @@ async function computeAPR(): Promise<
       (sumPerToken[normalizedAddress] || 0n) + amount;
   }
 
+  // We should also have the ones on sidechains (load files _delegation_{CHAIN_ID})
+
 
   const tokens = Object.keys(sumPerToken);
 
@@ -357,7 +359,7 @@ async function computeAPR(): Promise<
   console.log("tokenRewardValues", tokenRewardValues);
 
   // TODO : remove, side chains rewards
-  rewardValueUSD += 1859; // Base CRV non forwarders
+  rewardValueUSD += 2585; // Base CRV non forwarders
 
   // Calculate APRs for individual tokens
   const sdtValue = tokenRewardValues[getAddress(SDT)] || 0;
@@ -370,7 +372,7 @@ async function computeAPR(): Promise<
 
   // Use delegationVPForwarders for SDT APR calculation only
   const sdtAPR = (annualizedSDT / (cvxPrice * delegationVPForwarders)) * 100;
-  
+
   // Use regular delegationVotingPower for non-SDT APR calculation
   const nonSdtAPR =
     (annualizedNonSDT / (cvxPrice * delegationVotingPower)) * 100;

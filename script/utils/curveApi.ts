@@ -7,6 +7,6 @@ export interface CurveGauge {
 }
 
 export const getAllCurveGauges = async () => {
-    const {data: resp} = await axios.get("https://api.curve.fi/api/getAllGauges");
+    const {data: resp} = await axios.get("https://d3dl9x5bpp6us7.cloudfront.net/api/getAllGauges");
     return Object.values(resp.data) as CurveGauge[];
 }
