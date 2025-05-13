@@ -119,106 +119,161 @@ export function getAllRewardsForDelegators(periodTimestamp: number): {
     forwarders: TokenRewards;
     nonForwarders: TokenRewards;
   };
+  chainRewards: Record<number, {
+    rewards: TokenRewards;
+    rewardsPerGroup: {
+      forwarders: TokenRewards;
+      nonForwarders: TokenRewards;
+    };
+  }>;
 } {
   const basePath = path.join("bounties-reports", `${periodTimestamp}`, "vlCVX");
+  const SUPPORTED_CHAINS = [1, 8453, 42161]; // Ethereum, Base, Arbitrum
 
-  // Delegation repartition (forwarders)
-  const getRepartitionPath = (subdir: string): string =>
-    path.join(basePath, subdir, `repartition_delegation.json`);
+  // Helper function to get repartition path for a specific chain
+  const getRepartitionPath = (subdir: string, chainId: number): string =>
+    chainId === 1
+      ? path.join(basePath, subdir, `repartition_delegation.json`)
+      : path.join(basePath, subdir, `repartition_delegation_${chainId}.json`);
 
-  const curveRepartition = loadJSON<RepartitionDelegationData>(
-    getRepartitionPath("curve"),
-    {
-      distribution: {
-        totalTokens: {},
-        totalPerGroup: {},
-        totalForwardersShare: "0",
-        totalNonForwardersShare: "0",
+  // Initialize chain-specific rewards
+  const chainRewards: Record<number, {
+    rewards: TokenRewards;
+    rewardsPerGroup: {
+      forwarders: TokenRewards;
+      nonForwarders: TokenRewards;
+    };
+  }> = {};
+
+  // Process each chain
+  for (const chainId of SUPPORTED_CHAINS) {
+    const curveRepartition = loadJSON<RepartitionDelegationData>(
+      getRepartitionPath("curve", chainId),
+      {
+        distribution: {
+          totalTokens: {},
+          totalPerGroup: {},
+          totalForwardersShare: "0",
+          totalNonForwardersShare: "0",
+          forwarders: {},
+          nonForwarders: {},
+        },
+      }
+    );
+
+    const fxnRepartition = loadJSON<RepartitionDelegationData>(
+      getRepartitionPath("fxn", chainId),
+      {
+        distribution: {
+          totalTokens: {},
+          totalPerGroup: {},
+          totalForwardersShare: "0",
+          totalNonForwardersShare: "0",
+          forwarders: {},
+          nonForwarders: {},
+        },
+      }
+    );
+
+    // Initialize chain rewards
+    chainRewards[chainId] = {
+      rewards: {},
+      rewardsPerGroup: {
         forwarders: {},
         nonForwarders: {},
       },
+    };
+
+    // Process curve rewards for this chain
+    for (const [token, amount] of Object.entries(curveRepartition.distribution.totalTokens)) {
+      chainRewards[chainId].rewards[getAddress(token)] = BigInt(amount);
     }
-  );
 
-  const fxnRepartition = loadJSON<RepartitionDelegationData>(
-    getRepartitionPath("fxn"),
-    {
-      distribution: {
-        totalTokens: {},
-        totalPerGroup: {},
-        totalForwardersShare: "0",
-        totalNonForwardersShare: "0",
-        forwarders: {},
-        nonForwarders: {},
-      },
+    // Process fxn rewards for this chain
+    for (const [token, amount] of Object.entries(fxnRepartition.distribution.totalTokens)) {
+      const normalizedToken = getAddress(token);
+      chainRewards[chainId].rewards[normalizedToken] = 
+        (chainRewards[chainId].rewards[normalizedToken] || 0n) + BigInt(amount);
     }
-  );
 
-  const rewards: TokenRewards = {
-    ...sumTokensFromDelegation(curveRepartition),
-  };
+    // Process rewards per group for this chain
+    for (const [token, groups] of Object.entries(curveRepartition.distribution.totalPerGroup || {})) {
+      const normalizedToken = getAddress(token);
+      chainRewards[chainId].rewardsPerGroup.forwarders[normalizedToken] = BigInt(groups.forwarders || "0");
+      chainRewards[chainId].rewardsPerGroup.nonForwarders[normalizedToken] = BigInt(groups.nonForwarders || "0");
+    }
 
-  const fxnRewards = sumTokensFromDelegation(fxnRepartition);
-  for (const [token, amount] of Object.entries(fxnRewards)) {
-    rewards[token] = (rewards[token] || 0n) + amount;
+    // Add fxn rewards per group for this chain
+    for (const [token, groups] of Object.entries(fxnRepartition.distribution.totalPerGroup || {})) {
+      const normalizedToken = getAddress(token);
+      chainRewards[chainId].rewardsPerGroup.forwarders[normalizedToken] = 
+        (chainRewards[chainId].rewardsPerGroup.forwarders[normalizedToken] || 0n) + BigInt(groups.forwarders || "0");
+      chainRewards[chainId].rewardsPerGroup.nonForwarders[normalizedToken] = 
+        (chainRewards[chainId].rewardsPerGroup.nonForwarders[normalizedToken] || 0n) + BigInt(groups.nonForwarders || "0");
+    }
   }
 
-  // Initialize rewards per group
+  // Combine all chain rewards for the main return value
+  const rewards: TokenRewards = {};
   const forwardersRewards: TokenRewards = {};
   const nonForwardersRewards: TokenRewards = {};
 
-  // Extract rewards per group from curve repartition
-  for (const [token, groups] of Object.entries(curveRepartition.distribution.totalPerGroup || {})) {
-    forwardersRewards[token] = BigInt(groups.forwarders || "0");
-    nonForwardersRewards[token] = BigInt(groups.nonForwarders || "0");
+  // Combine rewards from all chains
+  for (const chainData of Object.values(chainRewards)) {
+    for (const [token, amount] of Object.entries(chainData.rewards)) {
+      rewards[token] = (rewards[token] || 0n) + amount;
+    }
+    for (const [token, amount] of Object.entries(chainData.rewardsPerGroup.forwarders)) {
+      forwardersRewards[token] = (forwardersRewards[token] || 0n) + amount;
+    }
+    for (const [token, amount] of Object.entries(chainData.rewardsPerGroup.nonForwarders)) {
+      nonForwardersRewards[token] = (nonForwardersRewards[token] || 0n) + amount;
+    }
   }
 
-  // Add rewards per group from fxn repartition
-  for (const [token, groups] of Object.entries(fxnRepartition.distribution.totalPerGroup || {})) {
-    forwardersRewards[token] = (forwardersRewards[token] || 0n) + BigInt(groups.forwarders || "0");
-    nonForwardersRewards[token] = (nonForwardersRewards[token] || 0n) + BigInt(groups.nonForwarders || "0");
+  // Get forwarders from all chains
+  const allForwarders = new Set<string>();
+  for (const chainId of SUPPORTED_CHAINS) {
+    const curveRepartition = loadJSON<RepartitionDelegationData>(
+      getRepartitionPath("curve", chainId),
+      {
+        distribution: {
+          totalTokens: {},
+          totalPerGroup: {},
+          totalForwardersShare: "0",
+          totalNonForwardersShare: "0",
+          forwarders: {},
+          nonForwarders: {},
+        },
+      }
+    );
+    const fxnRepartition = loadJSON<RepartitionDelegationData>(
+      getRepartitionPath("fxn", chainId),
+      {
+        distribution: {
+          totalTokens: {},
+          totalPerGroup: {},
+          totalForwardersShare: "0",
+          totalNonForwardersShare: "0",
+          forwarders: {},
+          nonForwarders: {},
+        },
+      }
+    );
+
+    // Add forwarders from both repartitions
+    Object.keys(curveRepartition.distribution.forwarders || {}).forEach(addr => allForwarders.add(getAddress(addr)));
+    Object.keys(fxnRepartition.distribution.forwarders || {}).forEach(addr => allForwarders.add(getAddress(addr)));
   }
-
-  // Format properly token addresses
-  let formattedRewards: Record<string, bigint> = {};
-  let formattedForwardersRewards: Record<string, bigint> = {};
-  let formattedNonForwardersRewards: Record<string, bigint> = {};
-
-  for (const [token, amount] of Object.entries(rewards)) {
-    formattedRewards[getAddress(token)] = amount;
-  }
-
-  for (const [token, amount] of Object.entries(forwardersRewards)) {
-    formattedForwardersRewards[getAddress(token)] = amount;
-  }
-
-  for (const [token, amount] of Object.entries(nonForwardersRewards)) {
-    formattedNonForwardersRewards[getAddress(token)] = amount;
-  }
-
-  // Extract forwarders addresses from both repartitions
-  const curveForwarders = Object.keys(
-    curveRepartition.distribution.forwarders || {}
-  );
-  const fxnForwarders = Object.keys(
-    fxnRepartition.distribution.forwarders || {}
-  );
-
-  // Combine and deduplicate forwarders
-  const allForwarders = [...new Set([...curveForwarders, ...fxnForwarders])];
-
-  // Format forwarder addresses to checksum format
-  const formattedForwarders = allForwarders.map((address) =>
-    getAddress(address)
-  );
 
   return {
-    rewards: formattedRewards,
-    forwarders: formattedForwarders,
+    rewards,
+    forwarders: Array.from(allForwarders),
     rewardsPerGroup: {
-      forwarders: formattedForwardersRewards,
-      nonForwarders: formattedNonForwardersRewards,
-    }
+      forwarders: forwardersRewards,
+      nonForwarders: nonForwardersRewards,
+    },
+    chainRewards,
   };
 }
 

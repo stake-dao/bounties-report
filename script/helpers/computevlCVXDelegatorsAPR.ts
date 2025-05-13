@@ -1,7 +1,6 @@
 import {
   createPublicClient,
   http,
-  formatEther,
   keccak256,
   encodePacked,
   pad,
@@ -27,7 +26,7 @@ import {
   SDT,
   CVX,
 } from "../utils/constants";
-import { extractCSV, getHistoricalTokenPrice } from "../utils/utils";
+import { extractCSV } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import { ALL_MIGHT, REWARDS_ALLOCATIONS_POOL } from "../utils/reportUtils";
@@ -35,6 +34,11 @@ import { writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import { processAllDelegators } from "../utils/cacheUtils";
 import { getAllRewardsForDelegators } from "./utils";
+import {
+  getHistoricalTokenPrices,
+  TokenIdentifier,
+  LLAMA_NETWORK_MAPPING,
+} from "../utils/priceUtils";
 const REWARD_TOKENS = [CRVUSD, SDT];
 
 interface APRResult {
@@ -60,12 +64,24 @@ interface TokenPrice {
   address: string;
   price: number;
   decimals: number;
+  chainId: number;
 }
 
 type CvxCSVType = Record<
   string,
   { rewardAddress: string; rewardAmount: bigint; chainId?: number }[]
 >;
+
+interface ChainDelegationData {
+  totalTokens: Record<string, string>;
+  totalPerGroup: Record<
+    string,
+    {
+      forwarders: string;
+      nonForwarders: string;
+    }
+  >;
+}
 
 const publicClient = createPublicClient({
   chain: mainnet,
@@ -75,23 +91,6 @@ const publicClient = createPublicClient({
 const skippedUsers = new Set([
   getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"), // Bent
 ]);
-
-async function getTokenPrices(
-  tokens: string[],
-  currentPeriodTimestamp: number
-): Promise<TokenPrice[]> {
-  const prices = await Promise.all(
-    tokens.map(async (token) => {
-      const price = await getHistoricalTokenPrice(
-        currentPeriodTimestamp,
-        "ethereum",
-        token
-      );
-      return { address: token, price, decimals: 18 };
-    })
-  );
-  return prices;
-}
 
 async function getRewards(
   startBlock: number,
@@ -195,7 +194,6 @@ async function computeAPR(): Promise<
     now,
     filter
   );
-  // Try to find the address with different casing
   const proposalId = proposalIdPerSpace[CVX_SPACE];
   console.log("Using proposal:", proposalId);
 
@@ -255,10 +253,7 @@ async function computeAPR(): Promise<
   // Calculate delegationVPSDT by subtracting skipped users' voting power
   let delegationVPSDT = delegationVotingPower;
   for (const skippedUser of skippedUsers) {
-    // Normalize the skipped user address
     const normalizedSkippedUser = getAddress(skippedUser);
-
-    // Check if this user exists in the delegator voting powers
     if (delegatorVotingPowers[normalizedSkippedUser]) {
       delegationVPSDT -= delegatorVotingPowers[normalizedSkippedUser];
       console.log(
@@ -267,7 +262,6 @@ async function computeAPR(): Promise<
         )} VP from skipped user ${normalizedSkippedUser}`
       );
     } else {
-      // Try to find the address with different casing
       const foundAddress = Object.keys(delegatorVotingPowers).find(
         (addr) => addr.toLowerCase() === normalizedSkippedUser.toLowerCase()
       );
@@ -283,86 +277,135 @@ async function computeAPR(): Promise<
     }
   }
 
-  // Get all rewards on the Week received by the Merkles
-  // Get block numbers
+  // Get Thursday rewards (from getAllRewardsForDelegators)
+  const thursdayRewards = getAllRewardsForDelegators(currentPeriodTimestamp);
+  console.log("Thursday rewards:", thursdayRewards.chainRewards);
+
+  // Get swapped delegator rewards (already on merkle)
   const currentBlock = Number(await publicClient.getBlockNumber());
   const minBlock = await getClosestBlockTimestamp(
     "ethereum",
     currentPeriodTimestamp
   );
-  const rewards = await getRewards(minBlock, currentBlock, REWARD_TOKENS);
+  const swappedDelegRewards = await getRewards(
+    minBlock,
+    currentBlock,
+    REWARD_TOKENS
+  );
 
-  // First, calculate sumPerToken from the rewards array
-  const sumPerToken = rewards.reduce((acc, reward) => {
+  // Calculate total delegator rewards by combining Thursday rewards and swapped deleg rewards
+  const totalDelegatorsRewards = { ...thursdayRewards };
+
+  // Add swapped deleg rewards to Ethereum chain
+  for (const reward of swappedDelegRewards) {
     const normalizedAddress = getAddress(reward.token);
-    acc[normalizedAddress] = (acc[normalizedAddress] || 0n) + reward.amount;
-    return acc;
-  }, {} as Record<string, bigint>);
+    if (!totalDelegatorsRewards.chainRewards[1]) {
+      totalDelegatorsRewards.chainRewards[1] = {
+        rewards: {},
+        rewardsPerGroup: { forwarders: {}, nonForwarders: {} },
+      };
+    }
+    totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.nonForwarders[
+      normalizedAddress
+    ] =
+      (totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.nonForwarders[
+        normalizedAddress
+      ] || 0n) + reward.amount;
+  }
 
-  console.log("sumPerToken", sumPerToken);
-
-  // Get Thursday rewards and merge them with sumPerToken
-  const thursdayRewards = getAllRewardsForDelegators(currentPeriodTimestamp);
+  console.log(
+    "Total delegators rewards (Ethereum):",
+    totalDelegatorsRewards.chainRewards[1]?.rewardsPerGroup.nonForwarders
+  );
 
   // Create a Set of forwarder addresses for efficient lookup
-  const forwardersSet = new Set(thursdayRewards.forwarders.map(addr => addr.toLowerCase()));
+  const forwardersSet = new Set(
+    thursdayRewards.forwarders.map((addr) => addr.toLowerCase())
+  );
 
   // Calculate delegationVPForwarders by only including voting power from forwarders
   let delegationVPForwarders = 0;
   for (const [address, votingPower] of Object.entries(delegatorVotingPowers)) {
     if (forwardersSet.has(address.toLowerCase())) {
       delegationVPForwarders += votingPower;
-      console.log(`Including forwarder ${address} with VP: ${votingPower.toFixed(2)}`);
+      console.log(
+        `Including forwarder ${address} with VP: ${votingPower.toFixed(2)}`
+      );
     }
   }
 
   console.log(`Total forwarders VP: ${delegationVPForwarders.toFixed(2)}`);
-  
-  // TODO : Add side delegs tokens
-  // Properly merge Thursday rewards with sumPerToken - using only nonForwarders part
-  for (const [token, amount] of Object.entries(thursdayRewards.rewardsPerGroup.nonForwarders)) {
-    const normalizedAddress = getAddress(token);
-    sumPerToken[normalizedAddress] =
-      (sumPerToken[normalizedAddress] || 0n) + amount;
+
+  // Prepare token identifiers for price fetching
+  const tokenIdentifiers: TokenIdentifier[] = [];
+  for (const [chainId, chainData] of Object.entries(
+    totalDelegatorsRewards.chainRewards
+  )) {
+    const tokens = Object.keys(chainData.rewardsPerGroup.nonForwarders);
+    if (tokens.length > 0) {
+      tokens.forEach((address) => {
+        tokenIdentifiers.push({
+          chainId: Number(chainId),
+          address: getAddress(address),
+        });
+      });
+    }
   }
 
-  // We should also have the ones on sidechains (load files _delegation_{CHAIN_ID})
+  // Fetch all prices at once for current period
+  const prices = await getHistoricalTokenPrices(
+    tokenIdentifiers,
+    currentPeriodTimestamp
+  );
+  console.log("prices", prices);
 
-
-  const tokens = Object.keys(sumPerToken);
-
-  const prices = await getTokenPrices(tokens, currentPeriodTimestamp);
-
-  const cvxPriceResponse = await getTokenPrices([CVX], Number(proposal.start)); // Price at the snapshot
-  const cvxPrice = cvxPriceResponse[0].price;
+  // Get CVX price separately at proposal start timestamp
+  const cvxPriceResponse = await getHistoricalTokenPrices(
+    [{ chainId: 1, address: getAddress(CVX) }],
+    Number(proposal.start)
+  );
+  console.log("cvxPriceResponse", cvxPriceResponse);
+  const cvxPrice = cvxPriceResponse[`ethereum:${CVX.toLowerCase()}`];
+  if (!cvxPrice) {
+    throw new Error(`CVX price not found at timestamp ${proposal.start}`);
+  }
+  console.log("cvxPrice", cvxPrice);
 
   // Calculate individual token reward values
   const tokenRewardValues: Record<string, number> = {};
   let rewardValueUSD = 0;
   let rewardValueUSDWithoutSDT = 0;
 
-  for (const price of prices) {
-    const tokenAmount = sumPerToken[getAddress(price.address)] || 0n;
-    const valueUSD =
-      price.price * (Number(tokenAmount) / Math.pow(10, price.decimals));
+  // Calculate values for each token using chain-specific prices
+  for (const [key, price] of Object.entries(prices)) {
+    const [network, address] = key.split(":");
+    const chainId = Object.entries(LLAMA_NETWORK_MAPPING).find(
+      ([_, n]) => n === network
+    )?.[0];
+    if (!chainId) continue;
 
-    tokenRewardValues[price.address] = valueUSD;
+    const chainIdNum = Number(chainId);
+    const tokenAmount =
+      totalDelegatorsRewards.chainRewards[chainIdNum]?.rewardsPerGroup
+        .nonForwarders[getAddress(address)] || 0n;
+
+    const valueUSD = price * (Number(tokenAmount) / Math.pow(10, 18)); // Assuming 18 decimals
+
+    tokenRewardValues[address] = valueUSD;
     rewardValueUSD += valueUSD;
 
     // Exclude SDT from the without-SDT calculation
-    if (price.address.toLowerCase() !== SDT.toLowerCase()) {
+    if (address.toLowerCase() !== SDT.toLowerCase()) {
       rewardValueUSDWithoutSDT += valueUSD;
     }
   }
 
   // Log token reward values
   console.log("tokenRewardValues", tokenRewardValues);
-
-  // TODO : remove, side chains rewards
-  rewardValueUSD += 2585; // Base CRV non forwarders
+  console.log("Total rewardValueUSD:", rewardValueUSD);
 
   // Calculate APRs for individual tokens
-  const sdtValue = tokenRewardValues[getAddress(SDT)] || 0;
+  const sdtValue = tokenRewardValues[SDT.toLowerCase()] || 0;
 
   // Calculate total non-SDT rewards
   const nonSdtValue = rewardValueUSD - sdtValue;
@@ -389,7 +432,7 @@ async function computeAPR(): Promise<
 
   return {
     totalVotingPower,
-    delegationVotingPower, // Keep using regular VP for the return value
+    delegationVotingPower,
     delegationShare: delegationVotingPower / totalVotingPower,
     rewardValueUSD,
     cvxPrice,
