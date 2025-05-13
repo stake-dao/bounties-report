@@ -24,9 +24,12 @@ import {
   fetchLastProposalsIds,
   getProposal,
   getVoters,
-  getVotingPower,
 } from "../../utils/snapshot";
-import { getHistoricalTokenPrice } from "../../utils/utils";
+import {
+  getHistoricalTokenPrices,
+  TokenIdentifier,
+  LLAMA_NETWORK_MAPPING,
+} from "../../utils/priceUtils";
 import {
   CRV_ADDRESS,
   mapTokenSwapsToOutToken,
@@ -140,12 +143,21 @@ async function calculateSDTAmount(maxSDT: bigint): Promise<bigint> {
   }
 
   // Get CVX and SDT prices
-  const cvxPrice = await getHistoricalTokenPrice(
-    Number(proposal.start),
-    "ethereum",
-    CVX
+  const cvxPriceResponse = await getHistoricalTokenPrices(
+    [{ chainId: 1, address: getAddress(CVX) }],
+    Number(proposal.start)
   );
-  const sdtPrice = await getHistoricalTokenPrice(now, "ethereum", SDT);
+  const sdtPriceResponse = await getHistoricalTokenPrices(
+    [{ chainId: 1, address: getAddress(SDT) }],
+    now
+  );
+
+  const cvxPrice = cvxPriceResponse[`ethereum:${CVX.toLowerCase()}`];
+  const sdtPrice = sdtPriceResponse[`ethereum:${SDT.toLowerCase()}`];
+
+  if (!cvxPrice || !sdtPrice) {
+    throw new Error("Failed to get token prices");
+  }
 
   // Calculate required SDT amount for 5% APR
   // Formula: (sdtAmount * sdtPrice * 52) / (cvxPrice * delegationVPSDT) * 100 = 5
@@ -290,7 +302,7 @@ async function getProtocolShares(
 
     if (fs.existsSync(votiumForwardPath)) {
       votiumForwarders = JSON.parse(fs.readFileSync(votiumForwardPath, "utf8"));
-      
+
       // Only process forwarders if we have valid data
       if (votiumForwarders.tokenAllocations) {
         // Subtract forwarders amounts
@@ -499,7 +511,7 @@ async function computeShares(
 
   let totalValidShares = 0;
   let combined: { [address: string]: { tokens: { [token: string]: bigint } } } = {};
-  
+
   // If SDT : Curve (SDT)
   if (totalSDT > 0n) {
     for (const [address, shareStr] of Object.entries(
@@ -612,13 +624,13 @@ async function processForwarders() {
     skippedUsers
   );
 
-  const fxnCombined = fxnDelegationSummary 
+  const fxnCombined = fxnDelegationSummary
     ? await computeShares(
-        protocolShares.fxnCrvUsdAmount,
-        0n,
-        fxnDelegationSummary,
-        skippedUsers
-      )
+      protocolShares.fxnCrvUsdAmount,
+      0n,
+      fxnDelegationSummary,
+      skippedUsers
+    )
     : {};
 
   // Merge the two distributions (sum token amounts if same address)

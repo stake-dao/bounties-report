@@ -20,16 +20,16 @@ import {
   DELEGATION_ADDRESS,
   CVX_SPACE,
   WEEK,
-  VLCVX_NON_DELEGATORS_MERKLE,
   CVX,
 } from "../utils/constants";
-import { extractCSV, getHistoricalTokenPrice } from "../utils/utils";
-import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { BOTMARKET } from "../utils/reportUtils";
+import { extractCSV } from "../utils/utils";
 import { writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import { getAllRewardsForVotersOnChain, computeAnnualizedAPR } from "./utils";
+import {
+  getHistoricalTokenPrices,
+  TokenIdentifier,
+} from "../utils/priceUtils";
 
 interface APRResult {
   totalVotingPower: number;
@@ -63,84 +63,6 @@ const publicClient = createPublicClient({
   transport: http("https://rpc.flashbots.net"),
 });
 
-async function getTokenPrices(
-  chain: string,
-  tokens: string[],
-  currentPeriodTimestamp: number
-): Promise<TokenPrice[]> {
-  const prices = await Promise.all(
-    tokens.map(async (token) => {
-      const price = await getHistoricalTokenPrice(
-        currentPeriodTimestamp,
-        chain,
-        token
-      );
-      return { address: token, price, decimals: 18 };
-    })
-  );
-  return prices;
-}
-
-async function getRewards(
-  startBlock: number,
-  endBlock: number,
-  tokens: string[]
-): Promise<TokenTransfer[]> {
-  const explorerUtils = createBlockchainExplorerUtils();
-  const transferSig = "Transfer(address,address,uint256)";
-  const transferHash = keccak256(encodePacked(["string"], [transferSig]));
-
-  const paddedBotmarket = pad(BOTMARKET as `0x${string}`, {
-    size: 32,
-  }).toLowerCase();
-  const paddedNonDelegators = pad(
-    VLCVX_NON_DELEGATORS_MERKLE as `0x${string}`,
-    {
-      size: 32,
-    }
-  ).toLowerCase();
-
-  // Query for transfers from BOTMARKET
-  const topicsBotmarket = {
-    "0": transferHash,
-    "1": paddedBotmarket,
-    "2": paddedNonDelegators,
-  };
-
-  const responseBotmarket = await explorerUtils.getLogsByAddressesAndTopics(
-    tokens,
-    startBlock,
-    endBlock,
-    topicsBotmarket,
-    1
-  );
-
-  // Remove duplicates with same transactionHash AND token address
-  const uniqueTransfers = responseBotmarket.result.filter(
-    (transfer, index, self) =>
-      index ===
-      self.findIndex(
-        (t) =>
-          t.transactionHash === transfer.transactionHash &&
-          t.address === transfer.address
-      )
-  );
-
-  if (uniqueTransfers.length === 0) {
-    throw new Error("No token transfers found");
-  }
-
-  return uniqueTransfers.map((transfer) => {
-    const [amount] = decodeAbiParameters([{ type: "uint256" }], transfer.data);
-
-    return {
-      token: transfer.address.toLowerCase(),
-      amount: BigInt(amount),
-      blockNumber: parseInt(transfer.blockNumber, 16),
-    };
-  });
-}
-
 async function computeAPR(): Promise<APRResult> {
   const now = moment.utc().unix();
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
@@ -162,17 +84,6 @@ async function computeAPR(): Promise<APRResult> {
     )
   );
   console.log(`Found ${gauges.length} gauges in report`);
-
-  /*
-  // Get relevant tokens from CSV
-  const tokens = Array.from(
-    new Set(
-      Object.values(csvResult).flatMap((gauge) =>
-        gauge.filter((g) => g.chainId === 1).map((g) => g.rewardAddress)
-      )
-    )
-  );
-  */
 
   // Fetch last proposal
   console.log("Fetching latest proposal...");
@@ -212,9 +123,9 @@ async function computeAPR(): Promise<APRResult> {
 
       for (const [choiceIndex, value] of Object.entries(vote.choice)) {
         if (gaugeInfo.choiceId === parseInt(choiceIndex)) {
-          currentChoiceIndex = value;
+          currentChoiceIndex = Number(value);
         }
-        vpChoiceSum += value;
+        vpChoiceSum += Number(value);
       }
 
       if (currentChoiceIndex > 0) {
@@ -233,37 +144,36 @@ async function computeAPR(): Promise<APRResult> {
   totalVotingPower -= delegationVotingPower;
 
   // Get all rewards on the Week received by the Merkles
-  // Get block numbers
-  const currentBlock = Number(await publicClient.getBlockNumber());
-  const minBlock = await getClosestBlockTimestamp(
-    "ethereum",
-    currentPeriodTimestamp
-  );
-  /*
-  const rewards = await getRewards(minBlock, currentBlock, tokens);
-
-  const sumPerToken = rewards.reduce((acc, reward) => {
-    acc[getAddress(reward.token)] =
-      (acc[getAddress(reward.token)] || 0n) + reward.amount;
-    return acc;
-  }, {} as Record<string, bigint>);
-  */
   const allRewards = getAllRewardsForVotersOnChain(1, currentPeriodTimestamp);
   const tokens = Object.keys(allRewards);
-  const sumPerToken = allRewards as Record<string, bigint>;
 
-  const prices = await getTokenPrices("ethereum", tokens, currentPeriodTimestamp);
+  // Prepare token identifiers for price fetching
+  const tokenIdentifiers: TokenIdentifier[] = tokens.map(token => ({
+    chainId: 1,
+    address: getAddress(token)
+  }));
 
-  const cvxPriceResponse = await getTokenPrices("ethereum", [CVX], Number(proposal.start)); // Price at the snapshot
-  const cvxPrice = cvxPriceResponse[0].price;
+  // Fetch all prices at once
+  const prices = await getHistoricalTokenPrices(tokenIdentifiers, currentPeriodTimestamp);
+
+  // Get CVX price at proposal start timestamp
+  const cvxPriceResponse = await getHistoricalTokenPrices(
+    [{ chainId: 1, address: getAddress(CVX) }],
+    Number(proposal.start)
+  );
+  const cvxPrice = cvxPriceResponse[`ethereum:${CVX.toLowerCase()}`];
+  if (!cvxPrice) {
+    throw new Error(`CVX price not found at timestamp ${proposal.start}`);
+  }
 
   // Calculate total reward value in USD
-  const rewardValueUSD = prices.reduce((total, price) => {
-    const tokenAmount = sumPerToken[getAddress(price.address)] || 0n;
-    const valueUSD =
-      price.price * (Number(tokenAmount) / Math.pow(10, price.decimals));
-    return total + valueUSD;
-  }, 0);
+  let rewardValueUSD = 0;
+  for (const token of tokens) {
+    const key = `ethereum:${token.toLowerCase()}`;
+    const price = prices[key] || 0;
+    const amount = allRewards[token] || 0n;
+    rewardValueUSD += price * (Number(amount) / 1e18);
+  }
 
   // Calculate APR
   const annualizedAPR = computeAnnualizedAPR(
@@ -271,6 +181,7 @@ async function computeAPR(): Promise<APRResult> {
     rewardValueUSD,
     cvxPrice
   );
+
   return {
     totalVotingPower,
     rewardValueUSD,

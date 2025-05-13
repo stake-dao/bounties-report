@@ -12,7 +12,6 @@ import moment from "moment";
 import {
   CvxCSVType,
   extractCSV,
-  getHistoricalTokenPrice,
 } from "../utils/utils";
 import * as dotenv from "dotenv";
 import { clients } from "../utils/constants";

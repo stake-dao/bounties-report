@@ -18,7 +18,7 @@ import {
   WEEK,
   VLCVX_NON_DELEGATORS_MERKLE,
 } from "../utils/constants";
-import { getHistoricalTokenPrice } from "../utils/utils";
+import { getHistoricalTokenPrices, TokenIdentifier, LLAMA_NETWORK_MAPPING } from "../utils/priceUtils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import { BOTMARKET } from "../utils/reportUtils";
@@ -67,17 +67,21 @@ async function getTokenPrices(
   tokens: string[],
   currentPeriodTimestamp: number
 ): Promise<TokenPrice[]> {
-  const prices = await Promise.all(
-    tokens.map(async (token) => {
-      const price = await getHistoricalTokenPrice(
-        currentPeriodTimestamp,
-        chain,
-        token
-      );
-      return { address: token, price, decimals: 18 };
-    })
-  );
-  return prices;
+  const tokenIdentifiers: TokenIdentifier[] = tokens.map(token => ({
+    chainId: Number(chain),
+    address: token
+  }));
+
+  const prices = await getHistoricalTokenPrices(tokenIdentifiers, currentPeriodTimestamp);
+  
+  return tokens.map(token => {
+    const key = `${LLAMA_NETWORK_MAPPING[Number(chain)]}:${token.toLowerCase()}`;
+    return {
+      address: token,
+      price: prices[key] || 0,
+      decimals: 18
+    };
+  });
 }
 
 async function getRewards(
