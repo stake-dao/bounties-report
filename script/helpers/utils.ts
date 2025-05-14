@@ -56,16 +56,6 @@ function sumTokensFromRepartition(data: RepartitionData): TokenRewards {
   return result;
 }
 
-function sumTokensFromDelegation(
-  data: RepartitionDelegationData
-): TokenRewards {
-  const result: TokenRewards = {};
-  for (const [token, amount] of Object.entries(data.distribution.totalTokens)) {
-    result[token] = BigInt(amount);
-  }
-  return result;
-}
-
 // ============ vlCVX ============
 
 export function getAllRewardsForVotersOnChain(
