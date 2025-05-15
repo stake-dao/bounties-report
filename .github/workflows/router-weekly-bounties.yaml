@@ -10,7 +10,7 @@ on:
       - update-convex-claims
       - update-convex-v2-claims
       - update-spectra-claims
-
+      - update-votium-claims
 jobs:
   call-weekly-bounties:
     uses: ./.github/workflows/weekly-bounties.yaml
@@ -22,7 +22,9 @@ jobs:
           github.event.action == 'update-warden-claims' && 'warden' ||
           github.event.action == 'update-hiddenhand-claims' && 'hiddenhand' ||
           github.event.action == 'update-convex-claims' && 'convex' ||
-          github.event.action == 'update-convex-v2-claims' && 'convex-v2'
+          github.event.action == 'update-convex-v2-claims' && 'convex-v2' ||
+          github.event.action == 'update-spectra-claims' && 'spectra' ||
+          github.event.action == 'update-votium-claims' && 'votium'
         }}
       pastWeek: ${{ github.event.client_payload.pastWeek || '0' }}
     secrets: inherit

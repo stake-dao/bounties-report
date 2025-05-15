@@ -9,7 +9,7 @@ on:
       pastWeek:
         type: string
         required: false
-        default: '0'
+        default: "0"
   workflow_dispatch:
     inputs:
       bountyType:
@@ -29,9 +29,6 @@ on:
         description: "Number of weeks in the past (0 for current week)"
         required: true
         default: "0"
-  schedule:
-    - cron: "0 19 * * 4" # Every Thursday at 19:00 UTC
-
 jobs:
   process-bounties:
     runs-on: ubuntu-latest
@@ -82,28 +79,28 @@ jobs:
           CURRENT_TIMESTAMP=$(date +%s)
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
           BASE_DIR="weekly-bounties/$CURRENT_PERIOD"
-          
+
           # Check and run each protocol if needed
           if [ ! -f "$BASE_DIR/votemarket/claimed_bounties.json" ]; then
             make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=0
           fi
-          
+
           if [ ! -f "$BASE_DIR/votemarket-v2/claimed_bounties.json" ]; then
             make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=0
           fi
-          
+
           if [ ! -f "$BASE_DIR/warden/claimed_bounties.json" ]; then
             make -f automation/weekly-bounties.mk run-warden PAST_WEEK=0
           fi
-          
+
           if [ ! -f "$BASE_DIR/hiddenhand/claimed_bounties.json" ]; then
             make -f automation/weekly-bounties.mk run-hiddenhand PAST_WEEK=0
           fi
-          
+
           if [ ! -f "$BASE_DIR/votemarket/claimed_bounties_convex.json" ]; then
             make -f automation/weekly-bounties.mk run-convex PAST_WEEK=0
           fi
-          
+
           if [ ! -f "$BASE_DIR/votemarket-v2/claimed_bounties_convex.json" ]; then
             make -f automation/weekly-bounties.mk run-convex-v2 PAST_WEEK=0
           fi
@@ -114,9 +111,6 @@ jobs:
 
           if [ ! -f "$BASE_DIR/votium/claimed_bounties_convex.json" ]; then
             pnpm tsx script/vlCVX/claims/generateConvexVotium.ts 0
-            # Run indexer after votium processing
-            make -f automation/indexer.mk get-delegators
-            make -f automation/indexer.mk commit-and-push
           fi
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
@@ -128,15 +122,15 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          
+
           BOUNTY_TYPE="${{ inputs.bountyType || github.event.inputs.bountyType }}"
-          
+
           # Add all changes and commit
           git add .
           git commit -m "Update ${BOUNTY_TYPE} bounties" || echo "No changes to commit"
-          
+
           # Fetch and rebase
           git pull --rebase origin main
-          
+
           # Push changes
           git push origin main
