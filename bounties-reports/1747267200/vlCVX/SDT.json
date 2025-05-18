@@ -1,9 +1,9 @@
 {
   "amount": 2500,
-  "timestamp": 1747601680,
+  "timestamp": 1747602642,
   "period": 1747267200,
-  "sdtPrice": 0.307155,
+  "sdtPrice": 0.303218,
   "cvxPrice": 3.07,
   "delegationVotingPower": 1934018.9947731793,
-  "apr": 0.6725147763836059
+  "apr": 0.6638947289332233
 }
