@@ -6,6 +6,7 @@ import {
 } from "../utils/snapshot";
 import {
   abi,
+  SPACES_TO_LABELS,
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDPENDLE_SPACE,
@@ -124,7 +125,7 @@ const main = async () => {
       "..",
       "bounties-reports",
       currentPeriodTimestamp.toString(),
-      `${space}-otc.csv`
+      `${SPACES_TO_LABELS[space]}-otc.csv`
     );
     const hasOtc = fs.existsSync(otcCsvPath);
     const otcCsvResult: Record<string, Record<string, number>> = hasOtc
@@ -136,132 +137,84 @@ const main = async () => {
       continue;
     }
 
-    let totalSDToken = 0;
-    // rewardsByProposal[proposalId][address] = amount
+    // --- BUILD A FLAT proposalId → (address → amount) MAP ---
     const rewardsByProposal: Record<string, Record<string, number>> = {};
+    let totalSDToken = 0;
 
-    // --- 1) Regular CSV (one big snapshot) ---
+    // 1) Regular CSV
     if (csvResult) {
-      // we still use the last proposal id for this space
-      const proposalId = proposalIdPerSpace[space];
-      rewardsByProposal[proposalId] = {};
+      if (space === SDPENDLE_SPACE) {
+        // Pendle: csvResult is Record<period, Record<address,amount>>
+        const periods = Object.keys(csvResult);
+        const periodToProp = await fetchProposalsIdsBasedOnExactPeriods(
+          space,
+          periods,
+          currentPeriodTimestamp
+        );
 
-      for (const [address, amount] of Object.entries(csvResult)) {
-        rewardsByProposal[proposalId][address] = amount;
-        totalSDToken += amount;
-      }
-    }
+        for (const period of periods) {
+          const pid = periodToProp[period];
+          if (!rewardsByProposal[pid]) rewardsByProposal[pid] = {};
 
-    // --- 2) OTC CSV (could have multiple timestamps) ---
-    if (hasOtc) {
-      // fetch the proposal id for each OTC timestamp
-      const otcTimestamps = Object.keys(otcCsvResult);
-      const proposalForOtc = await fetchProposalsIdsBasedOnExactPeriods(
-        space,
-        otcTimestamps,
-        currentPeriodTimestamp
-      );
-
-      for (const ts of otcTimestamps) {
-        const pid = proposalForOtc[ts];
-        if (!rewardsByProposal[pid]) rewardsByProposal[pid] = {};
-        for (const [address, amount] of Object.entries(otcCsvResult[ts])) {
-          rewardsByProposal[pid][address] =
-            (rewardsByProposal[pid][address] || 0) + amount;
-          totalSDToken += amount;
+          for (const [addr, amt] of Object.entries(csvResult[period]!)) {
+            rewardsByProposal[pid][addr] =
+              (rewardsByProposal[pid][addr] || 0) + amt;
+            totalSDToken += amt;
+          }
+        }
+      } else {
+        // All other spaces: single snapshot → single proposal
+        const pid = proposalIdPerSpace[space];
+        rewardsByProposal[pid] = {};
+        for (const [addr, amt] of Object.entries(csvResult)) {
+          rewardsByProposal[pid][addr] = amt;
+          totalSDToken += amt;
         }
       }
     }
 
-    // nothing to do if, for example, we only had a CSV header but no rows
+    // 2) OTC CSV
+    if (hasOtc) {
+      // flatten similarly: tsList → proposals, then sum
+      const tsList = Object.keys(otcCsvResult);
+      const tsToProp = await fetchProposalsIdsBasedOnExactPeriods(
+        space,
+        tsList,
+        currentPeriodTimestamp
+      );
+
+      for (const ts of tsList) {
+        const pid = tsToProp[ts];
+        if (!rewardsByProposal[pid]) rewardsByProposal[pid] = {};
+
+        for (const [addr, amt] of Object.entries(otcCsvResult[ts])) {
+          rewardsByProposal[pid][addr] =
+            (rewardsByProposal[pid][addr] || 0) + amt;
+          totalSDToken += amt;
+        }
+      }
+    }
+
+    // nothing to distribute?
     if (totalSDToken === 0) continue;
 
-    // record totals
+    // record & dispatch…
     logData.TotalReported[SPACES_SYMBOL[space]] = totalSDToken;
     logData.SnapshotIds.push({ space, ids: Object.keys(rewardsByProposal) });
 
-    console.log("\-------")
-    console.log(space);
-    console.log(rewardsByProposal);
-    console.log(csvResult);
-    console.log("-------/")
-    // create the Merkle(s)
+    console.log("rewardsByProposal for", space, rewardsByProposal);
+
     const merkleStat = await createMerkle(
       Object.keys(rewardsByProposal),
       space,
       lastMerkles,
-      csvResult,
       rewardsByProposal,
       sdFXSWorkingData,
       sdCakeWorkingData,
       {}
     );
+
     newMerkles.push(merkleStat.merkle);
-
-    // prepare on-chain calls
-    if (!toFreeze[network]) toFreeze[network] = [];
-    if (!toSet[network]) toSet[network] = [];
-    toFreeze[network].push(merkleStat.merkle.address);
-    toSet[network].push(merkleStat.merkle.root);
-
-    delegationAPRs[space] = merkleStat.apr;
-    merkleStat.logs.forEach((log) => {
-      logData[log.id] = (logData[log.id] || []).concat(log.content);
-    });
-  }
-
-  for (const network of Object.keys(toFreeze)) {
-    let multiSetName: undefined | string = undefined;
-    if (network === "ethereum") {
-      multiSetName = "multiSet";
-    } else {
-      multiSetName = "multiUpdateMerkleRoot";
-    }
-
-    const freezeData = encodeFunctionData({
-      abi,
-      functionName: "multiFreeze",
-      args: [toFreeze[network] as `0x${string}`[]],
-    });
-
-    const multiSetData = encodeFunctionData({
-      abi,
-      functionName: multiSetName as any,
-      args: [
-        toFreeze[network] as `0x${string}`[],
-        toSet[network] as `0x${string}`[],
-      ],
-    });
-
-    logData["Transactions"].push({
-      network: network,
-      tokenAddressesToFreeze: toFreeze[network],
-      newMerkleRoots: toSet[network],
-      toFreeze: {
-        contract: NETWORK_TO_STASH[network],
-        data: freezeData,
-      },
-      toSet: {
-        contract: NETWORK_TO_STASH[network],
-        function: multiSetName,
-        data: multiSetData,
-      },
-    });
-  }
-
-  for (const lastMerkle of lastMerkles) {
-    let found = false;
-    for (const newMerkle of newMerkles) {
-      if (
-        newMerkle.address.toLowerCase() === lastMerkle.address.toLowerCase()
-      ) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      newMerkles.push(lastMerkle);
-    }
   }
 
   // Check if the tokens in the merkle contract plus the new tokens to distribute
