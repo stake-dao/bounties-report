@@ -309,6 +309,8 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
     for (let i = 0; i < userRewardAddresses.length; i++) {
         const userAddress = userRewardAddresses[i];
 
+        console.log(userAddress, adjustedUserRewards[userAddress.toLowerCase()]);
+
         const amount = parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString());
 
         elements.push(utils.solidityKeccak256(["uint256", "address", "uint256"], [i, userAddress.toLowerCase(), BigInt(BigNumber.from(amount).toString())]));
