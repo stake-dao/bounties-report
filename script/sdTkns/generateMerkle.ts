@@ -6,6 +6,7 @@ import {
 } from "../utils/snapshot";
 import {
   abi,
+  SPACES_TO_LABELS,
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDPENDLE_SPACE,
@@ -101,7 +102,7 @@ const main = async () => {
   const toSet: Record<string, string[]> = {};
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
-  // Loop through each space (except Pendle, handled separately)
+  // Loop through each space
   for (const space of Object.keys(proposalIdPerSpace)) {
     checkSpace(
       space,
@@ -114,196 +115,106 @@ const main = async () => {
       NETWORK_TO_MERKLE
     );
 
-    // Skip if no CSV data for this space.
-    const csvResult = await extractCSV(currentPeriodTimestamp, space);
-    const isPendle = space === SDPENDLE_SPACE;
     const network = SPACE_TO_NETWORK[space];
+    const csvResult = await extractCSV(currentPeriodTimestamp, space);
 
-    // For Pendle, we need to check OTC even if there's no regular report
-    if (!csvResult && !isPendle) {
+    // Load OTC CSV if it exists
+    const otcCsvPath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "bounties-reports",
+      currentPeriodTimestamp.toString(),
+      `${SPACES_TO_LABELS[space]}-otc.csv`
+    );
+    const hasOtc = fs.existsSync(otcCsvPath);
+    const otcCsvResult: Record<string, Record<string, number>> = hasOtc
+      ? await extractOTCCSV(otcCsvPath)
+      : {};
+
+    // If there's no regular report _and_ no OTC, skip
+    if (!csvResult && Object.keys(otcCsvResult).length === 0) {
       continue;
     }
 
+    // --- BUILD A FLAT proposalId → (address → amount) MAP ---
+    const rewardsByProposal: Record<string, Record<string, number>> = {};
     let totalSDToken = 0;
-    let ids: string[] = [];
-    let pendleRewards: Record<string, Record<string, number>> | undefined = undefined;
 
-    if (isPendle) {
-      console.log("isPendle");
-      // Initialize pendleRewards
-      pendleRewards = {};
-
-
-      // Process regular report if it exists
-      if (csvResult) {
-        let proposalsPeriods = await fetchProposalsIdsBasedOnExactPeriods(
+    // 1) Regular CSV
+    if (csvResult) {
+      if (space === SDPENDLE_SPACE) {
+        // Pendle: csvResult is Record<period, Record<address,amount>>
+        const periods = Object.keys(csvResult);
+        const periodToProp = await fetchProposalsIdsBasedOnExactPeriods(
           space,
-          Object.keys(csvResult),
+          periods,
           currentPeriodTimestamp
         );
 
-        for (const period of Object.keys(csvResult)) {
-          const proposalId = proposalsPeriods[period];
-          const periodRewards = (csvResult as PendleCSVType)[period];
-          if (!pendleRewards[proposalId]) {
-            pendleRewards[proposalId] = {};
-          }
-          for (const address in periodRewards) {
-            pendleRewards[proposalId][address] = (pendleRewards[proposalId][address] || 0) + periodRewards[address];
-          }
-          totalSDToken += Object.values(periodRewards).reduce(
-            (acc, amount) => acc + amount,
-            0
-          );
-        }
-      }
+        for (const period of periods) {
+          const pid = periodToProp[period];
+          if (!rewardsByProposal[pid]) rewardsByProposal[pid] = {};
 
-      // Process OTC report
-      const otcCsvPath = path.join(
-        __dirname,
-        "..",
-        "..",
-        "bounties-reports",
-        currentPeriodTimestamp.toString(),
-        "pendle-otc.csv"
-      );
-
-      console.log("otcCsvPath", otcCsvPath);
-
-      if (fs.existsSync(otcCsvPath)) {
-        const otcCsvResult: Record<string, Record<string, number>> = await extractOTCCSV(otcCsvPath);
-        const otcTimestamps = Object.keys(otcCsvResult);
-        let proposalsPeriodsOTC: Record<string, string> = {};
-
-        // Fetch OTC proposals
-        proposalsPeriodsOTC = await fetchProposalsIdsBasedOnExactPeriods(
-          space,
-          otcTimestamps,
-          currentPeriodTimestamp
-        );
-
-        // Merge OTC rewards into pendleRewards and add to total
-        for (const timestamp of otcTimestamps) {
-          const proposalId = proposalsPeriodsOTC[timestamp];
-          if (!pendleRewards[proposalId]) {
-            pendleRewards[proposalId] = {};
-          }
-          const rewards = otcCsvResult[timestamp];
-          for (const address in rewards) {
-            pendleRewards[proposalId][address] =
-              (pendleRewards[proposalId][address] || 0) + rewards[address];
-            totalSDToken += rewards[address]; // Add OTC rewards to total
+          for (const [addr, amt] of Object.entries(csvResult[period]!)) {
+            rewardsByProposal[pid][addr] =
+              (rewardsByProposal[pid][addr] || 0) + amt;
+            totalSDToken += amt;
           }
         }
+      } else {
+        // All other spaces: single snapshot → single proposal
+        const pid = proposalIdPerSpace[space];
+        rewardsByProposal[pid] = {};
+        for (const [addr, amt] of Object.entries(csvResult)) {
+          rewardsByProposal[pid][addr] = amt;
+          totalSDToken += amt;
+        }
       }
-
-      // Only process if we have either regular or OTC rewards
-      if (Object.keys(pendleRewards).length === 0) {
-        continue;
-      }
-
-      ids = Object.keys(pendleRewards);
-    } else if (csvResult) {
-      totalSDToken = Object.values(csvResult).reduce(
-        (acc, amount) => acc + amount,
-        0
-      );
-      ids = [proposalIdPerSpace[space]];
     }
 
-    // Save using the token symbol as key
-    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
+    // 2) OTC CSV
+    if (hasOtc) {
+      // flatten similarly: tsList → proposals, then sum
+      const tsList = Object.keys(otcCsvResult);
+      const tsToProp = await fetchProposalsIdsBasedOnExactPeriods(
+        space,
+        tsList,
+        currentPeriodTimestamp
+      );
 
-    logData["SnapshotIds"].push({
-      space,
-      ids,
-    });
+      for (const ts of tsList) {
+        const pid = tsToProp[ts];
+        if (!rewardsByProposal[pid]) rewardsByProposal[pid] = {};
 
-    // Create the merkle for this space.
+        for (const [addr, amt] of Object.entries(otcCsvResult[ts])) {
+          rewardsByProposal[pid][addr] =
+            (rewardsByProposal[pid][addr] || 0) + amt;
+          totalSDToken += amt;
+        }
+      }
+    }
+
+    // nothing to distribute?
+    if (totalSDToken === 0) continue;
+
+    // record & dispatch…
+    logData.TotalReported[SPACES_SYMBOL[space]] = totalSDToken;
+    logData.SnapshotIds.push({ space, ids: Object.keys(rewardsByProposal) });
+
+    console.log("rewardsByProposal for", space, rewardsByProposal);
+
     const merkleStat = await createMerkle(
-      ids,
+      Object.keys(rewardsByProposal),
       space,
       lastMerkles,
-      csvResult,
-      pendleRewards,
+      rewardsByProposal,
       sdFXSWorkingData,
       sdCakeWorkingData,
       {}
     );
 
     newMerkles.push(merkleStat.merkle);
-
-    if (!toFreeze[network]) {
-      toFreeze[network] = [];
-    }
-    if (!toSet[network]) {
-      toSet[network] = [];
-    }
-    toFreeze[network].push(merkleStat.merkle.address);
-    toSet[network].push(merkleStat.merkle.root);
-
-    delegationAPRs[space] = merkleStat.apr;
-
-    for (const log of merkleStat.logs) {
-      if (!logData[log.id]) {
-        logData[log.id] = [];
-      }
-      logData[log.id] = logData[log.id].concat(log.content);
-    }
-  }
-
-  for (const network of Object.keys(toFreeze)) {
-    let multiSetName: undefined | string = undefined;
-    if (network === "ethereum") {
-      multiSetName = "multiSet";
-    } else {
-      multiSetName = "multiUpdateMerkleRoot";
-    }
-
-    const freezeData = encodeFunctionData({
-      abi,
-      functionName: "multiFreeze",
-      args: [toFreeze[network] as `0x${string}`[]],
-    });
-
-    const multiSetData = encodeFunctionData({
-      abi,
-      functionName: multiSetName as any,
-      args: [
-        toFreeze[network] as `0x${string}`[],
-        toSet[network] as `0x${string}`[],
-      ],
-    });
-
-    logData["Transactions"].push({
-      network: network,
-      tokenAddressesToFreeze: toFreeze[network],
-      newMerkleRoots: toSet[network],
-      toFreeze: {
-        contract: NETWORK_TO_STASH[network],
-        data: freezeData,
-      },
-      toSet: {
-        contract: NETWORK_TO_STASH[network],
-        function: multiSetName,
-        data: multiSetData,
-      },
-    });
-  }
-
-  for (const lastMerkle of lastMerkles) {
-    let found = false;
-    for (const newMerkle of newMerkles) {
-      if (
-        newMerkle.address.toLowerCase() === lastMerkle.address.toLowerCase()
-      ) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      newMerkles.push(lastMerkle);
-    }
   }
 
   // Check if the tokens in the merkle contract plus the new tokens to distribute
@@ -646,8 +557,8 @@ async function compareMerkleTrees(
         const newDistShare = hasClaimed
           ? totalShare
           : weeklyReportedReward > 0
-          ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
-          : 0;
+            ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
+            : 0;
         return {
           address: h.address,
           newAmount: h.newAmount,

@@ -124,6 +124,14 @@ export const SPACES: string[] = [
   SDCAKE_SPACE,
 ];
 
+export const SPACES_TO_LABELS: Record<string, string> = {
+  [SDCRV_SPACE]: "curve",
+  [SDBAL_SPACE]: "balancer",
+  [SDFXS_SPACE]: "frax",
+  [SDANGLE_SPACE]: "angle",
+  [SDPENDLE_SPACE]: "pendle",
+};
+
 export const LABELS_TO_SPACE: Record<string, string> = {
   frax: SDFXS_SPACE,
   curve: SDCRV_SPACE,
