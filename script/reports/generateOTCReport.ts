@@ -26,18 +26,11 @@ import { ALL_MIGHT, OTC_REGISTRY } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import processReport from "./reportCommon";
-import { parse } from "csv-parse/sync"; // Assumes you use csv-parse for CSV parsing
 
 dotenv.config();
 
 const WEEK = 604800;
 const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
-
-// Keep only interfaces needed in this file
-interface TokenInfo {
-  symbol: string;
-  decimals: number;
-}
 
 interface Bounty {
   bountyId: string;
@@ -45,7 +38,9 @@ interface Bounty {
   amount: string;
   rewardToken: string;
   sdTokenAmount?: number;
+  gaugeName?: string;
 }
+
 
 /**
  * Fetch OTC withdrawals by decoding event logs from the explorer.
@@ -238,6 +233,9 @@ async function main() {
     ),
     tokenInfos
   );
+  
+  console.log("sdTokenSwapsIn", sdTokenSwapsIn);
+  console.log("sdTokenSwapsOut", sdTokenSwapsOut);
 
   // Process remaining swaps
   const otherSwapsIn = processSwaps(
@@ -277,114 +275,44 @@ async function main() {
   const dirPath = path.join(projectRoot, "bounties-reports", currentPeriod.toString());
 
   for (const [protocol, data] of Object.entries(processedReport)) {
-    // Special handling for Pendle - create a separate OTC file
-    if (protocol === "pendle") {
-      const fileName = `${protocol}-otc.csv`;
-      const filePath = path.join(dirPath, fileName);
+    // Create OTC file for all protocols
+    const otcFileName = `${protocol}-otc.csv`;
+    const otcFilePath = path.join(dirPath, otcFileName);
 
-      // Create rows with current period
-      const rows = data.map(row => ({
-        "Period": currentPeriod.toString(),
-        "Gauge Name": row.gaugeName,
-        "Gauge Address": row.gaugeAddress,
-        "Reward Token": row.rewardToken,
-        "Reward Address": row.rewardAddress,
-        "Reward Amount": row.rewardAmount.toString(),
-        "Reward sd Value": row.rewardSdValue.toString(),
-        "Share % per Protocol": "0", // To be computed
-      }));
+    // Create rows with current period
+    const rows = data.map(row => ({
+      "Period": currentPeriod.toString(),
+      "Gauge Name": row.gaugeName,
+      "Gauge Address": row.gaugeAddress,
+      "Reward Token": row.rewardToken,
+      "Reward Address": row.rewardAddress,
+      "Reward Amount": row.rewardAmount.toString(),
+      "Reward sd Value": row.rewardSdValue.toString(),
+      "Share % per Protocol": "0", // To be computed
+    }));
 
-      // Calculate percentages
-      const totalRewardSdValue = rows.reduce(
-        (sum, row) => sum + parseFloat(row["Reward sd Value"]),
-        0
-      );
-
-      for (const row of rows) {
-        row["Share % per Protocol"] = ((parseFloat(row["Reward sd Value"]) / totalRewardSdValue) * 100).toFixed(2);
-      }
-
-      // Generate CSV content
-      const csvContent = [
-        "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-        ...rows.map(row =>
-          `${row.Period};${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
-          `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
-          `${row["Share % per Protocol"]}`
-        )
-      ].join("\n");
-
-      fs.writeFileSync(filePath, csvContent);
-      console.log(`Created OTC report for ${protocol}: ${filePath}`);
-      continue; // Skip the rest of the loop for Pendle
-    }
-
-    // For other protocols, continue with the existing logic
-    const fileName = `${protocol}.csv`;
-    const filePath = path.join(dirPath, fileName);
-
-    let currentCsvData: any[] = [];
-    try {
-      const currentCsv = fs.readFileSync(filePath, "utf8");
-      currentCsvData = parse(currentCsv, {
-        columns: true,
-        skip_empty_lines: true,
-        delimiter: ";",
-      });
-    } catch (e) {
-      console.log(`No existing file found for ${protocol}. Creating a new one.`);
-    }
-
-    const merged: Record<string, any> = {};
-
-    // First, add all existing data
-    for (const row of currentCsvData) {
-      const key = `${row["Gauge Address"].toLowerCase()}-${row["Reward Address"].toLowerCase()}`;
-      merged[key] = row;  // Keep the row as is
-    }
-
-    // Now merge in new data - only merge if same gauge AND same reward address
-    for (const newRow of data) {
-      const key = `${newRow.gaugeAddress.toLowerCase()}-${newRow.rewardAddress.toLowerCase()}`;
-      if (merged[key]) {
-        // Same gauge and same reward token - add the sdValue
-        merged[key]["Reward sd Value"] = Number(merged[key]["Reward sd Value"]) + newRow.rewardSdValue;
-      } else {
-        // New combination - create new row
-        merged[key] = {
-          "Gauge Name": newRow.gaugeName,
-          "Gauge Address": newRow.gaugeAddress,
-          "Reward Token": newRow.rewardToken,
-          "Reward Address": newRow.rewardAddress,
-          "Reward Amount": newRow.rewardAmount,
-          "Reward sd Value": newRow.rewardSdValue
-        };
-      }
-    }
-
-    // Calculate total and percentages
-    const totalRewardSdValue = Object.values(merged).reduce(
-      (sum: number, row: any) => sum + Number(row["Reward sd Value"]),
+    // Calculate percentages
+    const totalRewardSdValue = rows.reduce(
+      (sum, row) => sum + parseFloat(row["Reward sd Value"]),
       0
     );
 
-    // Update percentages
-    for (const row of Object.values(merged)) {
-      row["Share % per Protocol"] = ((Number(row["Reward sd Value"]) / totalRewardSdValue) * 100).toFixed(2);
+    for (const row of rows) {
+      row["Share % per Protocol"] = ((parseFloat(row["Reward sd Value"]) / totalRewardSdValue) * 100).toFixed(2);
     }
 
-    // Generate CSV
+    // Generate CSV content
     const csvContent = [
-      "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-      ...Object.values(merged).map(row =>
-        `${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
-        `${Number(row["Reward Amount"]).toFixed(6)};${Number(row["Reward sd Value"]).toFixed(6)};` +
+      "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+      ...rows.map(row =>
+        `${row.Period};${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
+        `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
         `${row["Share % per Protocol"]}`
       )
     ].join("\n");
 
-    fs.writeFileSync(filePath, csvContent);
-    console.log(`Updated report for ${protocol}: ${filePath}`);
+    fs.writeFileSync(otcFilePath, csvContent);
+    console.log(`Created OTC report for ${protocol}: ${otcFilePath}`);
   }
 }
 

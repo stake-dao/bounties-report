@@ -129,13 +129,28 @@ const main = async () => {
     let pendleRewards: Record<string, Record<string, number>> | undefined = undefined;
 
     if (isPendle) {
+      console.log("isPendle");
       // Initialize pendleRewards
       pendleRewards = {};
-      
+
+
       // Process regular report if it exists
       if (csvResult) {
+        let proposalsPeriods = await fetchProposalsIdsBasedOnExactPeriods(
+          space,
+          Object.keys(csvResult),
+          currentPeriodTimestamp
+        );
+
         for (const period of Object.keys(csvResult)) {
+          const proposalId = proposalsPeriods[period];
           const periodRewards = (csvResult as PendleCSVType)[period];
+          if (!pendleRewards[proposalId]) {
+            pendleRewards[proposalId] = {};
+          }
+          for (const address in periodRewards) {
+            pendleRewards[proposalId][address] = (pendleRewards[proposalId][address] || 0) + periodRewards[address];
+          }
           totalSDToken += Object.values(periodRewards).reduce(
             (acc, amount) => acc + amount,
             0
@@ -153,19 +168,19 @@ const main = async () => {
         "pendle-otc.csv"
       );
 
+      console.log("otcCsvPath", otcCsvPath);
+
       if (fs.existsSync(otcCsvPath)) {
         const otcCsvResult: Record<string, Record<string, number>> = await extractOTCCSV(otcCsvPath);
         const otcTimestamps = Object.keys(otcCsvResult);
-        const proposalsPeriodsOTC: Record<string, string> = {};
-        
-        for (const timestamp of otcTimestamps) {
-          const proposalId = await fetchProposalsIdsBasedOnExactPeriods(
-            space,
-            [timestamp],
-            parseInt(timestamp)
-          );
-          proposalsPeriodsOTC[timestamp] = proposalId[timestamp];
-        }
+        let proposalsPeriodsOTC: Record<string, string> = {};
+
+        // Fetch OTC proposals
+        proposalsPeriodsOTC = await fetchProposalsIdsBasedOnExactPeriods(
+          space,
+          otcTimestamps,
+          currentPeriodTimestamp
+        );
 
         // Merge OTC rewards into pendleRewards and add to total
         for (const timestamp of otcTimestamps) {
