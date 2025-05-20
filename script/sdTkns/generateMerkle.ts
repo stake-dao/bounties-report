@@ -168,8 +168,6 @@ const main = async () => {
         "pendle-otc.csv"
       );
 
-      console.log("otcCsvPath", otcCsvPath);
-
       if (fs.existsSync(otcCsvPath)) {
         const otcCsvResult: Record<string, Record<string, number>> = await extractOTCCSV(otcCsvPath);
         const otcTimestamps = Object.keys(otcCsvResult);
