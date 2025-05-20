@@ -190,7 +190,7 @@ export const getSpectraDelegationAPR = async (
     }
 
     if(!found) {
-      throw new Error("Delegator not found")
+      console.log("Delegator not found" + delegator);
     }
   }
   
