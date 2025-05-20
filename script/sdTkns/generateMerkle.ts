@@ -129,7 +129,6 @@ const main = async () => {
     let pendleRewards: Record<string, Record<string, number>> | undefined = undefined;
 
     if (isPendle) {
-      console.log("isPendle");
       // Initialize pendleRewards
       pendleRewards = {};
 
@@ -477,7 +476,6 @@ const checkDistribution = async (
   return true;
 };
 
-// Modify compareMerkleTrees to return a string instead of console.logging
 async function compareMerkleTrees(
   newMerkles: any[],
   lastMerkles: any[],
