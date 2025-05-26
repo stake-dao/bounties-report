@@ -85,6 +85,32 @@ export const extractCSV = async (
 
   let totalPerToken: Record<string, number | bigint> = {};
 
+  // For non-sdpendle spaces, also check for OTC file
+  if (space !== SDPENDLE_SPACE) {
+    const otcFilePath = path.join(
+      __dirname,
+      `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}-otc.csv`
+    );
+    
+    if (fs.existsSync(otcFilePath)) {
+      const otcCsvFile = fs.readFileSync(otcFilePath, "utf8");
+      let otcRecords = parse(otcCsvFile, {
+        columns: true,
+        skip_empty_lines: true,
+        delimiter: ";",
+      });
+      
+      otcRecords = otcRecords.map((row: Record<string, string>) =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) => [key.toLowerCase(), value])
+        )
+      );
+      
+      // Merge OTC records into main records
+      records = records.concat(otcRecords);
+    }
+  }
+
   for (const row of records) {
     const gaugeAddress = row["gauge address"];
     const gaugeName = row["gauge name"]; // For spectra
