@@ -1,39 +1,40 @@
 # Stake DAO Rewards Distribution
 
-This repository contains the scripts and Merkle trees for distributing rewards across Stake DAO's ecosystem.
+This repository manages the complete reward distribution system for Stake DAO's liquid lockers and governance participants.
 
-## Overview
+## 🎯 Overview
 
-The repository handles three main types of reward distributions:
+The system handles multiple types of reward distributions across different protocols and chains:
 
-1. **sdToken Distribution** - Manages rewards claimed on behalf of sdToken voters by our Liquid Lockers on Votemarket
-   - Handles distribution of rewards to sdToken holders
-   - Manages delegation APRs and reward sharing
+### 1. **[sdToken Distribution](./script/sdTkns/README.md)**
+Manages voting incentives for Stake DAO's liquid locker tokens (sdCRV, sdBAL, sdFXS, etc.)
+- Processes rewards from voting markets (Votemarket, Hidden Hand, Warden)
+- Distributes based on Snapshot governance votes
+- Supports delegation with automatic reward sharing
+- Handles both sdTokens and raw token distributions
 
-2. **vlCVX Distribution** - Manages rewards for vlCVX voters and delegators from Votemarket
-   - [View vlCVX Distribution Documentation](script/vlCVX/README.md)
-   - Handles both direct voter rewards and delegator distributions
+### 2. **[vlCVX Distribution](./script/vlCVX/README.md)**
+Manages rewards for vlCVX holders across multiple chains
+- Processes Convex voting rewards
+- Supports multi-chain distributions (Ethereum, Arbitrum, Base)
+- Handles delegator reward sharing
 
-3. **Spectra Distribution** - Manages Spectra protocol reward distributions
-   - Handles protocol-specific reward calculations and distributions
+### 3. **[Spectra Distribution](./script/spectra/README.md)**
+Protocol-specific distributions for Spectra
+- Custom reward calculations
+- Merkle tree generation for Spectra voters
 
-## Purpose
+## 🔧 Key Features
 
-- Generate and store Merkle trees for reward distributions
-- Provide verification tools for distribution calculations
-- Handle delegation-based reward sharing
-- Automate reward claiming and distribution processes
+- **Multi-Protocol Support**: Curve, Balancer, Frax, FXN, Pendle, Cake
+- **Cross-Chain**: Ethereum, BSC, Base, Arbitrum
+- **Delegation System**: Automatic reward distribution to delegators
+- **Raw Token Support**: Distribute native tokens (CRV, BAL) alongside sdTokens
+- **Automated Workflows**: GitHub Actions for weekly distributions
 
-## Key Components
+## 📁 Repository Structure
 
-- Merkle tree generation scripts
-- Distribution calculation logic
-- Reward claiming automation
-- Verification and reporting tools
-
-## Repository Structure
-
-```
+```text
 .
 ├── bounties-reports/        
 │   ├── {timestamp}/        # Weekly distribution reports and calculations
@@ -85,11 +86,82 @@ This structure shows:
 3. Complete distribution process files (reports, repartition, merkles)
 4. Supporting scripts and utilities for each protocol
 
-## Distribution Process
+## 📚 Documentation
 
-All distribution files are automatically processed and updated through GitHub Actions workflows:
-- `copy-sdtkns-merkle` for sdToken distributions
-- `copy-spectra-merkle` for Spectra protocol distributions
-- Dedicated merkle generation scripts for vlCVX distributions
+### Core Systems
+- **[sdToken Distribution Guide](./script/sdTkns/README.md)** - Complete guide for sdToken distributions
+- **[vlCVX Distribution Guide](./script/vlCVX/README.md)** - vlCVX reward distribution system
+- **[Spectra Distribution Guide](./script/spectra/README.md)** - Spectra protocol integration
 
-The latest distribution files are always available in the `bounties-reports/latest/` directory.
+### Technical References
+- **[Utilities Documentation](./script/utils/README.md)** - Shared functions and helpers
+- **[Reports Structure](./bounties-reports/README.md)** - Understanding distribution reports
+- **[Raw Token Guide](./README-raw-tokens.md)** - Distributing native tokens
+
+## 🚀 Quick Start
+
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/stake-dao/bounties-report.git
+
+# Install dependencies
+npm install
+```
+
+### Generate Distributions
+```bash
+# Generate sdToken merkle trees
+npm run generate-merkle
+
+# Generate vlCVX distributions
+npm run vlcvx:all
+
+# Generate Spectra distributions
+npm run spectra:all
+```
+
+## 🔄 Distribution Process
+
+The distribution process runs weekly through automated workflows:
+
+1. **Thursday 00:00 UTC** - New distribution period begins
+2. **Bounty Collection** - Platforms report voting incentives
+3. **Report Generation** - Create CSV files for each protocol
+4. **Merkle Generation** - Build merkle trees for efficient claiming
+5. **Deployment** - Update contracts with new merkle roots
+
+### GitHub Actions Workflows
+- `copy-sdtkns-merkle` - Processes sdToken distributions
+- `copy-spectra-merkle` - Handles Spectra protocol
+- `vlcvx-merkle-generation` - Manages vlCVX rewards
+
+Latest distributions are always available in `bounties-reports/latest/`.
+
+## 🧪 Testing
+
+Run the test suite:
+```bash
+# Run all tests
+npm test
+
+# Test specific module
+npm test -- script/sdTkns
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+Please ensure:
+- Tests pass
+- Code follows existing patterns
+- Documentation is updated
+
+## 📄 License
+
+This project is licensed under the MIT License.
