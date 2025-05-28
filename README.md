@@ -140,28 +140,4 @@ Latest distributions are always available in `bounties-reports/latest/`.
 
 ## 🧪 Testing
 
-Run the test suite:
-```bash
-# Run all tests
-npm test
-
-# Test specific module
-npm test -- script/sdTkns
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Please ensure:
-- Tests pass
-- Code follows existing patterns
-- Documentation is updated
-
-## 📄 License
-
-This project is licensed under the MIT License.
+WIP
