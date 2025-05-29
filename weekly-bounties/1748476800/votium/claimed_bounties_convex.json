@@ -1,0 +1,42 @@
+{
+  "curve": {
+    "0": {
+      "rewardToken": "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0",
+      "amount": "223072026325449146368"
+    },
+    "1": {
+      "rewardToken": "0x419905009e4656fdC02418C7Df35B1E61Ed5F726",
+      "amount": "3244138696228458"
+    },
+    "2": {
+      "rewardToken": "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68",
+      "amount": "151518045638655"
+    },
+    "3": {
+      "rewardToken": "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B",
+      "amount": "1179129114108454"
+    },
+    "4": {
+      "rewardToken": "0x6DF0E641FC9847c0c6Fde39bE6253045440c14d3",
+      "amount": "93862443682773376"
+    },
+    "5": {
+      "rewardToken": "0xD533a949740bb3306d119CC777fa900bA034cd52",
+      "amount": "1076428931611174"
+    },
+    "6": {
+      "rewardToken": "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF",
+      "amount": "231929744019088"
+    }
+  },
+  "fxn": {
+    "0": {
+      "rewardToken": "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B",
+      "amount": "1179129114108454"
+    },
+    "1": {
+      "rewardToken": "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF",
+      "amount": "110002945660956112"
+    }
+  }
+}
