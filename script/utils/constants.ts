@@ -14,6 +14,7 @@ import {
   base,
   polygon,
   arbitrum,
+  sonic,
 } from "viem/chains";
 import { PlatformConfigs } from "./types";
 
@@ -259,6 +260,12 @@ export const clients: Record<number, PublicClient> = {
     ),
   }),
   [137]: createPublicClient({ chain: polygon, transport: http() }),
+  [146]: createPublicClient({
+    chain: sonic,
+    transport: http(
+      `https://sonic-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
+    ),
+  }),
   [42161]: createPublicClient({
     chain: arbitrum,
     transport: http(
