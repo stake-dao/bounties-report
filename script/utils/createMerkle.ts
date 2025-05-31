@@ -8,7 +8,21 @@ import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 import { processAllDelegators } from "./cacheUtils";
 
-export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, sdCakeWorkingData: any, additionalDelegatorRewards: Record<string, number> = {}): Promise<MerkleStat> => {
+/**
+ * Creates a merkle tree for token distribution based on voting results
+ * 
+ * @param ids - Array of proposal IDs to process
+ * @param space - Snapshot space (e.g., 'sdcrv.eth')
+ * @param lastMerkles - Previous merkle trees for unclaimed rewards carry-over
+ * @param csvResult - Distribution amounts per gauge from CSV
+ * @param pendleRewards - Special handling for Pendle multi-period rewards
+ * @param sdFXSWorkingData - Working supply data for sdFXS APR calculation
+ * @param sdCakeWorkingData - Working supply data for sdCAKE APR calculation
+ * @param additionalDelegatorRewards - Extra rewards for delegators
+ * @param overrideTokenAddress - Optional: distribute a different token (for raw tokens)
+ * @returns MerkleStat object containing merkle tree, APR, and logs
+ */
+export const createMerkle = async (ids: string[], space: string, lastMerkles: any, csvResult: any, pendleRewards: Record<string, Record<string, number>> | undefined, sdFXSWorkingData: any, sdCakeWorkingData: any, additionalDelegatorRewards: Record<string, number> = {}, overrideTokenAddress?: string): Promise<MerkleStat> => {
     const userRewards: Record<string, number> = {};
     const aprs: any[] = [];
     const logs: Log[] = [];
@@ -261,9 +275,10 @@ export const createMerkle = async (ids: string[], space: string, lastMerkles: an
         }
     }
 
-    // New distribution is split here
-    // We have to sum with old distribution if users don't claim
-    const tokenToDistribute = SPACES_TOKENS[space];
+    // Determine which token to distribute:
+    // - Use overrideTokenAddress for raw tokens (e.g., CRV instead of sdCRV)
+    // - Otherwise use the default sdToken for the space
+    const tokenToDistribute = overrideTokenAddress || SPACES_TOKENS[space];
 
     const lastMerkle = lastMerkles.find((m: any) => m.address.toLowerCase() === tokenToDistribute.toLowerCase());
 

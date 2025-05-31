@@ -252,6 +252,91 @@ export const extractOTCCSV = async (
   return response;
 };
 
+/**
+ * Represents a single raw token distribution entry
+ */
+export type RawTokenDistribution = {
+  gauge: string;  // Gauge address receiving the rewards
+  token: string;  // Token contract address to distribute
+  amount: number; // Amount of tokens to distribute
+  space: string;  // Snapshot space whose voting rules apply
+};
+
+export type RawTokenCSVType = RawTokenDistribution[];
+
+/**
+ * Extracts raw token distributions from CSV files in bounties-reports/{timestamp}/raw/{protocol}/
+ * These distributions use raw tokens (CRV, BAL, etc.) instead of sdTokens
+ * 
+ * @param currentPeriodTimestamp - The timestamp of the current period
+ * @returns Array of raw token distributions with gauge, token, amount, and space info
+ */
+export const extractAllRawTokenCSVs = async (
+  currentPeriodTimestamp: number
+): Promise<RawTokenCSVType> => {
+  const rawDistributions: RawTokenCSVType = [];
+  const rawBasePath = path.join(
+    __dirname,
+    `../../bounties-reports/${currentPeriodTimestamp}/raw/`
+  );
+
+  // Check if raw directory exists
+  if (!fs.existsSync(rawBasePath)) {
+    return rawDistributions;
+  }
+
+  // Get all protocol directories in raw/
+  const protocolDirs = fs.readdirSync(rawBasePath).filter(item => {
+    const itemPath = path.join(rawBasePath, item);
+    return fs.statSync(itemPath).isDirectory();
+  });
+
+  // Process each protocol directory
+  for (const protocol of protocolDirs) {
+    const csvFilePath = path.join(rawBasePath, protocol, `${protocol}.csv`);
+    
+    if (!fs.existsSync(csvFilePath)) {
+      continue;
+    }
+
+    const csvFile = fs.readFileSync(csvFilePath, "utf8");
+    let records = parse(csvFile, {
+      columns: true,
+      skip_empty_lines: true,
+      delimiter: ";",
+    });
+
+    // Normalize column names to lowercase
+    records = records.map((row: Record<string, string>) =>
+      Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [key.toLowerCase(), value])
+      )
+    );
+
+    // Process each row to extract raw token distribution data
+    for (const row of records) {
+      const gaugeAddress = row["gauge address"];
+      const rewardToken = row["reward token"];
+      const rewardAmount = row["reward amount"];
+      const space = row["space"] || row["snapshot space"];
+      
+      if (!gaugeAddress || !rewardToken || !rewardAmount || !space) {
+        console.warn(`Missing required fields in raw/${protocol}/${protocol}.csv:`, row);
+        continue;
+      }
+
+      rawDistributions.push({
+        gauge: gaugeAddress,
+        token: rewardToken,
+        amount: parseFloat(rewardAmount),
+        space: space
+      });
+    }
+  }
+
+  return rawDistributions;
+};
+
 export const getTokenPrice = async (
   space: string,
   SPACE_TO_NETWORK: Record<string, string>,
