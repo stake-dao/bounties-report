@@ -258,6 +258,7 @@ export const extractOTCCSV = async (
 export type RawTokenDistribution = {
   gauge: string;  // Gauge address receiving the rewards
   token: string;  // Token contract address to distribute
+  symbol: string; // Token symbol
   amount: number; // Amount of tokens to distribute
   space: string;  // Snapshot space whose voting rules apply
 };
@@ -316,7 +317,8 @@ export const extractAllRawTokenCSVs = async (
     // Process each row to extract raw token distribution data
     for (const row of records) {
       const gaugeAddress = row["gauge address"];
-      const rewardToken = row["reward token"] || row["reward address"];
+      const rewardAddress = row["reward address"];
+      const rewardToken = row["reward token"]; // Token symbol
       const rewardAmount = row["reward amount"];
       
       // Determine the space based on the protocol
@@ -333,14 +335,15 @@ export const extractAllRawTokenCSVs = async (
         }
       }
       
-      if (!gaugeAddress || !rewardToken || !rewardAmount) {
+      if (!gaugeAddress || !rewardAddress || !rewardAmount) {
         console.warn(`Missing required fields in raw/${protocol}/${protocol}.csv:`, row);
         continue;
       }
 
       rawDistributions.push({
         gauge: gaugeAddress,
-        token: rewardToken,
+        token: rewardAddress,
+        symbol: rewardToken || "UNKNOWN",
         amount: parseFloat(rewardAmount),
         space: space
       });

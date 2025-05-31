@@ -250,6 +250,108 @@ const main = async () => {
     }
   }
 
+  // =====================================================
+  // Process Raw Token Distributions (CRV, BAL, etc.)
+  // =====================================================
+  // Raw tokens are distributed using the same voting mechanism as sdTokens
+  // but distribute the native token (e.g., CRV) instead of the wrapped version (e.g., sdCRV)
+  const rawTokenDistributions = await extractAllRawTokenCSVs(currentPeriodTimestamp);
+  
+  if (rawTokenDistributions.length > 0) {
+    console.log(`Processing ${rawTokenDistributions.length} raw token distributions`);
+    
+    // Group distributions by token address and space to handle multiple gauges
+    const groupedDistributions: Record<string, {
+      space: string;
+      token: string;
+      symbol: string;
+      distributions: Record<string, number>;
+      totalAmount: number;
+    }> = {};
+    
+    // Aggregate distributions by token and space
+    for (const dist of rawTokenDistributions) {
+      const key = `${dist.token.toLowerCase()}_${dist.space}`;
+      
+      if (!groupedDistributions[key]) {
+        groupedDistributions[key] = {
+          space: dist.space,
+          token: dist.token.toLowerCase(),
+          symbol: dist.symbol,
+          distributions: {},
+          totalAmount: 0
+        };
+      }
+      
+      // Accumulate amounts for the same gauge
+      if (!groupedDistributions[key].distributions[dist.gauge]) {
+        groupedDistributions[key].distributions[dist.gauge] = 0;
+      }
+      groupedDistributions[key].distributions[dist.gauge] += dist.amount;
+      groupedDistributions[key].totalAmount += dist.amount;
+    }
+    
+    // Create a merkle tree for each unique token/space combination
+    for (const [, data] of Object.entries(groupedDistributions)) {
+      const { space, token, symbol, distributions, totalAmount } = data;
+      
+      // Verify the space has an active proposal
+      const proposalId = proposalIdPerSpace[space];
+      if (!proposalId) {
+        console.warn(`No proposal ID found for space ${space}, skipping raw token distribution`);
+        continue;
+      }
+      
+      try {
+        // Create merkle tree using the same voting rules as the space
+        // but distributing the raw token instead of the sdToken
+        const merkleStat = await createMerkle(
+          [proposalId],
+          space,
+          lastMerkles,
+          distributions,
+          undefined, // No pendle-specific rewards for raw tokens
+          sdFXSWorkingData,
+          sdCakeWorkingData,
+          {},
+          token // Override token address to use raw token instead of sdToken
+        );
+        
+        // Update merkle metadata for raw token
+        merkleStat.merkle.address = token;
+        merkleStat.merkle.symbol = symbol;
+        
+        newMerkles.push(merkleStat.merkle);
+        
+        // Prepare freeze and set operations for the merkle contract
+        const network = SPACE_TO_NETWORK[space];
+        if (!toFreeze[network]) {
+          toFreeze[network] = [];
+        }
+        if (!toSet[network]) {
+          toSet[network] = [];
+        }
+        
+        toFreeze[network].push(token);
+        toSet[network].push(merkleStat.merkle.root);
+        
+        // Log the distribution for reporting
+        logData[`RawToken_${space}_${token}`] = totalAmount;
+        
+        // Add to TotalReported for the weekly comparison
+        if (!logData["TotalReported"][symbol]) {
+          logData["TotalReported"][symbol] = 0;
+        }
+        logData["TotalReported"][symbol] += totalAmount;
+        
+        console.log(`Created merkle for raw token ${symbol} (${token}) in space ${space}, total: ${totalAmount}`);
+      } catch (error) {
+        console.error(`Error creating merkle for raw token ${token} in space ${space}:`, error);
+      }
+    }
+  }
+
+  // Now generate transactions after all tokens (including raw) have been processed
   for (const network of Object.keys(toFreeze)) {
     let multiSetName: undefined | string = undefined;
     if (network === "ethereum") {
@@ -316,99 +418,6 @@ const main = async () => {
     `./bounties-reports/${currentPeriodTimestamp}/merkle.json`,
     JSON.stringify(newMerkles)
   );
-
-  // =====================================================
-  // Process Raw Token Distributions (CRV, BAL, etc.)
-  // =====================================================
-  // Raw tokens are distributed using the same voting mechanism as sdTokens
-  // but distribute the native token (e.g., CRV) instead of the wrapped version (e.g., sdCRV)
-  const rawTokenDistributions = await extractAllRawTokenCSVs(currentPeriodTimestamp);
-  
-  if (rawTokenDistributions.length > 0) {
-    console.log(`Processing ${rawTokenDistributions.length} raw token distributions`);
-    
-    // Group distributions by token address and space to handle multiple gauges
-    const groupedDistributions: Record<string, {
-      space: string;
-      token: string;
-      distributions: Record<string, number>;
-      totalAmount: number;
-    }> = {};
-    
-    // Aggregate distributions by token and space
-    for (const dist of rawTokenDistributions) {
-      const key = `${dist.token.toLowerCase()}_${dist.space}`;
-      
-      if (!groupedDistributions[key]) {
-        groupedDistributions[key] = {
-          space: dist.space,
-          token: dist.token.toLowerCase(),
-          distributions: {},
-          totalAmount: 0
-        };
-      }
-      
-      // Accumulate amounts for the same gauge
-      if (!groupedDistributions[key].distributions[dist.gauge]) {
-        groupedDistributions[key].distributions[dist.gauge] = 0;
-      }
-      groupedDistributions[key].distributions[dist.gauge] += dist.amount;
-      groupedDistributions[key].totalAmount += dist.amount;
-    }
-    
-    // Create a merkle tree for each unique token/space combination
-    for (const [, data] of Object.entries(groupedDistributions)) {
-      const { space, token, distributions, totalAmount } = data;
-      
-      // Verify the space has an active proposal
-      const proposalId = proposalIdPerSpace[space];
-      if (!proposalId) {
-        console.warn(`No proposal ID found for space ${space}, skipping raw token distribution`);
-        continue;
-      }
-      
-      try {
-        // Create merkle tree using the same voting rules as the space
-        // but distributing the raw token instead of the sdToken
-        const merkleStat = await createMerkle(
-          [proposalId],
-          space,
-          lastMerkles,
-          distributions,
-          undefined, // No pendle-specific rewards for raw tokens
-          sdFXSWorkingData,
-          sdCakeWorkingData,
-          {},
-          token // Override token address to use raw token instead of sdToken
-        );
-        
-        // Update merkle metadata for raw token
-        merkleStat.merkle.address = token;
-        merkleStat.merkle.symbol = `RAW_${token.slice(2, 8).toUpperCase()}`; // TODO: Fetch actual symbol from chain
-        
-        newMerkles.push(merkleStat.merkle);
-        
-        // Prepare freeze and set operations for the merkle contract
-        const network = SPACE_TO_NETWORK[space];
-        if (!toFreeze[network]) {
-          toFreeze[network] = [];
-        }
-        if (!toSet[network]) {
-          toSet[network] = [];
-        }
-        
-        toFreeze[network].push(token);
-        toSet[network].push(merkleStat.merkle.root);
-        
-        // Log the distribution for reporting
-        logData[`RawToken_${space}_${token}`] = totalAmount;
-        
-        console.log(`Created merkle for raw token ${token} in space ${space}, total: ${totalAmount}`);
-      } catch (error) {
-        console.error(`Error creating merkle for raw token ${token} in space ${space}:`, error);
-      }
-    }
-  }
 
   for (const key of Object.keys(delegationAPRs)) {
     if (delegationAPRs[key] === -1) {
