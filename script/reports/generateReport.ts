@@ -19,26 +19,12 @@ import {
 } from "../utils/reportUtils";
 import { ALL_MIGHT } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
-import processReport from "./reportCommon";
+import processReport from "./processReport";
 
 dotenv.config();
 
 const WEEK = 604800;
 const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
-
-// Only keep interfaces used in this file
-interface TokenInfo {
-  symbol: string;
-  decimals: number;
-}
-
-interface Bounty {
-  bountyId: string;
-  gauge: string;
-  amount: string;
-  rewardToken: string;
-  sdTokenAmount?: number;
-}
 
 interface ClaimedBounties {
   timestamp1: number;
@@ -151,12 +137,14 @@ async function main() {
       gaugesInfo = await getGaugesInfos("frax");
       break;
   }
-  aggregatedBounties = {
-    [protocol]: addGaugeNamesToBounties(
-      aggregatedBounties[protocol],
-      gaugesInfo
-    ),
-  };
+  if (gaugesInfo) {
+    aggregatedBounties = {
+      [protocol]: addGaugeNamesToBounties(
+        aggregatedBounties[protocol],
+        gaugesInfo
+      ),
+    };
+  }
 
   // Fetch swap events
   const swapIn = await fetchSwapInEvents(

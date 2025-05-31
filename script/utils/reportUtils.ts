@@ -616,8 +616,6 @@ export async function fetchSwapOutEvents(
  * Matches WETH inputs with corresponding reward outputs.
  */
 export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
-  console.log("BLOCK DATA");
-  console.log(blockData);
   const wethIn = blockData.wethIn || [];
   const rewardsOut = blockData.rewardsOut || [];
   if (wethIn.length === 0 || rewardsOut.length === 0) return [];
