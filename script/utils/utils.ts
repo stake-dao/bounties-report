@@ -316,11 +316,24 @@ export const extractAllRawTokenCSVs = async (
     // Process each row to extract raw token distribution data
     for (const row of records) {
       const gaugeAddress = row["gauge address"];
-      const rewardToken = row["reward token"];
+      const rewardToken = row["reward token"] || row["reward address"];
       const rewardAmount = row["reward amount"];
-      const space = row["space"] || row["snapshot space"];
       
-      if (!gaugeAddress || !rewardToken || !rewardAmount || !space) {
+      // Determine the space based on the protocol
+      let space = row["space"] || row["snapshot space"];
+      if (!space) {
+        // Map protocol names to snapshot spaces
+        if (protocol === "curve") space = "sdcrv.eth";
+        else if (protocol === "balancer") space = "sdbal.eth";
+        else if (protocol === "frax") space = "sdfrax.eth";
+        else if (protocol === "fxn") space = "sdfxs.eth";
+        else {
+          console.warn(`Unknown protocol ${protocol} for determining space`);
+          continue;
+        }
+      }
+      
+      if (!gaugeAddress || !rewardToken || !rewardAmount) {
         console.warn(`Missing required fields in raw/${protocol}/${protocol}.csv:`, row);
         continue;
       }
