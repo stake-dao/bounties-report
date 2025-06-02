@@ -256,10 +256,10 @@ const main = async () => {
   // Raw tokens are distributed using the same voting mechanism as sdTokens
   // but distribute the native token (e.g., CRV) instead of the wrapped version (e.g., sdCRV)
   const rawTokenDistributions = await extractAllRawTokenCSVs(currentPeriodTimestamp);
-  
+
   if (rawTokenDistributions.length > 0) {
     console.log(`Processing ${rawTokenDistributions.length} raw token distributions`);
-    
+
     // Group distributions by token address and space to handle multiple gauges
     const groupedDistributions: Record<string, {
       space: string;
@@ -268,11 +268,11 @@ const main = async () => {
       distributions: Record<string, number>;
       totalAmount: number;
     }> = {};
-    
+
     // Aggregate distributions by token and space
     for (const dist of rawTokenDistributions) {
       const key = `${dist.token.toLowerCase()}_${dist.space}`;
-      
+
       if (!groupedDistributions[key]) {
         groupedDistributions[key] = {
           space: dist.space,
@@ -282,7 +282,7 @@ const main = async () => {
           totalAmount: 0
         };
       }
-      
+
       // Accumulate amounts for the same gauge
       if (!groupedDistributions[key].distributions[dist.gauge]) {
         groupedDistributions[key].distributions[dist.gauge] = 0;
@@ -290,18 +290,18 @@ const main = async () => {
       groupedDistributions[key].distributions[dist.gauge] += dist.amount;
       groupedDistributions[key].totalAmount += dist.amount;
     }
-    
+
     // Create a merkle tree for each unique token/space combination
     for (const [, data] of Object.entries(groupedDistributions)) {
       const { space, token, symbol, distributions, totalAmount } = data;
-      
+
       // Verify the space has an active proposal
       const proposalId = proposalIdPerSpace[space];
       if (!proposalId) {
         console.warn(`No proposal ID found for space ${space}, skipping raw token distribution`);
         continue;
       }
-      
+
       try {
         // Create merkle tree using the same voting rules as the space
         // but distributing the raw token instead of the sdToken
@@ -316,13 +316,13 @@ const main = async () => {
           {},
           token // Override token address to use raw token instead of sdToken
         );
-        
+
         // Update merkle metadata for raw token
         merkleStat.merkle.address = token;
         merkleStat.merkle.symbol = symbol;
-        
+
         newMerkles.push(merkleStat.merkle);
-        
+
         // Prepare freeze and set operations for the merkle contract
         const network = SPACE_TO_NETWORK[space];
         if (!toFreeze[network]) {
@@ -331,20 +331,18 @@ const main = async () => {
         if (!toSet[network]) {
           toSet[network] = [];
         }
-        
+
         toFreeze[network].push(token);
         toSet[network].push(merkleStat.merkle.root);
-        
+
         // Log the distribution for reporting
         logData[`RawToken_${space}_${token}`] = totalAmount;
-        
+
         // Add to TotalReported for the weekly comparison
         if (!logData["TotalReported"][symbol]) {
           logData["TotalReported"][symbol] = 0;
         }
         logData["TotalReported"][symbol] += totalAmount;
-        
-        console.log(`Created merkle for raw token ${symbol} (${token}) in space ${space}, total: ${totalAmount}`);
       } catch (error) {
         console.error(`Error creating merkle for raw token ${token} in space ${space}:`, error);
       }
@@ -619,9 +617,8 @@ async function compareMerkleTrees(
 
     if (!prevMerkle) {
       output += "\nNEW DISTRIBUTION\n";
-      output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${
-        merkle.symbol
-      }\n`;
+      output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${merkle.symbol
+        }\n`;
       continue;
     }
 
@@ -687,15 +684,13 @@ async function compareMerkleTrees(
         : 0;
 
     output += "\nDistribution Changes:\n";
-    output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${
-      merkle.symbol
-    }\n`;
+    output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${merkle.symbol
+      }\n`;
     output += `Pending Allocation (Cumulative Total - Contract Balance): ${pendingAllocation.toFixed(
       2
     )} ${merkle.symbol}\n`;
-    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${
-      merkle.symbol
-    }\n`;
+    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol
+      }\n`;
 
     // --- Holder Distribution ---
     const addresses = new Set([
@@ -745,8 +740,8 @@ async function compareMerkleTrees(
         const newDistShare = hasClaimed
           ? totalShare
           : weeklyReportedReward > 0
-          ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
-          : 0;
+            ? ((h.newAmount - h.prevAmount) / weeklyReportedReward) * 100
+            : 0;
         return {
           address: h.address,
           newAmount: h.newAmount,
@@ -797,12 +792,10 @@ async function compareMerkleTrees(
       (pendingCount / totalHolders) *
       100
     ).toFixed(2)}%)\n`;
-    output += `Active Users this Week: ${
-      holders.filter((h) => h.weekChange > 0).length
-    }\n`;
-    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${
-      merkle.symbol
-    }\n`;
+    output += `Active Users this Week: ${holders.filter((h) => h.weekChange > 0).length
+      }\n`;
+    output += `Distribution Surplus: ${distributionSurplus.toFixed(2)} ${merkle.symbol
+      }\n`;
 
     // Log data
     logData["DistributionSurplus"][merkle.symbol] = distributionSurplus;
