@@ -1,7 +1,7 @@
 import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
 import { processAllDelegators } from "./cacheUtils";
-import { DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
+import { clients, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
@@ -13,13 +13,6 @@ export const getForwardedDelegators = async (
   blockSnapshotEnd: number
 ): Promise<string[]> => {
   // Assumes RPC_URL is set in your environment variables
-  const { createPublicClient, http } = await import("viem");
-  const { mainnet } = await import("viem/chains");
-
-  const client = createPublicClient({
-    chain: mainnet,
-    transport: http("https://rpc.flashbots.net"),
-  });
 
   const abi = [
     {
@@ -32,7 +25,7 @@ export const getForwardedDelegators = async (
   ];
 
   try {
-    const forwarded = (await client.readContract({
+    const forwarded = (await clients[1].readContract({
       address: VOTIUM_FORWARDER_REGISTRY as `0x${string}`,
       abi,
       functionName: "batchAddressCheck",
