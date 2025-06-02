@@ -258,8 +258,6 @@ const main = async () => {
   const rawTokenDistributions = await extractAllRawTokenCSVs(currentPeriodTimestamp);
 
   if (rawTokenDistributions.length > 0) {
-    console.log(`Processing ${rawTokenDistributions.length} raw token distributions`);
-
     // Group distributions by token address and space to handle multiple gauges
     const groupedDistributions: Record<string, {
       space: string;
