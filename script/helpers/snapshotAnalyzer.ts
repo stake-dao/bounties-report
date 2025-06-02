@@ -47,9 +47,22 @@ function setupLogFile(proposalTitle: string): string {
     fs.mkdirSync(tempDir, { recursive: true });
   }
   const currentDate = new Date().toISOString().split("T")[0];
+  
+  // Remove "Gauge vote" prefix and format the title
+  let formattedTitle = proposalTitle.trim();
+  if (formattedTitle.startsWith("Gauge vote")) {
+    formattedTitle = formattedTitle.substring("Gauge vote".length).trim();
+  }
+  
+  // Replace forward slashes with underscores to avoid file path issues
+  formattedTitle = formattedTitle.replace(/\//g, "_");
+  
+  // Replace spaces with hyphens and remove any multiple consecutive spaces
+  formattedTitle = formattedTitle.replace(/\s+/g, "-");
+  
   const logPath = path.join(
     tempDir,
-    `${currentDate}-proposal-${proposalTitle.trim().replace(/\s+/g, "_")}.log`
+    `${currentDate}_${formattedTitle}.log`
   );
   fs.writeFileSync(logPath, ""); // Clear the file if it exists
   return logPath;

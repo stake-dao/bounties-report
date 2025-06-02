@@ -25,6 +25,7 @@ import {
 import { bsc, mainnet } from "viem/chains";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { processAllDelegators } from "./cacheUtils";
+import { getBlockNumberByTimestamp } from "./chainUtils";
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
@@ -614,6 +615,8 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
+  const endBlock = await getBlockNumberByTimestamp(proposal.end, "before", mainnet.id);
+
   // Get all delegators until proposal creation
   const delegators = await processAllDelegators(
     space,
@@ -676,7 +679,7 @@ export const addVotersFromAutoVoter = async (
         args: [delegatorAddress, space],
       };
     }),
-    blockNumber: parseInt(proposal.snapshot) as any,
+    blockNumber: endBlock as any,
   });
 
   if (results.some((r) => r.status === "failure")) {
