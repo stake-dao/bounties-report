@@ -2,9 +2,18 @@ import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
 import { getSpectraDistribution, SpectraClaimed } from "./utils";
-import { ALL_MIGHT, escapeCSV, fetchAllTokenInfos, fetchSwapInEvents, fetchSwapOutEvents, getTimestampsBlocks, processSwaps, PROTOCOLS_TOKENS } from "../utils/reportUtils";
+import {
+  ALL_MIGHT,
+  escapeCSV,
+  fetchAllTokenInfos,
+  fetchSwapInEvents,
+  fetchSwapOutEvents,
+  getTimestampsBlocks,
+  processSwaps,
+  PROTOCOLS_TOKENS,
+} from "../utils/reportUtils";
 import { clients } from "../utils/constants";
-import processReport from "../reports/reportCommon";
+import processReport from "../reports/processReport";
 
 dotenv.config();
 
@@ -35,7 +44,6 @@ function writeReportToCSV(rows: SpectraClaimed[]) {
 }
 
 async function main() {
-
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
     clients[8453],
     0,
@@ -188,7 +196,6 @@ async function main() {
     Array.from(allTokens),
     ALL_MIGHT
   );
-
 
   // Process swaps
   const processedSwapIn = processSwaps(swapIn, tokenInfos);

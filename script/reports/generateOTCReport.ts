@@ -25,7 +25,7 @@ import {
 import { ALL_MIGHT, OTC_REGISTRY } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import processReport from "./reportCommon";
+import processReport from "./processReport";
 
 dotenv.config();
 
@@ -41,7 +41,6 @@ interface Bounty {
   gaugeName?: string;
 }
 
-
 /**
  * Fetch OTC withdrawals by decoding event logs from the explorer.
  */
@@ -50,7 +49,9 @@ async function fetchOTCWithdrawals(
   toBlock: number
 ): Promise<Record<string, Bounty[]>> {
   const eventSignature = "OTCWithdrawn(uint256,address,uint256)";
-  const otcWithdrawnHash = keccak256(encodePacked(["string"], [eventSignature]));
+  const otcWithdrawnHash = keccak256(
+    encodePacked(["string"], [eventSignature])
+  );
   const otcWithdrawnAbi = parseAbi([
     "event OTCWithdrawn(uint256 id, address withdrawer, uint256 amount)",
   ]);
@@ -68,7 +69,12 @@ async function fetchOTCWithdrawals(
     throw new Error("No logs found");
   }
 
-  const decodedLogs: { id: bigint; withdrawer: string; amount: bigint; block: number }[] = [];
+  const decodedLogs: {
+    id: bigint;
+    withdrawer: string;
+    amount: bigint;
+    block: number;
+  }[] = [];
   for (const log of response.result) {
     const decodedLog = decodeEventLog({
       abi: otcWithdrawnAbi,
@@ -146,22 +152,36 @@ const publicClient = createPublicClient({
 async function main() {
   // Validate protocol argument
   const protocol = process.argv[2];
-  if (!protocol || !["curve", "balancer", "fxn", "frax", "pendle"].includes(protocol)) {
-    console.error("Please specify a valid protocol: curve, balancer, fxn, frax, or pendle");
+  if (
+    !protocol ||
+    !["curve", "balancer", "fxn", "frax", "pendle"].includes(protocol)
+  ) {
+    console.error(
+      "Please specify a valid protocol: curve, balancer, fxn, frax, or pendle"
+    );
     process.exit(1);
   }
 
   // Get block numbers
-  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(publicClient, 0);
+  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
+    publicClient,
+    0
+  );
 
-  let aggregatedBounties = await fetchOTCWithdrawals(blockNumber1, blockNumber2);
+  let aggregatedBounties = await fetchOTCWithdrawals(
+    blockNumber1,
+    blockNumber2
+  );
   // Filter bounties for the specified protocol
   aggregatedBounties = { [protocol]: aggregatedBounties[protocol] };
 
   // Collect tokens and fetch their info
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
   const allTokens = collectAllTokens(aggregatedBounties, protocolTokens);
-  const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens), publicClient);
+  const tokenInfos = await fetchAllTokenInfos(
+    Array.from(allTokens),
+    publicClient
+  );
 
   // Get gauge infos and attach gauge names
   let gaugesInfo;
@@ -182,15 +202,20 @@ async function main() {
       gaugesInfo = await getGaugesInfos("pendle");
       break;
   }
-  aggregatedBounties = { [protocol]: addGaugeNamesToBounties(aggregatedBounties[protocol], gaugesInfo ?? []) };
+  aggregatedBounties = {
+    [protocol]: addGaugeNamesToBounties(
+      aggregatedBounties[protocol],
+      gaugesInfo ?? []
+    ),
+  };
 
   // Replace root gauge address per gauge address and add gauge names for Curve gauges
   for (const bounty of aggregatedBounties[protocol]) {
-
     if (protocol === "curve") {
-      const gaugeInfo = gaugesInfo?.find(gauge => 
-        gauge.rootGauge?.toLowerCase() === bounty.gauge.toLowerCase() || 
-        gauge.address.toLowerCase() === bounty.gauge.toLowerCase()
+      const gaugeInfo = gaugesInfo?.find(
+        (gauge) =>
+          gauge.rootGauge?.toLowerCase() === bounty.gauge.toLowerCase() ||
+          gauge.address.toLowerCase() === bounty.gauge.toLowerCase()
       );
       if (gaugeInfo) {
         bounty.gauge = gaugeInfo.address;
@@ -200,8 +225,20 @@ async function main() {
   }
 
   // Fetch swap events
-  const swapIn = await fetchSwapInEvents(1, blockNumber1, blockNumber2, Array.from(allTokens), ALL_MIGHT);
-  const swapOut = await fetchSwapOutEvents(1, blockNumber1, blockNumber2, Array.from(allTokens), ALL_MIGHT);
+  const swapIn = await fetchSwapInEvents(
+    1,
+    blockNumber1,
+    blockNumber2,
+    Array.from(allTokens),
+    ALL_MIGHT
+  );
+  const swapOut = await fetchSwapOutEvents(
+    1,
+    blockNumber1,
+    blockNumber2,
+    Array.from(allTokens),
+    ALL_MIGHT
+  );
 
   const vlcvxRecipientSwapsIn = await fetchSwapInEvents(
     1,
@@ -210,55 +247,80 @@ async function main() {
     [PROTOCOLS_TOKENS.curve.sdToken],
     VLCVX_DELEGATORS_RECIPIENT
   );
-  const vlcvxRecipientSwapsInBlockNumbers = vlcvxRecipientSwapsIn.map(swap => swap.blockNumber);
-  console.log("vlCVX recipient blocks to exclude:", vlcvxRecipientSwapsInBlockNumbers);
+  const vlcvxRecipientSwapsInBlockNumbers = vlcvxRecipientSwapsIn.map(
+    (swap) => swap.blockNumber
+  );
+  console.log(
+    "vlCVX recipient blocks to exclude:",
+    vlcvxRecipientSwapsInBlockNumbers
+  );
 
   const swapInFiltered = processSwapsOTC(swapIn, tokenInfos);
 
   // Identify OTC swap blocks to filter for further processing
-  const otcSwapBlocks = new Set(swapInFiltered.map(swap => swap.blockNumber));
+  const otcSwapBlocks = new Set(swapInFiltered.map((swap) => swap.blockNumber));
 
   // Process sdToken swaps
   const sdTokenSwapsIn = processSwaps(
-    swapIn.filter(swap =>
-      swap.token.toLowerCase() === PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
-      otcSwapBlocks.has(swap.blockNumber)
+    swapIn.filter(
+      (swap) =>
+        swap.token.toLowerCase() ===
+          PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
+        otcSwapBlocks.has(swap.blockNumber)
     ),
     tokenInfos
   );
   const sdTokenSwapsOut = processSwaps(
-    swapOut.filter(swap =>
-      swap.token.toLowerCase() === PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
-      otcSwapBlocks.has(swap.blockNumber)
+    swapOut.filter(
+      (swap) =>
+        swap.token.toLowerCase() ===
+          PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
+        otcSwapBlocks.has(swap.blockNumber)
     ),
     tokenInfos
   );
-  
+
   console.log("sdTokenSwapsIn", sdTokenSwapsIn);
   console.log("sdTokenSwapsOut", sdTokenSwapsOut);
 
   // Process remaining swaps
   const otherSwapsIn = processSwaps(
-    swapIn.filter(swap =>
-      swap.token.toLowerCase() !== PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
-      swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase() &&
-      otcSwapBlocks.has(swap.blockNumber)
+    swapIn.filter(
+      (swap) =>
+        swap.token.toLowerCase() !==
+          PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
+        swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase() &&
+        otcSwapBlocks.has(swap.blockNumber)
     ),
     tokenInfos
   );
   const otherSwapsOut = processSwaps(
-    swapOut.filter(swap => otcSwapBlocks.has(swap.blockNumber)),
+    swapOut.filter((swap) => otcSwapBlocks.has(swap.blockNumber)),
     tokenInfos
   );
 
   // Merge and deduplicate swaps
-  const combinedSwapsIn = [...swapInFiltered, ...sdTokenSwapsIn, ...otherSwapsIn];
+  const combinedSwapsIn = [
+    ...swapInFiltered,
+    ...sdTokenSwapsIn,
+    ...otherSwapsIn,
+  ];
   const combinedSwapsOut = [...otherSwapsOut, ...sdTokenSwapsOut];
-  const uniqueSwapsIn = combinedSwapsIn.filter((swap, index, self) =>
-    index === self.findIndex(t => t.blockNumber === swap.blockNumber && t.logIndex === swap.logIndex)
+  const uniqueSwapsIn = combinedSwapsIn.filter(
+    (swap, index, self) =>
+      index ===
+      self.findIndex(
+        (t) =>
+          t.blockNumber === swap.blockNumber && t.logIndex === swap.logIndex
+      )
   );
-  const uniqueSwapsOut = combinedSwapsOut.filter((swap, index, self) =>
-    index === self.findIndex(t => t.blockNumber === swap.blockNumber && t.logIndex === swap.logIndex)
+  const uniqueSwapsOut = combinedSwapsOut.filter(
+    (swap, index, self) =>
+      index ===
+      self.findIndex(
+        (t) =>
+          t.blockNumber === swap.blockNumber && t.logIndex === swap.logIndex
+      )
   );
 
   const processedReport = processReport(
@@ -272,7 +334,11 @@ async function main() {
 
   // Write updated CSV reports
   const projectRoot = path.resolve(__dirname, "..", "..");
-  const dirPath = path.join(projectRoot, "bounties-reports", currentPeriod.toString());
+  const dirPath = path.join(
+    projectRoot,
+    "bounties-reports",
+    currentPeriod.toString()
+  );
 
   for (const [protocol, data] of Object.entries(processedReport)) {
     // Create OTC file for all protocols
@@ -280,8 +346,8 @@ async function main() {
     const otcFilePath = path.join(dirPath, otcFileName);
 
     // Create rows with current period
-    const rows = data.map(row => ({
-      "Period": currentPeriod.toString(),
+    const rows = data.map((row) => ({
+      Period: currentPeriod.toString(),
       "Gauge Name": row.gaugeName,
       "Gauge Address": row.gaugeAddress,
       "Reward Token": row.rewardToken,
@@ -298,17 +364,21 @@ async function main() {
     );
 
     for (const row of rows) {
-      row["Share % per Protocol"] = ((parseFloat(row["Reward sd Value"]) / totalRewardSdValue) * 100).toFixed(2);
+      row["Share % per Protocol"] = (
+        (parseFloat(row["Reward sd Value"]) / totalRewardSdValue) *
+        100
+      ).toFixed(2);
     }
 
     // Generate CSV content
     const csvContent = [
       "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-      ...rows.map(row =>
-        `${row.Period};${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
-        `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
-        `${row["Share % per Protocol"]}`
-      )
+      ...rows.map(
+        (row) =>
+          `${row.Period};${row["Gauge Name"]};${row["Gauge Address"]};${row["Reward Token"]};${row["Reward Address"]};` +
+          `${parseFloat(row["Reward Amount"]).toFixed(6)};${parseFloat(row["Reward sd Value"]).toFixed(6)};` +
+          `${row["Share % per Protocol"]}`
+      ),
     ].join("\n");
 
     fs.writeFileSync(otcFilePath, csvContent);

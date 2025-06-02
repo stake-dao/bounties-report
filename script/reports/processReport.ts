@@ -1,5 +1,8 @@
 import { WETH_CHAIN_IDS } from "../utils/constants";
-import { PROTOCOLS_TOKENS, matchWethInWithRewardsOut } from "../utils/reportUtils";
+import {
+  PROTOCOLS_TOKENS,
+  matchWethInWithRewardsOut,
+} from "../utils/reportUtils";
 
 interface TokenInfo {
   symbol: string;
@@ -55,7 +58,7 @@ interface SwapData {
 
 /**
  * Processes swap events and bounties to generate CSV rows grouped by protocol.
- * 
+ *
  * This function implements the core logic for calculating how much sdToken each bounty generates:
  * 1. Organizes swap events by protocol and block number
  * 2. Matches WETH inputs with reward outputs to determine token values
@@ -71,7 +74,6 @@ function processReport(
   tokenInfos: Record<string, TokenInfo>,
   excludedSwapsInBlockNumbers: number[]
 ): { [protocol: string]: CSVRow[] } {
-  
   // Step 1: Organize swaps by protocol and block (same as original)
   const swapsData: Record<string, Record<number, SwapData>> = {};
 
@@ -85,7 +87,9 @@ function processReport(
         if (!swapsData[protocol][swap.blockNumber]) {
           swapsData[protocol][swap.blockNumber] = { sdTokenIn: [] };
         }
-        swapsData[protocol][swap.blockNumber].sdTokenIn!.push(swap.formattedAmount);
+        swapsData[protocol][swap.blockNumber].sdTokenIn!.push(
+          swap.formattedAmount
+        );
       }
     }
 
@@ -98,33 +102,49 @@ function processReport(
       const isNative = token === tokenConfig.native.toLowerCase();
       const isWeth = token === WETH_CHAIN_IDS[chainId].toLowerCase();
       const isSdToken = token === tokenConfig.sdToken.toLowerCase();
-      const isReward = ![WETH_CHAIN_IDS[chainId], tokenConfig.native, tokenConfig.sdToken]
+      const isReward = ![
+        WETH_CHAIN_IDS[chainId],
+        tokenConfig.native,
+        tokenConfig.sdToken,
+      ]
         .map((t) => t.toLowerCase())
         .includes(token);
 
       if (swapsIn.includes(swap)) {
         if (isNative) {
           swapsData[protocol][swap.blockNumber].nativeIn ??= [];
-          swapsData[protocol][swap.blockNumber].nativeIn!.push(swap.formattedAmount);
+          swapsData[protocol][swap.blockNumber].nativeIn!.push(
+            swap.formattedAmount
+          );
         } else if (isWeth) {
           swapsData[protocol][swap.blockNumber].wethIn ??= [];
-          swapsData[protocol][swap.blockNumber].wethIn!.push(swap.formattedAmount);
+          swapsData[protocol][swap.blockNumber].wethIn!.push(
+            swap.formattedAmount
+          );
         }
       } else if (swapsOut.includes(swap)) {
         if (isNative) {
           swapsData[protocol][swap.blockNumber].nativeOut ??= [];
-          swapsData[protocol][swap.blockNumber].nativeOut!.push(swap.formattedAmount);
+          swapsData[protocol][swap.blockNumber].nativeOut!.push(
+            swap.formattedAmount
+          );
         } else if (isWeth) {
           swapsData[protocol][swap.blockNumber].wethOut ??= [];
-          swapsData[protocol][swap.blockNumber].wethOut!.push(swap.formattedAmount);
+          swapsData[protocol][swap.blockNumber].wethOut!.push(
+            swap.formattedAmount
+          );
         } else if (isSdToken) {
           swapsData[protocol][swap.blockNumber].sdTokenOut ??= [];
-          swapsData[protocol][swap.blockNumber].sdTokenOut!.push(swap.formattedAmount);
+          swapsData[protocol][swap.blockNumber].sdTokenOut!.push(
+            swap.formattedAmount
+          );
         } else if (isReward) {
           swapsData[protocol][swap.blockNumber].rewardsOut ??= [];
-          if (!swapsData[protocol][swap.blockNumber].rewardsOut!.some(
-            (r) => r.token === swap.token && r.amount === swap.formattedAmount
-          )) {
+          if (
+            !swapsData[protocol][swap.blockNumber].rewardsOut!.some(
+              (r) => r.token === swap.token && r.amount === swap.formattedAmount
+            )
+          ) {
             swapsData[protocol][swap.blockNumber].rewardsOut!.push({
               token: swap.token,
               symbol: swap.symbol,
@@ -140,10 +160,10 @@ function processReport(
   // This is the core logic: when WETH goes in and reward tokens come out in the same block,
   // we can determine how much WETH each reward token is worth
   const tokenValues: Record<string, Record<string, number>> = {}; // protocol -> token -> weth value
-  
+
   for (const [protocol, blocks] of Object.entries(swapsData)) {
     tokenValues[protocol] = {};
-    
+
     for (const blockData of Object.values(blocks)) {
       const matches = matchWethInWithRewardsOut(blockData);
       for (const match of matches) {
@@ -156,27 +176,45 @@ function processReport(
   }
 
   // Step 3: Calculate total flows for each protocol
-  const protocolFlows: Record<string, {
-    totalWethIn: number;
-    totalWethOut: number;
-    totalNativeIn: number;
-    totalNativeOut: number;
-    totalSdTokenIn: number;
-    totalSdTokenOut: number;
-  }> = {};
+  const protocolFlows: Record<
+    string,
+    {
+      totalWethIn: number;
+      totalWethOut: number;
+      totalNativeIn: number;
+      totalNativeOut: number;
+      totalSdTokenIn: number;
+      totalSdTokenOut: number;
+    }
+  > = {};
 
   for (const [protocol, blocks] of Object.entries(swapsData)) {
-    let totalWethIn = 0, totalWethOut = 0;
-    let totalNativeIn = 0, totalNativeOut = 0;
-    let totalSdTokenIn = 0, totalSdTokenOut = 0;
+    let totalWethIn = 0,
+      totalWethOut = 0;
+    let totalNativeIn = 0,
+      totalNativeOut = 0;
+    let totalSdTokenIn = 0,
+      totalSdTokenOut = 0;
 
     for (const block of Object.values(blocks)) {
       totalWethIn += (block.wethIn || []).reduce((sum, amt) => sum + amt, 0);
       totalWethOut += (block.wethOut || []).reduce((sum, amt) => sum + amt, 0);
-      totalNativeIn += (block.nativeIn || []).reduce((sum, amt) => sum + amt, 0);
-      totalNativeOut += (block.nativeOut || []).reduce((sum, amt) => sum + amt, 0);
-      totalSdTokenIn += (block.sdTokenIn || []).reduce((sum, amt) => sum + amt, 0);
-      totalSdTokenOut += (block.sdTokenOut || []).reduce((sum, amt) => sum + amt, 0);
+      totalNativeIn += (block.nativeIn || []).reduce(
+        (sum, amt) => sum + amt,
+        0
+      );
+      totalNativeOut += (block.nativeOut || []).reduce(
+        (sum, amt) => sum + amt,
+        0
+      );
+      totalSdTokenIn += (block.sdTokenIn || []).reduce(
+        (sum, amt) => sum + amt,
+        0
+      );
+      totalSdTokenOut += (block.sdTokenOut || []).reduce(
+        (sum, amt) => sum + amt,
+        0
+      );
     }
 
     protocolFlows[protocol] = {
@@ -185,7 +223,7 @@ function processReport(
       totalNativeIn,
       totalNativeOut,
       totalSdTokenIn,
-      totalSdTokenOut
+      totalSdTokenOut,
     };
   }
 
@@ -198,7 +236,7 @@ function processReport(
     const native = PROTOCOLS_TOKENS[protocol].native.toLowerCase();
     const sdToken = PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase();
     const flows = protocolFlows[protocol];
-    
+
     if (!flows) return;
 
     // Calculate native from bounties
@@ -211,28 +249,37 @@ function processReport(
 
     // Calculate WETH to Native ratio
     const nativeFromWeth = flows.totalNativeOut - nativeFromBounties;
-    const wethToNativeRatio = flows.totalWethIn > 0 ? nativeFromWeth / flows.totalWethIn : 0;
+    const wethToNativeRatio =
+      flows.totalWethIn > 0 ? nativeFromWeth / flows.totalWethIn : 0;
 
     // Handle edge case: WETH bounties with no WETH swaps
     // This can happen when bounties are paid in WETH directly
     const wethFromBounties = bounties
-      .filter(b => b.rewardToken.toLowerCase() === WETH_CHAIN_IDS[chainId].toLowerCase())
+      .filter(
+        (b) =>
+          b.rewardToken.toLowerCase() === WETH_CHAIN_IDS[chainId].toLowerCase()
+      )
       .reduce((sum, b) => {
         const tokenInfo = tokenInfos[b.rewardToken.toLowerCase()];
         return sum + Number(b.amount) / 10 ** (tokenInfo?.decimals || 18);
       }, 0);
-    
-    const fallbackWethToNativeRatio = (wethFromBounties > 0 && flows.totalWethIn === 0 && flows.totalNativeOut > 0) 
-      ? flows.totalNativeOut / wethFromBounties 
-      : 0;
-    
-    const effectiveWethToNativeRatio = wethToNativeRatio > 0 ? wethToNativeRatio : fallbackWethToNativeRatio;
+
+    const fallbackWethToNativeRatio =
+      wethFromBounties > 0 &&
+      flows.totalWethIn === 0 &&
+      flows.totalNativeOut > 0
+        ? flows.totalNativeOut / wethFromBounties
+        : 0;
+
+    const effectiveWethToNativeRatio =
+      wethToNativeRatio > 0 ? wethToNativeRatio : fallbackWethToNativeRatio;
 
     // Calculate native equivalent for each bounty
     bounties.forEach((bounty) => {
       const rewardToken = bounty.rewardToken.toLowerCase();
       const tokenInfo = tokenInfos[rewardToken];
-      const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+      const formattedAmount =
+        Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
       let nativeEquivalent = 0;
 
       if (rewardToken === native) {
@@ -245,13 +292,14 @@ function processReport(
         if (tokenWethValue) {
           // Calculate this bounty's share of the total token amount
           const totalForToken = bounties
-            .filter(b => b.rewardToken.toLowerCase() === rewardToken)
+            .filter((b) => b.rewardToken.toLowerCase() === rewardToken)
             .reduce((sum, b) => {
               const dec = tokenInfos[rewardToken]?.decimals || 18;
               return sum + Number(b.amount) / 10 ** dec;
             }, 0);
           const localShare = formattedAmount / totalForToken;
-          nativeEquivalent = tokenWethValue * localShare * effectiveWethToNativeRatio;
+          nativeEquivalent =
+            tokenWethValue * localShare * effectiveWethToNativeRatio;
         }
       }
 
@@ -265,9 +313,10 @@ function processReport(
     );
 
     bounties.forEach((bounty) => {
-      bounty.share = bounty.nativeEquivalent && totalNativeEquivalent > 0
-        ? bounty.nativeEquivalent / totalNativeEquivalent
-        : 0;
+      bounty.share =
+        bounty.nativeEquivalent && totalNativeEquivalent > 0
+          ? bounty.nativeEquivalent / totalNativeEquivalent
+          : 0;
     });
 
     // Calculate sdToken amounts
@@ -281,7 +330,8 @@ function processReport(
     // Direct sdToken bounties
     sdTokenBounties.forEach((bounty) => {
       const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
-      bounty.sdTokenAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+      bounty.sdTokenAmount =
+        Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
     });
 
     // Distribute remaining sdToken
@@ -293,7 +343,8 @@ function processReport(
 
     const totalShares = bounties.reduce((acc, b) => acc + (b.share || 0), 0);
     nonSdTokenBounties.forEach((bounty) => {
-      bounty.normalizedShare = bounty.share && totalShares > 0 ? bounty.share / totalShares : 0;
+      bounty.normalizedShare =
+        bounty.share && totalShares > 0 ? bounty.share / totalShares : 0;
       bounty.sdTokenAmount = bounty.normalizedShare
         ? bounty.normalizedShare * remainingSdTokenAmount
         : 0;
@@ -302,20 +353,23 @@ function processReport(
 
   // Step 5: Convert to CSV rows
   const groupedRows: { [protocol: string]: CSVRow[] } = {};
-  
+
   Object.entries(aggregatedBounties).forEach(([protocol, bounties]) => {
     const mergedRows: { [key: string]: CSVRow } = {};
-    
+
     bounties.forEach((bounty) => {
       const rewardToken = bounty.rewardToken.toLowerCase();
       const tokenInfo = tokenInfos[rewardToken];
-      const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+      const formattedAmount =
+        Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
       const key = `${protocol}-${bounty.gauge.toLowerCase()}-${rewardToken}`;
 
       if (mergedRows[key]) {
         mergedRows[key].rewardAmount += formattedAmount;
         mergedRows[key].rewardSdValue += bounty.sdTokenAmount || 0;
-        mergedRows[key].sharePercentage += bounty.share ? bounty.share * 100 : 0;
+        mergedRows[key].sharePercentage += bounty.share
+          ? bounty.share * 100
+          : 0;
       } else {
         mergedRows[key] = {
           protocol,
@@ -331,7 +385,9 @@ function processReport(
     });
 
     // Filter out rows with zero SD token value
-    groupedRows[protocol] = Object.values(mergedRows).filter(row => row.rewardSdValue > 0);
+    groupedRows[protocol] = Object.values(mergedRows).filter(
+      (row) => row.rewardSdValue > 0
+    );
   });
 
   return groupedRows;
