@@ -1,0 +1,20 @@
+Stake DAO - Swap Report
+Protocol: FXN
+Timestamp: 1749081600
+Date: 2025-06-05 00:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 FXN Swap Report
+
+🔄 https://etherscan.io/tx/0x12bd7ac60b365bbf4b3d1f95de2fb5d2e69235440cdac330cc22987064c8f047 Transaction
+├─ https://etherscan.io/token/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad sdFXN: 27.10 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 0.7098
+└─ https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 WETH: 0.71 → 0.7098 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (100.0%)
+
+
+🔍 Token Contributions:
+├─ https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 WETH: 0.71 → 0.7098 WETH (100.0%)
+
+📈 Final Summary
+└─ 27.10 https://etherscan.io/token/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad sdFXN
+   └─ via 0.7098 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH
+      └─ to 0.00 https://etherscan.io/token/0x365accfca291e7d3914637abf1f7635db165bb09 FXN
