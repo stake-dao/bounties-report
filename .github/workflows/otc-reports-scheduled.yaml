@@ -1,0 +1,98 @@
+name: "[sdTokens] Scheduled OTC Reports - Monday Evening"
+
+on:
+  schedule:
+    # Run every Monday at 20:00 UTC (8:00 PM)
+    - cron: '0 20 * * 1'
+  workflow_dispatch:
+    inputs:
+      protocols:
+        description: 'Protocols to generate OTC reports for (comma-separated: curve,balancer,fxn,frax,pendle or all)'
+        required: false
+        default: 'all'
+
+jobs:
+  generate-otc-reports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        env:
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20.5.1"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.3
+
+      - name: Install node dependencies
+        run: pnpm install
+
+      - name: Set protocols list
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.protocols }}" ]; then
+            PROTOCOLS="${{ github.event.inputs.protocols }}"
+          else
+            PROTOCOLS="all"
+          fi
+          
+          if [ "$PROTOCOLS" == "all" ]; then
+            echo "PROTOCOLS_LIST=curve,balancer,fxn,frax,pendle" >> $GITHUB_ENV
+          else
+            echo "PROTOCOLS_LIST=$PROTOCOLS" >> $GITHUB_ENV
+          fi
+
+      - name: Generate OTC Report for Curve
+        if: contains(env.PROTOCOLS_LIST, 'curve') || env.PROTOCOLS_LIST == 'all'
+        run: pnpm tsx script/reports/generateOTCReport.ts curve
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Generate OTC Report for Balancer
+        if: contains(env.PROTOCOLS_LIST, 'balancer') || env.PROTOCOLS_LIST == 'all'
+        run: pnpm tsx script/reports/generateOTCReport.ts balancer
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Generate OTC Report for FXN
+        if: contains(env.PROTOCOLS_LIST, 'fxn') || env.PROTOCOLS_LIST == 'all'
+        run: pnpm tsx script/reports/generateOTCReport.ts fxn
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Generate OTC Report for Frax
+        if: contains(env.PROTOCOLS_LIST, 'frax') || env.PROTOCOLS_LIST == 'all'
+        run: pnpm tsx script/reports/generateOTCReport.ts frax
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Generate OTC Report for Pendle
+        if: contains(env.PROTOCOLS_LIST, 'pendle') || env.PROTOCOLS_LIST == 'all'
+        run: pnpm tsx script/reports/generateOTCReport.ts pendle
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add .
+          git commit -m "Update OTC reports - Monday scheduled run" || exit 0
+          git push
+
+      - name: Send notification on failure
+        if: failure()
+        run: |
+          echo "OTC report generation failed for one or more protocols"
+          # Add notification logic here if needed (e.g., Telegram, Discord, etc.)
