@@ -248,7 +248,11 @@ export const abi = parseAbi([
 export const clients: Record<number, PublicClient> = {
   [1]: createPublicClient({
     chain: mainnet,
-    transport: http("https://rpc.flashbots.net"),
+    transport: http(
+      process.env.ETH_RPC_URL || 
+      `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` ||
+      "https://eth.llamarpc.com"
+    ),
   }),
   [56]: createPublicClient({ chain: bsc, transport: http() }),
   [10]: createPublicClient({ chain: optimism, transport: http() }),

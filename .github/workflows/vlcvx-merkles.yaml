@@ -33,6 +33,8 @@ jobs:
           make -f automation/vlCVX/merkles.mk run-merkles TYPE=${{ github.event.inputs.type || github.event.client_payload.type || 'non-delegators' }}
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
