@@ -24,8 +24,6 @@ import {
   getForwardedDelegators,
 } from "../../utils/delegationHelper";
 
-const WEEK = 604800;
-
 const ethereumClient = createPublicClient({
   chain: mainnet,
   transport: http("https://rpc.flashbots.net"),
@@ -610,11 +608,10 @@ async function generateConvexVotiumBounties() {
     const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");
     ensureDirExists(weeklyBountiesDir);
 
-    const nowTimestamp = Math.floor(Date.now() / 1000);
-    const currentPeriodTimestamp = Math.floor(nowTimestamp / WEEK) * WEEK;
+    // Use the period from VOTIUM_FORWARDER_REGISTRY + one week (bc distribution is done on thursday) instead of current timestamp
     const periodFolder = path.join(
       weeklyBountiesDir,
-      currentPeriodTimestamp.toString(),
+      (Number(currentEpoch) + 604800).toString(),
       "votium"
     );
     ensureDirExists(periodFolder);
@@ -738,7 +735,7 @@ async function generateConvexVotiumBounties() {
     console.log(`Cleaned per-address breakdown saved to ${perAddressFileName}`);
 
     const telegramLogger = new ClaimsTelegramLogger();
-    await telegramLogger.logClaims("votium/claimed_bounties_convex.json", currentPeriodTimestamp, votiumConvexBounties);
+    await telegramLogger.logClaims("votium/claimed_bounties_convex.json", Number(currentEpoch) + 604800, votiumConvexBounties);
   } catch (error) {
     console.error("Error generating votium bounties:", error);
     process.exit(1);
