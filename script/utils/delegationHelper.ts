@@ -12,8 +12,6 @@ export const getForwardedDelegators = async (
   delegators: string[],
   blockSnapshotEnd: number
 ): Promise<string[]> => {
-  // Assumes RPC_URL is set in your environment variables
-
   const abi = [
     {
       name: "batchAddressCheck",

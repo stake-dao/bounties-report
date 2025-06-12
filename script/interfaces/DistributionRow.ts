@@ -1,5 +1,6 @@
 export interface DistributionRow {
     address: string;
+    tokenAddress: string;
     symbol: string;
     prevAmount: bigint;
     newAmount: bigint;
@@ -7,4 +8,5 @@ export interface DistributionRow {
     distributionAmount: bigint;
     claimed: boolean;
     isError: boolean;
+    weekChangePercentage?: number;
 }

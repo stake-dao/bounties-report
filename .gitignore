@@ -6,6 +6,7 @@ venv/
 temp/
 artifacts/
 cache/
+.claude/
 
 # Files
 .DS_Store

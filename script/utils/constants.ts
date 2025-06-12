@@ -200,7 +200,7 @@ export const WETH_CHAIN_IDS: Record<number, `0x${string}`> = {
   1: getAddress("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"), // Ethereum
   56: getAddress("0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"), // BSC
   8453: getAddress("0x4200000000000000000000000000000000000006"), // Base
-  42161: getAddress("0x82aF49447D8a07e3bd95BD0d56f35241523fBab1") // Arbitrum
+  42161: getAddress("0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"), // Arbitrum
 };
 
 export const SPACES_IMAGE: Record<string, string> = {
@@ -249,9 +249,7 @@ export const clients: Record<number, PublicClient> = {
   [1]: createPublicClient({
     chain: mainnet,
     transport: http(
-      process.env.ETH_RPC_URL || 
-      `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` ||
-      "https://eth.llamarpc.com"
+      `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
     ),
   }),
   [56]: createPublicClient({ chain: bsc, transport: http() }),
