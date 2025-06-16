@@ -12,7 +12,7 @@ import {
   processSwaps,
   PROTOCOLS_TOKENS,
 } from "../utils/reportUtils";
-import { clients } from "../utils/constants";
+import { getOptimizedClient } from "../utils/constants";
 import processReport from "../reports/processReport";
 
 dotenv.config();
@@ -44,8 +44,9 @@ function writeReportToCSV(rows: SpectraClaimed[]) {
 }
 
 async function main() {
+  const baseClient = await getOptimizedClient(8453);
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
-    clients[8453],
+    baseClient,
     0,
     "base"
   );
@@ -178,7 +179,7 @@ async function main() {
   allTokens.add(protocolTokens.spectra.native);
   const tokenInfos = await fetchAllTokenInfos(
     Array.from(allTokens),
-    clients[8453]
+    baseClient
   );
 
   // Fetch swap events

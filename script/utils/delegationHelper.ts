@@ -1,7 +1,7 @@
 import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
 import { processAllDelegators } from "./cacheUtils";
-import { clients, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
+import { clients, getOptimizedClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
@@ -23,7 +23,8 @@ export const getForwardedDelegators = async (
   ];
 
   try {
-    const forwarded = (await clients[1].readContract({
+    const client = await getOptimizedClient(1);
+    const forwarded = (await client.readContract({
       address: VOTIUM_FORWARDER_REGISTRY as `0x${string}`,
       abi,
       functionName: "batchAddressCheck",

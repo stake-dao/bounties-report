@@ -14,7 +14,7 @@ import {
   extractCSV,
 } from "../utils/utils";
 import * as dotenv from "dotenv";
-import { clients } from "../utils/constants";
+import { getOptimizedClient } from "../utils/constants";
 import axios from "axios";
 
 dotenv.config();
@@ -41,7 +41,7 @@ const ptAbi = parseAbi([
 ]);
 
 export async function getSpectraDistribution() {
-  const baseClient = clients[8453];
+  const baseClient = await getOptimizedClient(8453);
 
   // Fetch new claims from the start of the current epoch to now
   const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -95,7 +95,7 @@ export async function getSpectraDistribution() {
       continue;
     }
 
-    const client = clients[claim.chainId];
+    const client = await getOptimizedClient(claim.chainId);
 
     // @ts-ignore
     const coinPT = await client.readContract({

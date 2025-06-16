@@ -25,7 +25,7 @@ import {
   PlatformConfigs,
 } from "./types";
 import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
-import { clients } from "./constants";
+import { clients, getOptimizedClient } from "./constants";
 import { ContractRegistry } from "./contractRegistry";
 import { getBlockNumberByTimestamp } from "./chainUtils";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
@@ -223,7 +223,8 @@ const fetchVotemarketV1ClaimedBounties = async (
             strict: true,
           });
 
-          const bountyInfo = await clients[1].readContract({
+          const client = await getOptimizedClient(1);
+          const bountyInfo = await client.readContract({
             address: getAddress(log.address),
             abi: platformAbi,
             functionName: "getBounty",
@@ -362,14 +363,15 @@ const fetchVotemarketV2ClaimedBounties = async (
           strict: true,
         });
 
-        const bountyInfo = await clients[chain].readContract({
+        const client = await getOptimizedClient(chain);
+        const bountyInfo = await client.readContract({
           address: getAddress(log.address),
           abi: campaignAbi,
           functionName: "getCampaign",
           args: [decodedLog.args.campaignId],
         });
 
-        const isWrapped = await clients[chain].readContract({
+        const isWrapped = await client.readContract({
           address: tokenFactoryAddress,
           abi: tokenFactoryAbi,
           functionName: "isWrapped",
@@ -378,7 +380,7 @@ const fetchVotemarketV2ClaimedBounties = async (
 
         let nativeToken = bountyInfo[3];
         if (isWrapped) {
-          const nativeTokenAddress = await clients[chain].readContract({
+          const nativeTokenAddress = await client.readContract({
             address: tokenFactoryAddress,
             abi: tokenFactoryAbi,
             functionName: "nativeTokens",

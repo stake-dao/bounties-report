@@ -14,7 +14,7 @@ import {
   proposalInformationLogger,
 } from "./delegationHelper";
 import { getProposal, getVoters } from "./snapshot";
-import { clients, VOTIUM_FORWARDER_REGISTRY, CVX_SPACE, CVX_FXN_SPACE } from "./constants";
+import { clients, getOptimizedClient, VOTIUM_FORWARDER_REGISTRY, CVX_SPACE, CVX_FXN_SPACE } from "./constants";
 import fs from "fs";
 import path from "path";
 const merkleAbi = [
@@ -80,7 +80,7 @@ export const getAllTokensInfos = async (
     `Fetching info for ${uncachedAddresses.length} uncached tokens (${normalizedAddresses.length - uncachedAddresses.length} cached)`
   );
 
-  const client = clients[chainId] || createPublicClient({
+  const client = await getOptimizedClient(chainId) || createPublicClient({
     chain,
     transport: http(),
   });
@@ -180,7 +180,7 @@ export const distributionVerifier = async (
   if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
     console.log("\n=== Votium Epoch Check ===");
     try {
-      const ethereumClient = clients[1] || createPublicClient({
+      const ethereumClient = await getOptimizedClient(1) || createPublicClient({
         chain: merkleChain,
         transport: http(),
       });
@@ -291,7 +291,7 @@ const compareMerkleData = async (
   tokenInfos: { [token: string]: { decimals: number; symbol: string } },
   weekChangeTotals: { [token: string]: bigint }
 ): Promise<DistributionRow[]> => {
-  const client = clients[chain.id] || createPublicClient({
+  const client = await getOptimizedClient(chain.id) || createPublicClient({
     chain,
     transport: http(),
   });

@@ -11,6 +11,7 @@ import {
   SDBAL_SPACE,
   SDPENDLE_SPACE,
   SPECTRA_SPACE,
+  getOptimizedClient,
 } from "./constants";
 import fs from "fs";
 import path from "path";
@@ -625,15 +626,7 @@ export const addVotersFromAutoVoter = async (
   );
 
   // Fetch delegators weight registered in the auto voter contract
-  const publicClient = createPublicClient({
-    chain: mainnet,
-    transport: http(
-      "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9"
-    ),
-    batch: {
-      multicall: true,
-    },
-  });
+  const publicClient = await getOptimizedClient(1);
 
   const { data } = await axios.post("https://score.snapshot.org/api/scores", {
     params: {
@@ -809,22 +802,7 @@ export const getAllAccountClaimed = async (
     abi: abi,
   };
 
-  let rpcUrl = "";
-  switch (chain.id) {
-    case mainnet.id:
-      rpcUrl =
-        "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-      break;
-    case bsc.id:
-      rpcUrl =
-        "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-      break;
-  }
-
-  const publicClient = createPublicClient({
-    chain,
-    transport: http(rpcUrl),
-  });
+  const publicClient = await getOptimizedClient(chain.id);
 
   const calls: any[] = [];
   for (const userAddress of Object.keys(lastMerkle.merkle)) {
@@ -884,27 +862,18 @@ export const getAllAccountClaimedSinceLastFreeze = async (
   const explorerUtils = createBlockchainExplorerUtils();
 
   let chain: any;
-  let rpcUrl = "";
   switch (Number(chainId)) {
     case mainnet.id:
       chain = mainnet;
-      rpcUrl =
-        "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
       break;
     case bsc.id:
       chain = bsc;
-      rpcUrl =
-        "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
       break;
     default:
       throw new Error("Chain not found");
   }
 
-  const publicClient = createPublicClient({
-    chain,
-    transport: http(rpcUrl),
-  });
-
+  const publicClient = await getOptimizedClient(Number(chainId));
   const currentBlock = await publicClient.getBlock();
 
   const merkleEventSignature = "MerkleRootUpdated(address,bytes32,uint256)";

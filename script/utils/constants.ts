@@ -17,6 +17,7 @@ import {
   sonic,
 } from "viem/chains";
 import { PlatformConfigs } from "./types";
+import { rpcClientManager } from "./rpcClientManager";
 
 dotenv.config();
 
@@ -245,6 +246,8 @@ export const abi = parseAbi([
   "function isClaimed(address token, uint256 index) public view returns (bool)",
 ]);
 
+// Legacy clients - kept for backward compatibility
+// Use getOptimizedClient() for better reliability
 export const clients: Record<number, PublicClient> = {
   [1]: createPublicClient({
     chain: mainnet,
@@ -319,3 +322,37 @@ export const VOTEMARKET_CONVEX_LOCKER_CONFIGS: PlatformConfigs = {
     },
   ],
 };
+
+/**
+ * Get an optimized RPC client with automatic failover and connection testing
+ * @param chainId - The chain ID to get a client for
+ * @returns A viem PublicClient connected to the fastest available RPC
+ */
+export async function getOptimizedClient(chainId: number): Promise<PublicClient> {
+  return rpcClientManager.getClient(chainId);
+}
+
+/**
+ * Get multiple healthy RPC clients for redundancy
+ * @param chainId - The chain ID to get clients for
+ * @returns Array of up to 3 healthy PublicClients
+ */
+export async function getRedundantClients(chainId: number): Promise<PublicClient[]> {
+  return rpcClientManager.getAllHealthyClients(chainId);
+}
+
+/**
+ * Test RPC connection health for all chains
+ * @returns Connection status for all configured chains
+ */
+export async function testAllRpcConnections() {
+  return rpcClientManager.getConnectionStatus();
+}
+
+/**
+ * Force refresh RPC endpoints for a specific chain
+ * @param chainId - The chain ID to refresh
+ */
+export async function refreshRpcEndpoints(chainId: number): Promise<void> {
+  return rpcClientManager.refreshEndpoints(chainId);
+}

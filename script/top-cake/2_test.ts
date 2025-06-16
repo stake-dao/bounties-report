@@ -6,6 +6,7 @@ import { bsc } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { chunk } from "lodash";
 import { generateMerkles, SDT_ADDRESS } from "./utils";
+import { getOptimizedClient } from "../utils/constants";
 
 const FORK_URL = "";
 
