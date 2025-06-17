@@ -363,7 +363,7 @@ async function getProtocolShares(
         hash: txHash,
       });
       const isVotium = receipt.logs.some((log) => {
-        if (log.topics[0].toLowerCase() !== TRANSFER_TOPIC.toLowerCase())
+        if (!log.topics || !log.topics[0] || log.topics[0].toLowerCase() !== TRANSFER_TOPIC.toLowerCase())
           return false;
         return (
           (log.topics[1] as string).toLowerCase() ===

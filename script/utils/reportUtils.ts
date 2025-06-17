@@ -672,7 +672,7 @@ export async function mapTokenSwapsToOutToken(
 
   // Process each log in the transaction receipt
   for (const log of receipt.logs) {
-    if (log.topics[0].toLowerCase() !== TRANSFER_TOPIC) continue;
+    if (!log.topics || !log.topics[0] || log.topics[0].toLowerCase() !== TRANSFER_TOPIC) continue;
     try {
       const decoded = transferInterface.parseLog(log);
       const tokenAddress = log.address.toLowerCase();
