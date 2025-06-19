@@ -1,10 +1,10 @@
 {
-  "merkleRoot": "0xfcfb6026f71c4d1c3d7940604e904d5045ed2eb213118a7828a6be48ab267899",
+  "merkleRoot": "0xd8a882507aad555eebd01771037dff5d9843695b1f560a61904dc8963b73acf5",
   "claims": {
     "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A": {
       "tokens": {
         "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415": {
-          "amount": "507640935237697325461",
+          "amount": "1053864313793588182495",
           "proof": []
         }
       }
