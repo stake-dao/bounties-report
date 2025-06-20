@@ -1,5 +1,6 @@
 import * as dotenv from "dotenv";
 import fs from "fs";
+import path from "path";
 import {
   CVX_SPACE,
   WEEK,
@@ -47,6 +48,18 @@ const processGaugeProposal = async (
   // Calculate current "epoch"
   const now = moment.utc().unix();
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+
+  // Check if files already exist
+  const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX/${gaugeType}`;
+  const repartitionFile = path.join(dirPath, "repartition.json");
+  const delegationFile = path.join(dirPath, "repartition_delegation.json");
+  
+  if ((fs.existsSync(repartitionFile) || fs.existsSync(delegationFile)) && process.env.FORCE_UPDATE !== "true") {
+    console.error(`⚠️  ERROR: Repartition files already exist for ${gaugeType} in period ${currentPeriodTimestamp}`);
+    console.error(`   Files found in: ${dirPath}`);
+    console.error(`   To force regeneration, run with FORCE_UPDATE=true`);
+    return;
+  }
 
   // --- 1) Gauge-based distribution (non-delegation) ---
 

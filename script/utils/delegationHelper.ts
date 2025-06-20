@@ -35,8 +35,16 @@ export const getForwardedDelegators = async (
     return forwarded;
   } catch (error) {
     console.error("Error in multicall to get forwarded delegators:", error);
-    // Return an array with empty strings if call fails
-    return new Array(delegators.length).fill("");
+    console.error("CRITICAL: Forwarder check failed - this will affect merkle generation!");
+    console.error("Delegators count:", delegators.length);
+    console.error("Block:", blockSnapshotEnd);
+    
+    // CRITICAL: Instead of returning empty strings (which makes everyone non-forwarder),
+    // we should throw an error to prevent incorrect merkle generation
+    throw new Error(
+      `Failed to fetch forwarder data for ${delegators.length} delegators at block ${blockSnapshotEnd}. ` +
+      `This is critical for merkle generation. Error: ${error}`
+    );
   }
 };
 

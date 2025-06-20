@@ -35,6 +35,22 @@ const supportedChainIds = ["1", "42161", "10", "8453", "137"];
 async function main() {
   console.log("Running merkles generation...");
 
+  // Check if merkle files already exist for this period
+  const merkleFiles = [
+    `bounties-reports/${currentPeriodTimestamp}/vlCVX/curve/merkle_data_non_delegators.json`,
+    `bounties-reports/${currentPeriodTimestamp}/vlCVX/fxn/merkle_data_non_delegators.json`,
+    `bounties-reports/${currentPeriodTimestamp}/vlCVX/vlcvx_merkle.json`
+  ];
+  
+  const existingFiles = merkleFiles.filter(f => fs.existsSync(f));
+  if (existingFiles.length > 0 && process.env.FORCE_UPDATE !== "true") {
+    console.error(`⚠️  ERROR: Merkle files already exist for period ${currentPeriodTimestamp}`);
+    console.error(`   Files found:`);
+    existingFiles.forEach(f => console.error(`   - ${f}`));
+    console.error(`   To force regeneration, run with FORCE_UPDATE=true`);
+    process.exit(1);
+  }
+
   // Initialize the merkle data structure for all chains
   supportedChainIds.forEach((chainId) => {
     merkleDataByChain[chainId] = {};
