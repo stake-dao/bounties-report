@@ -1,1 +1,35 @@
-{"curveVotes":{"0x118ad981e3be9a5a16ec7136125425af9c2128f4":{"0":{"proposalId":"0x662c82169a3e7c0ff0baeb3ceb20f9d76115b2cd2d9b138cee48d8f8f80812b0","gauge":"0x156527def9a2ab4f54c849575f23dc4bb439d9d9","choiceId":409,"weight":100}},"0xb82be987cf6f25d0f040ca4567e3dacb4b92aa91":{"0":{"proposalId":"0x662c82169a3e7c0ff0baeb3ceb20f9d76115b2cd2d9b138cee48d8f8f80812b0","gauge":"0x156527def9a2ab4f54c849575f23dc4bb439d9d9","choiceId":409,"weight":100}}}}
+{
+  "forwarders": [
+    {
+      "address": "0x0d0db6402196fb090cd251a1503b5688a30a6116",
+      "type": "direct-voter",
+      "votingPower": 410201.5468804844
+    },
+    {
+      "address": "0x118ad981e3be9a5a16ec7136125425af9c2128f4",
+      "type": "delegator",
+      "votingPower": 4130.039870436981
+    },
+    {
+      "address": "0xb82be987cf6f25d0f040ca4567e3dacb4b92aa91",
+      "type": "delegator",
+      "votingPower": 3561.0984411976933
+    }
+  ],
+  "tokenAllocations": {
+    "0x0d0db6402196fb090cd251a1503b5688a30a6116": {
+      "RSUP": "102786"
+    },
+    "0x118ad981e3be9a5a16ec7136125425af9c2128f4": {},
+    "0xb82be987cf6f25d0f040ca4567e3dacb4b92aa91": {}
+  },
+  "totalAllocations": {
+    "RSUP": "102786"
+  },
+  "metadata": {
+    "proposalId": "0x662c82169a3e7c0ff0baeb3ceb20f9d76115b2cd2d9b138cee48d8f8f80812b0",
+    "timestamp": 1749686400,
+    "curveGauges": 58,
+    "fxnGauges": 2
+  }
+}
