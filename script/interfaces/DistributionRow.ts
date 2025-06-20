@@ -9,4 +9,5 @@ export interface DistributionRow {
     claimed: boolean;
     isError: boolean;
     weekChangePercentage?: number;
+    userType?: "forwarder" | "non-forwarder" | "voter";
 }

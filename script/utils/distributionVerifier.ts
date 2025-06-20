@@ -14,7 +14,8 @@ import {
   proposalInformationLogger,
 } from "./delegationHelper";
 import { getProposal, getVoters } from "./snapshot";
-import { clients, getOptimizedClient, VOTIUM_FORWARDER_REGISTRY, CVX_SPACE, CVX_FXN_SPACE } from "./constants";
+import { clients, getOptimizedClient, VOTIUM_FORWARDER_REGISTRY, CVX_SPACE, CVX_FXN_SPACE, WEEK } from "./constants";
+import { verifyVlCVXDistribution } from "./vlCVXDistributionVerifier";
 import fs from "fs";
 import path from "path";
 const merkleAbi = [
@@ -31,7 +32,7 @@ const merkleAbi = [
 ] as const;
 
 // Global cache for token information to persist during the entire script execution
-const globalTokenInfoCache: {
+const globalTokenInfoCache: { 
   [chainId: number]: {
     [token: string]: { decimals: number; symbol: string };
   };
@@ -160,7 +161,8 @@ export const distributionVerifier = async (
   previousMerkleData: MerkleData,
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
   proposalId: any,
-  chainId: string = "1"
+  chainId: string = "1",
+  merkleType: "forwarders" | "combined" = "combined"
 ) => {
   const addressCount = Object.keys(distribution).length;
   console.log(`Current Distribution has ${addressCount} addresses.`);
@@ -261,6 +263,7 @@ export const distributionVerifier = async (
     }
   }
 
+  const currentPeriodTimestamp = Math.floor(activeProposal.start / WEEK) * WEEK;
   const comparisonRows = await compareMerkleData(
     currentMerkleData,
     previousMerkleData,
@@ -268,7 +271,9 @@ export const distributionVerifier = async (
     merkleChain,
     merkleAddress,
     tokenInfos,
-    weekChangeTotals
+    weekChangeTotals,
+    space,
+    currentPeriodTimestamp
   );
   logDistributionRowsToFile(comparisonRows, tokenInfos, log);
 
@@ -280,6 +285,20 @@ export const distributionVerifier = async (
     const formatted = Number(total) / 10 ** info.decimals;
     console.log(`${info.symbol} (${tokenAddr}): ${formatted.toFixed(2)}`);
   }
+
+  // --- Run vlCVX-specific verification if applicable ---
+  if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
+    const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+    const gaugeType = space === CVX_SPACE ? "curve" : "fxn";
+    await verifyVlCVXDistribution(
+      currentPeriodTimestamp,
+      gaugeType,
+      currentMerkleData,
+      previousMerkleData,
+      log,
+      merkleType
+    );
+  }
 };
 
 const compareMerkleData = async (
@@ -289,12 +308,53 @@ const compareMerkleData = async (
   chain: Chain,
   merkleAddress: `0x${string}`,
   tokenInfos: { [token: string]: { decimals: number; symbol: string } },
-  weekChangeTotals: { [token: string]: bigint }
+  weekChangeTotals: { [token: string]: bigint },
+  space?: string,
+  currentPeriodTimestamp?: number
 ): Promise<DistributionRow[]> => {
   const client = await getOptimizedClient(chain.id) || createPublicClient({
     chain,
     transport: http(),
   });
+
+  // Load user type data for vlCVX
+  let forwarders: Set<string> = new Set();
+  let nonForwarders: Set<string> = new Set();
+  let voters: Set<string> = new Set();
+  
+  if ((space === CVX_SPACE || space === CVX_FXN_SPACE) && currentPeriodTimestamp) {
+    const gaugeType = space === CVX_SPACE ? "curve" : "fxn";
+    try {
+      // Load delegation data
+      const delegationPath = path.join(
+        process.cwd(),
+        `bounties-reports/${currentPeriodTimestamp}/vlCVX/${gaugeType}/repartition_delegation.json`
+      );
+      const votersPath = path.join(
+        process.cwd(),
+        `bounties-reports/${currentPeriodTimestamp}/vlCVX/${gaugeType}/repartition.json`
+      );
+      
+      if (fs.existsSync(delegationPath)) {
+        const delegationData = JSON.parse(fs.readFileSync(delegationPath, "utf-8"));
+        Object.keys(delegationData.distribution.forwarders || {}).forEach(addr => 
+          forwarders.add(getAddress(addr))
+        );
+        Object.keys(delegationData.distribution.nonForwarders || {}).forEach(addr => 
+          nonForwarders.add(getAddress(addr))
+        );
+      }
+      
+      if (fs.existsSync(votersPath)) {
+        const votersData = JSON.parse(fs.readFileSync(votersPath, "utf-8"));
+        Object.keys(votersData.distribution || {}).forEach(addr => 
+          voters.add(getAddress(addr))
+        );
+      }
+    } catch (e) {
+      console.warn("Could not load user type data:", e);
+    }
+  }
 
   const calls: any[] = [];
   const addressMapping: Array<{ address: string; tokenAddress: string }> = [];
@@ -363,6 +423,17 @@ const compareMerkleData = async (
         weekChangePercentage = (Number(weekChangeRaw) / Number(tokenWeekChangeTotal)) * 100;
       }
 
+      // Determine user type
+      let userType: "forwarder" | "non-forwarder" | "voter" | undefined;
+      const normalizedAddress = getAddress(address);
+      if (forwarders.has(normalizedAddress)) {
+        userType = "forwarder";
+      } else if (nonForwarders.has(normalizedAddress)) {
+        userType = "non-forwarder";
+      } else if (voters.has(normalizedAddress)) {
+        userType = "voter";
+      }
+
       const row: DistributionRow = {
         address,
         tokenAddress: normalizedTokenAddress,
@@ -374,6 +445,7 @@ const compareMerkleData = async (
         claimed: claimedAmount === previousClaim,
         isError: isAmountDifferent,
         weekChangePercentage,
+        userType,
       };
 
       distributionRows.push(row);
@@ -400,14 +472,14 @@ const logDistributionRowsToFile = (
 
   const headers = [
     "Address",
+    "Status",
     "Token",
-    "Previous Amount",
-    "New Amount",
-    "Week Change",
-    "% of Token",
-    "Distribution Amount",
+    "Prev",
+    "New",
+    "Change",
+    "% Share",
     "Claimed",
-    "Distribution correct",
+    "Valid",
   ];
 
   const rows = distributionRows.map((row) => {
@@ -427,14 +499,24 @@ const logDistributionRowsToFile = (
       ? `${row.weekChangePercentage.toFixed(2)}%`
       : "-";
 
+    // Format status column
+    let statusDisplay = "-";
+    if (row.userType === "forwarder") {
+      statusDisplay = "Forwarder";
+    } else if (row.userType === "non-forwarder") {
+      statusDisplay = "Non-Forwarder";
+    } else if (row.userType === "voter") {
+      statusDisplay = "Voter";
+    }
+
     return [
-      formatAddress(row.address),
+      row.address, // Show full address
+      statusDisplay,
       tokenInfo.symbol.toUpperCase(),
       formattedPrev.toFixed(2),
       formattedNew.toFixed(2),
       formattedWeekChange.toFixed(2),
       percentageStr,
-      formattedDistribution.toFixed(2),
       row.claimed ? "✅" : "❌",
       row.isError ? "❌" : "✅",
     ];
@@ -451,6 +533,11 @@ const logDistributionRowsToFile = (
   const formattedRows = rows.map((row) =>
     row.map((cell, i) => cell.padEnd(columnWidths[i])).join(" | ")
   );
+  log("\n=== Distribution Verification ===");
+  log(`Total addresses: ${distributionRows.length}`);
+  log(`Errors found: ${distributionRows.filter(r => r.isError).length}`);
+  log(`Unclaimed: ${distributionRows.filter(r => !r.claimed).length}\n`);
+  
   const fileContent = [headerLine, separatorLine, ...formattedRows].join("\n");
 
   log(fileContent + "\n\n");
