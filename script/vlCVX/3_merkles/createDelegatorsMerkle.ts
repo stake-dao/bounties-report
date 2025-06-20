@@ -665,11 +665,13 @@ async function processForwarders() {
 
   // Load previous Merkle data for forwarders (if any)
   // This file is used to ensure continuity of claims across periods
+  // Path to the JSON file holding delegation data for this period
+  const prevPeriodTimestamp = currentPeriodTimestamp - WEEK;
   const previousMerkleDataPath = path.join(
     "bounties-reports",
-    "latest",
+    prevPeriodTimestamp.toString(),
     "vlCVX",
-    "vlcvx_merkle_delegators.json"
+    "merkle_data_delegators.json",
   );
 
   let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
