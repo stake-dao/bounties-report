@@ -31,21 +31,15 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: mainnet,
     endpoints: [
       {
-        url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+        url: `https://mainnet.gateway.tenderly.co`,
         priority: 1,
-        requiresApiKey: true,
       },
       {
-        url: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
-        priority: 2,
-        requiresApiKey: true,
-      },
-      {
-        url: "https://eth.llamarpc.com",
+        url: "https://eth-mainnet.public.blastapi.io",
         priority: 3,
       },
       {
-        url: "https://cloudflare-eth.com",
+        url: "https://ethereum-rpc.publicnode.com",
         priority: 4,
       },
       {
