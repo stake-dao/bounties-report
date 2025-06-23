@@ -1,7 +1,8 @@
 import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
+import { getBlockNumberByTimestamp } from "./chainUtils";
 import { processAllDelegators } from "./cacheUtils";
-import { clients, getOptimizedClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
+import { getOptimizedClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
@@ -75,7 +76,9 @@ export const delegationLogger = async (
   log(`\nSpace: ${space}`);
   const delegatorData = await fetchDelegatorData(space, proposal, chainId);
 
-  const blockSnapshotEnd = parseInt(proposal.snapshot);
+  //const blockSnapshotEnd = parseInt(proposal.snapshot);
+  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.end, "after", 1);
+
 
   // If space is cvx.eth, fetch forwarded addresses
   let forwardedMap: Record<string, string> = {};
