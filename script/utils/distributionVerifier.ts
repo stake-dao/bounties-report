@@ -14,7 +14,13 @@ import {
   proposalInformationLogger,
 } from "./delegationHelper";
 import { getProposal, getVoters } from "./snapshot";
-import { clients, getOptimizedClient, VOTIUM_FORWARDER_REGISTRY, CVX_SPACE, CVX_FXN_SPACE, WEEK } from "./constants";
+import {
+  getOptimizedClient,
+  VOTIUM_FORWARDER_REGISTRY,
+  CVX_SPACE,
+  CVX_FXN_SPACE,
+  WEEK,
+} from "./constants";
 import { verifyVlCVXDistribution } from "./vlCVXDistributionVerifier";
 import fs from "fs";
 import path from "path";
@@ -32,7 +38,7 @@ const merkleAbi = [
 ] as const;
 
 // Global cache for token information to persist during the entire script execution
-const globalTokenInfoCache: { 
+const globalTokenInfoCache: {
   [chainId: number]: {
     [token: string]: { decimals: number; symbol: string };
   };
@@ -81,10 +87,12 @@ export const getAllTokensInfos = async (
     `Fetching info for ${uncachedAddresses.length} uncached tokens (${normalizedAddresses.length - uncachedAddresses.length} cached)`
   );
 
-  const client = await getOptimizedClient(chainId) || createPublicClient({
-    chain,
-    transport: http(),
-  });
+  const client =
+    (await getOptimizedClient(chainId)) ||
+    createPublicClient({
+      chain,
+      transport: http(),
+    });
 
   const symbolCalls = uncachedAddresses.map((tokenAddr) => ({
     address: tokenAddr as `0x${string}`,
@@ -182,11 +190,13 @@ export const distributionVerifier = async (
   if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
     console.log("\n=== Votium Epoch Check ===");
     try {
-      const ethereumClient = await getOptimizedClient(1) || createPublicClient({
-        chain: merkleChain,
-        transport: http(),
-      });
-      
+      const ethereumClient =
+        (await getOptimizedClient(1)) ||
+        createPublicClient({
+          chain: merkleChain,
+          transport: http(),
+        });
+
       const votiumEpochAbi = [
         {
           name: "currentEpoch",
@@ -196,21 +206,27 @@ export const distributionVerifier = async (
           outputs: [{ name: "", type: "uint256" }],
         },
       ] as const;
-      
+
       const currentEpoch = await ethereumClient.readContract({
         address: VOTIUM_FORWARDER_REGISTRY,
         abi: votiumEpochAbi,
         functionName: "currentEpoch",
       });
-      
+
       const proposal = await getProposal(proposalId);
       const proposalStartTimestamp = proposal.start;
-      
-      console.log(`Votium Current Epoch: ${currentEpoch} (${new Date(Number(currentEpoch) * 1000).toUTCString()})`);
-      console.log(`Proposal Start: ${proposalStartTimestamp} (${new Date(proposalStartTimestamp * 1000).toUTCString()})`);
-      
+
+      console.log(
+        `Votium Current Epoch: ${currentEpoch} (${new Date(Number(currentEpoch) * 1000).toUTCString()})`
+      );
+      console.log(
+        `Proposal Start: ${proposalStartTimestamp} (${new Date(proposalStartTimestamp * 1000).toUTCString()})`
+      );
+
       if (Number(currentEpoch) !== proposalStartTimestamp) {
-        console.warn(`⚠️  WARNING: Votium epoch (${currentEpoch}) does not match proposal start (${proposalStartTimestamp})`);
+        console.warn(
+          `⚠️  WARNING: Votium epoch (${currentEpoch}) does not match proposal start (${proposalStartTimestamp})`
+        );
       } else {
         console.log(`✅ Votium epoch matches proposal start`);
       }
@@ -263,7 +279,8 @@ export const distributionVerifier = async (
     }
   }
 
-  const currentPeriodTimestamp = Math.floor(activeProposal.start / WEEK) * WEEK;
+  const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+
   const comparisonRows = await compareMerkleData(
     currentMerkleData,
     previousMerkleData,
@@ -288,7 +305,6 @@ export const distributionVerifier = async (
 
   // --- Run vlCVX-specific verification if applicable ---
   if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
-    const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
     const gaugeType = space === CVX_SPACE ? "curve" : "fxn";
     await verifyVlCVXDistribution(
       currentPeriodTimestamp,
@@ -312,17 +328,22 @@ const compareMerkleData = async (
   space?: string,
   currentPeriodTimestamp?: number
 ): Promise<DistributionRow[]> => {
-  const client = await getOptimizedClient(chain.id) || createPublicClient({
-    chain,
-    transport: http(),
-  });
+  const client =
+    (await getOptimizedClient(chain.id)) ||
+    createPublicClient({
+      chain,
+      transport: http(),
+    });
 
   // Load user type data for vlCVX
   let forwarders: Set<string> = new Set();
   let nonForwarders: Set<string> = new Set();
   let voters: Set<string> = new Set();
-  
-  if ((space === CVX_SPACE || space === CVX_FXN_SPACE) && currentPeriodTimestamp) {
+
+  if (
+    (space === CVX_SPACE || space === CVX_FXN_SPACE) &&
+    currentPeriodTimestamp
+  ) {
     const gaugeType = space === CVX_SPACE ? "curve" : "fxn";
     try {
       // Load delegation data
@@ -334,20 +355,22 @@ const compareMerkleData = async (
         process.cwd(),
         `bounties-reports/${currentPeriodTimestamp}/vlCVX/${gaugeType}/repartition.json`
       );
-      
+
       if (fs.existsSync(delegationPath)) {
-        const delegationData = JSON.parse(fs.readFileSync(delegationPath, "utf-8"));
-        Object.keys(delegationData.distribution.forwarders || {}).forEach(addr => 
-          forwarders.add(getAddress(addr))
+        const delegationData = JSON.parse(
+          fs.readFileSync(delegationPath, "utf-8")
         );
-        Object.keys(delegationData.distribution.nonForwarders || {}).forEach(addr => 
-          nonForwarders.add(getAddress(addr))
+        Object.keys(delegationData.distribution.forwarders || {}).forEach(
+          (addr) => forwarders.add(getAddress(addr))
+        );
+        Object.keys(delegationData.distribution.nonForwarders || {}).forEach(
+          (addr) => nonForwarders.add(getAddress(addr))
         );
       }
-      
+
       if (fs.existsSync(votersPath)) {
         const votersData = JSON.parse(fs.readFileSync(votersPath, "utf-8"));
-        Object.keys(votersData.distribution || {}).forEach(addr => 
+        Object.keys(votersData.distribution || {}).forEach((addr) =>
           voters.add(getAddress(addr))
         );
       }
@@ -419,8 +442,13 @@ const compareMerkleData = async (
       // Calculate percentage of week change relative to total week changes for this token
       let weekChangePercentage = 0;
       const tokenWeekChangeTotal = weekChangeTotals[normalizedTokenAddress];
-      if (tokenWeekChangeTotal && tokenWeekChangeTotal > 0n && weekChangeRaw > 0n) {
-        weekChangePercentage = (Number(weekChangeRaw) / Number(tokenWeekChangeTotal)) * 100;
+      if (
+        tokenWeekChangeTotal &&
+        tokenWeekChangeTotal > 0n &&
+        weekChangeRaw > 0n
+      ) {
+        weekChangePercentage =
+          (Number(weekChangeRaw) / Number(tokenWeekChangeTotal)) * 100;
       }
 
       // Determine user type
@@ -495,9 +523,10 @@ const logDistributionRowsToFile = (
     const formattedDistribution =
       Number(row.distributionAmount) / 10 ** decimals;
 
-    const percentageStr = row.weekChange > 0n && row.weekChangePercentage !== undefined
-      ? `${row.weekChangePercentage.toFixed(2)}%`
-      : "-";
+    const percentageStr =
+      row.weekChange > 0n && row.weekChangePercentage !== undefined
+        ? `${row.weekChangePercentage.toFixed(2)}%`
+        : "-";
 
     // Format status column
     let statusDisplay = "-";
@@ -535,9 +564,9 @@ const logDistributionRowsToFile = (
   );
   log("\n=== Distribution Verification ===");
   log(`Total addresses: ${distributionRows.length}`);
-  log(`Errors found: ${distributionRows.filter(r => r.isError).length}`);
-  log(`Unclaimed: ${distributionRows.filter(r => !r.claimed).length}\n`);
-  
+  log(`Errors found: ${distributionRows.filter((r) => r.isError).length}`);
+  log(`Unclaimed: ${distributionRows.filter((r) => !r.claimed).length}\n`);
+
   const fileContent = [headerLine, separatorLine, ...formattedRows].join("\n");
 
   log(fileContent + "\n\n");
