@@ -54,6 +54,11 @@ const processGaugeProposal = async (
   const repartitionFile = path.join(dirPath, "repartition.json");
   const delegationFile = path.join(dirPath, "repartition_delegation.json");
   
+  // Create directory if it doesn't exist
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+  
   if ((fs.existsSync(repartitionFile) || fs.existsSync(delegationFile)) && process.env.FORCE_UPDATE !== "true") {
     console.error(`⚠️  ERROR: Repartition files already exist for ${gaugeType} in period ${currentPeriodTimestamp}`);
     console.error(`   Files found in: ${dirPath}`);
