@@ -71,7 +71,8 @@ export const delegationLogger = async (
   proposal: Proposal,
   voters: string[],
   log: (message: string) => void,
-  chainId: string = "1"
+  chainId: string = "1",
+  showVoterLabels: boolean = true
 ) => {
   log(`\nSpace: ${space}`);
   const delegatorData = await fetchDelegatorData(space, proposal, chainId);
@@ -123,7 +124,7 @@ export const delegationLogger = async (
     for (const delegator of filteredDelegators) {
       const vp = delegatorData.votingPowers[delegator];
       const share = (vp / delegatorData.totalVotingPower) * 100;
-      const hasVoted = voters.includes(delegator.toLowerCase())
+      const hasVoted = showVoterLabels && voters.includes(delegator.toLowerCase())
         ? " (Voted by himself)"
         : "";
       const forwarded =

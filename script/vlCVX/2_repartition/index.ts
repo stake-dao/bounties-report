@@ -268,10 +268,6 @@ const processGaugeProposal = async (
   };
 
   // --- 6) Save Results to Files ---
-  // Use a folder name based on the gaugeType (curve or fxn)
-  const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX/${gaugeType}`;
-  fs.mkdirSync(dirPath, { recursive: true });
-
   // Save Non-Delegator Distributions by Chain
   Object.entries(distributionsByChain).forEach(
     ([chainId, chainDistribution]) => {
