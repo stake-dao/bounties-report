@@ -21,10 +21,6 @@ export interface ChainRpcConfig {
   endpoints: RpcEndpoint[];
 }
 
-// Get API key from environment
-const ALCHEMY_API_KEY = process.env.WEB3_ALCHEMY_API_KEY || "";
-const INFURA_API_KEY = process.env.INFURA_API_KEY || "";
-
 export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
   // Ethereum Mainnet
   1: {
@@ -79,21 +75,16 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: optimism,
     endpoints: [
       {
-        url: `https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-        priority: 1,
-        requiresApiKey: true,
-      },
-      {
         url: "https://mainnet.optimism.io",
-        priority: 2,
+        priority: 1,
       },
       {
         url: "https://optimism.llamarpc.com",
-        priority: 3,
+        priority: 2,
       },
       {
         url: "https://rpc.ankr.com/optimism",
-        priority: 4,
+        priority: 3,
       },
     ],
   },
@@ -116,21 +107,16 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: base,
     endpoints: [
       {
-        url: `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-        priority: 1,
-        requiresApiKey: true,
-      },
-      {
         url: "https://mainnet.base.org",
-        priority: 2,
+        priority: 1,
       },
       {
         url: "https://base.llamarpc.com",
-        priority: 3,
+        priority: 2,
       },
       {
         url: "https://rpc.ankr.com/base",
-        priority: 4,
+        priority: 3,
       },
     ],
   },
@@ -139,21 +125,16 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: polygon,
     endpoints: [
       {
-        url: `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-        priority: 1,
-        requiresApiKey: true,
-      },
-      {
         url: "https://polygon-rpc.com",
-        priority: 2,
+        priority: 1,
       },
       {
         url: "https://rpc-mainnet.matic.network",
-        priority: 3,
+        priority: 2,
       },
       {
         url: "https://rpc.ankr.com/polygon",
-        priority: 4,
+        priority: 3,
       },
     ],
   },
@@ -162,13 +143,8 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: sonic,
     endpoints: [
       {
-        url: `https://sonic-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-        priority: 1,
-        requiresApiKey: true,
-      },
-      {
         url: "https://rpc.soniclabs.com",
-        priority: 2,
+        priority: 1,
       },
     ],
   },
@@ -177,21 +153,16 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: arbitrum,
     endpoints: [
       {
-        url: `https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-        priority: 1,
-        requiresApiKey: true,
-      },
-      {
         url: "https://arb1.arbitrum.io/rpc",
-        priority: 2,
+        priority: 1,
       },
       {
         url: "https://arbitrum.llamarpc.com",
-        priority: 3,
+        priority: 2,
       },
       {
         url: "https://rpc.ankr.com/arbitrum",
-        priority: 4,
+        priority: 3,
       },
     ],
   },
