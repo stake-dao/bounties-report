@@ -218,8 +218,11 @@ function processChain(
     for (const [address, data] of Object.entries(nonDelegators)) {
       const addr = address.toLowerCase();
       combined[addr] = { tokens: {} };
-      for (const [token, amountStr] of Object.entries(data.tokens)) {
-        combined[addr].tokens[token] = BigInt(amountStr);
+      if (data && typeof data === 'object' && 'tokens' in data) {
+        const tokens = (data as any).tokens;
+        for (const [token, amountStr] of Object.entries(tokens)) {
+          combined[addr].tokens[token] = BigInt(amountStr as string);
+        }
       }
     }
     console.log(`Loaded non-delegators data for chain ${chainId}`);
@@ -266,7 +269,7 @@ function processChain(
             delegationSummary.totalPerGroup[token].nonForwarders
           );
         } else {
-          const total = BigInt(totalStr);
+          const total = BigInt(totalStr as string);
           delegationPool[token] = BigInt(
             Math.floor(Number(total) * totalNonForwardersShare)
           );
@@ -287,7 +290,7 @@ function processChain(
       for (const [address, shareStr] of Object.entries(
         delegationSummary.nonForwarders
       )) {
-        const share = parseFloat(shareStr);
+        const share = parseFloat(shareStr as string);
         const rewardsForAddress: { [token: string]: bigint } = {};
         for (const [token, pool] of Object.entries(delegationPool)) {
           const reward = BigInt(Math.floor(share * Number(pool)));
@@ -322,46 +325,195 @@ function processChain(
       currentPeriodTimestamp.toString(),
       "votium"
     );
-    const forwardersRewardsFile = path.join(
+    
+    // Try to load actual claimed bounties first
+    const claimedBountiesFile = path.join(
       votiumRewardsDir,
-      "forwarders_voted_rewards.json"
+      "claimed_bounties_convex.json"
     );
-    if (fs.existsSync(forwardersRewardsFile)) {
-      console.log(
-        "Loading forwarders voted rewards from",
-        forwardersRewardsFile
+    
+    let votiumAllocations: { [address: string]: { [token: string]: bigint } } = {};
+    
+    if (fs.existsSync(claimedBountiesFile)) {
+      console.log("Loading actual claimed bounties from", claimedBountiesFile);
+      
+      // Also load forwarders data to get the allocation shares
+      const forwardersRewardsFile = path.join(
+        votiumRewardsDir,
+        "forwarders_voted_rewards.json"
       );
-      const forwardersData = JSON.parse(
-        fs.readFileSync(forwardersRewardsFile, "utf8")
-      );
-      if (forwardersData.tokenAllocations) {
-        const tokenAllocations = forwardersData.tokenAllocations;
-        for (const address in tokenAllocations) {
-          const lowerAddress = address.toLowerCase();
-          if (!combined[lowerAddress]) {
-            combined[lowerAddress] = { tokens: {} };
-          }
-          for (const token in tokenAllocations[address]) {
-            const amountStr = tokenAllocations[address][token];
-            const amountBigInt = BigInt(amountStr);
-            if (!combined[lowerAddress].tokens[token]) {
-              combined[lowerAddress].tokens[token] = amountBigInt;
-            } else {
-              combined[lowerAddress].tokens[token] += amountBigInt;
+      
+      if (fs.existsSync(forwardersRewardsFile)) {
+        const forwardersData = JSON.parse(
+          fs.readFileSync(forwardersRewardsFile, "utf8")
+        );
+        const claimedData = JSON.parse(
+          fs.readFileSync(claimedBountiesFile, "utf8")
+        );
+        
+        console.log("Computing actual claimed amounts based on forwarder shares...");
+        
+        // Get token mapping from forwarders data (token symbol to actual allocations)
+        if (forwardersData.tokenAllocations) {
+          const tokenAllocations = forwardersData.tokenAllocations;
+          
+          // Build address shares based on total USD allocation
+          let totalUsdAcrossAllTokens = 0;
+          const addressTotalUsdShares: { [address: string]: number } = {};
+          
+          for (const address in tokenAllocations) {
+            for (const token in tokenAllocations[address]) {
+              const tokenData = tokenAllocations[address][token];
+              if (typeof tokenData === 'object' && tokenData.usd) {
+                totalUsdAcrossAllTokens += tokenData.usd;
+                addressTotalUsdShares[address] = (addressTotalUsdShares[address] || 0) + tokenData.usd;
+              }
             }
           }
+          
+          console.log(`Total USD in forwarders data: $${totalUsdAcrossAllTokens.toFixed(2)}`);
+          
+          // Process curve claimed bounties and distribute proportionally
+          if (claimedData.curve && totalUsdAcrossAllTokens > 0) {
+            for (const bountyKey in claimedData.curve) {
+              const bounty = claimedData.curve[bountyKey];
+              const actualClaimedAmount = BigInt(bounty.amount);
+              const tokenAddress = bounty.rewardToken;
+              
+              console.log(`Processing claimed bounty: ${actualClaimedAmount.toString()} of token ${tokenAddress}`);
+              
+              // Distribute actual claimed amount proportionally based on each address's total USD share
+              for (const address in addressTotalUsdShares) {
+                const share = addressTotalUsdShares[address] / totalUsdAcrossAllTokens;
+                const allocatedAmount = BigInt(Math.floor(Number(actualClaimedAmount) * share));
+                
+                if (allocatedAmount > 0n) {
+                  if (!votiumAllocations[address]) {
+                    votiumAllocations[address] = {};
+                  }
+                  
+                  votiumAllocations[address][tokenAddress] = 
+                    (votiumAllocations[address][tokenAddress] || 0n) + allocatedAmount;
+                    
+                  console.log(`  Allocated ${allocatedAmount.toString()} of ${tokenAddress} to ${address} (${(share * 100).toFixed(2)}% share)`);
+                }
+              }
+            }
+          }
+          
+          // Process FXN claimed bounties as well
+          if (claimedData.fxn && totalUsdAcrossAllTokens > 0) {
+            for (const bountyKey in claimedData.fxn) {
+              const bounty = claimedData.fxn[bountyKey];
+              const actualClaimedAmount = BigInt(bounty.amount);
+              const tokenAddress = bounty.rewardToken;
+              
+              console.log(`Processing FXN claimed bounty: ${actualClaimedAmount.toString()} of token ${tokenAddress}`);
+              
+              // Distribute actual claimed amount proportionally based on each address's total USD share
+              for (const address in addressTotalUsdShares) {
+                const share = addressTotalUsdShares[address] / totalUsdAcrossAllTokens;
+                const allocatedAmount = BigInt(Math.floor(Number(actualClaimedAmount) * share));
+                
+                if (allocatedAmount > 0n) {
+                  if (!votiumAllocations[address]) {
+                    votiumAllocations[address] = {};
+                  }
+                  
+                  votiumAllocations[address][tokenAddress] = 
+                    (votiumAllocations[address][tokenAddress] || 0n) + allocatedAmount;
+                    
+                  console.log(`  Allocated ${allocatedAmount.toString()} of ${tokenAddress} to ${address} (${(share * 100).toFixed(2)}% share)`);
+                }
+              }
+            }
+          }
+          
+          // Add the allocated amounts to combined distribution
+          for (const address in votiumAllocations) {
+            const lowerAddress = address.toLowerCase();
+            if (!combined[lowerAddress]) {
+              combined[lowerAddress] = { tokens: {} };
+            }
+            
+            for (const tokenAddress in votiumAllocations[address]) {
+              const amount = votiumAllocations[address][tokenAddress];
+              
+              if (!combined[lowerAddress].tokens[tokenAddress]) {
+                combined[lowerAddress].tokens[tokenAddress] = amount;
+              } else {
+                combined[lowerAddress].tokens[tokenAddress] += amount;
+              }
+            }
+          }
+          
+          console.log("Added actual claimed Votium rewards to combined distribution.");
         }
-        console.log("Added forwarders rewards to combined distribution.");
       } else {
-        console.warn(
-          "VOTIUM : Forwarders data does not contain tokenAllocations property."
-        );
+        console.warn("Forwarders rewards file not found, cannot compute shares for claimed bounties");
       }
     } else {
-      console.log(
-        "No forwarders voted rewards file found at",
-        forwardersRewardsFile
+      // Fallback to theoretical amounts from forwarders file
+      const forwardersRewardsFile = path.join(
+        votiumRewardsDir,
+        "forwarders_voted_rewards.json"
       );
+      
+      if (fs.existsSync(forwardersRewardsFile)) {
+        console.log(
+          "No claimed bounties found, using theoretical amounts from",
+          forwardersRewardsFile
+        );
+        const forwardersData = JSON.parse(
+          fs.readFileSync(forwardersRewardsFile, "utf8")
+        );
+        if (forwardersData.tokenAllocations) {
+          const tokenAllocations = forwardersData.tokenAllocations;
+          for (const address in tokenAllocations) {
+            const lowerAddress = address.toLowerCase();
+            if (!combined[lowerAddress]) {
+              combined[lowerAddress] = { tokens: {} };
+            }
+            for (const token in tokenAllocations[address]) {
+              const tokenData = tokenAllocations[address][token];
+              
+              // Handle new format with amount and usd properties
+              let amountStr: string;
+              if (typeof tokenData === 'object' && tokenData.amount) {
+                amountStr = tokenData.amount;
+              } else if (typeof tokenData === 'string') {
+                // Backward compatibility for old format
+                amountStr = tokenData;
+              } else {
+                console.warn(`Invalid token data format for ${address}:${token}:`, tokenData);
+                continue;
+              }
+              
+              // Convert amount to BigInt - handle decimal amounts by scaling up
+              const amountFloat = parseFloat(amountStr);
+              const amountBigInt = BigInt(Math.floor(amountFloat * 1e18)); // Scale to 18 decimals for precision
+              
+              if (!combined[lowerAddress].tokens[token]) {
+                combined[lowerAddress].tokens[token] = amountBigInt;
+              } else {
+                combined[lowerAddress].tokens[token] += amountBigInt;
+              }
+              
+              console.log(`Added ${amountStr} ${token} (${amountBigInt.toString()} wei) to ${lowerAddress}`);
+            }
+          }
+          console.log("Added theoretical forwarders rewards to combined distribution.");
+        } else {
+          console.warn(
+            "VOTIUM : Forwarders data does not contain tokenAllocations property."
+          );
+        }
+      } else {
+        console.log(
+          "No forwarders voted rewards file found at",
+          forwardersRewardsFile
+        );
+      }
     }
   }
 
