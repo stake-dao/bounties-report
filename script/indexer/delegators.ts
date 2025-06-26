@@ -20,7 +20,7 @@ const indexDelegators = async () => {
   await fetchAllDelegators("56", [DELEGATION_ADDRESS]);
 
   // Base
-  await fetchAllDelegators("8453", [DELEGATION_ADDRESS]);
+  await fetchAllDelegators("8453", [DELEGATION_ADDRESS, AUTO_VOTER_DELEGATION_ADDRESS]);
 };
 
 const main = async () => {

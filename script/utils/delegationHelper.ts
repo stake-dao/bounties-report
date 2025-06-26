@@ -1,11 +1,11 @@
 import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
+import { getBlockNumberByTimestamp } from "./chainUtils";
 import { processAllDelegators } from "./cacheUtils";
-import { clients, getOptimizedClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
+import { getOptimizedClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
-import { getBlockNumberByTimestamp } from "./chainUtils";
 
 // VOTIUM
 export const getForwardedDelegators = async (
@@ -22,17 +22,35 @@ export const getForwardedDelegators = async (
     },
   ];
 
+  // Split delegators into smaller batches to avoid contract call size limits
+  const BATCH_SIZE = 50; // Conservative batch size to ensure calls succeed
+  const batches: string[][] = [];
+  
+  for (let i = 0; i < delegators.length; i += BATCH_SIZE) {
+    batches.push(delegators.slice(i, i + BATCH_SIZE));
+  }
+
   try {
     const client = await getOptimizedClient(1);
-    const forwarded = (await client.readContract({
-      address: VOTIUM_FORWARDER_REGISTRY as `0x${string}`,
-      abi,
-      functionName: "batchAddressCheck",
-      args: [delegators],
-      blockNumber: BigInt(blockSnapshotEnd),
-    })) as string[];
+    const results: string[] = [];
+    
+    // Process each batch sequentially
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`Processing batch ${i + 1}/${batches.length} with ${batch.length} addresses`);
+      
+      const batchResult = (await client.readContract({
+        address: VOTIUM_FORWARDER_REGISTRY as `0x${string}`,
+        abi,
+        functionName: "batchAddressCheck",
+        args: [batch],
+        blockNumber: BigInt(blockSnapshotEnd),
+      })) as string[];
+      
+      results.push(...batchResult);
+    }
 
-    return forwarded;
+    return results;
   } catch (error) {
     console.error("Error in multicall to get forwarded delegators:", error);
     console.error("CRITICAL: Forwarder check failed - this will affect merkle generation!");
@@ -53,12 +71,15 @@ export const delegationLogger = async (
   proposal: Proposal,
   voters: string[],
   log: (message: string) => void,
-  chainId: string = "1"
+  chainId: string = "1",
+  showVoterLabels: boolean = true
 ) => {
   log(`\nSpace: ${space}`);
   const delegatorData = await fetchDelegatorData(space, proposal, chainId);
 
-  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.snapshot, "after", parseInt(chainId));
+  //const blockSnapshotEnd = parseInt(proposal.snapshot);
+  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.end, "after", 1);
+
 
   // If space is cvx.eth, fetch forwarded addresses
   let forwardedMap: Record<string, string> = {};
@@ -103,7 +124,7 @@ export const delegationLogger = async (
     for (const delegator of filteredDelegators) {
       const vp = delegatorData.votingPowers[delegator];
       const share = (vp / delegatorData.totalVotingPower) * 100;
-      const hasVoted = voters.includes(delegator.toLowerCase())
+      const hasVoted = showVoterLabels && voters.includes(delegator.toLowerCase())
         ? " (Voted by himself)"
         : "";
       const forwarded =

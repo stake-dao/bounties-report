@@ -729,7 +729,9 @@ async function processForwarders() {
       newMerkleData,
       previousMerkleData,
       currentDistribution.distribution,
-      proposalId
+      proposalId,
+      "1",
+      "forwarders",
     );
   } catch (error) {
     console.error("Error running distribution verifier:", error);

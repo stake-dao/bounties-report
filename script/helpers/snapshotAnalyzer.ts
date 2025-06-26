@@ -10,14 +10,17 @@ import { hideBin } from "yargs/helpers";
 import { mainnet } from "viem/chains";
 import { getAllCurveGauges } from "../utils/curveApi";
 import { getGaugesInfos } from "../utils/reportUtils";
-import { DELEGATION_ADDRESS } from "../utils/constants";
+import { DELEGATION_ADDRESS, VOTIUM_FORWARDER } from "../utils/constants";
 import fs from "fs";
 import path from "path";
 import {
   delegationLogger,
   proposalInformationLogger,
+  getForwardedDelegators,
+  fetchDelegatorData,
 } from "../utils/delegationHelper";
 import { formatAddress } from "../utils/address";
+import { getBlockNumberByTimestamp } from "../utils/chainUtils";
 
 // Set up the public client for blockchain interactions
 const client = createPublicClient({
@@ -194,6 +197,101 @@ async function main() {
     log("\n=== Delegation Information ===");
     await delegationLogger(spaceId, proposal, voters, log);
 
+    // For cvx.eth space, also fetch forwarders for all voters
+    if (spaceId === "cvx.eth") {
+      log("\n=== All Voters Forwarder Analysis ===");
+      const blockNumber = await getBlockNumberByTimestamp(proposal.end, "after", 1);
+      
+      // Get delegator data
+      const delegatorData = await fetchDelegatorData(spaceId, proposal, "1");
+      const delegatorSet = new Set(
+        delegatorData?.delegators.map(d => d.toLowerCase()) || []
+      );
+      
+      log(`Fetching forwarder data for ${voters.length} unique voters...`);
+      try {
+        const forwardedAddresses = await getForwardedDelegators(
+          voters,
+          blockNumber
+        );
+        
+        // Categorize voters
+        let delegatorForwarderCount = 0;
+        let delegatorNonForwarderCount = 0;
+        let nonDelegatorForwarderCount = 0;
+        let nonDelegatorNonForwarderCount = 0;
+        
+        const voterForwarderMap: Record<string, { isForwarder: boolean; isDelegator: boolean }> = {};
+        
+        voters.forEach((voter, index) => {
+          const isForwarder = forwardedAddresses[index] && 
+            forwardedAddresses[index].toLowerCase() === VOTIUM_FORWARDER.toLowerCase();
+          const isDelegator = delegatorSet.has(voter.toLowerCase());
+          
+          voterForwarderMap[voter] = { isForwarder, isDelegator };
+          
+          if (isDelegator) {
+            if (isForwarder) {
+              delegatorForwarderCount++;
+            } else {
+              delegatorNonForwarderCount++;
+            }
+          } else {
+            if (isForwarder) {
+              nonDelegatorForwarderCount++;
+            } else {
+              nonDelegatorNonForwarderCount++;
+            }
+          }
+        });
+        
+        // Count delegators who actually voted
+        const delegatorsWhoVoted = voters.filter(v => delegatorSet.has(v.toLowerCase())).length;
+        const nonDelegatorCount = voters.length - delegatorsWhoVoted;
+        
+        log(`\nVoter Categories:`);
+        log(`Total Unique Voters: ${voters.length}`);
+        log(`\nDelegators to Stake DAO who voted (${delegatorsWhoVoted} out of ${delegatorSet.size} total delegators):`);
+        log(`  - Using Votium Forwarder: ${delegatorForwarderCount} (${delegatorsWhoVoted > 0 ? ((delegatorForwarderCount / delegatorsWhoVoted) * 100).toFixed(2) : '0.00'}% of voting delegators)`);
+        log(`  - NOT using Votium Forwarder: ${delegatorNonForwarderCount} (${delegatorsWhoVoted > 0 ? ((delegatorNonForwarderCount / delegatorsWhoVoted) * 100).toFixed(2) : '0.00'}% of voting delegators)`);
+        
+        log(`\nNon-Delegators (${nonDelegatorCount} total):`);
+        log(`  - Using Votium Forwarder: ${nonDelegatorForwarderCount} (${nonDelegatorCount > 0 ? ((nonDelegatorForwarderCount / nonDelegatorCount) * 100).toFixed(2) : '0.00'}% of non-delegators)`);
+        log(`  - NOT using Votium Forwarder: ${nonDelegatorNonForwarderCount} (${nonDelegatorCount > 0 ? ((nonDelegatorNonForwarderCount / nonDelegatorCount) * 100).toFixed(2) : '0.00'}% of non-delegators)`);
+        
+        const totalForwarders = delegatorForwarderCount + nonDelegatorForwarderCount;
+        log(`\nOverall Forwarder Usage:`);
+        log(`  - Total using Votium Forwarder: ${totalForwarders} (${((totalForwarders / voters.length) * 100).toFixed(2)}% of all voters)`);
+        log(`  - Total NOT using Votium Forwarder: ${voters.length - totalForwarders} (${(((voters.length - totalForwarders) / voters.length) * 100).toFixed(2)}% of all voters)`);
+        
+        // Show top voters with forwarder status and delegator label
+        log("\nTop 30 Voters by Voting Power:");
+        const topVoters = votes
+          .sort((a, b) => b.vp - a.vp)
+          .slice(0, 30)
+          .map(vote => {
+            const voter = vote.voter.toLowerCase();
+            const info = voterForwarderMap[voter];
+            return {
+              voter,
+              vp: vote.vp,
+              isForwarder: info?.isForwarder || false,
+              isDelegator: info?.isDelegator || false
+            };
+          });
+        
+        topVoters.forEach((item, index) => {
+          const labels = [];
+          if (item.isDelegator) labels.push("DELEGATOR");
+          if (item.isForwarder) labels.push("FORWARDER");
+          const labelStr = labels.length > 0 ? `[${labels.join(", ")}]` : "[DIRECT VOTER]";
+          log(`${index + 1}. ${formatAddress(item.voter)}: ${item.vp.toFixed(2)} VP ${labelStr}`);
+        });
+      } catch (error) {
+        log(`Error fetching forwarder data: ${error}`);
+      }
+    }
+
     // Perform gauge analysis only if gauges are provided
     if (gauges) {
       log("\n=== Gauge Details ===");
@@ -257,7 +355,7 @@ async function main() {
         const voterEffectiveVps: { [voter: string]: number } = {};
         votesForGauge.forEach((vote) => {
           const totalChoiceSum = Object.values(vote.choice).reduce(
-            (sum, val) => sum + val,
+            (sum: number, val: unknown) => sum + (val as number),
             0
           );
           const currentChoiceValue = vote.choice[info.choiceId] || 0;
@@ -273,7 +371,7 @@ async function main() {
         log("\n--- Detailed Votes ---");
         votesForGauge.forEach((vote) => {
           const totalChoiceSum = Object.values(vote.choice).reduce(
-            (sum, val) => sum + val,
+            (sum: number, val: unknown) => sum + (val as number),
             0
           );
           const currentChoiceValue = vote.choice[info.choiceId] || 0;
