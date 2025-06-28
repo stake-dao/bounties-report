@@ -1,0 +1,17 @@
+Stake DAO - Swap Report
+Protocol: CURVE
+Timestamp: 1750896000
+Date: 2025-06-26 00:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 CURVE Swap Report
+
+🔄 https://etherscan.io/tx/0x076656bcfe9a2949edc5f313a9db92c1587bc6e7de1fea42ad2221edd38b5ebe Transaction
+├─ https://etherscan.io/token/0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5 sdCRV: 41,358.08 • https://etherscan.io/token/0xD533a949740bb3306d119CC777fa900bA034cd52 CRV: 29,200.74
+
+
+🔍 Token Contributions:
+
+📈 Final Summary
+└─ 194,218.09 https://etherscan.io/token/0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5 sdCRV
+   └─ to 118,687.31 https://etherscan.io/token/0xD533a949740bb3306d119CC777fa900bA034cd52 CRV
