@@ -49,13 +49,31 @@ export async function getSpectraDistribution() {
   const blockNumber1 = await getClosestBlockTimestamp("base", currentEpoch);
   const blockNumber2 = await baseClient.getBlockNumber();
 
-  const logs = await baseClient.getContractEvents({
-    address: SPECTRA_SAFE_MODULE,
-    abi: SpectraSafeModuleABI,
-    eventName: "Claimed",
-    fromBlock: BigInt(blockNumber1),
-    toBlock: blockNumber2,
-  });
+  // Fetch logs in chunks to avoid exceeding RPC block range limit
+  const MAX_BLOCK_RANGE = 50000n;
+  const logs: any[] = [];
+  
+  let fromBlock = BigInt(blockNumber1);
+  const toBlock = blockNumber2;
+  
+  while (fromBlock <= toBlock) {
+    const chunkToBlock = fromBlock + MAX_BLOCK_RANGE - 1n < toBlock 
+      ? fromBlock + MAX_BLOCK_RANGE - 1n 
+      : toBlock;
+    
+    console.log(`Fetching logs from block ${fromBlock} to ${chunkToBlock}...`);
+    
+    const chunkLogs = await baseClient.getContractEvents({
+      address: SPECTRA_SAFE_MODULE,
+      abi: SpectraSafeModuleABI,
+      eventName: "Claimed",
+      fromBlock: fromBlock,
+      toBlock: chunkToBlock,
+    });
+    
+    logs.push(...chunkLogs);
+    fromBlock = chunkToBlock + 1n;
+  }
 
   const claimeds: SpectraClaimed[] = [];
   for (const log of logs) {

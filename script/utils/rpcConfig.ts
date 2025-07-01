@@ -112,7 +112,15 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
       },
       {
         url: "https://rpc.ankr.com/base",
+        priority: 2,
+      },
+      {
+        url: "https://mainnet.base.org",
         priority: 3,
+      },
+      {
+        url: "https://base.publicnode.com",
+        priority: 4,
       },
     ],
   },
@@ -168,6 +176,9 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
 export function getAvailableEndpoints(chainId: number): RpcEndpoint[] {
   const config = RPC_CONFIGS[chainId];
   if (!config) return [];
+
+  const ALCHEMY_API_KEY = process.env.WEB3_ALCHEMY_API_KEY;
+  const INFURA_API_KEY = process.env.INFURA_API_KEY;
 
   return config.endpoints
     .filter((endpoint) => {
