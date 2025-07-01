@@ -26,6 +26,12 @@ const GECKO_NETWORK_MAPPING: Record<number, string> = {
   42161: "arbitrum",
 };
 
+const COINGECKO_CHAIN_ID_MAPPING: Record<number, string> = {
+  1: "ethereum",
+  8453: "base",
+  42161: "arbitrum-one",
+};
+
 /**
  * Fetch current USD prices for multiple tokens, using DefiLlama as primary
  * and GeckoTerminal as a fallback for any missing data.
@@ -120,6 +126,63 @@ export async function getTokenPrices(
 }
 
 /**
+ * Fetch current prices from CoinGecko API.
+ * Used as a fallback when historical prices are not available.
+ *
+ * @param tokens List of tokens (chainId + address)
+ * @returns A record mapping "{network}:{address}" => current price in USD
+ */
+async function getCoinGeckoCurrentPrices(
+  tokens: TokenIdentifier[]
+): Promise<Record<string, number>> {
+  const results: Record<string, number> = {};
+
+  // Group tokens by chain
+  const tokensByChain: Record<number, string[]> = {};
+  tokens.forEach(({ chainId, address }) => {
+    if (!tokensByChain[chainId]) {
+      tokensByChain[chainId] = [];
+    }
+    tokensByChain[chainId].push(address);
+  });
+
+  // Fetch prices for each chain
+  await Promise.all(
+    Object.entries(tokensByChain).map(async ([chainIdStr, addresses]) => {
+      const chainId = parseInt(chainIdStr);
+      const coingeckoChain = COINGECKO_CHAIN_ID_MAPPING[chainId];
+      if (!coingeckoChain) {
+        console.warn(`CoinGecko chain mapping not found for chainId ${chainId}`);
+        return;
+      }
+
+      try {
+        // CoinGecko expects addresses as comma-separated list
+        const addressList = addresses.join(",");
+        const url = `https://api.coingecko.com/api/v3/simple/token_price/${coingeckoChain}?contract_addresses=${addressList}&vs_currencies=usd`;
+        
+        const resp = await axios.get(url);
+        const data = resp.data;
+
+        // Process results
+        addresses.forEach((address) => {
+          const normalizedAddr = address.toLowerCase();
+          const priceData = data[normalizedAddr];
+          if (priceData && priceData.usd && priceData.usd > 0) {
+            const llamaKey = `${LLAMA_NETWORK_MAPPING[chainId]}:${normalizedAddr}`;
+            results[llamaKey] = priceData.usd;
+          }
+        });
+      } catch (err) {
+        console.error(`CoinGecko API error for ${coingeckoChain}:`, err);
+      }
+    })
+  );
+
+  return results;
+}
+
+/**
  * Fetch historical USD prices at a specific UNIX timestamp for multiple tokens.
  * Uses DefiLlama only (GeckoTerminal does not support historical via API).
  *
@@ -153,13 +216,32 @@ export async function getHistoricalTokenPrices(
     );
     const coins = resp.data.coins || {};
 
+    const missingTokens: TokenIdentifier[] = [];
     tokens.forEach(({ chainId, address }) => {
       const key = `${LLAMA_NETWORK_MAPPING[chainId]}:${address}`.toLowerCase();
       const entry = coins[key];
       if (!entry || entry.price === 0) {
-        throw new Error(`Historical price unavailable or zero for ${key}`);
+        missingTokens.push({ chainId, address });
+      } else {
+        results[key] = entry.price;
       }
-      results[key] = entry.price;
+    });
+
+    // If we have missing tokens, fallback to CoinGecko current prices
+    if (missingTokens.length > 0) {
+      console.warn(
+        `Historical prices unavailable for ${missingTokens.length} tokens, falling back to CoinGecko current prices`
+      );
+      const currentPrices = await getCoinGeckoCurrentPrices(missingTokens);
+      Object.assign(results, currentPrices);
+    }
+
+    // Check if we still have missing prices
+    tokens.forEach(({ chainId, address }) => {
+      const key = `${LLAMA_NETWORK_MAPPING[chainId]}:${address}`.toLowerCase();
+      if (!results[key] || results[key] === 0) {
+        throw new Error(`Price unavailable for ${key} even after CoinGecko fallback`);
+      }
     });
 
     return results;
