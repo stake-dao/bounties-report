@@ -107,12 +107,8 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: base,
     endpoints: [
       {
-        url: "https://mainnet.base.org",
-        priority: 1,
-      },
-      {
         url: "https://base.llamarpc.com",
-        priority: 2,
+        priority: 1,
       },
       {
         url: "https://rpc.ankr.com/base",
