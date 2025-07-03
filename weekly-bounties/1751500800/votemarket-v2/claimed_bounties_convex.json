@@ -1,14 +1,6 @@
 {
   "curve": {
     "0": {
-      "chainId": 8453,
-      "bountyId": "0",
-      "gauge": "0x92106DCFa053A8283213a062735649cbf0e718A2",
-      "amount": "3801621842075068989720",
-      "rewardToken": "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415",
-      "isWrapped": false
-    },
-    "1": {
       "chainId": 42161,
       "bountyId": "117",
       "gauge": "0xc92F18Ff65fE563c6D22476460a59ABA22E7a075",
@@ -16,7 +8,7 @@
       "rewardToken": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
       "isWrapped": false
     },
-    "2": {
+    "1": {
       "chainId": 42161,
       "bountyId": "120",
       "gauge": "0xae0f794Bc4Cad74739354223b167dbD04A3Ac6A5",
@@ -24,7 +16,7 @@
       "rewardToken": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
       "isWrapped": false
     },
-    "3": {
+    "2": {
       "chainId": 42161,
       "bountyId": "174",
       "gauge": "0x60483b4792A17c980A275449caF848084231543C",
@@ -32,7 +24,7 @@
       "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "isWrapped": true
     },
-    "4": {
+    "3": {
       "chainId": 42161,
       "bountyId": "177",
       "gauge": "0x36cC1d791704445A5b6b9c36a667e511d4702F3f",
@@ -40,7 +32,7 @@
       "rewardToken": "0xD533a949740bb3306d119CC777fa900bA034cd52",
       "isWrapped": true
     },
-    "5": {
+    "4": {
       "chainId": 42161,
       "bountyId": "178",
       "gauge": "0xc05d9A1b8CabBDD8551e7c292ffE2C06466c9383",
@@ -48,7 +40,7 @@
       "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "isWrapped": true
     },
-    "6": {
+    "5": {
       "chainId": 42161,
       "bountyId": "179",
       "gauge": "0x92219862F9F40fe27444e45a9554E824e8556A62",
@@ -56,7 +48,7 @@
       "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "isWrapped": true
     },
-    "7": {
+    "6": {
       "chainId": 42161,
       "bountyId": "180",
       "gauge": "0xf5456dE3a08fA12253153414FBEBAaE63e0C7884",
@@ -64,7 +56,7 @@
       "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "isWrapped": true
     },
-    "8": {
+    "7": {
       "chainId": 42161,
       "bountyId": "181",
       "gauge": "0x4C1533350dfAaE6c55604160A5F70aD84A108b48",
@@ -72,7 +64,7 @@
       "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "isWrapped": true
     },
-    "9": {
+    "8": {
       "chainId": 42161,
       "bountyId": "182",
       "gauge": "0xC3328b4c7c87cC0682120528E9D358274580b1da",
@@ -80,7 +72,7 @@
       "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "isWrapped": true
     },
-    "10": {
+    "9": {
       "chainId": 42161,
       "bountyId": "183",
       "gauge": "0xd8b712d29381748dB89c36BCa0138d7c75866ddF",
@@ -88,7 +80,7 @@
       "rewardToken": "0x090185f2135308BaD17527004364eBcC2D37e5F6",
       "isWrapped": true
     },
-    "11": {
+    "10": {
       "chainId": 42161,
       "bountyId": "184",
       "gauge": "0x7671299eA7B4bbE4f3fD305A994e6443b4be680E",
@@ -96,7 +88,7 @@
       "rewardToken": "0x30D20208d987713f46DFD34EF128Bb16C404D10f",
       "isWrapped": true
     },
-    "12": {
+    "11": {
       "chainId": 42161,
       "bountyId": "195",
       "gauge": "0xd5f2e6612E41bE48461FDBA20061E3c778Fe6EC4",
@@ -104,7 +96,7 @@
       "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "isWrapped": true
     },
-    "13": {
+    "12": {
       "chainId": 42161,
       "bountyId": "196",
       "gauge": "0x4e227d29b33B77113F84bcC189a6F886755a1f24",
@@ -112,13 +104,21 @@
       "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "isWrapped": true
     },
-    "14": {
+    "13": {
       "chainId": 42161,
       "bountyId": "197",
       "gauge": "0x156527deF9a2AB4F54C849575f23dC4BB439d9d9",
       "amount": "371072766874949019759",
       "rewardToken": "0xFa2B947eEc368f42195f24F36d2aF29f7c24CeC2",
       "isWrapped": true
+    },
+    "14": {
+      "chainId": 8453,
+      "bountyId": "0",
+      "gauge": "0x92106DCFa053A8283213a062735649cbf0e718A2",
+      "amount": "3801621842075068989720",
+      "rewardToken": "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415",
+      "isWrapped": false
     }
   },
   "fxn": {
