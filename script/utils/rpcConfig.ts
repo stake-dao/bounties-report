@@ -21,14 +21,30 @@ export interface ChainRpcConfig {
   endpoints: RpcEndpoint[];
 }
 
+// Utility to inject API keys into endpoint URLs
+function injectApiKey(url: string, apiKeys: Record<string, string | undefined>): string {
+  if (url.includes("{ALCHEMY_API_KEY}")) {
+    return url.replace("{ALCHEMY_API_KEY}", apiKeys.ALCHEMY_API_KEY || "");
+  }
+  if (url.includes("{INFURA_API_KEY}")) {
+    return url.replace("{INFURA_API_KEY}", apiKeys.INFURA_API_KEY || "");
+  }
+  return url;
+}
+
 export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
   // Ethereum Mainnet
   1: {
     chain: mainnet,
     endpoints: [
       {
-        url: `https://mainnet.gateway.tenderly.co`,
+        url: "https://eth-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
         priority: 1,
+        requiresApiKey: true,
+      },
+      {
+        url: `https://mainnet.gateway.tenderly.co`,
+        priority: 2,
       },
       {
         url: "https://eth-mainnet.public.blastapi.io",
@@ -75,16 +91,21 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: optimism,
     endpoints: [
       {
-        url: "https://mainnet.optimism.io",
+        url: "https://opt-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
         priority: 1,
+        requiresApiKey: true,
       },
       {
-        url: "https://optimism.llamarpc.com",
+        url: "https://mainnet.optimism.io",
         priority: 2,
       },
       {
-        url: "https://rpc.ankr.com/optimism",
+        url: "https://optimism.llamarpc.com",
         priority: 3,
+      },
+      {
+        url: "https://rpc.ankr.com/optimism",
+        priority: 4,
       },
     ],
   },
@@ -107,20 +128,25 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: base,
     endpoints: [
       {
-        url: "https://base.llamarpc.com",
+        url: "https://base-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
         priority: 1,
+        requiresApiKey: true,
       },
       {
-        url: "https://rpc.ankr.com/base",
+        url: "https://base.llamarpc.com",
         priority: 2,
       },
       {
-        url: "https://mainnet.base.org",
+        url: "https://rpc.ankr.com/base",
         priority: 3,
       },
       {
-        url: "https://base.publicnode.com",
+        url: "https://mainnet.base.org",
         priority: 4,
+      },
+      {
+        url: "https://base.publicnode.com",
+        priority: 5,
       },
     ],
   },
@@ -157,6 +183,11 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: arbitrum,
     endpoints: [
       {
+        url: "https://arb-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        priority: 1,
+        requiresApiKey: true,
+      },
+      {
         url: "https://arb1.arbitrum.io/rpc",
         priority: 1,
       },
@@ -177,16 +208,22 @@ export function getAvailableEndpoints(chainId: number): RpcEndpoint[] {
   const config = RPC_CONFIGS[chainId];
   if (!config) return [];
 
-  const ALCHEMY_API_KEY = process.env.WEB3_ALCHEMY_API_KEY;
-  const INFURA_API_KEY = process.env.INFURA_API_KEY;
+  const apiKeys = {
+    ALCHEMY_API_KEY: process.env.WEB3_ALCHEMY_API_KEY,
+    INFURA_API_KEY: process.env.INFURA_API_KEY,
+  };
 
   return config.endpoints
     .filter((endpoint) => {
       if (endpoint.requiresApiKey) {
-        if (endpoint.url.includes("alchemy") && !ALCHEMY_API_KEY) return false;
-        if (endpoint.url.includes("infura") && !INFURA_API_KEY) return false;
+        if (endpoint.url.includes("{ALCHEMY_API_KEY}") && !apiKeys.ALCHEMY_API_KEY) return false;
+        if (endpoint.url.includes("{INFURA_API_KEY}") && !apiKeys.INFURA_API_KEY) return false;
       }
       return true;
     })
+    .map((endpoint) => ({
+      ...endpoint,
+      url: injectApiKey(endpoint.url, apiKeys),
+    }))
     .sort((a, b) => a.priority - b.priority);
 }
