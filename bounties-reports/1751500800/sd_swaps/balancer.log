@@ -1,0 +1,27 @@
+Stake DAO - Swap Report
+Protocol: BALANCER
+Timestamp: 1751500800
+Date: 2025-07-03 00:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 BALANCER Swap Report
+
+🔄 https://etherscan.io/tx/0xe028d494a202e2fc41300233086c47e437eff4f189fcf7d28aa3e8120d2bb795 Transaction
+├─ https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL: 1,326.95 • https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL: 5,201.00 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 2.0127
+├─ https://etherscan.io/token/0xc0c293ce456ff0ed870add98a0828dd4d2903dbf AURA: 20,462.40 → 1.2132 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (56.3%)
+└─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 2,071.78 → 0.7995 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (37.1%)
+
+🔄 https://etherscan.io/tx/0xe26f1746f250b71660c16680ad302660ef33655eb4d65ff3da00be264d3babba Transaction
+├─ https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL: 89.70 • https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL: 373.90 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 0.1439
+└─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 1,586.83 → 0.1439 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (6.7%)
+
+
+🔍 Token Contributions:
+├─ https://etherscan.io/token/0xc0c293ce456ff0ed870add98a0828dd4d2903dbf AURA: 20,462.40 → 1.2132 WETH (56.3%)
+├─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 2,071.78 → 0.7995 WETH (37.1%)
+├─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 1,586.83 → 0.1439 WETH (6.7%)
+
+📈 Final Summary
+└─ 1,416.65 https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL
+   └─ via 2.1565 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH
+      └─ to 5,574.90 https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL
