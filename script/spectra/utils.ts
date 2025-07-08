@@ -151,7 +151,7 @@ export async function getSpectraDistribution() {
 
 const getChain = (chainId: number): any => {
   for (const chain of Object.values(chains)) {
-    if ("id" in chain) {
+    if (typeof chain === 'object' && chain !== null && "id" in chain) {
       if (chain.id === chainId) {
         return chain;
       }
@@ -163,7 +163,7 @@ const getChain = (chainId: number): any => {
 
 const getChainIdName = (chainId: number): string => {
   for (const chain of Object.values(chains)) {
-    if ("id" in chain) {
+    if (typeof chain === 'object' && chain !== null && "id" in chain) {
       if (chain.id === chainId) {
         return chain.name;
       }
