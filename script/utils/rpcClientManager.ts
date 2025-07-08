@@ -130,7 +130,7 @@ export class RpcClientManager {
       const client = this.createClient(chainId, endpoint);
       
       // Test with timeout
-      const blockNumberPromise = client.getBlockNumber();
+      const blockNumberPromise = (client as any).getBlockNumber();
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Connection timeout")), this.CONNECTION_TIMEOUT)
       );

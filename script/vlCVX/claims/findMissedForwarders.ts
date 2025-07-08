@@ -1,4 +1,4 @@
-import { getOptimizedClient, CVX_SPACE, VOTIUM_FORWARDER, VOTIUM_FORWARDER_REGISTRY, DELEGATION_ADDRESS } from "../../utils/constants";
+import { getClient, CVX_SPACE, VOTIUM_FORWARDER, VOTIUM_FORWARDER_REGISTRY, DELEGATION_ADDRESS } from "../../utils/constants";
 import { createPublicClient, http, getAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { getProposal, getVoters, fetchLastProposalsIds } from "../../utils/snapshot";

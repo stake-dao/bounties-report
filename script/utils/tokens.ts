@@ -1,8 +1,8 @@
-import { Chain, createPublicClient, getAddress, http } from "viem";
+import { Chain, getAddress } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
 import { TokenInfos } from "../interfaces/TokenInfos";
 import { AddressClaim } from "../interfaces/AddressClaim";
-import { clients, getOptimizedClient } from "./constants";
+import { getClient } from "./constants";
 
 export const fetchTokenInfos = async (combinedDistribution: MerkleData, previousMerkleData: MerkleData, chain: Chain): Promise<TokenInfos> => {
     const rewardTokenAddresses = new Set<string>();
@@ -23,7 +23,7 @@ export const fetchTokenInfos = async (combinedDistribution: MerkleData, previous
         }
     });
 
-    const publicClient = await getOptimizedClient(chain.id);
+    const publicClient = await getClient(chain.id) as any;
 
     const tokenInfoArray = await Promise.allSettled(
         Array.from(rewardTokenAddresses).map(async (tokenAddress) => {

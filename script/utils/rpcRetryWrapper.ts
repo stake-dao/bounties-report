@@ -1,5 +1,5 @@
 import { PublicClient } from "viem";
-import { getOptimizedClient, getRedundantClients } from "./constants";
+import { getClient, getRedundantClients } from "./constants";
 
 export interface RetryOptions {
   maxRetries?: number;
@@ -31,7 +31,7 @@ export async function executeWithRetry<T>(
   let lastError: Error | null = null;
 
   // First try with the primary optimized client
-  const primaryClient = await getOptimizedClient(chainId);
+  const primaryClient = await getClient(chainId);
   
   for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
     try {
@@ -136,7 +136,7 @@ export async function createRetryClient(
   chainId: number,
   options: RetryOptions = {}
 ): Promise<PublicClient> {
-  const client = await getOptimizedClient(chainId);
+  const client = await getClient(chainId);
   
   return new Proxy(client, {
     get(target, prop, receiver) {

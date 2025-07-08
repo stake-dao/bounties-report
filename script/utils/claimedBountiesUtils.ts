@@ -25,7 +25,7 @@ import {
   PlatformConfigs,
 } from "./types";
 import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
-import { clients, getOptimizedClient } from "./constants";
+import { getClient } from "./constants";
 import { ContractRegistry } from "./contractRegistry";
 import { getBlockNumberByTimestamp } from "./chainUtils";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
@@ -223,7 +223,7 @@ const fetchVotemarketV1ClaimedBounties = async (
             strict: true,
           });
 
-          const client = await getOptimizedClient(1);
+          const client = await getClient(1);
           const bountyInfo = await client.readContract({
             address: getAddress(log.address),
             abi: platformAbi,
@@ -363,7 +363,7 @@ const fetchVotemarketV2ClaimedBounties = async (
           strict: true,
         });
 
-        const client = await getOptimizedClient(chain);
+        const client = await getClient(chain);
         const bountyInfo = await client.readContract({
           address: getAddress(log.address),
           abi: campaignAbi,

@@ -12,7 +12,7 @@ import {
   processSwaps,
   PROTOCOLS_TOKENS,
 } from "../utils/reportUtils";
-import { getOptimizedClient } from "../utils/constants";
+import { getClient } from "../utils/constants";
 import processReport from "../reports/processReport";
 
 dotenv.config();
@@ -44,7 +44,7 @@ function writeReportToCSV(rows: SpectraClaimed[]) {
 }
 
 async function main() {
-  const baseClient = await getOptimizedClient(8453);
+  const baseClient = await getClient(8453);
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
     baseClient,
     0,

@@ -2,7 +2,7 @@ import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
 import { getBlockNumberByTimestamp } from "./chainUtils";
 import { processAllDelegators } from "./cacheUtils";
-import { getOptimizedClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
+import { getClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
@@ -31,7 +31,7 @@ export const getForwardedDelegators = async (
   }
 
   try {
-    const client = await getOptimizedClient(1);
+    const client = await getClient(1);
     const results: string[] = [];
     
     // Process each batch sequentially

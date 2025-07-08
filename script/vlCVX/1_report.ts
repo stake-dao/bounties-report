@@ -3,7 +3,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { getTokenInfo, getGaugesInfos } from "../utils/reportUtils";
 import { VotemarketBounty, VotemarketV2Bounty } from "../utils/types";
-import { clients } from "../utils/constants";
+import { getClient } from "../utils/constants";
 
 dotenv.config();
 
@@ -92,7 +92,7 @@ async function fetchAllTokenInfos(
 
     tokenInfos[tokenAddress.toLowerCase()] = {
       chainId,
-      ...(await getTokenInfo(clients[chainId], tokenAddress)),
+      ...(await getTokenInfo(await getClient(chainId), tokenAddress)),
     };
   }
   return tokenInfos;
