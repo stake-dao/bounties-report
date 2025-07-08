@@ -32,11 +32,29 @@ export interface SpectraClaimed {
 }
 
 const poolAbi = [
-  "function coins(uint256 id) external view returns(address)",
+  {
+    inputs: [{ name: "id", type: "uint256" }],
+    name: "coins",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 const ptAbi = [
-  "function symbol() external view returns(string)",
-  "function maturity() external view returns(uint256)",
+  {
+    inputs: [],
+    name: "symbol",
+    outputs: [{ name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "maturity",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 export async function getSpectraDistribution() {
