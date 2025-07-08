@@ -11,7 +11,7 @@ import {
   SDBAL_SPACE,
   SDPENDLE_SPACE,
   SPECTRA_SPACE,
-  getOptimizedClient,
+  getClient,
 } from "./constants";
 import fs from "fs";
 import path from "path";
@@ -626,7 +626,7 @@ export const addVotersFromAutoVoter = async (
   );
 
   // Fetch delegators weight registered in the auto voter contract
-  const publicClient = await getOptimizedClient(1);
+  const publicClient = await getClient(1);
 
   const { data } = await axios.post("https://score.snapshot.org/api/scores", {
     params: {
@@ -802,7 +802,7 @@ export const getAllAccountClaimed = async (
     abi: abi,
   };
 
-  const publicClient = await getOptimizedClient(chain.id);
+  const publicClient = await getClient(chain.id);
 
   const calls: any[] = [];
   for (const userAddress of Object.keys(lastMerkle.merkle)) {
@@ -873,7 +873,7 @@ export const getAllAccountClaimedSinceLastFreeze = async (
       throw new Error("Chain not found");
   }
 
-  const publicClient = await getOptimizedClient(Number(chainId));
+  const publicClient = await getClient(Number(chainId));
   const currentBlock = await publicClient.getBlock();
 
   const merkleEventSignature = "MerkleRootUpdated(address,bytes32,uint256)";

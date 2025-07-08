@@ -1,23 +1,10 @@
 import * as dotenv from "dotenv";
 import {
-  createPublicClient,
-  parseAbi,
-  http,
-  PublicClient,
   getAddress,
 } from "viem";
-import {
-  mainnet,
-  bsc,
-  optimism,
-  fraxtal,
-  base,
-  polygon,
-  arbitrum,
-  sonic,
-} from "viem/chains";
+
 import { PlatformConfigs } from "./types";
-import { rpcClientManager } from "./rpcClientManager";
+
 
 dotenv.config();
 
@@ -239,45 +226,14 @@ export const CHAINS_IDS_TO_SHORTS: Record<number, string> = {
   137: "polygon",
 };
 
-export const abi = parseAbi([
+export const abi = [
   "function multiFreeze(address[] tokens) public",
   "function multiSet(address[] tokens, bytes32[] roots) public",
   "function multiUpdateMerkleRoot(address[] tokens, bytes32[] roots) public",
   "function isClaimed(address token, uint256 index) public view returns (bool)",
-]);
+] as const;
 
-// Legacy clients - kept for backward compatibility
-// Use getOptimizedClient() for better reliability
-export const clients: Record<number, PublicClient> = {
-  [1]: createPublicClient({
-    chain: mainnet,
-    transport: http(
-      `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
-    ),
-  }),
-  [56]: createPublicClient({ chain: bsc, transport: http() }),
-  [10]: createPublicClient({ chain: optimism, transport: http() }),
-  [1124]: createPublicClient({ chain: fraxtal, transport: http() }),
-  [8453]: createPublicClient({
-    chain: base,
-    transport: http(
-      `https://base-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
-    ),
-  }),
-  [137]: createPublicClient({ chain: polygon, transport: http() }),
-  [146]: createPublicClient({
-    chain: sonic,
-    transport: http(
-      `https://sonic-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
-    ),
-  }),
-  [42161]: createPublicClient({
-    chain: arbitrum,
-    transport: http(
-      `https://arb-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
-    ),
-  }),
-};
+
 
 export const VOTEMARKET_PLATFORM_CONFIGS: PlatformConfigs = {
   curve: [
@@ -323,36 +279,4 @@ export const VOTEMARKET_CONVEX_LOCKER_CONFIGS: PlatformConfigs = {
   ],
 };
 
-/**
- * Get an optimized RPC client with automatic failover and connection testing
- * @param chainId - The chain ID to get a client for
- * @returns A viem PublicClient connected to the fastest available RPC
- */
-export async function getOptimizedClient(chainId: number): Promise<PublicClient> {
-  return rpcClientManager.getClient(chainId);
-}
-
-/**
- * Get multiple healthy RPC clients for redundancy
- * @param chainId - The chain ID to get clients for
- * @returns Array of up to 3 healthy PublicClients
- */
-export async function getRedundantClients(chainId: number): Promise<PublicClient[]> {
-  return rpcClientManager.getAllHealthyClients(chainId);
-}
-
-/**
- * Test RPC connection health for all chains
- * @returns Connection status for all configured chains
- */
-export async function testAllRpcConnections() {
-  return rpcClientManager.getConnectionStatus();
-}
-
-/**
- * Force refresh RPC endpoints for a specific chain
- * @param chainId - The chain ID to refresh
- */
-export async function refreshRpcEndpoints(chainId: number): Promise<void> {
-  return rpcClientManager.refreshEndpoints(chainId);
-}
+export { getClient, getRedundantClients, clearClientCache } from "./getClients";

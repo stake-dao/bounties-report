@@ -1,5 +1,5 @@
 import { 
-  getOptimizedClient, 
+  getClient, 
   getRedundantClients, 
   testAllRpcConnections,
   refreshRpcEndpoints 
@@ -33,7 +33,7 @@ async function testRpcConnections() {
   // Test 2: Get optimized client for Ethereum
   console.log("\n2️⃣ Getting optimized client for Ethereum (Chain ID: 1)...");
   try {
-    const client = await getOptimizedClient(1);
+    const client = await getClient(1);
     const blockNumber = await client.getBlockNumber();
     console.log(`✅ Successfully connected! Current block: ${blockNumber}`);
   } catch (error) {
@@ -109,7 +109,7 @@ async function testRpcConnections() {
     console.log("✅ Endpoints refreshed successfully");
     
     // Get client again to verify refresh worked
-    const client = await getOptimizedClient(1);
+    const client = await getClient(1);
     const blockNumber = await client.getBlockNumber();
     console.log(`  Verified with block: ${blockNumber}`);
   } catch (error) {

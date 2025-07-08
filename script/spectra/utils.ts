@@ -1,6 +1,5 @@
 import {
   decodeEventLog,
-  parseAbi,
   erc20Abi,
   formatUnits,
 } from "viem";
@@ -14,7 +13,7 @@ import {
   extractCSV,
 } from "../utils/utils";
 import * as dotenv from "dotenv";
-import { getOptimizedClient } from "../utils/constants";
+import { getClient } from "../utils/constants";
 import axios from "axios";
 
 dotenv.config();
@@ -32,16 +31,16 @@ export interface SpectraClaimed {
   tokenRewardSymbol: string;
 }
 
-const poolAbi = parseAbi([
+const poolAbi = [
   "function coins(uint256 id) external view returns(address)",
-]);
-const ptAbi = parseAbi([
+] as const;
+const ptAbi = [
   "function symbol() external view returns(string)",
   "function maturity() external view returns(uint256)",
-]);
+] as const;
 
 export async function getSpectraDistribution() {
-  const baseClient = await getOptimizedClient(8453);
+  const baseClient = await getClient(8453) as any;
 
   // Fetch new claims from the start of the current epoch to now
   const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -50,7 +49,8 @@ export async function getSpectraDistribution() {
   const blockNumber2 = await baseClient.getBlockNumber();
 
   // Fetch logs in chunks to avoid exceeding RPC block range limit
-  const MAX_BLOCK_RANGE = 50000n;
+  // Most RPC endpoints have a limit of 1000-2000 blocks per request
+  const MAX_BLOCK_RANGE = 1000n;
   const logs: any[] = [];
   
   let fromBlock = BigInt(blockNumber1);
@@ -77,7 +77,7 @@ export async function getSpectraDistribution() {
 
   const claimeds: SpectraClaimed[] = [];
   for (const log of logs) {
-    const topics = decodeEventLog({
+    const topics = (decodeEventLog as any)({
       abi: SpectraSafeModuleABI,
       data: log.data,
       topics: log.topics,
@@ -113,7 +113,7 @@ export async function getSpectraDistribution() {
       continue;
     }
 
-    const client = await getOptimizedClient(claim.chainId);
+    const client = await getClient(claim.chainId) as any;
 
     // @ts-ignore
     const coinPT = await client.readContract({
@@ -149,7 +149,7 @@ export async function getSpectraDistribution() {
   return claimeds;
 }
 
-const getChain = (chainId: number): chains.Chain | undefined => {
+const getChain = (chainId: number): any => {
   for (const chain of Object.values(chains)) {
     if ("id" in chain) {
       if (chain.id === chainId) {

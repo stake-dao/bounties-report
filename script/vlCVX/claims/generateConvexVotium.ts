@@ -5,7 +5,7 @@ import {
   CVX_SPACE,
   VOTIUM_FORWARDER,
   DELEGATION_ADDRESS,
-  getOptimizedClient,
+  getClient,
   VOTIUM_FORWARDER_REGISTRY,
   clients,
 } from "../../utils/constants";
@@ -58,7 +58,7 @@ const erc20Abi = [
  */
 async function getTokenSymbol(tokenAddress: string, client?: any): Promise<string> {
   try {
-    const ethereumClient = client || (await getOptimizedClient(1)) || createPublicClient({
+    const ethereumClient = client || (await getClient(1)) || createPublicClient({
       chain: mainnet,
       transport: http(),
     });
@@ -986,7 +986,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
     console.log("=".repeat(80));
     
     // Initialize client
-    const ethereumClient = (await getOptimizedClient(1) || createPublicClient({
+    const ethereumClient = (await getClient(1) || createPublicClient({
       chain: mainnet,
       transport: http(),
     })) as any;

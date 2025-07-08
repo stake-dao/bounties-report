@@ -15,7 +15,7 @@ import {
 } from "./delegationHelper";
 import { getProposal, getVoters } from "./snapshot";
 import {
-  getOptimizedClient,
+  getClient,
   VOTIUM_FORWARDER_REGISTRY,
   CVX_SPACE,
   CVX_FXN_SPACE,
@@ -88,7 +88,7 @@ export const getAllTokensInfos = async (
   );
 
   const client =
-    (await getOptimizedClient(chainId)) ||
+    (await getClient(chainId)) ||
     createPublicClient({
       chain,
       transport: http(),
@@ -191,7 +191,7 @@ export const distributionVerifier = async (
     console.log("\n=== Votium Epoch Check ===");
     try {
       const ethereumClient =
-        (await getOptimizedClient(1)) ||
+        (await getClient(1)) ||
         createPublicClient({
           chain: merkleChain,
           transport: http(),
@@ -329,7 +329,7 @@ const compareMerkleData = async (
   currentPeriodTimestamp?: number
 ): Promise<DistributionRow[]> => {
   const client =
-    (await getOptimizedClient(chain.id)) ||
+    (await getClient(chain.id)) ||
     createPublicClient({
       chain,
       transport: http(),
