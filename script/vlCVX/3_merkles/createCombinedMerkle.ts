@@ -477,10 +477,15 @@ function processChain(
             for (const token in tokenAllocations[address]) {
               const tokenData = tokenAllocations[address][token];
               
-              // Handle new format with amount and usd properties
+              // Handle new format with amount, amountWei and usd properties
               let amountStr: string;
-              if (typeof tokenData === 'object' && tokenData.amount) {
+              if (typeof tokenData === 'object' && tokenData.amountWei) {
+                // Use wei amount if available
+                amountStr = tokenData.amountWei;
+              } else if (typeof tokenData === 'object' && tokenData.amount) {
+                // Fallback to amount field (but this might have decimals)
                 amountStr = tokenData.amount;
+                console.warn(`Using decimal amount for ${address}:${token}, this may cause precision loss`);
               } else if (typeof tokenData === 'string') {
                 // Backward compatibility for old format
                 amountStr = tokenData;
@@ -489,9 +494,9 @@ function processChain(
                 continue;
               }
               
-              // Convert amount to BigInt - handle decimal amounts by scaling up
-              const amountFloat = parseFloat(amountStr);
-              const amountBigInt = BigInt(Math.floor(amountFloat * 1e18)); // Scale to 18 decimals for precision
+              // Convert amount to BigInt - amounts should already be in wei
+              // Remove any decimal points if present (amounts should be integers)
+              const amountBigInt = BigInt(amountStr.split('.')[0]);
               
               if (!combined[lowerAddress].tokens[token]) {
                 combined[lowerAddress].tokens[token] = amountBigInt;
@@ -499,7 +504,7 @@ function processChain(
                 combined[lowerAddress].tokens[token] += amountBigInt;
               }
               
-              console.log(`Added ${amountStr} ${token} (${amountBigInt.toString()} wei) to ${lowerAddress}`);
+              console.log(`Added ${token}: ${amountBigInt.toString()} wei to ${lowerAddress}`);
             }
           }
           console.log("Added theoretical forwarders rewards to combined distribution.");
