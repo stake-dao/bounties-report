@@ -7,7 +7,6 @@ import {
   DELEGATION_ADDRESS,
   getClient,
   VOTIUM_FORWARDER_REGISTRY,
-  clients,
 } from "../../utils/constants";
 import { getGaugesInfos, getTokenInfo } from "../../utils/reportUtils";
 import { createPublicClient, http } from "viem";
@@ -25,11 +24,17 @@ import {
   getForwardedDelegators,
 } from "../../utils/delegationHelper";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
+import { getTokenAddress } from "../../utils/tokenMappings";
+
+// The Union's address (from comment in constants.ts)
+const THE_UNION_ADDRESS = "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49";
 
 interface Forwarder {
   address: string;
   type: "delegator" | "direct-voter";
   votingPower: number;
+  delegatedTo?: string; // Track who they delegated to (e.g., The Union)
+  isUnionDelegator?: boolean; // Flag to identify Union delegators
 }
 
 interface TokenAllocation {
@@ -41,39 +46,6 @@ interface TokenAllocation {
 
 
 // ========== HELPER FUNCTIONS ==========
-
-// ERC20 ABI for symbol lookup
-const erc20Abi = [
-  {
-    name: "symbol",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "string" }],
-  },
-] as const;
-
-/**
- * Get token symbol from contract
- */
-async function getTokenSymbol(tokenAddress: string, client?: any): Promise<string> {
-  try {
-    const ethereumClient = client || (await getClient(1)) || createPublicClient({
-      chain: mainnet,
-      transport: http(),
-    });
-    
-    const symbol = await ethereumClient.readContract({
-      address: tokenAddress as `0x${string}`,
-      abi: erc20Abi,
-      functionName: "symbol",
-    });
-    return symbol;
-  } catch (error) {
-    console.error(`Error fetching symbol for ${tokenAddress}:`, error);
-    return "UNKNOWN";
-  }
-}
 
 /**
  * Ensure directory exists
@@ -120,6 +92,32 @@ async function getAllForwarders(
   const proposal = await getProposal(proposalId);
   
   console.log(`Total voters in proposal: ${voters.length}`);
+  
+  // Handle delegators who delegated to The Union
+  // These are addresses that delegated to The Union, who then forwards to us
+  const unionDelegatorsList = [
+    {
+      address: "0x2dbeDd2632D831E61eB3fCc6720f072eeF9d522D",
+      vp: 71266.07740464392, // Their voting power
+    },
+    // Add more Union delegators here as needed
+  ];
+  
+  // Create a map for easy lookup
+  const unionDelegatorsMap = new Map<string, number>();
+  unionDelegatorsList.forEach(delegator => {
+    unionDelegatorsMap.set(delegator.address.toLowerCase(), delegator.vp);
+  });
+  
+  // Add Union delegators to voters list so they're included in forwarders
+  unionDelegatorsList.forEach(delegator => {
+    voters.push({
+      voter: delegator.address,
+      vp: delegator.vp,
+    });
+  });
+  
+  console.log(`Added ${unionDelegatorsList.length} Union delegators, total voters: ${voters.length}`);
   
   // 2. Get delegation data to identify who are delegators
   const delegatorData = await fetchDelegatorData(space, proposal);
@@ -205,10 +203,15 @@ async function getAllForwarders(
       // Debug log
       console.log(`Found forwarder: ${voterAddress} (${type}) - VP from vote: ${vote?.vp}, final VP: ${votingPower}`);
       
+      // Check if this is a Union delegator
+      const isUnionDelegator = unionDelegatorsMap.has(voterLower);
+      
       forwarders.push({
         address: voterLower,
         type,
-        votingPower,
+        votingPower: isUnionDelegator ? (unionDelegatorsMap.get(voterLower) || votingPower) : votingPower,
+        delegatedTo: isUnionDelegator ? THE_UNION_ADDRESS : undefined,
+        isUnionDelegator,
       });
     }
   });
@@ -251,14 +254,33 @@ function computeVoteSharesForGauge(
   const forwarderAddresses = new Set(forwarders.map(f => f.address));
   const forwarderMap = new Map(forwarders.map(f => [f.address, f]));
   
+  // Create a map of Union delegators for quick lookup
+  const unionDelegators = new Map<string, Forwarder>();
+  forwarders.forEach(f => {
+    if (f.isUnionDelegator) {
+      unionDelegators.set(f.address, f);
+    }
+  });
+  
   const voterVp = new Map<string, number>();
   
   // Debug for choice 395
   if (gaugeChoiceId === 395) {
     console.log(`\n  Computing vote shares for choice ${gaugeChoiceId}:`);
     console.log(`  Forwarder addresses: ${Array.from(forwarderAddresses).join(', ')}`);
+    console.log(`  Union delegators: ${Array.from(unionDelegators.keys()).join(', ')}`);
     console.log(`  Total choice score from Snapshot: ${totalChoiceScore}`);
     console.log(`  Total votes to check: ${votes.length}`);
+  }
+  
+  // First, find The Union's vote for this gauge
+  let unionVoteChoice: any = null;
+  const unionVote = votes.find(v => v.voter.toLowerCase() === THE_UNION_ADDRESS.toLowerCase());
+  if (unionVote && unionVote.choice && unionVote.choice[gaugeChoiceId] !== undefined) {
+    unionVoteChoice = unionVote.choice;
+    if (gaugeChoiceId === 395) {
+      console.log(`  Found Union vote for choice ${gaugeChoiceId}: ${unionVote.choice[gaugeChoiceId]}%`);
+    }
   }
   
   // Calculate effective VP for each forwarder on this gauge
@@ -272,32 +294,68 @@ function computeVoteSharesForGauge(
         console.log(`    Is forwarder? ${forwarderAddresses.has(voter)}`);
       }
       
-      // Skip if not a forwarder
-      if (!forwarderAddresses.has(voter)) return;
+      // Skip if not a forwarder AND not The Union
+      if (!forwarderAddresses.has(voter) && voter !== THE_UNION_ADDRESS.toLowerCase()) return;
       
-      let vpChoiceSum = 0;
-      let gaugeChoiceValue = 0;
+      // Handle Union delegators separately
+      if (voter === THE_UNION_ADDRESS.toLowerCase() && unionDelegators.size > 0) {
+        // Process Union delegators using Union's choices but their own VP
+        unionDelegators.forEach((delegator) => {
+          let vpChoiceSum = 0;
+          let gaugeChoiceValue = 0;
+          
+          // Use Union's choices
+          Object.keys(unionVoteChoice).forEach((choiceId) => {
+            const val = unionVoteChoice[choiceId];
+            vpChoiceSum += val;
+            if (parseInt(choiceId) === gaugeChoiceId) {
+              gaugeChoiceValue = val;
+            }
+          });
+          
+          if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
+            // Use delegator's voting power
+            const effectiveVp = (delegator.votingPower * gaugeChoiceValue) / vpChoiceSum;
+            voterVp.set(delegator.address, (voterVp.get(delegator.address) || 0) + effectiveVp);
+            
+            if (gaugeChoiceId === 395) {
+              console.log(`    Union delegator ${delegator.address} using Union's choice with VP: ${delegator.votingPower}`);
+              console.log(`    Effective VP for this choice: ${effectiveVp.toFixed(2)}`);
+            }
+          }
+        });
+        return; // Don't process The Union's vote as a regular forwarder
+      }
       
-      Object.keys(vote.choice).forEach((choiceId) => {
-        const val = vote.choice[choiceId];
-        vpChoiceSum += val;
-        if (parseInt(choiceId) === gaugeChoiceId) {
-          gaugeChoiceValue = val;
-        }
-      });
+      // Skip Union delegators in regular vote processing (they're handled above)
+      if (unionDelegators.has(voter)) return;
       
-      if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
-        // Use the forwarder's actual voting power instead of vote.vp
-        const forwarder = forwarderMap.get(voter);
-        const forwarderVotingPower = forwarder ? forwarder.votingPower : vote.vp;
+      // Regular forwarder processing
+      if (forwarderAddresses.has(voter)) {
+        let vpChoiceSum = 0;
+        let gaugeChoiceValue = 0;
         
-        const effectiveVp = (forwarderVotingPower * gaugeChoiceValue) / vpChoiceSum;
-        voterVp.set(voter, (voterVp.get(voter) || 0) + effectiveVp);
+        Object.keys(vote.choice).forEach((choiceId) => {
+          const val = vote.choice[choiceId];
+          vpChoiceSum += val;
+          if (parseInt(choiceId) === gaugeChoiceId) {
+            gaugeChoiceValue = val;
+          }
+        });
         
-        // Debug for choice 395
-        if (gaugeChoiceId === 395) {
-          console.log(`    Using forwarder VP: ${forwarderVotingPower} (vs vote VP: ${vote.vp})`);
-          console.log(`    Effective VP for this choice: ${effectiveVp.toFixed(2)}`);
+        if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
+          // Use the forwarder's actual voting power instead of vote.vp
+          const forwarder = forwarderMap.get(voter);
+          const forwarderVotingPower = forwarder ? forwarder.votingPower : vote.vp;
+          
+          const effectiveVp = (forwarderVotingPower * gaugeChoiceValue) / vpChoiceSum;
+          voterVp.set(voter, (voterVp.get(voter) || 0) + effectiveVp);
+          
+          // Debug for choice 395
+          if (gaugeChoiceId === 395) {
+            console.log(`    Using forwarder VP: ${forwarderVotingPower} (vs vote VP: ${vote.vp})`);
+            console.log(`    Effective VP for this choice: ${effectiveVp.toFixed(2)}`);
+          }
         }
       }
     }
@@ -328,11 +386,15 @@ function aggregateBribesByToken(
   bribesType: "curve" | "fxn"
 ) {
   gaugeBribes.forEach((bribe: any) => {
-    if (!matchingBribesAggregated[bribe.token]) {
-      matchingBribesAggregated[bribe.token] = {
+    // Convert token symbol to address if needed
+    const tokenKey = getTokenAddress(bribe.token) || bribe.token;
+    
+    if (!matchingBribesAggregated[tokenKey]) {
+      matchingBribesAggregated[tokenKey] = {
         curveAmount: BigInt(0),
         fxnAmount: BigInt(0),
         bribes: [],
+        symbol: bribe.token, // Keep the original symbol for reference
       };
     }
     
@@ -341,12 +403,12 @@ function aggregateBribesByToken(
     );
     
     if (bribesType === "curve") {
-      matchingBribesAggregated[bribe.token].curveAmount += delegatedClaimOverall;
+      matchingBribesAggregated[tokenKey].curveAmount += delegatedClaimOverall;
     } else {
-      matchingBribesAggregated[bribe.token].fxnAmount += delegatedClaimOverall;
+      matchingBribesAggregated[tokenKey].fxnAmount += delegatedClaimOverall;
     }
     
-    matchingBribesAggregated[bribe.token].bribes.push({
+    matchingBribesAggregated[tokenKey].bribes.push({
       ...bribe,
       delegationShare,
       type: bribesType,
@@ -363,11 +425,58 @@ function computeDelegationShareForGauge(
   forwarders: Forwarder[]
 ): number {
   const forwarderAddresses = new Set(forwarders.map(f => f.address));
+  const forwarderMap = new Map(forwarders.map(f => [f.address, f]));
+  
+  // Create a map of Union delegators
+  const unionDelegators = new Map<string, Forwarder>();
+  forwarders.forEach(f => {
+    if (f.isUnionDelegator) {
+      unionDelegators.set(f.address, f);
+    }
+  });
+  
   let totalEffectiveVp = 0;
   let delegationEffectiveVp = 0;
   
+  // Find The Union's vote
+  const unionVote = votes.find(v => v.voter.toLowerCase() === THE_UNION_ADDRESS.toLowerCase());
+  let unionChoice: any = null;
+  if (unionVote && unionVote.choice && unionVote.choice[gaugeChoiceId] !== undefined) {
+    unionChoice = unionVote.choice;
+  }
+  
   votes.forEach((vote) => {
     if (vote.choice && vote.choice[gaugeChoiceId] !== undefined) {
+      const voter = vote.voter.toLowerCase();
+      
+      // Handle Union vote separately
+      if (voter === THE_UNION_ADDRESS.toLowerCase() && unionDelegators.size > 0) {
+        // Calculate effective VP for Union delegators
+        unionDelegators.forEach((delegator) => {
+          let vpChoiceSum = 0;
+          let gaugeChoiceValue = 0;
+          
+          Object.keys(unionChoice).forEach((choiceId) => {
+            const val = unionChoice[choiceId];
+            vpChoiceSum += val;
+            if (parseInt(choiceId) === gaugeChoiceId) {
+              gaugeChoiceValue = val;
+            }
+          });
+          
+          if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
+            const effectiveVp = (delegator.votingPower * gaugeChoiceValue) / vpChoiceSum;
+            totalEffectiveVp += effectiveVp;
+            delegationEffectiveVp += effectiveVp;
+          }
+        });
+        return; // Don't count The Union's vote itself
+      }
+      
+      // Skip Union delegators in regular processing
+      if (unionDelegators.has(voter)) return;
+      
+      // Regular vote processing
       let vpChoiceSum = 0;
       let gaugeChoiceValue = 0;
       
@@ -380,12 +489,16 @@ function computeDelegationShareForGauge(
       });
       
       if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
-        const effectiveVp = (vote.vp * gaugeChoiceValue) / vpChoiceSum;
-        totalEffectiveVp += effectiveVp;
-        const voter = vote.voter.toLowerCase();
+        // Use actual voting power for forwarders
+        let votingPower = vote.vp;
         if (forwarderAddresses.has(voter)) {
-          delegationEffectiveVp += effectiveVp;
+          const forwarder = forwarderMap.get(voter);
+          if (forwarder) {
+            votingPower = forwarder.votingPower;
+          }
+          delegationEffectiveVp += (votingPower * gaugeChoiceValue) / vpChoiceSum;
         }
+        totalEffectiveVp += (votingPower * gaugeChoiceValue) / vpChoiceSum;
       }
     }
   });
@@ -585,8 +698,8 @@ async function processGaugeVotes(
             tokenAllocations[forwarder.address] = {};
           }
           
-          // Use token symbol as the key
-          const tokenKey = bribe.token;
+          // Convert token symbol to address if needed
+          const tokenKey = getTokenAddress(bribe.token) || bribe.token;
           
           if (!tokenAllocations[forwarder.address][tokenKey]) {
             tokenAllocations[forwarder.address][tokenKey] = {
@@ -604,10 +717,11 @@ async function processGaugeVotes(
           
           // Also track for per-address token allocations (for claimed bounties)
           const delegatedClaim = BigInt(Math.floor(Number(bribe.amount) * share));
-          if (!perAddressTokenAllocations[forwarder.address][bribe.token]) {
-            perAddressTokenAllocations[forwarder.address][bribe.token] = BigInt(0);
+          const tokenAddress = getTokenAddress(bribe.token) || bribe.token;
+          if (!perAddressTokenAllocations[forwarder.address][tokenAddress]) {
+            perAddressTokenAllocations[forwarder.address][tokenAddress] = BigInt(0);
           }
-          perAddressTokenAllocations[forwarder.address][bribe.token] += delegatedClaim;
+          perAddressTokenAllocations[forwarder.address][tokenAddress] += delegatedClaim;
         }
       });
     });
@@ -624,8 +738,7 @@ async function processGaugeVotes(
  * Clean per-address output to remove empty entries
  */
 function cleanPerAddressOutput(
-  perAddressOutput: any,
-  tokenSymbolToAddress: any
+  perAddressOutput: any
 ) {
   const cleaned: any = {};
   
@@ -656,11 +769,8 @@ function cleanPerAddressOutput(
         const allocation = tokens[token];
         // Convert allocation to a number and skip if zero
         if (Number(allocation) === 0) continue;
-        // Use token address if available
-        const newTokenKey =
-          tokenSymbolToAddress && tokenSymbolToAddress[token]
-            ? tokenSymbolToAddress[token]
-            : token;
+        // Token should already be an address, but keep as is
+        const newTokenKey = token;
         newTokens[newTokenKey] = allocation;
       }
       // Only include this address if there's at least one token with nonzero allocation
@@ -729,6 +839,22 @@ async function fetchProposalVotesWithAddressBreakdown(
     addressBreakdown[forwarder.address] = [];
   });
   
+  // Create a map to track Union delegators (those who delegated to The Union)
+  const unionDelegators = new Map<string, Forwarder>();
+  
+  // Use the isUnionDelegator flag to identify Union delegators
+  for (const forwarder of forwarders) {
+    if (forwarder.isUnionDelegator) {
+      unionDelegators.set(forwarder.address.toLowerCase(), forwarder);
+    }
+  }
+  
+  // Log if we found any Union delegators
+  if (unionDelegators.size > 0) {
+    console.log(`Found ${unionDelegators.size} Union delegators`);
+    console.log("Union delegators:", Array.from(unionDelegators.keys()));
+  }
+  
   const processedVotes = votes.map((vote: any) => {
     let choicesWithInfos: any = {};
     if (vote.choice && typeof vote.choice === "object") {
@@ -743,7 +869,24 @@ async function fetchProposalVotesWithAddressBreakdown(
             weight: vote.choice[choiceId],
           };
           const voter = vote.voter.toLowerCase();
-          if (forwarderAddresses.has(voter)) {
+          
+          // Check if this is The Union's vote
+          if (voter === THE_UNION_ADDRESS.toLowerCase()) {
+            // Distribute The Union's votes to delegators who delegated to them
+            for (const [delegatorAddress] of unionDelegators) {
+              if (forwarderAddresses.has(delegatorAddress)) {
+                // Add the vote to the delegator's breakdown
+                addressBreakdown[delegatorAddress].push({
+                  proposalId,
+                  gauge: gaugeMappingWithInfos[gaugeKey].gauge,
+                  choiceId: gaugeMappingWithInfos[gaugeKey].choiceId,
+                  weight: vote.choice[choiceId],
+                  viaUnion: true, // Mark that this came via The Union
+                });
+              }
+            }
+          } else if (forwarderAddresses.has(voter)) {
+            // Regular forwarder vote
             addressBreakdown[voter].push({
               proposalId,
               gauge: gaugeMappingWithInfos[gaugeKey].gauge,
@@ -877,25 +1020,11 @@ async function fetchAndProcessClaimedBounties(
   
   console.log(`Found ${votiumConvexBounties.votiumBounties.length} claimed bounties`);
   
-  // Create a mapping of token symbols to addresses
-  const tokenSymbolPairs = await Promise.all(
-    votiumConvexBounties.votiumBounties.map(async (bounty: any) => {
-      const symbol = await getTokenSymbol(bounty.rewardToken);
-      return symbol ? [symbol, bounty.rewardToken] : null;
-    })
-  );
-  const tokenSymbolToAddress = Object.fromEntries(
-    tokenSymbolPairs.filter((pair) => pair !== null)
-  );
+
   
-  // Map token addresses to overall bribes data using token symbols
-  const tokenAddressToBribes: any = {};
-  for (const tokenSymbol in matchingBribesAggregated) {
-    const matchingAddress = tokenSymbolToAddress[tokenSymbol];
-    if (matchingAddress) {
-      tokenAddressToBribes[matchingAddress] = matchingBribesAggregated[tokenSymbol];
-    }
-  }
+  // Map token addresses to overall bribes data
+  // matchingBribesAggregated already uses token addresses as keys after our changes
+  const tokenAddressToBribes = matchingBribesAggregated;
   
   // Group by protocol with proper amount splitting
   const protocolBountiesArrays = {
@@ -1205,7 +1334,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
     }
     
     // Format per-address allocations with proper decimals
-    const publicClient = clients[mainnet.id];
+    const publicClient = await getClient(mainnet.id);
     let allTokens: string[] = [];
     
     // Build a list of unique token addresses from per-address allocations
@@ -1240,17 +1369,10 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
       tokenAllocations: formattedPerAddressAllocations,
     };
     
-    // Create token symbol to address mapping for cleaning
-    const tokenSymbolToAddress: Record<string, string> = {};
-    for (const token of allTokens) {
-      const symbol = await getTokenSymbol(token);
-      if (symbol && symbol !== "UNKNOWN") {
-        tokenSymbolToAddress[symbol] = token;
-      }
-    }
+
     
     // Clean the per-address data
-    const cleanedPerAddressOutput = cleanPerAddressOutput(perAddressOutput, tokenSymbolToAddress);
+    const cleanedPerAddressOutput = cleanPerAddressOutput(perAddressOutput);
     
     // Save the cleaned per-address data
     const perAddressPath = path.join(outputDir, "forwarders_voted_rewards.json");
