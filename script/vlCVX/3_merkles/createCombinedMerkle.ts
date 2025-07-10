@@ -332,8 +332,6 @@ function processChain(
       "claimed_bounties_convex.json"
     );
     
-    let votiumAllocations: { [address: string]: { [token: string]: bigint } } = {};
-    
     if (fs.existsSync(claimedBountiesFile)) {
       console.log("Loading actual claimed bounties from", claimedBountiesFile);
       
@@ -347,107 +345,65 @@ function processChain(
         const forwardersData = JSON.parse(
           fs.readFileSync(forwardersRewardsFile, "utf8")
         );
-        const claimedData = JSON.parse(
-          fs.readFileSync(claimedBountiesFile, "utf8")
-        );
         
-        console.log("Computing actual claimed amounts based on forwarder shares...");
+        console.log("Using token allocations from forwarders_voted_rewards.json...");
         
         // Get token mapping from forwarders data (token symbol to actual allocations)
         if (forwardersData.tokenAllocations) {
           const tokenAllocations = forwardersData.tokenAllocations;
           
-          // Build address shares based on total USD allocation
-          let totalUsdAcrossAllTokens = 0;
-          const addressTotalUsdShares: { [address: string]: number } = {};
-          
+          // Use the actual token amounts calculated in generateConvexVotium
           for (const address in tokenAllocations) {
-            for (const token in tokenAllocations[address]) {
-              const tokenData = tokenAllocations[address][token];
-              if (typeof tokenData === 'object' && tokenData.usd) {
-                totalUsdAcrossAllTokens += tokenData.usd;
-                addressTotalUsdShares[address] = (addressTotalUsdShares[address] || 0) + tokenData.usd;
-              }
-            }
-          }
-          
-          console.log(`Total USD in forwarders data: $${totalUsdAcrossAllTokens.toFixed(2)}`);
-          
-          // Process curve claimed bounties and distribute proportionally
-          if (claimedData.curve && totalUsdAcrossAllTokens > 0) {
-            for (const bountyKey in claimedData.curve) {
-              const bounty = claimedData.curve[bountyKey];
-              const actualClaimedAmount = BigInt(bounty.amount);
-              const tokenAddress = bounty.rewardToken;
-              
-              console.log(`Processing claimed bounty: ${actualClaimedAmount.toString()} of token ${tokenAddress}`);
-              
-              // Distribute actual claimed amount proportionally based on each address's total USD share
-              for (const address in addressTotalUsdShares) {
-                const share = addressTotalUsdShares[address] / totalUsdAcrossAllTokens;
-                const allocatedAmount = BigInt(Math.floor(Number(actualClaimedAmount) * share));
-                
-                if (allocatedAmount > 0n) {
-                  if (!votiumAllocations[address]) {
-                    votiumAllocations[address] = {};
-                  }
-                  
-                  votiumAllocations[address][tokenAddress] = 
-                    (votiumAllocations[address][tokenAddress] || 0n) + allocatedAmount;
-                    
-                  console.log(`  Allocated ${allocatedAmount.toString()} of ${tokenAddress} to ${address} (${(share * 100).toFixed(2)}% share)`);
-                }
-              }
-            }
-          }
-          
-          // Process FXN claimed bounties as well
-          if (claimedData.fxn && totalUsdAcrossAllTokens > 0) {
-            for (const bountyKey in claimedData.fxn) {
-              const bounty = claimedData.fxn[bountyKey];
-              const actualClaimedAmount = BigInt(bounty.amount);
-              const tokenAddress = bounty.rewardToken;
-              
-              console.log(`Processing FXN claimed bounty: ${actualClaimedAmount.toString()} of token ${tokenAddress}`);
-              
-              // Distribute actual claimed amount proportionally based on each address's total USD share
-              for (const address in addressTotalUsdShares) {
-                const share = addressTotalUsdShares[address] / totalUsdAcrossAllTokens;
-                const allocatedAmount = BigInt(Math.floor(Number(actualClaimedAmount) * share));
-                
-                if (allocatedAmount > 0n) {
-                  if (!votiumAllocations[address]) {
-                    votiumAllocations[address] = {};
-                  }
-                  
-                  votiumAllocations[address][tokenAddress] = 
-                    (votiumAllocations[address][tokenAddress] || 0n) + allocatedAmount;
-                    
-                  console.log(`  Allocated ${allocatedAmount.toString()} of ${tokenAddress} to ${address} (${(share * 100).toFixed(2)}% share)`);
-                }
-              }
-            }
-          }
-          
-          // Add the allocated amounts to combined distribution
-          for (const address in votiumAllocations) {
             const lowerAddress = address.toLowerCase();
             if (!combined[lowerAddress]) {
               combined[lowerAddress] = { tokens: {} };
             }
             
-            for (const tokenAddress in votiumAllocations[address]) {
-              const amount = votiumAllocations[address][tokenAddress];
+            for (const token in tokenAllocations[address]) {
+              const tokenData = tokenAllocations[address][token];
               
-              if (!combined[lowerAddress].tokens[tokenAddress]) {
-                combined[lowerAddress].tokens[tokenAddress] = amount;
+              // Handle new format with amount, amountWei and usd properties
+              let amountStr: string;
+              if (typeof tokenData === 'object' && tokenData.amountWei) {
+                // Use wei amount if available (this is what we want from our fix)
+                amountStr = tokenData.amountWei;
+              } else if (typeof tokenData === 'object' && tokenData.amount) {
+                // Fallback to amount field (but this might have decimals)
+                amountStr = tokenData.amount;
+                console.warn(`Using decimal amount for ${address}:${token}, this may cause precision loss`);
+              } else if (typeof tokenData === 'string') {
+                // Backward compatibility for old format
+                amountStr = tokenData;
               } else {
-                combined[lowerAddress].tokens[tokenAddress] += amount;
+                console.warn(`Invalid token data format for ${address}:${token}:`, tokenData);
+                continue;
+              }
+              
+              const amount = BigInt(amountStr);
+              
+              if (amount > 0n) {
+                if (!combined[lowerAddress].tokens[token]) {
+                  combined[lowerAddress].tokens[token] = amount;
+                } else {
+                  combined[lowerAddress].tokens[token] += amount;
+                }
+                
+                console.log(`  Added ${amount.toString()} of ${token} to ${address}`);
               }
             }
           }
           
-          console.log("Added actual claimed Votium rewards to combined distribution.");
+          console.log("Added Votium rewards from forwarders_voted_rewards.json to combined distribution.");
+          
+          // Debug log for specific address
+          const debugAddress = "0x2dbedd2632d831e61eb3fcc6720f072eef9d522d";
+          if (tokenAllocations[debugAddress]) {
+            console.log(`\nDEBUG: Token allocations for ${debugAddress}:`);
+            for (const token in tokenAllocations[debugAddress]) {
+              const tokenData = tokenAllocations[debugAddress][token];
+              console.log(`  ${token}:`, tokenData);
+            }
+          }
         }
       } else {
         console.warn("Forwarders rewards file not found, cannot compute shares for claimed bounties");

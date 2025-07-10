@@ -28,6 +28,7 @@ import {
 } from "../../utils/delegationHelper";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
 import { getTokenAddress } from "../../utils/tokenMappings";
+import { getTokenPrices, TokenIdentifier } from "../../utils/priceUtils";
 
 // The Union's address (from comment in constants.ts)
 const THE_UNION_ADDRESS = "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49";
@@ -1485,6 +1486,10 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
     ensureDirExists(periodFolder);
     const outputDir = periodFolder;
 
+    // Initialize variables outside try block so they're accessible in summary
+    let claimedTokenAmounts: Record<string, bigint> = {};
+    let tokenPrices: Record<string, number> = {};
+
     // Fetch and save claimed bounties
     try {
       // Get block range for claimed bounties
@@ -1524,7 +1529,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
       console.log("\n🔄 Adjusting allocations to match claimed amounts...");
 
       // First, get the actual claimed tokens and amounts from votiumConvexBounties
-      const claimedTokenAmounts: Record<string, bigint> = {};
+      // Reset claimedTokenAmounts (already declared outside try block)
       
       // Process all votium bounties to get actual claimed amounts
       for (const bounty of votiumConvexBounties.votiumBounties) {
@@ -1587,54 +1592,114 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
         }
       }
 
-      // Adjust allocations to match claimed amounts exactly
-      for (const token in claimedTokenAmounts) {
-        const actualTotal = claimedTokenAmounts[token];
-        const theoreticalTotal = theoreticalTotals[token] || 0n;
-
-        if (theoreticalTotal > 0n) {
-          // Calculate adjustment ratio
-          console.log(`\nToken ${token}:`);
-          console.log(`  Theoretical total: ${theoreticalTotal.toString()}`);
-          console.log(`  Actual claimed: ${actualTotal.toString()}`);
-          console.log(
-            `  Ratio: ${(
-              Number(actualTotal) / Number(theoreticalTotal)
-            ).toFixed(4)}`
-          );
-
-          // Adjust each address's allocation proportionally
-          for (const voter in perAddressTokenAllocations) {
-            if (perAddressTokenAllocations[voter][token]) {
-              const theoreticalAmount =
-                perAddressTokenAllocations[voter][token];
-              // Calculate adjusted amount maintaining the same proportion
-              const adjustedAmount =
-                (theoreticalAmount * actualTotal) / theoreticalTotal;
-              perAddressTokenAllocations[voter][token] = adjustedAmount;
-            }
+      // Calculate total USD value per user
+      const userTotalUsd: Record<string, number> = {};
+      let grandTotalUsd = 0;
+      
+      for (const voter in originalTokenAllocations) {
+        userTotalUsd[voter] = 0;
+        for (const token in originalTokenAllocations[voter]) {
+          if (claimedTokenAmounts[token]) {
+            userTotalUsd[voter] += originalTokenAllocations[voter][token].usd;
           }
-
-          // Also update the tokenAllocations with adjusted amounts
-          for (const voter in tokenAllocations) {
-            if (tokenAllocations[voter][token] && originalTokenAllocations[voter][token]) {
-              const originalAllocation = originalTokenAllocations[voter][token];
-              const theoreticalAmount = BigInt(
-                Math.floor(parseFloat(originalAllocation.amount) * 1e18)
-              );
-
-              if (theoreticalTotal > 0n) {
-                const adjustedAmount =
-                  (theoreticalAmount * actualTotal) / theoreticalTotal;
-                // Convert back to decimal format
-                tokenAllocations[voter][token] = {
-                  amount: (Number(adjustedAmount) / 1e18).toFixed(6),
-                  usd: originalAllocation.usd, // Keep original USD value for now
-                };
+        }
+        grandTotalUsd += userTotalUsd[voter];
+      }
+      
+      console.log(`\n💵 Total USD value to distribute: $${grandTotalUsd.toFixed(2)}`);
+      
+      // Get token prices for claimed tokens
+      // Reset tokenPrices (already declared outside try block)
+      tokenPrices = {};
+      const tokenIdentifiers: TokenIdentifier[] = [];
+      
+      for (const token of Object.keys(claimedTokenAmounts)) {
+        tokenIdentifiers.push({ chainId: 1, address: token.toLowerCase() });
+      }
+      
+      try {
+        const prices = await getTokenPrices(tokenIdentifiers);
+        for (const [key, price] of Object.entries(prices)) {
+          const address = key.split(':')[1];
+          tokenPrices[address] = price;
+        }
+      } catch (error) {
+        console.error("Error fetching token prices:", error);
+      }
+      
+      // Calculate token amounts based on USD values
+      console.log("\n🔄 Calculating token amounts based on USD allocations...");
+      
+      for (const token in claimedTokenAmounts) {
+        const tokenPrice = tokenPrices[token.toLowerCase()];
+        const actualTotal = claimedTokenAmounts[token];
+        
+        if (!tokenPrice || tokenPrice === 0) {
+          console.warn(`⚠️  No price found for token ${token}, using proportional distribution`);
+          
+          // Fallback to proportional distribution if no price
+          const theoreticalTotal = theoreticalTotals[token] || 0n;
+          if (theoreticalTotal > 0n) {
+            for (const voter in perAddressTokenAllocations) {
+              if (perAddressTokenAllocations[voter][token]) {
+                const theoreticalAmount = perAddressTokenAllocations[voter][token];
+                const adjustedAmount = (theoreticalAmount * actualTotal) / theoreticalTotal;
+                perAddressTokenAllocations[voter][token] = adjustedAmount;
               }
             }
           }
+          continue;
         }
+        
+        // Calculate total USD value that should be distributed for this token
+        let tokenUsdTotal = 0;
+        for (const voter in originalTokenAllocations) {
+          if (originalTokenAllocations[voter][token]) {
+            tokenUsdTotal += originalTokenAllocations[voter][token].usd;
+          }
+        }
+        
+        // Calculate total token amount needed based on USD value
+        const decimals = getTokenDecimals(token);
+        const totalTokensNeeded = BigInt(Math.floor((tokenUsdTotal / tokenPrice) * (10 ** decimals)));
+        
+        console.log(`\nToken ${token}:`);
+        console.log(`  Price: $${tokenPrice.toFixed(4)}`);
+        console.log(`  Total USD to distribute: $${tokenUsdTotal.toFixed(2)}`);
+        console.log(`  Tokens needed: ${totalTokensNeeded.toString()} (${Number(totalTokensNeeded) / (10 ** decimals)} tokens)`);
+        console.log(`  Actual claimed: ${actualTotal.toString()} (${Number(actualTotal) / (10 ** decimals)} tokens)`);
+        
+        // Check if we have enough tokens
+        if (totalTokensNeeded > actualTotal) {
+          console.warn(`  ⚠️  Not enough tokens! Need ${totalTokensNeeded.toString()} but only have ${actualTotal.toString()}`);
+          console.log(`  📊 Will distribute all available tokens proportionally based on USD shares`);
+        }
+        
+        // Distribute tokens based on each user's USD share
+        const tokensToDistribute = totalTokensNeeded > actualTotal ? actualTotal : totalTokensNeeded;
+        let distributedAmount = 0n;
+        
+        for (const voter in perAddressTokenAllocations) {
+          if (originalTokenAllocations[voter] && originalTokenAllocations[voter][token]) {
+            const userUsdForToken = originalTokenAllocations[voter][token].usd;
+            const userShare = tokenUsdTotal > 0 ? userUsdForToken / tokenUsdTotal : 0;
+            const userTokenAmount = BigInt(Math.floor(Number(tokensToDistribute) * userShare));
+            
+            perAddressTokenAllocations[voter][token] = userTokenAmount;
+            distributedAmount += userTokenAmount;
+            
+            // Update tokenAllocations with the new amount
+            if (tokenAllocations[voter] && tokenAllocations[voter][token]) {
+              tokenAllocations[voter][token] = {
+                amount: (Number(userTokenAmount) / (10 ** decimals)).toFixed(6),
+                usd: originalTokenAllocations[voter][token].usd,
+              };
+            }
+          }
+        }
+        
+        console.log(`  Distributed: ${distributedAmount.toString()} (${Number(distributedAmount) / (10 ** decimals)} tokens)`);
+        console.log(`  Remaining: ${(tokensToDistribute - distributedAmount).toString()}`);
       }
 
       // Add Telegram logger
@@ -1772,16 +1837,36 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
     );
     console.log(`\nTotal allocated: $${totalUsd.toFixed(2)}`);
 
-    // Show top token allocations
-    console.log("\nToken allocations:");
+    // Show top token allocations with claimed vs distributed comparison
+    console.log("\nToken allocations (Claimed vs Distributed):");
     const sortedTokens = Object.entries(totalAllocations)
       .sort(([, a], [, b]) => b.usd - a.usd)
       .slice(0, 10);
 
     sortedTokens.forEach(([token, allocation]) => {
-      console.log(
-        `  ${token}: ${allocation.amount} ($${allocation.usd.toFixed(2)})`
+      const decimals = getTokenDecimals(token);
+      const claimedAmount = claimedTokenAmounts[token];
+      const distributedWei = Object.values(perAddressTokenAllocations).reduce(
+        (sum, userAllocs) => sum + (userAllocs[token] || 0n),
+        0n
       );
+      
+      if (claimedAmount) {
+        const claimedFormatted = Number(claimedAmount) / (10 ** decimals);
+        const distributedFormatted = Number(distributedWei) / (10 ** decimals);
+        const percentUsed = (Number(distributedWei) * 100 / Number(claimedAmount)).toFixed(2);
+        
+        console.log(
+          `  ${token}: ${allocation.amount} ($${allocation.usd.toFixed(2)})`
+        );
+        console.log(
+          `    Claimed: ${claimedFormatted.toFixed(6)} | Distributed: ${distributedFormatted.toFixed(6)} (${percentUsed}% used)`
+        );
+      } else {
+        console.log(
+          `  ${token}: ${allocation.amount} ($${allocation.usd.toFixed(2)}) - NOT CLAIMED`
+        );
+      }
     });
 
     // Show top forwarder allocations
@@ -1800,6 +1885,39 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
     sortedForwarders.forEach(({ address, totalUsd, type }) => {
       console.log(`  ${address} (${type}): $${totalUsd.toFixed(2)}`);
     });
+    
+    // Final summary of token distribution efficiency
+    console.log("\n" + "=".repeat(80));
+    console.log("TOKEN DISTRIBUTION EFFICIENCY");
+    console.log("=".repeat(80));
+    
+    let totalClaimedUsd = 0;
+    let totalDistributedUsd = 0;
+    
+    for (const [token, claimedAmount] of Object.entries(claimedTokenAmounts)) {
+      const decimals = getTokenDecimals(token);
+      const distributedWei = Object.values(perAddressTokenAllocations).reduce(
+        (sum, userAllocs) => sum + (userAllocs[token] || 0n),
+        0n
+      );
+      
+      // Get token price if available
+      const tokenPrice = tokenPrices?.[token.toLowerCase()] || 0;
+      
+      if (tokenPrice > 0) {
+        const claimedUsd = (Number(claimedAmount) / (10 ** decimals)) * tokenPrice;
+        const distributedUsd = (Number(distributedWei) / (10 ** decimals)) * tokenPrice;
+        
+        totalClaimedUsd += claimedUsd;
+        totalDistributedUsd += distributedUsd;
+      }
+    }
+    
+    console.log(`Total claimed value: $${totalClaimedUsd.toFixed(2)}`);
+    console.log(`Total distributed value: $${totalDistributedUsd.toFixed(2)}`);
+    console.log(`Distribution efficiency: ${(totalDistributedUsd * 100 / totalClaimedUsd).toFixed(2)}%`);
+    console.log(`Remaining value: $${(totalClaimedUsd - totalDistributedUsd).toFixed(2)}`);
+    
   } catch (error) {
     console.error("Error generating Convex Votium bounties:", error);
     throw error;
