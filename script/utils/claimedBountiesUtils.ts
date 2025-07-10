@@ -28,6 +28,7 @@ import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
 import { getClient } from "./constants";
 import { ContractRegistry } from "./contractRegistry";
 import { getBlockNumberByTimestamp } from "./chainUtils";
+import { RpcRateLimiter, rateLimitedReadContract } from "./rpcRateLimiter";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 
 // TODO : move to abis/
@@ -258,6 +259,14 @@ const fetchVotemarketV2ClaimedBounties = async (
   toAddress: `0x${string}`
 ): Promise<{ [protocol: string]: VotemarketV2Bounty[] }> => {
   const explorerUtils = createBlockchainExplorerUtils();
+  
+  // Create rate limiter for RPC calls
+  const rateLimiter = new RpcRateLimiter({
+    maxConcurrent: 2,
+    delayBetweenBatches: 200,
+    retryDelay: 2000,
+    maxRetries: 5,
+  });
   let chainKey: string;
   if (protocol.toLowerCase() === "curve") {
     chainKey = "CURVE_VOTEMARKET_V2";
@@ -354,52 +363,69 @@ const fetchVotemarketV2ClaimedBounties = async (
         chain
       );
 
-      // Process logs and convert them to VotemarketV2Bounty objects
-      const bountyPromises = mergedLogs.map(async (log: any) => {
-        const decodedLog = decodeEventLog({
-          abi: claimAbi,
-          data: log.data,
-          topics: log.topics,
-          strict: true,
-        });
+      // Get client once for this chain
+      const client = await getClient(chain);
 
-        const client = await getClient(chain);
-        const bountyInfo = await client.readContract({
-          address: getAddress(log.address),
-          abi: campaignAbi,
-          functionName: "getCampaign",
-          args: [decodedLog.args.campaignId],
-        });
-
-        const isWrapped = await client.readContract({
-          address: tokenFactoryAddress,
-          abi: tokenFactoryAbi,
-          functionName: "isWrapped",
-          args: [bountyInfo[3]],
-        });
-
-        let nativeToken = bountyInfo[3];
-        if (isWrapped) {
-          const nativeTokenAddress = await client.readContract({
-            address: tokenFactoryAddress,
-            abi: tokenFactoryAbi,
-            functionName: "nativeTokens",
-            args: [bountyInfo[3]],
+      // Process logs in batches with rate limiting
+      const bounties = await rateLimiter.executeInBatches(
+        mergedLogs,
+        async (log: any) => {
+          const decodedLog = decodeEventLog({
+            abi: claimAbi,
+            data: log.data,
+            topics: log.topics,
+            strict: true,
           });
-          nativeToken = getAddress(nativeTokenAddress);
-        }
 
-        return {
-          chainId: chain,
-          bountyId: decodedLog.args.campaignId,
-          gauge: bountyInfo[1],
-          amount: decodedLog.args.amount,
-          rewardToken: nativeToken,
-          isWrapped,
-        } as VotemarketV2Bounty;
-      });
+          const bountyInfo = await rateLimitedReadContract(
+            client,
+            {
+              address: getAddress(log.address),
+              abi: campaignAbi,
+              functionName: "getCampaign",
+              args: [decodedLog.args.campaignId],
+            },
+            rateLimiter
+          );
 
-      const bounties = await Promise.all(bountyPromises);
+          const isWrapped = await rateLimitedReadContract(
+            client,
+            {
+              address: tokenFactoryAddress,
+              abi: tokenFactoryAbi,
+              functionName: "isWrapped",
+              args: [bountyInfo[3]],
+            },
+            rateLimiter
+          );
+
+          let nativeToken = bountyInfo[3];
+          if (isWrapped) {
+            const nativeTokenAddress = await rateLimitedReadContract(
+              client,
+              {
+                address: tokenFactoryAddress,
+                abi: tokenFactoryAbi,
+                functionName: "nativeTokens",
+                args: [bountyInfo[3]],
+              },
+              rateLimiter
+            );
+            nativeToken = getAddress(nativeTokenAddress);
+          }
+
+          return {
+            chainId: chain,
+            bountyId: decodedLog.args.campaignId,
+            gauge: bountyInfo[1],
+            amount: decodedLog.args.amount,
+            rewardToken: nativeToken,
+            isWrapped,
+          } as VotemarketV2Bounty;
+        },
+        3 // Process 3 logs at a time
+      );
+
       filteredLogs[protocol.toLowerCase()].push(...bounties);
     })
   );

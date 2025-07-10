@@ -83,9 +83,12 @@ const CHAIN_CONFIGS: Record<number, ChainConfig> = {
       process.env.WEB3_ALCHEMY_API_KEY
         ? `https://arb-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
         : "",
-      "https://arb1.arbitrum.io/rpc",
       "https://arbitrum.llamarpc.com",
       "https://rpc.ankr.com/arbitrum",
+      "https://arbitrum-one.publicnode.com",
+      "https://arbitrum.blockpi.network/v1/rpc/public",
+      "https://arb-mainnet-public.unifra.io",
+      "https://arb1.arbitrum.io/rpc",
     ].filter(Boolean),
   },
 };
@@ -147,9 +150,9 @@ export async function getClient(chainId: number): Promise<PublicClient> {
   const client = createPublicClient({
     chain: config.chain,
     transport: http(config.rpcUrls[bestIndex], {
-      retryCount: 3,
-      retryDelay: 200,
-      timeout: 10000,
+      retryCount: 5,
+      retryDelay: 1000,
+      timeout: 30000,
     }),
   });
 
