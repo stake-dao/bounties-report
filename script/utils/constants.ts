@@ -227,10 +227,79 @@ export const CHAINS_IDS_TO_SHORTS: Record<number, string> = {
 };
 
 export const abi = [
-  "function multiFreeze(address[] tokens) public",
-  "function multiSet(address[] tokens, bytes32[] roots) public",
-  "function multiUpdateMerkleRoot(address[] tokens, bytes32[] roots) public",
-  "function isClaimed(address token, uint256 index) public view returns (bool)",
+  {
+    name: "multiFreeze",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "tokens",
+        type: "address[]",
+        internalType: "address[]"
+      }
+    ],
+    outputs: []
+  },
+  {
+    name: "multiSet",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "tokens",
+        type: "address[]",
+        internalType: "address[]"
+      },
+      {
+        name: "roots",
+        type: "bytes32[]",
+        internalType: "bytes32[]"
+      }
+    ],
+    outputs: []
+  },
+  {
+    name: "multiUpdateMerkleRoot",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "tokens",
+        type: "address[]",
+        internalType: "address[]"
+      },
+      {
+        name: "roots",
+        type: "bytes32[]",
+        internalType: "bytes32[]"
+      }
+    ],
+    outputs: []
+  },
+  {
+    name: "isClaimed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address"
+      },
+      {
+        name: "index",
+        type: "uint256",
+        internalType: "uint256"
+      }
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "bool",
+        internalType: "bool"
+      }
+    ]
+  }
 ] as const;
 
 
