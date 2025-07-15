@@ -114,7 +114,7 @@ export const extractCSV = async (
   }
 
   for (const row of records) {
-    const gaugeAddress = row["gauge address"];
+    const gaugeAddress = row["gauge address"] ? row["gauge address"].toLowerCase() : undefined;
     const gaugeName = row["gauge name"]; // For spectra
     if (space === SPECTRA_SPACE) {
       if (!gaugeName) {
@@ -228,7 +228,7 @@ export const extractOTCCSV = async (
 
   for (const row of records) {
     const period = row["period"];
-    const gaugeAddress = row["gauge address"];
+    const gaugeAddress = row["gauge address"] ? row["gauge address"].toLowerCase() : undefined;
 
     if (!period) {
       throw new Error("Missing 'period' in row: " + JSON.stringify(row));
@@ -318,7 +318,7 @@ export const extractAllRawTokenCSVs = async (
 
     // Process each row to extract raw token distribution data
     for (const row of records) {
-      const gaugeAddress = row["gauge address"];
+      const gaugeAddress = row["gauge address"] ? row["gauge address"].toLowerCase() : undefined;
       const rewardAddress = row["reward address"];
       const rewardToken = row["reward token"]; // Token symbol
       const rewardAmount = row["reward amount"];
