@@ -307,12 +307,13 @@ async function getProtocolShares(
       if (votiumForwarders.tokenAllocations) {
         // Subtract forwarders amounts
         for (const [_, data] of Object.entries(votiumForwarders.tokenAllocations)) {
-          for (const [token, amount] of Object.entries(
+
+          for (const [token, values] of Object.entries(
             data as Record<string, string>
           )) {
             const key = token.toLowerCase();
-            if (totalCurveVM[key]) totalCurveVM[key] -= BigInt(amount);
-            if (totalFxnVM[key]) totalFxnVM[key] -= BigInt(amount);
+            if (totalCurveVM[key]) totalCurveVM[key] -= BigInt(values["amountWei"]);
+            if (totalFxnVM[key]) totalFxnVM[key] -= BigInt(values["amountWei"]);
           }
         }
       }
