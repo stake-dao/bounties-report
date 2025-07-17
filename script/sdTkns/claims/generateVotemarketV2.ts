@@ -18,6 +18,15 @@ const ethereumClient = createPublicClient({
   transport: http("https://rpc.flashbots.net"),
 });
 
+// Helper function to convert array to object with numeric string keys
+function arrayToNumericKeyObject<T>(arr: T[]): { [key: string]: T } {
+  const obj: { [key: string]: T } = {};
+  arr.forEach((item, index) => {
+    obj[index.toString()] = item;
+  });
+  return obj;
+}
+
 function customReplacer(key: string, value: any): any {
   if (typeof value === "bigint") {
     return value.toString();
@@ -84,11 +93,33 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
     FXN_STAKE_DAO_LOCKER
   );
 
-  const votemarketV2Bounties = {
-    ...curveVotemarketV2Bounties,
-    ...balancerVotemarketV2Bounties,
-    ...fxnVotemarketV2Bounties,
-  };
+  // Convert arrays to objects with numeric string keys
+  const votemarketV2Bounties: { [key: string]: any } = {};
+  
+  // Process each protocol's bounties
+  for (const [protocol, bounties] of Object.entries(curveVotemarketV2Bounties)) {
+    if (Array.isArray(bounties)) {
+      votemarketV2Bounties[protocol] = arrayToNumericKeyObject(bounties);
+    } else {
+      votemarketV2Bounties[protocol] = bounties;
+    }
+  }
+  
+  for (const [protocol, bounties] of Object.entries(balancerVotemarketV2Bounties)) {
+    if (Array.isArray(bounties)) {
+      votemarketV2Bounties[protocol] = arrayToNumericKeyObject(bounties);
+    } else {
+      votemarketV2Bounties[protocol] = bounties;
+    }
+  }
+  
+  for (const [protocol, bounties] of Object.entries(fxnVotemarketV2Bounties)) {
+    if (Array.isArray(bounties)) {
+      votemarketV2Bounties[protocol] = arrayToNumericKeyObject(bounties);
+    } else {
+      votemarketV2Bounties[protocol] = bounties;
+    }
+  }
 
   const rootDir = path.resolve(__dirname, "../../..");
   const weeklyBountiesDir = path.join(rootDir, "weekly-bounties");

@@ -14,6 +14,15 @@ const ethereumClient = createPublicClient({
   transport: http("https://rpc.flashbots.net"),
 });
 
+// Helper function to convert array to object with numeric string keys
+function arrayToNumericKeyObject<T>(arr: T[]): { [key: string]: T } {
+  const obj: { [key: string]: T } = {};
+  arr.forEach((item, index) => {
+    obj[index.toString()] = item;
+  });
+  return obj;
+}
+
 function customReplacer(key: string, value: any) {
   if (typeof value === "bigint") {
     return value.toString();
@@ -60,11 +69,25 @@ async function generateConvexVotemarketV2Bounties(pastWeek: number = 0) {
       FXN_CONVEX_LOCKER
     );
 
-    // Combine all protocol bounties
-    const votemarketV2ConvexBounties = {
-      ...curveVotemarketV2Bounties,
-      ...fxnVotemarketV2Bounties,
-    };
+    // Convert arrays to objects with numeric string keys
+    const votemarketV2ConvexBounties: { [key: string]: any } = {};
+    
+    // Process each protocol's bounties
+    for (const [protocol, bounties] of Object.entries(curveVotemarketV2Bounties)) {
+      if (Array.isArray(bounties)) {
+        votemarketV2ConvexBounties[protocol] = arrayToNumericKeyObject(bounties);
+      } else {
+        votemarketV2ConvexBounties[protocol] = bounties;
+      }
+    }
+    
+    for (const [protocol, bounties] of Object.entries(fxnVotemarketV2Bounties)) {
+      if (Array.isArray(bounties)) {
+        votemarketV2ConvexBounties[protocol] = arrayToNumericKeyObject(bounties);
+      } else {
+        votemarketV2ConvexBounties[protocol] = bounties;
+      }
+    }
 
     // Ensure directories exist
     const rootDir = path.resolve(__dirname, "../../..");
