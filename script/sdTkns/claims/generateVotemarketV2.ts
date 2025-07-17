@@ -18,7 +18,7 @@ const ethereumClient = createPublicClient({
   transport: http("https://rpc.flashbots.net"),
 });
 
-function customReplacer(key: string, value: any) {
+function customReplacer(key: string, value: any): any {
   if (typeof value === "bigint") {
     return value.toString();
   }
@@ -26,6 +26,11 @@ function customReplacer(key: string, value: any) {
     if (value.type === "BigInt") {
       return value.value;
     }
+    // Handle arrays properly
+    if (Array.isArray(value)) {
+      return value.map((item, index) => customReplacer(String(index), item));
+    }
+    // Handle objects
     const newObj: { [key: string]: any } = {};
     for (const k in value) {
       if (Object.prototype.hasOwnProperty.call(value, k)) {
@@ -48,12 +53,22 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
     pastWeek
   );
 
+  console.log('Fetching claims for period:', {
+    timestamp1,
+    timestamp2,
+    timestamp1Date: new Date(timestamp1 * 1000).toISOString(),
+    timestamp2Date: new Date(timestamp2 * 1000).toISOString(),
+    locker: STAKE_DAO_LOCKER
+  });
+
   const curveVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
     "curve",
     timestamp1,
     timestamp2,
     STAKE_DAO_LOCKER
   );
+
+  console.log('curveVotemarketV2Bounties', JSON.stringify(curveVotemarketV2Bounties, customReplacer, 2));
 
   const balancerVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
     "balancer",

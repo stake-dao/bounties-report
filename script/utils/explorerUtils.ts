@@ -78,11 +78,14 @@ class BlockchainExplorerUtils {
         if (attempt < retries - 1) {
           console.warn(
             `ExplorerUtils error (attempt ${attempt + 1}/${retries}):`,
-            data.message
+            data.message || data.result || 'Unknown error',
+            `Chain: ${url.match(/chainid=(\d+)/)?.[1]}`,
+            `Status: ${data.status}`
           );
           await delay(delayMs);
           continue;
         }
+        console.error(`ExplorerUtils: All retries failed. Final response:`, data);
         return { result: [] };
       } catch (error: any) {
         if (error.name === 'AbortError') {

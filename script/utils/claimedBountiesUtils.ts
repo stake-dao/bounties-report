@@ -26,9 +26,9 @@ import {
 } from "./types";
 import { BOTMARKET, HH_BALANCER_MARKET } from "./reportUtils";
 import { getClient } from "./constants";
+import { getClientWithFallback } from "./getClients";
 import { ContractRegistry } from "./contractRegistry";
 import { getBlockNumberByTimestamp } from "./chainUtils";
-import { RpcRateLimiter, rateLimitedReadContract } from "./rpcRateLimiter";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 
 // TODO : move to abis/
@@ -259,14 +259,6 @@ const fetchVotemarketV2ClaimedBounties = async (
   toAddress: `0x${string}`
 ): Promise<{ [protocol: string]: VotemarketV2Bounty[] }> => {
   const explorerUtils = createBlockchainExplorerUtils();
-  
-  // Create rate limiter for RPC calls
-  const rateLimiter = new RpcRateLimiter({
-    maxConcurrent: 2,
-    delayBetweenBatches: 200,
-    retryDelay: 2000,
-    maxRetries: 5,
-  });
   let chainKey: string;
   if (protocol.toLowerCase() === "curve") {
     chainKey = "CURVE_VOTEMARKET_V2";
@@ -308,6 +300,17 @@ const fetchVotemarketV2ClaimedBounties = async (
     encodePacked(["string"], [eventSignature])
   );
   const paddedToAddress = pad(toAddress, { size: 32 }).toLowerCase();
+  
+  console.log(`[fetchVotemarketV2ClaimedBounties] Debug info:`, {
+    protocol,
+    fromTimestamp,
+    toTimestamp,
+    toAddress,
+    paddedToAddress,
+    chains,
+    eventSignature,
+    claimedEventHash
+  });
 
   // Initialize filteredLogs with a key based on the protocol
   let filteredLogs: { [proto: string]: VotemarketV2Bounty[] } = {};
@@ -337,7 +340,15 @@ const fetchVotemarketV2ClaimedBounties = async (
       // Fetch logs for each VM address and merge them
       const logsArrays = await Promise.all(
         vmAddresses.map(async (vmAddress) => {
-          return explorerUtils.getLogsByAddressAndTopics(
+          console.log(`[Chain ${chain}] Fetching logs from ${vmAddress}`, {
+            fromBlock,
+            toBlock,
+            topics: {
+              "0": claimedEventHash,
+              "2": paddedToAddress,
+            }
+          });
+          const result = await explorerUtils.getLogsByAddressAndTopics(
             vmAddress,
             fromBlock,
             toBlock,
@@ -347,6 +358,8 @@ const fetchVotemarketV2ClaimedBounties = async (
             },
             chain
           );
+          console.log(`[Chain ${chain}] Found ${result?.result?.length || 0} logs from ${vmAddress}`);
+          return result;
         })
       );
       const mergedLogs = logsArrays.reduce((acc: any[], curr: any) => {
@@ -356,77 +369,169 @@ const fetchVotemarketV2ClaimedBounties = async (
         return acc;
       }, []);
 
-      if (!mergedLogs.length) return;
+      if (!mergedLogs.length) {
+        console.log(`[Chain ${chain}] No logs found`);
+        return;
+      }
+      console.log(`[Chain ${chain}] Processing ${mergedLogs.length} total logs`);
 
       const tokenFactoryAddress = ContractRegistry.getAddress(
         "TOKEN_FACTORY",
         chain
       );
 
-      // Get client once for this chain
-      const client = await getClient(chain);
+      // Get client once for this chain with fallback
+      const client = await getClientWithFallback(chain);
 
-      // Process logs in batches with rate limiting
-      const bounties = await rateLimiter.executeInBatches(
-        mergedLogs,
-        async (log: any) => {
+      // First, decode all logs and prepare multicall contracts
+      const decodedLogs: Array<{log: any, decodedLog: any}> = [];
+      for (const log of mergedLogs) {
+        try {
           const decodedLog = decodeEventLog({
             abi: claimAbi,
             data: log.data,
             topics: log.topics,
             strict: true,
           });
+          decodedLogs.push({ log, decodedLog });
+        } catch (error) {
+          console.error(`[Chain ${chain}] Failed to decode log:`, error);
+        }
+      }
 
-          const bountyInfo = await rateLimitedReadContract(
-            client,
-            {
-              address: getAddress(log.address),
-              abi: campaignAbi,
-              functionName: "getCampaign",
-              args: [decodedLog.args.campaignId],
-            },
-            rateLimiter
-          );
+      if (decodedLogs.length === 0) {
+        console.log(`[Chain ${chain}] No valid logs to process`);
+        return;
+      }
 
-          const isWrapped = await rateLimitedReadContract(
-            client,
-            {
-              address: tokenFactoryAddress,
-              abi: tokenFactoryAbi,
-              functionName: "isWrapped",
-              args: [bountyInfo[3]],
-            },
-            rateLimiter
-          );
+      console.log(`[Chain ${chain}] Processing ${decodedLogs.length} claims`);
 
-          let nativeToken = bountyInfo[3];
-          if (isWrapped) {
-            const nativeTokenAddress = await rateLimitedReadContract(
-              client,
-              {
-                address: tokenFactoryAddress,
-                abi: tokenFactoryAbi,
-                functionName: "nativeTokens",
-                args: [bountyInfo[3]],
-              },
-              rateLimiter
-            );
-            nativeToken = getAddress(nativeTokenAddress);
+      // Prepare all getCampaign calls for multicall
+      const campaignContracts = decodedLogs.map(({ log, decodedLog }) => ({
+        address: getAddress(log.address),
+        abi: campaignAbi,
+        functionName: "getCampaign",
+        args: [decodedLog.args.campaignId],
+      }));
+
+      // Execute all getCampaign calls in a single multicall
+      let campaignResults: any[] = [];
+      try {
+        campaignResults = await client.multicall({
+          contracts: campaignContracts,
+          allowFailure: true,
+        });
+      } catch (error) {
+        console.error(`[Chain ${chain}] Multicall failed for campaigns:`, error);
+        // Initialize with failed results
+        campaignResults = campaignContracts.map(() => ({ status: "failure", error: error }));
+      }
+
+      // Process results and prepare token checks
+      const tokenChecks: Array<{index: number, rewardToken: string}> = [];
+      const processedBounties: VotemarketV2Bounty[] = [];
+
+      for (let i = 0; i < decodedLogs.length; i++) {
+        const { log, decodedLog } = decodedLogs[i];
+        const campaignResult = campaignResults[i];
+
+        console.log(`[Chain ${chain}] Processing claim:`, {
+          campaignId: decodedLog.args.campaignId.toString(),
+          account: decodedLog.args.account,
+          amount: decodedLog.args.amount.toString(),
+          epoch: decodedLog.args.epoch.toString(),
+          vmAddress: log.address
+        });
+
+        let gauge = "0x0000000000000000000000000000000000000000";
+        let rewardToken = "0x0000000000000000000000000000000000000000";
+
+        if (campaignResult?.status === "success") {
+          const bountyInfo = campaignResult.result as any;
+          gauge = bountyInfo[1];
+          rewardToken = bountyInfo[3];
+          
+          // Queue token check for later
+          if (rewardToken !== "0x0000000000000000000000000000000000000000") {
+            tokenChecks.push({ index: i, rewardToken });
+          }
+        } else {
+          console.warn(`[Chain ${chain}] Failed to get campaign info for ID ${decodedLog.args.campaignId}`);
+        }
+
+        // Store initial bounty data
+        processedBounties[i] = {
+          chainId: chain,
+          bountyId: decodedLog.args.campaignId,
+          gauge,
+          amount: decodedLog.args.amount,
+          rewardToken,
+          isWrapped: false,
+        };
+      }
+
+      // If we have tokens to check, do it in a single multicall
+      if (tokenChecks.length > 0) {
+        const isWrappedContracts = tokenChecks.map(({ rewardToken }) => ({
+          address: tokenFactoryAddress,
+          abi: tokenFactoryAbi,
+          functionName: "isWrapped",
+          args: [rewardToken],
+        }));
+
+        try {
+          const isWrappedResults = await client.multicall({
+            contracts: isWrappedContracts,
+            allowFailure: true,
+          });
+
+          // Prepare native token calls for wrapped tokens
+          const nativeTokenChecks: Array<{bountyIndex: number, rewardToken: string}> = [];
+          
+          for (let i = 0; i < tokenChecks.length; i++) {
+            const { index: bountyIndex, rewardToken } = tokenChecks[i];
+            const isWrappedResult = isWrappedResults[i];
+
+            if (isWrappedResult?.status === "success" && isWrappedResult.result === true) {
+              processedBounties[bountyIndex].isWrapped = true;
+              nativeTokenChecks.push({ bountyIndex, rewardToken });
+            }
           }
 
-          return {
-            chainId: chain,
-            bountyId: decodedLog.args.campaignId,
-            gauge: bountyInfo[1],
-            amount: decodedLog.args.amount,
-            rewardToken: nativeToken,
-            isWrapped,
-          } as VotemarketV2Bounty;
-        },
-        3 // Process 3 logs at a time
-      );
+          // Get native tokens for wrapped tokens
+          if (nativeTokenChecks.length > 0) {
+            const nativeTokenContracts = nativeTokenChecks.map(({ rewardToken }) => ({
+              address: tokenFactoryAddress,
+              abi: tokenFactoryAbi,
+              functionName: "nativeTokens",
+              args: [rewardToken],
+            }));
 
-      filteredLogs[protocol.toLowerCase()].push(...bounties);
+            try {
+              const nativeTokenResults = await client.multicall({
+                contracts: nativeTokenContracts,
+                allowFailure: true,
+              });
+
+              for (let i = 0; i < nativeTokenChecks.length; i++) {
+                const { bountyIndex } = nativeTokenChecks[i];
+                const nativeTokenResult = nativeTokenResults[i];
+
+                if (nativeTokenResult?.status === "success") {
+                  processedBounties[bountyIndex].rewardToken = getAddress(nativeTokenResult.result as string);
+                }
+              }
+            } catch (error) {
+              console.warn(`[Chain ${chain}] Failed to get native tokens:`, error);
+            }
+          }
+        } catch (error) {
+          console.warn(`[Chain ${chain}] Failed to check wrapped tokens:`, error);
+        }
+      }
+
+      // Add all processed bounties
+      filteredLogs[protocol.toLowerCase()].push(...processedBounties);
     })
   );
 

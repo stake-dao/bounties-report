@@ -39,14 +39,27 @@ export class RpcRateLimiter {
           } catch (error: any) {
             lastError = error;
             
-            // Check if it's a rate limit error
-            if (error?.cause?.status === 429 || error?.details?.includes("429")) {
-              console.log(`Rate limit hit, waiting ${this.retryDelay * (attempt + 1)}ms before retry ${attempt + 1}/${this.maxRetries}`);
-              await this.delay(this.retryDelay * (attempt + 1));
+            // Check if it's a rate limit error or connection error
+            const isRateLimit = error?.cause?.status === 429 || error?.details?.includes("429");
+            const isConnectionError = error?.code === 'ECONNREFUSED' || 
+                                    error?.code === 'ETIMEDOUT' ||
+                                    error?.code === 'ENOTFOUND' ||
+                                    error?.message?.includes('timeout') ||
+                                    error?.message?.includes('connect');
+            
+            if (isRateLimit || isConnectionError) {
+              const waitTime = this.retryDelay * (attempt + 1);
+              console.log(`[RPC RateLimiter] ${isRateLimit ? 'Rate limit' : 'Connection error'}, waiting ${waitTime}ms before retry ${attempt + 1}/${this.maxRetries}`);
+              await this.delay(waitTime);
             } else {
-              // If it's not a rate limit error, reject immediately
-              reject(error);
-              return;
+              // For other errors, still retry but with shorter delay
+              if (attempt < this.maxRetries - 1) {
+                console.log(`[RPC RateLimiter] Error: ${error.message}, retrying ${attempt + 1}/${this.maxRetries}`);
+                await this.delay(this.retryDelay);
+              } else {
+                reject(error);
+                return;
+              }
             }
           }
         }

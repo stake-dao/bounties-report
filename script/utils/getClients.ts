@@ -52,10 +52,16 @@ const CHAIN_CONFIGS: Record<number, ChainConfig> = {
   137: {
     chain: polygon,
     rpcUrls: [
+      process.env.WEB3_ALCHEMY_API_KEY
+        ? `https://polygon-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
+        : "",
       "https://polygon-rpc.com",
       "https://rpc-mainnet.matic.network",
       "https://rpc.ankr.com/polygon",
-    ],
+      "https://polygon.llamarpc.com",
+      "https://polygon-mainnet.public.blastapi.io",
+      "https://polygon.meowrpc.com",
+    ].filter(Boolean),
   },
   146: {
     chain: sonic,
@@ -104,17 +110,28 @@ async function testRpcEndpoint(url: string, chainId: number): Promise<number> {
     });
     
     await (testClient as any).getBlockNumber();
-    return Date.now() - startTime;
-  } catch {
+    const latency = Date.now() - startTime;
+    console.log(`[RPC Test] Chain ${chainId}, ${url}: ${latency}ms`);
+    return latency;
+  } catch (error: any) {
+    console.log(`[RPC Test] Chain ${chainId}, ${url}: Failed - ${error.message || 'Unknown error'}`);
     return Infinity;
   }
 }
 
-export async function getClient(chainId: number): Promise<PublicClient> {
+export async function getClient(chainId: number, skipCache: boolean = false): Promise<PublicClient> {
   const cacheKey = `client-${chainId}`;
   
-  if (clientCache.has(cacheKey)) {
-    return clientCache.get(cacheKey)!;
+  if (!skipCache && clientCache.has(cacheKey)) {
+    const cachedClient = clientCache.get(cacheKey)!;
+    // Test if cached client is still working
+    try {
+      await (cachedClient as any).getBlockNumber();
+      return cachedClient;
+    } catch {
+      console.log(`[RPC] Cached client for chain ${chainId} failed, selecting new endpoint...`);
+      clientCache.delete(cacheKey);
+    }
   }
 
   const config = CHAIN_CONFIGS[chainId];
@@ -126,33 +143,64 @@ export async function getClient(chainId: number): Promise<PublicClient> {
     throw new Error(`No RPC URLs available for chain ${chainId}`);
   }
 
+  console.log(`[RPC] Testing ${config.rpcUrls.length} endpoints for chain ${chainId}...`);
+  
   // Test all endpoints concurrently
   const latencyTests = await Promise.all(
     config.rpcUrls.map(url => testRpcEndpoint(url, chainId))
   );
 
-  // Find the fastest endpoint
-  let bestIndex = 0;
-  let bestLatency = latencyTests[0];
-  
-  for (let i = 1; i < latencyTests.length; i++) {
-    if (latencyTests[i] < bestLatency) {
-      bestLatency = latencyTests[i];
-      bestIndex = i;
+  // Find all working endpoints sorted by latency
+  const workingEndpoints = latencyTests
+    .map((latency, index) => ({ latency, index, url: config.rpcUrls[index] }))
+    .filter(endpoint => endpoint.latency !== Infinity)
+    .sort((a, b) => a.latency - b.latency);
+
+  if (workingEndpoints.length === 0) {
+    console.error(`[RPC] No healthy RPC endpoints available for chain ${chainId}`);
+    // Try with increased timeout as last resort
+    console.log(`[RPC] Retrying with longer timeout...`);
+    const extendedTests = await Promise.all(
+      config.rpcUrls.map(async (url) => {
+        try {
+          const testClient = createPublicClient({
+            chain: config.chain,
+            transport: http(url, { timeout: 15000 }),
+          });
+          const startTime = Date.now();
+          await (testClient as any).getBlockNumber();
+          const latency = Date.now() - startTime;
+          console.log(`[RPC Extended] Chain ${chainId}, ${url}: ${latency}ms`);
+          return { latency, url };
+        } catch {
+          return { latency: Infinity, url };
+        }
+      })
+    );
+    
+    const workingExtended = extendedTests.find(test => test.latency !== Infinity);
+    if (!workingExtended) {
+      throw new Error(`No healthy RPC endpoints available for chain ${chainId} even with extended timeout`);
     }
+    
+    workingEndpoints.push({ 
+      latency: workingExtended.latency, 
+      index: config.rpcUrls.indexOf(workingExtended.url),
+      url: workingExtended.url 
+    });
   }
 
-  if (bestLatency === Infinity) {
-    throw new Error(`No healthy RPC endpoints available for chain ${chainId}`);
-  }
+  const bestEndpoint = workingEndpoints[0];
+  console.log(`[RPC] Selected ${bestEndpoint.url} for chain ${chainId} (latency: ${bestEndpoint.latency}ms)`);
 
-  // Create client with the fastest endpoint
+  // Create client with the fastest endpoint and fallback transport
   const client = createPublicClient({
     chain: config.chain,
-    transport: http(config.rpcUrls[bestIndex], {
+    transport: http(bestEndpoint.url, {
       retryCount: 5,
       retryDelay: 1000,
       timeout: 30000,
+      // Removed verbose logging for cleaner output
     }),
   });
 
@@ -181,4 +229,43 @@ export async function getRedundantClients(chainId: number): Promise<PublicClient
 
 export function clearClientCache(): void {
   clientCache.clear();
+}
+
+// Helper function to create a client with automatic fallback
+export async function getClientWithFallback(chainId: number): Promise<PublicClient> {
+  try {
+    return await getClient(chainId);
+  } catch (error) {
+    console.error(`[RPC] Failed to get client for chain ${chainId}, trying fallback...`);
+    
+    const config = CHAIN_CONFIGS[chainId];
+    if (!config) {
+      throw new Error(`Chain ${chainId} not configured`);
+    }
+    
+    // Try each RPC URL sequentially with longer timeouts
+    for (const url of config.rpcUrls) {
+      try {
+        console.log(`[RPC Fallback] Trying ${url} for chain ${chainId}...`);
+        const client = createPublicClient({
+          chain: config.chain,
+          transport: http(url, {
+            retryCount: 3,
+            retryDelay: 2000,
+            timeout: 60000, // 60 second timeout for fallback
+          }),
+        });
+        
+        // Test the client
+        await (client as any).getBlockNumber();
+        console.log(`[RPC Fallback] Success with ${url} for chain ${chainId}`);
+        return client;
+      } catch (err) {
+        console.error(`[RPC Fallback] Failed with ${url}: ${err}`);
+        continue;
+      }
+    }
+    
+    throw new Error(`All RPC endpoints failed for chain ${chainId}`);
+  }
 }
