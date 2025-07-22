@@ -127,7 +127,6 @@ export async function getClient(chainId: number, skipCache: boolean = false): Pr
       await (cachedClient as any).getBlockNumber();
       return cachedClient;
     } catch {
-      console.log(`[RPC] Cached client for chain ${chainId} failed, selecting new endpoint...`);
       clientCache.delete(cacheKey);
     }
   }
@@ -140,8 +139,6 @@ export async function getClient(chainId: number, skipCache: boolean = false): Pr
   if (config.rpcUrls.length === 0) {
     throw new Error(`No RPC URLs available for chain ${chainId}`);
   }
-
-  console.log(`[RPC] Testing ${config.rpcUrls.length} endpoints for chain ${chainId}...`);
   
   // Test all endpoints concurrently
   const latencyTests = await Promise.all(
@@ -157,7 +154,6 @@ export async function getClient(chainId: number, skipCache: boolean = false): Pr
   if (workingEndpoints.length === 0) {
     console.error(`[RPC] No healthy RPC endpoints available for chain ${chainId}`);
     // Try with increased timeout as last resort
-    console.log(`[RPC] Retrying with longer timeout...`);
     const extendedTests = await Promise.all(
       config.rpcUrls.map(async (url) => {
         try {
@@ -168,7 +164,6 @@ export async function getClient(chainId: number, skipCache: boolean = false): Pr
           const startTime = Date.now();
           await (testClient as any).getBlockNumber();
           const latency = Date.now() - startTime;
-          console.log(`[RPC Extended] Chain ${chainId}, ${url}: ${latency}ms`);
           return { latency, url };
         } catch {
           return { latency: Infinity, url };
@@ -243,7 +238,6 @@ export async function getClientWithFallback(chainId: number): Promise<PublicClie
     // Try each RPC URL sequentially with longer timeouts
     for (const url of config.rpcUrls) {
       try {
-        console.log(`[RPC Fallback] Trying ${url} for chain ${chainId}...`);
         const client = createPublicClient({
           chain: config.chain,
           transport: http(url, {
@@ -255,7 +249,6 @@ export async function getClientWithFallback(chainId: number): Promise<PublicClie
         
         // Test the client
         await (client as any).getBlockNumber();
-        console.log(`[RPC Fallback] Success with ${url} for chain ${chainId}`);
         return client;
       } catch (err) {
         console.error(`[RPC Fallback] Failed with ${url}: ${err}`);
