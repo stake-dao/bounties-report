@@ -111,10 +111,8 @@ async function testRpcEndpoint(url: string, chainId: number): Promise<number> {
     
     await (testClient as any).getBlockNumber();
     const latency = Date.now() - startTime;
-    console.log(`[RPC Test] Chain ${chainId}, ${url}: ${latency}ms`);
     return latency;
   } catch (error: any) {
-    console.log(`[RPC Test] Chain ${chainId}, ${url}: Failed - ${error.message || 'Unknown error'}`);
     return Infinity;
   }
 }
