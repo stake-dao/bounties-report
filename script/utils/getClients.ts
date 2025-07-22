@@ -189,7 +189,6 @@ export async function getClient(chainId: number, skipCache: boolean = false): Pr
   }
 
   const bestEndpoint = workingEndpoints[0];
-  console.log(`[RPC] Selected ${bestEndpoint.url} for chain ${chainId} (latency: ${bestEndpoint.latency}ms)`);
 
   // Create client with the fastest endpoint and fallback transport
   const client = createPublicClient({
