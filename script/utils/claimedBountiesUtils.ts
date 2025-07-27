@@ -617,7 +617,7 @@ const fetchWardenClaimedBounties = async (
   const ethUtils = createBlockchainExplorerUtils();
 
   // Fetch all bounties data from Warden API
-  const wardenApiBase = "https://api.paladin.vote/quest/v2/copilot/claims/";
+  const wardenApiBase = "https://api.paladin.vote/quest/v3/copilot/claims/";
   let distributorAddresses: string[] = [];
 
   let questsByProtocol: {
