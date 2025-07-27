@@ -56,6 +56,7 @@ export interface SwapEvent {
   to: string;
   token: string;
   amount: bigint;
+  transactionHash?: string;
 }
 
 export interface ProcessedSwapEvent extends SwapEvent {
@@ -560,10 +561,15 @@ export async function fetchSwapInEvents(
       to: `0x${log.topics[2].slice(26)}`,
       token: log.address,
       amount,
+      transactionHash: log.transactionHash,
     };
   });
 
-  return swapEvents.sort((a, b) =>
+  // Filter out the specific transaction hash
+  const filteredSwapEvents = swapEvents.filter(
+    event => event.transactionHash?.toLowerCase() !== '0xf17999a7ba3dfd203d571f95f211f4786005c3cb6d5370e10a6b7dbad2f3e049'
+  );
+  return filteredSwapEvents.sort((a, b) =>
     a.blockNumber === b.blockNumber
       ? a.logIndex - b.logIndex
       : a.blockNumber - b.blockNumber
@@ -602,10 +608,15 @@ export async function fetchSwapOutEvents(
       to: `0x${log.topics[2].slice(26)}`,
       token: log.address,
       amount,
+      transactionHash: log.transactionHash,
     };
   });
 
-  return swapEvents.sort((a, b) =>
+  // Filter out the specific transaction hash
+  const filteredSwapEvents = swapEvents.filter(
+    event => event.transactionHash?.toLowerCase() !== '0xf17999a7ba3dfd203d571f95f211f4786005c3cb6d5370e10a6b7dbad2f3e049'
+  );
+  return filteredSwapEvents.sort((a, b) =>
     a.blockNumber === b.blockNumber
       ? a.logIndex - b.logIndex
       : a.blockNumber - b.blockNumber
