@@ -1,5 +1,5 @@
 import { getTimestampsBlocks } from "../../utils/reportUtils";
-import { fetchWardenClaimedBounties } from "../../utils/claimedBountiesUtils";
+import { fetchWardenClaimedBounties } from "../../utils/wardenClaims";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
@@ -36,6 +36,9 @@ const path_to_protocols: { [key: string]: string } = {
   crv: "curve",
   bal: "balancer",
   fxn: "fxn",
+  scbtc: "scbtc",
+  sceth: "sceth",
+  scusd: "scusd"
 };
 
 async function generateWardenBounties(pastWeek: number = 0) {
@@ -44,10 +47,16 @@ async function generateWardenBounties(pastWeek: number = 0) {
   const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;
   const currentPeriod = Math.floor(adjustedTimestamp / WEEK) * WEEK;
 
+  console.log(`Generating Warden bounties for period: ${currentPeriod}`);
+  console.log(`Fetching blocks for past week: ${pastWeek}`);
+
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(ethereumClient, pastWeek);
+  
+  console.log(`Block range: ${blockNumber1} to ${blockNumber2}`);
 
   const wardenBounties = await fetchWardenClaimedBounties(blockNumber1, blockNumber2);
 
+  // Transform protocol names if needed
   const warden: { [key: string]: any } = {};
   for (const p of Object.keys(wardenBounties)) {
     const protocol = path_to_protocols[p] || p;
@@ -70,7 +79,7 @@ async function generateWardenBounties(pastWeek: number = 0) {
   fs.writeFileSync(fileName, jsonString);
   console.log(`Warden weekly claims saved to ${fileName}`);
 
-  // Log aggregated claim sums to Telegram (chain id for mainnet is 1)
+  // Log aggregated claim sums to Telegram
   const telegramLogger = new ClaimsTelegramLogger();
   await telegramLogger.logClaims("warden/claimed_bounties.json", currentPeriod, warden);
 }

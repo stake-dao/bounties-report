@@ -1,1 +1,26 @@
-{}
+{
+  "balancer": {
+    "0": {
+      "amount": "951676824586613045",
+      "rewardToken": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "gauge": "0x1CCE9d493224A19FcB5f7fBade8478630141CB54",
+      "questID": "253",
+      "period": "1752710400",
+      "distributor": "0x1F7b4Bf0CD21c1FBC4F1d995BA0608fDfC992aF4"
+    }
+  },
+  "curve": {},
+  "fxn": {
+    "0": {
+      "amount": "1350814558749899526721",
+      "rewardToken": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "gauge": "0xf0A3ECed42Dbd8353569639c0eaa833857aA0A75",
+      "questID": "75",
+      "period": "1752710400",
+      "distributor": "0x8964c76B6f0253A77129D58cBA5D184d414d7C9a"
+    }
+  },
+  "scbtc": {},
+  "sceth": {},
+  "scusd": {}
+}
