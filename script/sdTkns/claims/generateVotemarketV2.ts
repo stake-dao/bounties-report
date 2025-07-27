@@ -1,5 +1,5 @@
 import { getTimestampsBlocks } from "../../utils/reportUtils";
-import { fetchVotemarketV2ClaimedBounties } from "../../utils/claimedBountiesUtils";
+import { fetchVotemarketV2ClaimedBounties } from "../../utils/votemarketV2Claims";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";

@@ -1,4 +1,4 @@
-import { fetchVotemarketV2ClaimedBounties } from "../../utils/claimedBountiesUtils";
+import { fetchVotemarketV2ClaimedBounties } from "../../utils/votemarketV2Claims";
 import fs from "fs";
 import path from "path";
 import { CONVEX_LOCKER, FXN_CONVEX_LOCKER } from "../../utils/constants";

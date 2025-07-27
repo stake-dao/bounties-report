@@ -1,5 +1,5 @@
 import { getTimestampsBlocks } from "../../utils/reportUtils";
-import { fetchHiddenHandClaimedBounties } from "../../utils/claimedBountiesUtils";
+import { fetchHiddenHandClaimedBounties } from "../../utils/hiddenHandClaims";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";

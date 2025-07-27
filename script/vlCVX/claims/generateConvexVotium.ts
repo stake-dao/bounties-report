@@ -1,4 +1,4 @@
-import { fetchVotiumClaimedBounties } from "../../utils/claimedBountiesUtils";
+import { fetchVotiumClaimedBounties } from "../../utils/votiumClaims";
 import fs from "fs";
 import path from "path";
 import {
