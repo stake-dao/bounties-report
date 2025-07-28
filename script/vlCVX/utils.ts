@@ -6,7 +6,7 @@ import {
   pad,
 } from "viem";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { ALL_MIGHT, WETH_ADDRESS } from "../utils/reportUtils";
+import { WETH_ADDRESS } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_MERKLE } from "../utils/constants";
 import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
@@ -22,16 +22,12 @@ export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
 
-  const paddedAllMight = pad(ALL_MIGHT as `0x${string}`, {
-    size: 32,
-  }).toLowerCase();
   const paddedVlcvxRecipient = pad(VLCVX_DELEGATORS_MERKLE as `0x${string}`, {
     size: 32,
   }).toLowerCase();
 
   const topics = {
     "0": transferHash,
-    "1": paddedAllMight,
     "2": paddedVlcvxRecipient,
   };
 
