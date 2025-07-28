@@ -67,8 +67,7 @@ export const SPECTRA_SAFE_MODULE =
 export const WEEK = 604800;
 export const TWOWEEKS = WEEK * 2;
 
-// TOTAL SDT AS ADDITIONAL REWARD FOR DELEGATORS
-export const SDT_DELEGATORS_REWARD = 3750n * 10n ** 18n;
+
 
 // Stake DAO locker
 export const STAKE_DAO_LOCKER = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";

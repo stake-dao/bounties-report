@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import path from "path";
 import fs from "fs";
-import { SDT } from "../script/utils/constants";
+
 
 // ----- Constants and Paths -----
 const WEEK = 604800;
@@ -24,11 +24,7 @@ const oldBasePath = path.join(
 
 // ----- Synchronous Helper Functions -----
 
-export function fetchSDTAmountSync(): string {
-  const sdtFilePath = path.join(basePath, "SDT.json");
-  const sdtData = JSON.parse(fs.readFileSync(sdtFilePath, "utf8"));
-  return sdtData.amount;
-}
+
 
 export interface TokenData {
   old_amount: string;
@@ -138,19 +134,14 @@ const { tokenList, roots } = getTokenListAndRootsSync();
 
 const ALL_MIGHT = "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05";
 
-// ----- INITIAL SETUP: Withdraw SDT and Set Merkle Root -----
-describe("Merkle Distributor Setup and Claim Tests", function () {
-  before(async function () {
-    const sdtToWithdraw = fetchSDTAmountSync();
+// ----- INITIAL SETUP: Set Merkle Root -----
+  beforeEach(async function () {
 
     merkleContract = await hre.viem.getContractAt(
       "UniversalRewardsDistributor",
       "0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380"
     );
-    sdtAllocationContract = await hre.viem.getContractAt(
-      "Botmarket",
-      "0xA3ECF0cc8E88136134203aaafB21F7bD2dA6359a"
-    );
+
 
     tokenContracts = await Promise.all(
       tokenList.map((token) =>
@@ -173,11 +164,7 @@ describe("Merkle Distributor Setup and Claim Tests", function () {
       params: [ALL_MIGHT],
     });
 
-    // Withdraw SDT tokens: note that we don't call withdrawTx.wait() here.
-    await sdtAllocationContract.write.withdraw(
-      [[SDT], [sdtToWithdraw], merkleContract.address],
-      { account: ALL_MIGHT }
-    );
+
 
     // Verify the current root and update it.
     const currentRoot = await merkleContract.read.root();
@@ -207,12 +194,7 @@ describe("Merkle Distributor Setup and Claim Tests", function () {
               params: [user],
             });
 
-            const SDTContract = hre.viem.getContractAt(
-              "@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20",
-              SDT
-            )
 
-            console.log("Balance of SDT on merkle contract", await SDTContract.read.balanceOf([merkleContract.address]));
 
             const tokenContract = tokenContractsMap[token.toLowerCase()];
             if (!tokenContract) {

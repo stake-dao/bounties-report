@@ -31,8 +31,7 @@ This document outlines the process for distributing rewards to vlCVX voters and 
    - For vlCVX voters: `3_merkles/createCombinedMerkle.ts`
      - Processes distribution data across multiple chains
      - Generates chain-specific Merkle trees
-     - Taking also into account delegators non-forwarded rewards + SDT for them
-   - For delegators: `3_merkles/createDelegatorsMerkle.ts`
+      - Taking also into account delegators non-forwarded rewards   - For delegators: `3_merkles/createDelegatorsMerkle.ts`
      - Computes crvUSD amounts for delegators using shares from `repartition_delegation.json`
      - Generates a separate Merkle tree for delegators
    - Saves Merkle data to:

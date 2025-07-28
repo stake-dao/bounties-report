@@ -12,7 +12,6 @@ import { generateMerkleTree } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
 import {
   CVX_SPACE,
-  SDT,
   CRVUSD,
   CVX,
   DELEGATION_ADDRESS,
@@ -107,98 +106,7 @@ if (totalCurveForwardersShare <= 0 && totalFxnForwardersShare <= 0) {
   process.exit(0);
 }
 
-async function calculateSDTAmount(maxSDT: bigint): Promise<bigint> {
-  const now = moment.utc().unix();
-  const filter = "^(?!FXN ).*Gauge Weight for Week of";
 
-  // Get proposal and votes
-  const proposalIdPerSpace = await fetchLastProposalsIds(
-    [CVX_SPACE],
-    now,
-    filter
-  );
-  const proposalId = proposalIdPerSpace[CVX_SPACE];
-  const proposal = await getProposal(proposalId);
-  const votes = await getVoters(proposalId);
-
-  let totalVotingPower = 0;
-  let delegationVotingPower = 0;
-
-  // Process votes for each gauge
-  for (const vote of votes) {
-    let vpChoiceSum = 0;
-    let currentChoiceIndex = 0;
-
-    for (const [choiceIndex, value] of Object.entries(vote.choice)) {
-      vpChoiceSum += value;
-    }
-
-    if (vpChoiceSum > 0) {
-      const effectiveVp = vote.vp;
-      totalVotingPower += effectiveVp;
-      if (vote.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
-        delegationVotingPower += effectiveVp;
-      }
-    }
-  }
-
-  // Get CVX and SDT prices
-  const cvxPriceResponse = await getHistoricalTokenPrices(
-    [{ chainId: 1, address: getAddress(CVX) }],
-    Number(proposal.start)
-  );
-  const sdtPriceResponse = await getHistoricalTokenPrices(
-    [{ chainId: 1, address: getAddress(SDT) }],
-    now
-  );
-
-  const cvxPrice = cvxPriceResponse[`ethereum:${CVX.toLowerCase()}`];
-  const sdtPrice = sdtPriceResponse[`ethereum:${SDT.toLowerCase()}`];
-
-  if (!cvxPrice || !sdtPrice) {
-    throw new Error("Failed to get token prices");
-  }
-
-  // Calculate required SDT amount for 5% APR
-  // Formula: (sdtAmount * sdtPrice * 52) / (cvxPrice * delegationVPSDT) * 100 = 5
-  let requiredSDTAmount =
-    (0.05 * (cvxPrice * delegationVotingPower)) / (52 * sdtPrice);
-
-  // Cap at the provided maxSDT
-  requiredSDTAmount = Math.min(requiredSDTAmount, maxSDT);
-
-  console.log(`SDT Amount for 5% APR: ${requiredSDTAmount.toFixed(2)}`);
-  const sdtValue = requiredSDTAmount * sdtPrice;
-  const annualizedSDT = sdtValue * 52;
-  const sdtAPR = (annualizedSDT / (cvxPrice * delegationVotingPower)) * 100;
-  console.log(`Actual SDT APR: ${sdtAPR.toFixed(2)}%`);
-
-  // Store SDT amount in a JSON file
-  const sdtInfo = {
-    amount: requiredSDTAmount,
-    timestamp: now,
-    period: currentPeriodTimestamp,
-    sdtPrice,
-    cvxPrice,
-    delegationVotingPower,
-    apr: sdtAPR,
-  };
-
-  // Ensure directory exists
-  if (!fs.existsSync(reportsDir)) {
-    fs.mkdirSync(reportsDir, { recursive: true });
-  }
-
-  // Write to SDT.json file
-  fs.writeFileSync(
-    path.join(reportsDir, "SDT.json"),
-    JSON.stringify(sdtInfo, null, 2)
-  );
-  console.log(`SDT information saved to ${path.join(reportsDir, "SDT.json")}`);
-
-  // Convert to BigInt with 18 decimals
-  return BigInt(Math.floor(requiredSDTAmount * 1e18));
-}
 
 // There is FXN + Curve. We need to know shares of each (for the total CRVUSD); because delegators can be different
 // One can be not present on one (voted by himself), but present on the other
@@ -501,40 +409,17 @@ async function getProtocolShares(
 
 async function computeShares(
   totalCrvUsd: bigint,
-  totalSDT: bigint,
-  delegationSummary: any,
-  skippedUsers: Set<string>
+  delegationSummary: any
 ) {
   // Return empty distribution if no delegation summary
   if (!delegationSummary || !delegationSummary.forwarders) {
     return {};
   }
 
-  let totalValidShares = 0;
   let combined: { [address: string]: { tokens: { [token: string]: bigint } } } = {};
 
-  // If SDT : Curve (SDT)
-  if (totalSDT > 0n) {
-    for (const [address, shareStr] of Object.entries(
-      delegationSummary.forwarders
-    )) {
-      const share = parseFloat(shareStr);
-      if (share <= 0) continue;
-
-      const addr = getAddress(address);
-      if (!skippedUsers.has(addr)) {
-        totalValidShares += share;
-      }
-    }
-  } else {
-    totalValidShares = Object.values(delegationSummary.forwarders).reduce(
-      (acc, shareStr) => acc + parseFloat(shareStr),
-      0
-    );
-  }
-
   // Iterate over each forwarder from the delegation summary
-  // Calculate their portion of both crvUSD and SDT
+  // Calculate their portion of crvUSD
   for (const [address, shareStr] of Object.entries(
     delegationSummary.forwarders
   )) {
@@ -548,24 +433,10 @@ async function computeShares(
     const crvUsdAmount =
       (totalCrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
 
-    // Calculate SDT amount only for non-skipped users
-    let sdtAmount = 0n;
-    if (!skippedUsers.has(addr)) {
-      // Adjust share relative to total valid shares for SDT distribution
-      const adjustedShare = share / totalValidShares;
-      sdtAmount =
-        (totalSDT * BigInt(Math.floor(adjustedShare * 1e18))) / BigInt(1e18);
-    }
-
     // Only add if the user gets a non-zero allocation
-    if (crvUsdAmount > 0n || sdtAmount > 0n) {
+    if (crvUsdAmount > 0n) {
       combined[addr] = { tokens: {} };
-      if (crvUsdAmount > 0n) {
-        combined[addr].tokens[CRVUSD] = crvUsdAmount;
-      }
-      if (sdtAmount > 0n) {
-        combined[addr].tokens[SDT] = sdtAmount;
-      }
+      combined[addr].tokens[CRVUSD] = crvUsdAmount;
     }
   }
 
@@ -603,13 +474,7 @@ async function processForwarders() {
   totalCrvUsd -= BigInt(10 ** 14);
   console.log("Total crvUSD for distribution:", totalCrvUsd.toString());
 
-  // Calculate SDT amount based on 5% APR
-  const totalSDT = await calculateSDTAmount(2500); // Max SDT cap
-  console.log("Total SDT for distribution:", totalSDT.toString());
 
-  const skippedUsers = new Set([
-    getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"), // Bent
-  ]);
 
   const protocolShares = await getProtocolShares(
     publicClient,
@@ -620,17 +485,13 @@ async function processForwarders() {
   // Split : Curve & FXN
   const curveCombined = await computeShares(
     protocolShares.curveCrvUsdAmount,
-    totalSDT,
-    curveDelegationSummary,
-    skippedUsers
+    curveDelegationSummary
   );
 
   const fxnCombined = fxnDelegationSummary
     ? await computeShares(
       protocolShares.fxnCrvUsdAmount,
-      0n,
-      fxnDelegationSummary,
-      skippedUsers
+      fxnDelegationSummary
     )
     : {};
 

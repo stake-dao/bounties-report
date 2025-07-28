@@ -23,7 +23,6 @@ import {
   WEEK,
   VLCVX_DELEGATORS_MERKLE,
   CRVUSD,
-  SDT,
   CVX,
 } from "../utils/constants";
 import { extractCSV } from "../utils/utils";
@@ -39,7 +38,7 @@ import {
   TokenIdentifier,
   LLAMA_NETWORK_MAPPING,
 } from "../utils/priceUtils";
-const REWARD_TOKENS = [CRVUSD, SDT];
+const REWARD_TOKENS = [CRVUSD];
 
 interface APRResult {
   totalVotingPower: number;
@@ -250,32 +249,7 @@ async function computeAPR(): Promise<
   );
   const delegatorVotingPowers = await getVotingPower(proposal, delegators);
 
-  // Calculate delegationVPSDT by subtracting skipped users' voting power
-  let delegationVPSDT = delegationVotingPower;
-  for (const skippedUser of skippedUsers) {
-    const normalizedSkippedUser = getAddress(skippedUser);
-    if (delegatorVotingPowers[normalizedSkippedUser]) {
-      delegationVPSDT -= delegatorVotingPowers[normalizedSkippedUser];
-      console.log(
-        `Subtracted ${delegatorVotingPowers[normalizedSkippedUser].toFixed(
-          2
-        )} VP from skipped user ${normalizedSkippedUser}`
-      );
-    } else {
-      const foundAddress = Object.keys(delegatorVotingPowers).find(
-        (addr) => addr.toLowerCase() === normalizedSkippedUser.toLowerCase()
-      );
 
-      if (foundAddress) {
-        delegationVPSDT -= delegatorVotingPowers[foundAddress];
-        console.log(
-          `Found and subtracted ${delegatorVotingPowers[foundAddress].toFixed(
-            2
-          )} VP from skipped user ${foundAddress}`
-        );
-      }
-    }
-  }
 
   // Get Thursday rewards (from getAllRewardsForDelegators)
   const thursdayRewards = getAllRewardsForDelegators(currentPeriodTimestamp);
@@ -374,60 +348,18 @@ async function computeAPR(): Promise<
   // Calculate individual token reward values
   const tokenRewardValues: Record<string, number> = {};
   let rewardValueUSD = 0;
-  let rewardValueUSDWithoutSDT = 0;
-
-  // Calculate values for each token using chain-specific prices
-  for (const [key, price] of Object.entries(prices)) {
-    const [network, address] = key.split(":");
-    const chainId = Object.entries(LLAMA_NETWORK_MAPPING).find(
-      ([_, n]) => n === network
-    )?.[0];
-    if (!chainId) continue;
-
-    const chainIdNum = Number(chainId);
-    const tokenAmount =
-      totalDelegatorsRewards.chainRewards[chainIdNum]?.rewardsPerGroup
-        .nonForwarders[getAddress(address)] || 0n;
-
-    const valueUSD = price * (Number(tokenAmount) / Math.pow(10, 18)); // Assuming 18 decimals
-
-    tokenRewardValues[address] = valueUSD;
+  for (const [address, valueUSD] of Object.entries(tokenRewardValues)) {
     rewardValueUSD += valueUSD;
-
-    // Exclude SDT from the without-SDT calculation
-    if (address.toLowerCase() !== SDT.toLowerCase()) {
-      rewardValueUSDWithoutSDT += valueUSD;
-    }
   }
 
   // Log token reward values
   console.log("tokenRewardValues", tokenRewardValues);
   console.log("Total rewardValueUSD:", rewardValueUSD);
 
-  // Calculate APRs for individual tokens
-  const sdtValue = tokenRewardValues[SDT.toLowerCase()] || 0;
+  // Calculate annualized APR
+  const annualizedValue = rewardValueUSD * 52;
+  const annualizedAPR = (annualizedValue / (cvxPrice * delegationVotingPower)) * 100;
 
-  // Calculate total non-SDT rewards
-  const nonSdtValue = rewardValueUSD - sdtValue;
-
-  const annualizedSDT = sdtValue * 52;
-  const annualizedNonSDT = nonSdtValue * 52;
-
-  // Use delegationVPForwarders for SDT APR calculation only
-  const sdtAPR = (annualizedSDT / (cvxPrice * delegationVPForwarders)) * 100;
-
-  // Use regular delegationVotingPower for non-SDT APR calculation
-  const nonSdtAPR =
-    (annualizedNonSDT / (cvxPrice * delegationVotingPower)) * 100;
-
-  // Calculate total APRs
-  const annualizedAPR = sdtAPR + nonSdtAPR; // Sum of individual APRs
-  const annualizedAPRWithoutSDT = nonSdtAPR; // All APRs except SDT
-
-  console.log("SDT Value:", sdtValue);
-  console.log("Non-SDT Value:", nonSdtValue);
-  console.log("SDT APR (using forwarders VP):", sdtAPR.toFixed(2) + "%");
-  console.log("Non-SDT APR (using regular VP):", nonSdtAPR.toFixed(2) + "%");
   console.log("Total APR:", annualizedAPR.toFixed(2) + "%");
 
   return {
@@ -437,8 +369,6 @@ async function computeAPR(): Promise<
     rewardValueUSD,
     cvxPrice,
     annualizedAPR,
-    annualizedAPRWithoutSDT,
-    sdtAPR,
     periodStartBlock: Number(proposal.snapshot),
     periodEndBlock: Number(proposal.end),
     timestamp: currentPeriodTimestamp,
@@ -465,7 +395,6 @@ async function main() {
     const updatedData = {
       ...existingData,
       delegatorsApr: result.annualizedAPR,
-      delegatorsAprWithoutSDT: result.annualizedAPRWithoutSDT,
     };
 
     writeFileSync(outputPath, JSON.stringify(updatedData, null, 2));
@@ -481,13 +410,7 @@ async function main() {
     );
     console.log(`Period Reward Value: $${result.rewardValueUSD.toFixed(2)}`);
     console.log(`CVX Price: $${result.cvxPrice.toFixed(2)}`);
-    console.log(`SDT APR: ${result.sdtAPR.toFixed(2)}%`);
     console.log(`Total Annualized APR: ${result.annualizedAPR.toFixed(2)}%`);
-    console.log(
-      `Annualized APR (without SDT): ${result.annualizedAPRWithoutSDT.toFixed(
-        2
-      )}%`
-    );
     console.log(
       `Period: ${result.periodStartBlock} - ${result.periodEndBlock}`
     );

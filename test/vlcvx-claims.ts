@@ -3,7 +3,7 @@ import hre from "hardhat";
 import fs from "fs";
 import path from "path";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
-import { SDT, WEEK } from "../script/utils/constants";
+import { WEEK } from "../script/utils/constants";
 
 // --------------------------------------------------------------------------------
 // Adjust these constants for your environment
@@ -16,7 +16,7 @@ const OWNER_ADDRESS = "0x2f18e001B44DCc1a1968553A2F32ab8d45B12195";
 const GOVERNANCE_ADDRESS = "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063";
 const BOTMARKET_ADDRESS = "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF";
 const ALL_MIGHT_ADDRESS = "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05";
-const SDT_ALLOCATION_POOL = "0xA3ECF0cc8E88136134203aaafB21F7bD2dA6359a";
+
 
 // --------------------------------------------------------------------------------
 // Load the Merkle JSON data from file (delegators or non‑delegators)
@@ -93,7 +93,7 @@ const formatTokenAmount = (amount: bigint): string => {
  * Sets up the environment for either delegators or non‑delegators test.
  * Uses different Merkle data and contract addresses based on the `delegators` flag.
  * For non‑delegators test, it performs Botmarket withdrawal using the summed allocated amounts;
- * for delegators, it withdraws SDT from the allocation pool.
+ * for delegators.
  */
 const setupTest = async (delegators: boolean) => {
   const merkleData = delegators ? merkleDelegatorsData : merkleVotersData;
@@ -195,16 +195,6 @@ const setupTest = async (delegators: boolean) => {
         }
       }
     }
-  } else {
-    console.log("Delegators test: withdrawing SDT to Merkle contract.");
-    const allocationPoolContract = await hre.viem.getContractAt(
-      "Botmarket",
-      SDT_ALLOCATION_POOL
-    );
-    await allocationPoolContract.write.withdraw(
-      [[SDT], [3750n * 10n ** 18n], contractAddress],
-      { account: ALL_MIGHT_ADDRESS }
-    );
   }
 
   return {
@@ -365,8 +355,7 @@ describe("AA", function () {
 });
 
 /* =======================================================================
-   Test: Delegators – SDT withdrawal is performed prior to processing claims
-======================================================================= */
+    Test: Delegators – Processing claims======================================================================= */
 describe("UUD - Delegators Test", function () {
   it("should process new merkle roots for delegators (with withdrawal)", async function () {
     const { contract, tokenContracts, tokenAddresses, merkleData } =
