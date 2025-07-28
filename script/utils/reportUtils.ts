@@ -75,6 +75,7 @@ interface GaugeInfo {
   name: string;
   shortName?: string;
   address: string;
+  actualGauge?: string; // The actual gauge address if this is a rootGauge entry
   price?: string;
 }
 
@@ -494,15 +495,26 @@ export function collectAllTokens(
  */
 export function addGaugeNamesToBounties(
   bounties: Bounty[],
-  gaugesInfo: { name: string; address: string }[]
+  gaugesInfo: GaugeInfo[]
 ): Bounty[] {
-  const gaugeMap = new Map(
-    gaugesInfo.map((g) => [g.address.toLowerCase(), g.name])
+  const gaugeMap = new Map<string, { name: string; actualGauge?: string }>(
+    gaugesInfo.map((g) => [g.address.toLowerCase(), { name: g.name, actualGauge: g.actualGauge }])
   );
-  return bounties.map((bounty) => ({
-    ...bounty,
-    gaugeName: gaugeMap.get(bounty.gauge.toLowerCase()) || "UNKNOWN",
-  }));
+  return bounties.map((bounty) => {
+    const gaugeInfo = gaugeMap.get(bounty.gauge.toLowerCase());
+    if (gaugeInfo) {
+      return {
+        ...bounty,
+        gaugeName: gaugeInfo.name,
+        // If this bounty was claimed through a rootGauge, update the gauge address to the actual gauge
+        gauge: gaugeInfo.actualGauge || bounty.gauge,
+      };
+    }
+    return {
+      ...bounty,
+      gaugeName: "UNKNOWN",
+    };
+  });
 }
 
 /**
@@ -780,22 +792,37 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
     );
     if (response.status === 200 && response.data.success) {
       const data = response.data.data;
-      return Object.entries(data)
+      const gaugeInfos: GaugeInfo[] = [];
+      
+      Object.entries(data)
         .filter(
           ([_, gauge]: [string, any]) =>
             !(gauge.hasNoCrv || !gauge.gauge_controller)
         )
-        .map(([_, gauge]: [string, any]) => {
+        .forEach(([_, gauge]: [string, any]) => {
           let gaugeName = gauge.shortName || "";
           const firstIndex = gaugeName.indexOf("(");
           if (firstIndex > -1) gaugeName = gaugeName.slice(0, firstIndex);
-          return {
+          
+          // Add the regular gauge
+          gaugeInfos.push({
             name: gaugeName,
             address: gauge.gauge.toLowerCase(),
-            rootGauge: gauge.rootGauge?.toLowerCase(),
             price: gauge.lpTokenPrice,
-          };
+          });
+          
+          // If there's a rootGauge, also add an entry for it that maps to the actual gauge
+          if (gauge.rootGauge) {
+            gaugeInfos.push({
+              name: gaugeName,
+              address: gauge.rootGauge.toLowerCase(),
+              actualGauge: gauge.gauge.toLowerCase(), // Store the actual gauge address
+              price: gauge.lpTokenPrice,
+            });
+          }
         });
+        
+      return gaugeInfos;
     }
     console.error(
       "Failed to fetch Curve gauges: API responded with success: false"

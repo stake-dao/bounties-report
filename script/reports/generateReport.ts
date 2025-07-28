@@ -124,7 +124,7 @@ function separateRawTokenBounties(bounties: Record<string, any>): {
 function processRawTokenBounties(
   rawBounties: Record<string, any>,
   tokenInfos: Record<string, any>,
-  gaugesInfo?: Array<{ name: string; address: string }>
+  gaugesInfo?: Array<any>
 ): Record<string, Array<{
   gaugeName: string;
   gaugeAddress: string;
@@ -143,14 +143,17 @@ function processRawTokenBounties(
     for (const bounty of Object.values(protocolBounties as Record<string, any>)) {
       const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
       
-      // Find gauge name from gaugesInfo array
+      // Find gauge name and actual gauge address from gaugesInfo array
       let gaugeName = bounty.gauge;
+      let gaugeAddress = bounty.gauge;
       if (gaugesInfo) {
         const gaugeInfo = gaugesInfo.find(
-          (g) => g.address.toLowerCase() === bounty.gauge.toLowerCase()
+          (g: any) => g.address.toLowerCase() === bounty.gauge.toLowerCase()
         );
         if (gaugeInfo) {
           gaugeName = gaugeInfo.name;
+          // If this bounty was claimed through a rootGauge, use the actual gauge address
+          gaugeAddress = gaugeInfo.actualGauge || bounty.gauge;
         }
       }
 
@@ -158,7 +161,7 @@ function processRawTokenBounties(
 
       result[protocol].push({
         gaugeName,
-        gaugeAddress: bounty.gauge,
+        gaugeAddress,
         rewardToken: tokenInfo?.symbol || "UNKNOWN",
         rewardAddress: bounty.rewardToken,
         rewardAmount: amount,
