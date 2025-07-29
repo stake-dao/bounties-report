@@ -6,8 +6,9 @@ import {
   pad,
   decodeAbiParameters,
   getAddress,
+  erc20Abi,
 } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet, base, arbitrum } from "viem/chains";
 import * as moment from "moment";
 import {
   getProposal,
@@ -38,6 +39,7 @@ import {
   TokenIdentifier,
   LLAMA_NETWORK_MAPPING,
 } from "../utils/priceUtils";
+import { getCRVUsdTransfer } from "../vlCVX/utils";
 const REWARD_TOKENS = [CRVUSD];
 
 interface APRResult {
@@ -51,12 +53,6 @@ interface APRResult {
   periodEndBlock: number;
   timestamp: number;
   sdtAPR: number;
-}
-
-interface TokenTransfer {
-  token: string;
-  amount: bigint;
-  blockNumber: number;
 }
 
 interface TokenPrice {
@@ -91,85 +87,74 @@ const skippedUsers = new Set([
   getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"), // Bent
 ]);
 
-async function getRewards(
-  startBlock: number,
-  endBlock: number,
-  tokens: string[]
-): Promise<TokenTransfer[]> {
-  const explorerUtils = createBlockchainExplorerUtils();
-  const transferSig = "Transfer(address,address,uint256)";
-  const transferHash = keccak256(encodePacked(["string"], [transferSig]));
+// Chain configurations
+const CHAIN_CONFIGS = {
+  1: { chain: mainnet, name: 'ethereum' },
+  8453: { chain: base, name: 'base' },
+  42161: { chain: arbitrum, name: 'arbitrum' },
+};
 
-  const paddedAllMight = pad(ALL_MIGHT as `0x${string}`, {
-    size: 32,
-  }).toLowerCase();
-  const paddedRewardsAllocationsPool = pad(
-    REWARDS_ALLOCATIONS_POOL as `0x${string}`,
-    {
-      size: 32,
+async function getTokenDecimals(
+  tokens: { chainId: number; address: string }[]
+): Promise<Record<string, number>> {
+  const decimalsMap: Record<string, number> = {};
+  
+  // Group tokens by chain
+  const tokensByChain: Record<number, string[]> = {};
+  for (const token of tokens) {
+    if (!tokensByChain[token.chainId]) {
+      tokensByChain[token.chainId] = [];
     }
-  ).toLowerCase();
-  const paddedVlcvxRecipient = pad(VLCVX_DELEGATORS_MERKLE as `0x${string}`, {
-    size: 32,
-  }).toLowerCase();
-
-  // Query for transfers from ALL_MIGHT
-  const topicsAllMight = {
-    "0": transferHash,
-    "1": paddedAllMight,
-    "2": paddedVlcvxRecipient,
-  };
-
-  // Query for transfers from REWARDS_ALLOCATIONS_POOL
-  const topicsRewardsAllocationsPool = {
-    "0": transferHash,
-    "1": paddedRewardsAllocationsPool,
-    "2": paddedVlcvxRecipient,
-  };
-
-  const [responseAllMight, responseRewardsAllocationsPool] = await Promise.all([
-    explorerUtils.getLogsByAddressesAndTopics(
-      tokens,
-      startBlock,
-      endBlock,
-      topicsAllMight,
-      1
-    ),
-    explorerUtils.getLogsByAddressesAndTopics(
-      tokens,
-      startBlock,
-      endBlock,
-      topicsRewardsAllocationsPool,
-      1
-    ),
-  ]);
-
-  const allResults = [
-    ...responseAllMight.result,
-    ...responseRewardsAllocationsPool.result,
-  ];
-
-  if (allResults.length === 0) {
-    throw new Error("No token transfers found");
+    tokensByChain[token.chainId].push(token.address);
   }
-
-  return allResults.map((transfer) => {
-    const [amount] = decodeAbiParameters([{ type: "uint256" }], transfer.data);
-
-    return {
-      token: transfer.address.toLowerCase(),
-      amount: BigInt(amount),
-      blockNumber: parseInt(transfer.blockNumber, 16),
-    };
-  });
+  
+  // Fetch decimals for each chain
+  for (const [chainId, addresses] of Object.entries(tokensByChain)) {
+    const chainConfig = CHAIN_CONFIGS[Number(chainId)];
+    if (!chainConfig) {
+      console.warn(`Unsupported chain ID: ${chainId}`);
+      continue;
+    }
+    
+    const client = createPublicClient({
+      chain: chainConfig.chain,
+      transport: http(),
+    });
+    
+    // Prepare multicall
+    const calls = addresses.map((address) => ({
+      address: address as `0x${string}`,
+      abi: erc20Abi,
+      functionName: 'decimals' as const,
+    }));
+    
+    try {
+      const results = await client.multicall({ contracts: calls });
+      
+      results.forEach((result, index) => {
+        const address = addresses[index];
+        if (result.status === 'success') {
+          decimalsMap[address] = Number(result.result);
+        } else {
+          console.warn(`Failed to fetch decimals for ${address} on chain ${chainId}, defaulting to 18`);
+          decimalsMap[address] = 18;
+        }
+      });
+    } catch (error) {
+      console.error(`Error fetching decimals for chain ${chainId}:`, error);
+      // Default all tokens on this chain to 18 decimals
+      addresses.forEach(address => {
+        decimalsMap[address] = 18;
+      });
+    }
+  }
+  
+  return decimalsMap;
 }
 
-async function computeAPR(): Promise<
-  APRResult & {
-    annualizedAPRWithoutSDT: number;
-    sdtAPR: number;
-  }
-> {
+
+
+async function computeAPR(): Promise<APRResult> {
   const now = moment.utc().unix();
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
@@ -255,41 +240,40 @@ async function computeAPR(): Promise<
   const thursdayRewards = getAllRewardsForDelegators(currentPeriodTimestamp);
   console.log("Thursday rewards:", thursdayRewards.chainRewards);
 
-  // Get swapped delegator rewards (already on merkle)
+  // Get ALL CRVUSD transfers to delegators merkle during the period
   const currentBlock = Number(await publicClient.getBlockNumber());
   const minBlock = await getClosestBlockTimestamp(
     "ethereum",
     currentPeriodTimestamp
   );
-  const swappedDelegRewards = await getRewards(
-    minBlock,
-    currentBlock,
-    REWARD_TOKENS
-  );
+  
+  // Use the same method as createDelegatorsMerkle.ts
+  const crvUsdTransfer = await getCRVUsdTransfer(minBlock, currentBlock);
+  console.log("Total CRVUSD transferred to delegators merkle:", crvUsdTransfer.amount.toString());
 
-  // Calculate total delegator rewards by combining Thursday rewards and swapped deleg rewards
+  // Calculate total delegator rewards by combining Thursday rewards and CRVUSD transfers
   const totalDelegatorsRewards = { ...thursdayRewards };
 
-  // Add swapped deleg rewards to Ethereum chain
-  for (const reward of swappedDelegRewards) {
-    const normalizedAddress = getAddress(reward.token);
+  // Add CRVUSD transfers to forwarders on Ethereum chain
+  if (crvUsdTransfer.amount > 0n) {
     if (!totalDelegatorsRewards.chainRewards[1]) {
       totalDelegatorsRewards.chainRewards[1] = {
         rewards: {},
         rewardsPerGroup: { forwarders: {}, nonForwarders: {} },
       };
     }
-    totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.nonForwarders[
-      normalizedAddress
-    ] =
-      (totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.nonForwarders[
-        normalizedAddress
-      ] || 0n) + reward.amount;
+    // All CRVUSD sent to delegators merkle goes to forwarders
+    totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.forwarders[CRVUSD] =
+      (totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.forwarders[CRVUSD] || 0n) + 
+      crvUsdTransfer.amount;
   }
 
   console.log(
     "Total delegators rewards (Ethereum):",
-    totalDelegatorsRewards.chainRewards[1]?.rewardsPerGroup.nonForwarders
+    {
+      forwarders: totalDelegatorsRewards.chainRewards[1]?.rewardsPerGroup.forwarders,
+      nonForwarders: totalDelegatorsRewards.chainRewards[1]?.rewardsPerGroup.nonForwarders
+    }
   );
 
   // Create a Set of forwarder addresses for efficient lookup
@@ -311,29 +295,55 @@ async function computeAPR(): Promise<
   console.log(`Total forwarders VP: ${delegationVPForwarders.toFixed(2)}`);
 
   // Prepare token identifiers for price fetching
-  const tokenIdentifiers: TokenIdentifier[] = [];
+  const thursdayTokens: TokenIdentifier[] = [];
+  const crvusdTokens: TokenIdentifier[] = [];
+  const seenTokens = new Set<string>();
+  
+  // Collect tokens for price fetching
   for (const [chainId, chainData] of Object.entries(
     totalDelegatorsRewards.chainRewards
   )) {
-    const tokens = Object.keys(chainData.rewardsPerGroup.nonForwarders);
-    if (tokens.length > 0) {
-      tokens.forEach((address) => {
-        tokenIdentifiers.push({
+    // All non-forwarder tokens need Thursday prices
+    Object.keys(chainData.rewardsPerGroup.nonForwarders || {}).forEach((address) => {
+      const key = `${chainId}:${address.toLowerCase()}`;
+      if (!seenTokens.has(key)) {
+        seenTokens.add(key);
+        thursdayTokens.push({
           chainId: Number(chainId),
           address: getAddress(address),
         });
+      }
+    });
+    
+    // Only CRVUSD from forwarders needs pricing (current price)
+    if (chainData.rewardsPerGroup.forwarders?.[CRVUSD]) {
+      crvusdTokens.push({
+        chainId: Number(chainId),
+        address: getAddress(CRVUSD),
       });
     }
   }
 
-  // Fetch all prices at once for current period
-  const prices = await getHistoricalTokenPrices(
-    tokenIdentifiers,
+  // Fetch prices at different timestamps
+  // Most tokens use Thursday prices (currentPeriodTimestamp)
+  const thursdayPrices = await getHistoricalTokenPrices(
+    thursdayTokens,
     currentPeriodTimestamp
   );
-  console.log("prices", prices);
+  
+  // CRVUSD: use current prices
+  const currentTimestamp = Math.floor(Date.now() / 1000);
+  const crvusdPrices = await getHistoricalTokenPrices(
+    crvusdTokens,
+    currentTimestamp
+  );
+  
+  // Merge all prices
+  const prices = { ...thursdayPrices, ...crvusdPrices };
+  console.log("Thursday prices:", thursdayPrices);
+  console.log("Current prices for CRVUSD:", crvusdPrices);
 
-  // Get CVX price separately at proposal start timestamp
+  // Get CVX price at proposal start timestamp
   const cvxPriceResponse = await getHistoricalTokenPrices(
     [{ chainId: 1, address: getAddress(CVX) }],
     Number(proposal.start)
@@ -345,11 +355,98 @@ async function computeAPR(): Promise<
   }
   console.log("cvxPrice", cvxPrice);
 
+  // Collect all unique tokens that need decimals
+  const tokensNeedingDecimals: { chainId: number; address: string }[] = [];
+  const seenTokensForDecimals = new Set<string>();
+  
+  for (const [chainId, chainData] of Object.entries(totalDelegatorsRewards.chainRewards)) {
+    const allTokens = [
+      ...Object.keys(chainData.rewardsPerGroup.nonForwarders || {}),
+      ...Object.keys(chainData.rewardsPerGroup.forwarders || {})
+    ];
+    
+    allTokens.forEach(address => {
+      const key = `${chainId}:${address.toLowerCase()}`;
+      if (!seenTokensForDecimals.has(key)) {
+        seenTokensForDecimals.add(key);
+        tokensNeedingDecimals.push({
+          chainId: Number(chainId),
+          address: getAddress(address)
+        });
+      }
+    });
+  }
+  
+  // Fetch decimals for all tokens
+  console.log("Fetching token decimals...");
+  const tokenDecimals = await getTokenDecimals(tokensNeedingDecimals);
+  
   // Calculate individual token reward values
   const tokenRewardValues: Record<string, number> = {};
   let rewardValueUSD = 0;
-  for (const [address, valueUSD] of Object.entries(tokenRewardValues)) {
-    rewardValueUSD += valueUSD;
+  
+  // Calculate USD value for each reward token
+  // Process non-forwarder rewards with Thursday prices
+  for (const [chainId, chainData] of Object.entries(
+    totalDelegatorsRewards.chainRewards
+  )) {
+    const nonForwarderRewards = chainData.rewardsPerGroup.nonForwarders || {};
+    
+    for (const [tokenAddress, amount] of Object.entries(nonForwarderRewards)) {
+      const normalizedAddress = getAddress(tokenAddress);
+      const priceKey = `${LLAMA_NETWORK_MAPPING[Number(chainId)]}:${normalizedAddress.toLowerCase()}`;
+      const tokenPriceUSD = prices[priceKey];
+      
+      if (tokenPriceUSD && amount > 0n) {
+        // Get decimals from fetched data
+        const decimals = tokenDecimals[normalizedAddress] || 18;
+        const amountInUnits = Number(amount) / Math.pow(10, decimals);
+        const valueUSD = amountInUnits * tokenPriceUSD;
+        
+        tokenRewardValues[normalizedAddress] = 
+          (tokenRewardValues[normalizedAddress] || 0) + valueUSD;
+        rewardValueUSD += valueUSD;
+        
+        console.log(`Token ${normalizedAddress} on chain ${chainId} (nonForwarders):`);
+        console.log(`  Amount: ${amountInUnits.toFixed(6)}`);
+        console.log(`  Decimals: ${decimals}`);
+        console.log(`  Price: $${tokenPriceUSD.toFixed(4)}`);
+        console.log(`  Value: $${valueUSD.toFixed(2)}`);
+      } else if (amount > 0n) {
+        console.warn(`No price found for token ${normalizedAddress} on chain ${chainId}`);
+      }
+    }
+  }
+  
+  // Process ONLY CRVUSD from forwarders (other tokens are swapped to CRVUSD)
+  for (const [chainId, chainData] of Object.entries(
+    totalDelegatorsRewards.chainRewards
+  )) {
+    const forwarderRewards = chainData.rewardsPerGroup.forwarders || {};
+    
+    // Only process CRVUSD for forwarders
+    const crvusdAmount = forwarderRewards[CRVUSD] || 0n;
+    if (crvusdAmount > 0n) {
+      const normalizedAddress = getAddress(CRVUSD);
+      const priceKey = `${LLAMA_NETWORK_MAPPING[Number(chainId)]}:${normalizedAddress.toLowerCase()}`;
+      const tokenPriceUSD = prices[priceKey];
+      
+      if (tokenPriceUSD) {
+        const decimals = tokenDecimals[normalizedAddress] || 18;
+        const amountInUnits = Number(crvusdAmount) / Math.pow(10, decimals);
+        const valueUSD = amountInUnits * tokenPriceUSD;
+        
+        tokenRewardValues[normalizedAddress] = 
+          (tokenRewardValues[normalizedAddress] || 0) + valueUSD;
+        rewardValueUSD += valueUSD;
+        
+        console.log(`CRVUSD on chain ${chainId} (forwarders):`);
+        console.log(`  Amount: ${amountInUnits.toFixed(6)}`);
+        console.log(`  Decimals: ${decimals}`);
+        console.log(`  Price: $${tokenPriceUSD.toFixed(4)} (current)`);
+        console.log(`  Value: $${valueUSD.toFixed(2)}`);
+      }
+    }
   }
 
   // Log token reward values
@@ -372,6 +469,7 @@ async function computeAPR(): Promise<
     periodStartBlock: Number(proposal.snapshot),
     periodEndBlock: Number(proposal.end),
     timestamp: currentPeriodTimestamp,
+    sdtAPR: 0, // SDT part removed as requested
   };
 }
 
@@ -391,9 +489,10 @@ async function main() {
       // File doesn't exist or is invalid, start fresh
     }
 
-    // Merge new data with existing
+    // Merge new data with existing (excluding delegatorsAprWithoutSDT)
+    const { delegatorsAprWithoutSDT, ...cleanExistingData } = existingData as any;
     const updatedData = {
-      ...existingData,
+      ...cleanExistingData,
       delegatorsApr: result.annualizedAPR,
     };
 
