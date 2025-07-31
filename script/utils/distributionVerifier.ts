@@ -44,6 +44,83 @@ const globalTokenInfoCache: {
   };
 } = {};
 
+// Chain-specific known token mappings
+const KNOWN_TOKENS_BY_CHAIN: {
+  [chainId: number]: { [address: string]: { symbol: string; decimals: number } };
+} = {
+  // Ethereum Mainnet
+  1: {
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": { symbol: "USDC", decimals: 6 },
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7": { symbol: "USDT", decimals: 6 },
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F": { symbol: "DAI", decimals: 18 },
+    "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": { symbol: "WBTC", decimals: 8 },
+    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": { symbol: "WETH", decimals: 18 },
+    "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": { symbol: "wstETH", decimals: 18 },
+    "0xD533a949740bb3306d119CC777fa900bA034cd52": { symbol: "CRV", decimals: 18 },
+    "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": { symbol: "CVX", decimals: 18 },
+    "0x090185f2135308BaD17527004364eBcC2D37e5F6": { symbol: "SPELL", decimals: 18 },
+    "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": { symbol: "SAV3", decimals: 18 },
+    "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": { symbol: "FXS", decimals: 18 },
+    "0x5f018e73C185aB23647c82bD039e762813877f0e": { symbol: "FXN", decimals: 18 },
+    "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7": { symbol: "sdCRV", decimals: 18 },
+    "0x30D20208d987713f46DFD34EF128Bb16C404D10f": { symbol: "SD", decimals: 18 },
+    "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F": { symbol: "SDT", decimals: 18 },
+    "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E": { symbol: "crvUSD", decimals: 18 },
+    "0x853d955aCEf822Db058eb8505911ED77F175b99e": { symbol: "FRAX", decimals: 18 },
+    "0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF": { symbol: "AURA", decimals: 18 },
+    "0xba100000625a3754423978a60c9317c58a424e3D": { symbol: "BAL", decimals: 18 },
+    "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32": { symbol: "LDO", decimals: 18 },
+    "0xae78736Cd615f374D3085123A210448E74Fc6393": { symbol: "rETH", decimals: 18 },
+    "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f": { symbol: "GHO", decimals: 18 },
+    "0x085780639CC2cACd35E474e71f4d000e2405d8f6": { symbol: "YFI", decimals: 18 },
+  },
+  // Arbitrum
+  42161: {
+    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831": { symbol: "USDC", decimals: 6 },
+    "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9": { symbol: "USDT", decimals: 6 },
+    "0x912CE59144191C1204E64559FE8253a0e49E6548": { symbol: "ARB", decimals: 18 },
+    "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8": { symbol: "BAL", decimals: 18 },
+    "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0": { symbol: "UNI", decimals: 18 },
+    "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978": { symbol: "CRV", decimals: 18 },
+    "0xf97f4df75117a78c1A5a0DBb814Af92458539FB4": { symbol: "LINK", decimals: 18 },
+    "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f": { symbol: "WBTC", decimals: 8 },
+    "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1": { symbol: "WETH", decimals: 18 },
+    "0x5979D7b546E38E414F7E9822514be443A4800529": { symbol: "wstETH", decimals: 18 },
+    "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1": { symbol: "DAI", decimals: 18 },
+    "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8": { symbol: "USDC.e", decimals: 6 },
+    "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F": { symbol: "FRAX", decimals: 18 },
+    "0x13Ad51ed4F1B7e9Dc168d8a00cB3f4dDD85EfA60": { symbol: "LDO", decimals: 18 },
+    "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a": { symbol: "GMX", decimals: 18 },
+    "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7": { symbol: "sdCRV", decimals: 18 },
+  },
+  // Base
+  8453: {
+    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913": { symbol: "USDC", decimals: 6 },
+    "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415": { symbol: "CRV", decimals: 18 },
+    "0x4200000000000000000000000000000000000006": { symbol: "WETH", decimals: 18 },
+    "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA": { symbol: "USDbC", decimals: 6 },
+    "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb": { symbol: "DAI", decimals: 18 },
+  },
+  // Optimism
+  10: {
+    "0x7F5c764cBc14f9669B88837ca1490cCa17c31607": { symbol: "USDC.e", decimals: 6 },
+    "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85": { symbol: "USDC", decimals: 6 },
+    "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58": { symbol: "USDT", decimals: 6 },
+    "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1": { symbol: "DAI", decimals: 18 },
+    "0x4200000000000000000000000000000000000006": { symbol: "WETH", decimals: 18 },
+    "0x68f180fcCe6836688e9084f035309E29Bf0A2095": { symbol: "WBTC", decimals: 8 },
+  },
+  // Polygon
+  137: {
+    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174": { symbol: "USDC.e", decimals: 6 },
+    "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359": { symbol: "USDC", decimals: 6 },
+    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F": { symbol: "USDT", decimals: 6 },
+    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063": { symbol: "DAI", decimals: 18 },
+    "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619": { symbol: "WETH", decimals: 18 },
+    "0x1bfd67037b42cf73acF2047067bd4F2C47D9BfD6": { symbol: "WBTC", decimals: 8 },
+  },
+};
+
 export const getAllTokensInfos = async (
   tokenAddresses: string[],
   chain: Chain
@@ -56,6 +133,7 @@ export const getAllTokensInfos = async (
   }
 
   const chainCache = globalTokenInfoCache[chainId];
+  const knownTokensForChain = KNOWN_TOKENS_BY_CHAIN[chainId] || {};
 
   // Normalize all addresses first
   const normalizedAddresses = tokenAddresses.map((addr) => {
@@ -67,14 +145,21 @@ export const getAllTokensInfos = async (
     }
   });
 
-  // Filter out addresses that are already cached
+  // First, check known tokens for this chain
+  for (const addr of normalizedAddresses) {
+    if (!chainCache[addr] && knownTokensForChain[addr]) {
+      chainCache[addr] = knownTokensForChain[addr];
+    }
+  }
+
+  // Filter out addresses that are already cached (including known tokens)
   const uncachedAddresses = normalizedAddresses.filter(
     (addr) => !chainCache[addr]
   );
 
   // If all tokens are cached, return the cached data
   if (uncachedAddresses.length === 0) {
-    console.log(`All ${normalizedAddresses.length} tokens found in cache`);
+    console.log(`All ${normalizedAddresses.length} tokens found in cache for chain ${chainId}`);
     const result: { [token: string]: { decimals: number; symbol: string } } =
       {};
     for (const addr of normalizedAddresses) {
@@ -84,7 +169,7 @@ export const getAllTokensInfos = async (
   }
 
   console.log(
-    `Fetching info for ${uncachedAddresses.length} uncached tokens (${normalizedAddresses.length - uncachedAddresses.length} cached)`
+    `Chain ${chainId}: Fetching info for ${uncachedAddresses.length} uncached tokens (${normalizedAddresses.length - uncachedAddresses.length} cached)`
   );
 
   const client =
@@ -120,17 +205,46 @@ export const getAllTokensInfos = async (
     if (decimalsResults[i].status === "success") {
       decimals = Number(decimalsResults[i].result);
     } else {
-      console.warn(
-        `Failed to fetch decimals for ${normalizedAddress}, defaulting to 18`
-      );
+      // Check if this might be a token from another chain
+      let foundInOtherChain = false;
+      for (const [otherChainId, tokens] of Object.entries(KNOWN_TOKENS_BY_CHAIN)) {
+        if (otherChainId !== chainId.toString() && tokens[normalizedAddress]) {
+          console.warn(
+            `Token ${normalizedAddress} appears to be from chain ${otherChainId}, not chain ${chainId}. Using known info.`
+          );
+          decimals = tokens[normalizedAddress].decimals;
+          symbol = tokens[normalizedAddress].symbol;
+          foundInOtherChain = true;
+          break;
+        }
+      }
+      if (!foundInOtherChain) {
+        console.warn(
+          `Failed to fetch decimals for ${normalizedAddress} on chain ${chainId}, defaulting to 18`
+        );
+      }
     }
 
     if (symbolResults[i].status === "success") {
       symbol = symbolResults[i].result as string;
-    } else {
-      console.warn(
-        `Failed to fetch symbol for ${normalizedAddress}, using UNKNOWN`
-      );
+    } else if (symbol === "UNKNOWN") {
+      // Check if this might be a token from another chain
+      let foundInOtherChain = false;
+      for (const [otherChainId, tokens] of Object.entries(KNOWN_TOKENS_BY_CHAIN)) {
+        if (otherChainId !== chainId.toString() && tokens[normalizedAddress]) {
+          console.warn(
+            `Token ${normalizedAddress} appears to be from chain ${otherChainId}, not chain ${chainId}. Using known info.`
+          );
+          symbol = tokens[normalizedAddress].symbol;
+          foundInOtherChain = true;
+          break;
+        }
+      }
+      if (!foundInOtherChain) {
+        console.warn(
+          `Failed to fetch symbol for ${normalizedAddress} on chain ${chainId}, using UNKNOWN`
+        );
+      }
     }
 
     // Store in cache
@@ -292,7 +406,7 @@ export const distributionVerifier = async (
     space,
     currentPeriodTimestamp
   );
-  logDistributionRowsToFile(comparisonRows, tokenInfos, log);
+  logDistributionRowsToFile(comparisonRows, tokenInfos, log, merkleChain);
 
   // --- Log formatted week-change totals per token ---
   console.log("\n=== Week Changes ===");
@@ -486,22 +600,97 @@ const compareMerkleData = async (
 const logDistributionRowsToFile = (
   distributionRows: DistributionRow[],
   tokenInfos: { [token: string]: { decimals: number; symbol: string } },
-  log: (message: string) => void
+  log: (message: string) => void,
+  chain?: Chain
 ) => {
-  distributionRows.sort((a, b) => {
-    if (a.address.toLowerCase() !== b.address.toLowerCase()) {
-      return a.address.toLowerCase() < b.address.toLowerCase() ? -1 : 1;
+  // Group rows by address
+  const groupedByAddress: { [address: string]: DistributionRow[] } = {};
+  distributionRows.forEach((row) => {
+    const addr = row.address.toLowerCase();
+    if (!groupedByAddress[addr]) {
+      groupedByAddress[addr] = [];
     }
-    // Within same address, sort by descending week changes
-    if (b.weekChange > a.weekChange) return 1;
-    if (b.weekChange < a.weekChange) return -1;
-    return 0;
+    groupedByAddress[addr].push(row);
+  });
+
+  // Sort addresses and prepare consolidated rows
+  const sortedAddresses = Object.keys(groupedByAddress).sort();
+  const consolidatedRows: any[] = [];
+
+  sortedAddresses.forEach((address) => {
+    const addressRows = groupedByAddress[address];
+    // Sort tokens within each address by week change (descending)
+    addressRows.sort((a, b) => {
+      if (b.weekChange > a.weekChange) return 1;
+      if (b.weekChange < a.weekChange) return -1;
+      return 0;
+    });
+
+    // Get user type from first row (should be same for all tokens of same address)
+    const userType = addressRows[0].userType;
+    let statusDisplay = "-";
+    if (userType === "forwarder") {
+      statusDisplay = "Forwarder";
+    } else if (userType === "non-forwarder") {
+      statusDisplay = "Non-Forwarder";
+    } else if (userType === "voter") {
+      statusDisplay = "Voter";
+    }
+
+    // Aggregate data for this address
+    const tokenData: string[] = [];
+    const prevAmounts: string[] = [];
+    const newAmounts: string[] = [];
+    const changes: string[] = [];
+    const percentages: string[] = [];
+    let allClaimed = true;
+    let hasError = false;
+
+    addressRows.forEach((row) => {
+      const tokenInfo = tokenInfos[row.tokenAddress] || {
+        decimals: 18,
+        symbol: row.symbol !== "UNKNOWN" ? row.symbol : "UNKNOWN",
+      };
+      const decimals = tokenInfo.decimals;
+      
+      // Only include tokens with non-zero week change
+      if (row.weekChange !== 0n) {
+        tokenData.push(tokenInfo.symbol);
+        prevAmounts.push((Number(row.prevAmount) / 10 ** decimals).toFixed(2));
+        newAmounts.push((Number(row.newAmount) / 10 ** decimals).toFixed(2));
+        changes.push((Number(row.weekChange) / 10 ** decimals).toFixed(2));
+        
+        const percentageStr =
+          row.weekChange > 0n && row.weekChangePercentage !== undefined
+            ? `${row.weekChangePercentage.toFixed(2)}%`
+            : "-";
+        percentages.push(percentageStr);
+      }
+      
+      if (!row.claimed) allClaimed = false;
+      if (row.isError) hasError = true;
+    });
+
+    // Only add row if there are tokens with changes
+    if (tokenData.length > 0) {
+      consolidatedRows.push({
+        address: addressRows[0].address,
+        status: statusDisplay,
+        tokens: tokenData.join(", "),
+        prev: prevAmounts.join(", "),
+        new: newAmounts.join(", "),
+        change: changes.join(", "),
+        percentage: percentages.join(", "),
+        claimed: allClaimed ? "✅" : "❌",
+        valid: hasError ? "❌" : "✅",
+      });
+    }
   });
 
   const headers = [
     "Address",
     "Status",
-    "Token",
+    "Tokens",
     "Prev",
     "New",
     "Change",
@@ -510,46 +699,20 @@ const logDistributionRowsToFile = (
     "Valid",
   ];
 
-  const rows = distributionRows.map((row) => {
-    const tokenInfo = tokenInfos[row.tokenAddress] || {
-      decimals: 18,
-      symbol: row.symbol,
-    };
-    const decimals = tokenInfo.decimals;
-    // Convert raw BigInt values to floating point numbers for display
-    const formattedPrev = Number(row.prevAmount) / 10 ** decimals;
-    const formattedNew = Number(row.newAmount) / 10 ** decimals;
-    const formattedWeekChange = Number(row.weekChange) / 10 ** decimals;
-    const formattedDistribution =
-      Number(row.distributionAmount) / 10 ** decimals;
+  // Add chain info to headers if available
+  const chainInfo = chain ? ` (Chain: ${chain.name})` : "";
 
-    const percentageStr =
-      row.weekChange > 0n && row.weekChangePercentage !== undefined
-        ? `${row.weekChangePercentage.toFixed(2)}%`
-        : "-";
-
-    // Format status column
-    let statusDisplay = "-";
-    if (row.userType === "forwarder") {
-      statusDisplay = "Forwarder";
-    } else if (row.userType === "non-forwarder") {
-      statusDisplay = "Non-Forwarder";
-    } else if (row.userType === "voter") {
-      statusDisplay = "Voter";
-    }
-
-    return [
-      row.address, // Show full address
-      statusDisplay,
-      tokenInfo.symbol.toUpperCase(),
-      formattedPrev.toFixed(2),
-      formattedNew.toFixed(2),
-      formattedWeekChange.toFixed(2),
-      percentageStr,
-      row.claimed ? "✅" : "❌",
-      row.isError ? "❌" : "✅",
-    ];
-  });
+  const rows = consolidatedRows.map((row) => [
+    row.address,
+    row.status,
+    row.tokens,
+    row.prev,
+    row.new,
+    row.change,
+    row.percentage,
+    row.claimed,
+    row.valid,
+  ]);
 
   const columnWidths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => row[index].length))
@@ -562,10 +725,11 @@ const logDistributionRowsToFile = (
   const formattedRows = rows.map((row) =>
     row.map((cell, i) => cell.padEnd(columnWidths[i])).join(" | ")
   );
-  log("\n=== Distribution Verification ===");
-  log(`Total addresses: ${distributionRows.length}`);
-  log(`Errors found: ${distributionRows.filter((r) => r.isError).length}`);
-  log(`Unclaimed: ${distributionRows.filter((r) => !r.claimed).length}\n`);
+
+  log("\n=== Distribution Verification ===" + chainInfo);
+  log(`Total addresses: ${consolidatedRows.length}`);
+  log(`Errors found: ${consolidatedRows.filter((r) => r.valid === "❌").length}`);
+  log(`Unclaimed: ${consolidatedRows.filter((r) => r.claimed === "❌").length}\n`);
 
   const fileContent = [headerLine, separatorLine, ...formattedRows].join("\n");
 

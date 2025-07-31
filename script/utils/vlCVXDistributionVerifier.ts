@@ -41,8 +41,9 @@ export const verifyVlCVXDistribution = async (
   merkleType: "forwarders" | "combined" = "combined"
 ) => {
   log("\n=== vlCVX Distribution Verification ===");
-  log(`Verifying ${gaugeType} distribution for period ${currentPeriodTimestamp}`);
-  log(`Merkle type: ${merkleType}`);
+  log(`Gauge Type: ${gaugeType.toUpperCase()}`);
+  log(`Period: ${currentPeriodTimestamp} (${new Date(currentPeriodTimestamp * 1000).toUTCString()})`);
+  log(`Merkle Type: ${merkleType}`);
 
   // Read delegation repartition file
   const delegationPath = path.join(
@@ -73,9 +74,11 @@ export const verifyVlCVXDistribution = async (
   const totalPerGroup = normalizeTokenMapping(delegationData.distribution.totalPerGroup);
   const nonDelegators = nonDelegatorsData.distribution;
 
-  log(`\nForwarders: ${Object.keys(forwarders).length}`);
-  log(`Non-Forwarder Delegators: ${Object.keys(nonForwarders).length}`);
-  log(`Non-Delegators (Direct Voters): ${Object.keys(nonDelegators).length}`);
+  log("\n=== User Categories ===");
+  log(`Forwarders (Votium): ${Object.keys(forwarders).length} addresses`);
+  log(`Non-Forwarder Delegators: ${Object.keys(nonForwarders).length} addresses`);
+  log(`Direct Voters (Non-Delegators): ${Object.keys(nonDelegators).length} addresses`);
+  log(`Total Unique Addresses: ${Object.keys(forwarders).length + Object.keys(nonForwarders).length + Object.keys(nonDelegators).length}`);
 
   // Verify each group against merkle data
   const errors: string[] = [];
@@ -86,7 +89,9 @@ export const verifyVlCVXDistribution = async (
   
   if (merkleType === "forwarders") {
     // Verify only forwarders
-    log("\n=== Verifying Forwarders ===");
+    log("\n=== Verifying Forwarders (Votium Users) ===");
+    log(`Checking ${Object.keys(forwarders).length} forwarder addresses...`);
+    
     for (const [address, share] of Object.entries(forwarders)) {
       const normalizedAddress = getAddress(address);
       const shareNumber = parseFloat(share);
@@ -122,10 +127,13 @@ export const verifyVlCVXDistribution = async (
     }
   } else {
     // Combined merkle: skip forwarders (they're not in this merkle)
-    log("\n=== Skipping Forwarders (not in combined merkle) ===");
+    log("\n=== Skipping Forwarders ===");
+    log("Forwarders are distributed through a separate merkle tree");
   }
 
   log("\n=== Verifying Non-Forwarder Delegators ===");
+  log(`Checking ${Object.keys(nonForwarders).length} non-forwarder delegator addresses...`);
+  
   for (const [address, share] of Object.entries(nonForwarders)) {
     const normalizedAddress = getAddress(address);
     const shareNumber = parseFloat(share);
@@ -160,7 +168,10 @@ export const verifyVlCVXDistribution = async (
     }
   }
 
-  log("\n=== Verifying Non-Delegators (Direct Voters) ===");
+  log("\n=== Verifying Direct Voters (Non-Delegators) ===");
+  log(`Checking ${Object.keys(nonDelegators).length} direct voter addresses...`);
+  log("These users voted directly without delegation");
+  
   for (const [address, data] of Object.entries(nonDelegators)) {
     const normalizedAddress = getAddress(address);
     const merkleEntry = currentMerkleData.claims[normalizedAddress];
@@ -195,8 +206,9 @@ export const verifyVlCVXDistribution = async (
 
   // Summary
   log("\n=== Verification Summary ===");
-  log(`Total Errors: ${errors.length}`);
-  log(`Total Warnings: ${warnings.length}`);
+  log(`✓ Total Addresses Verified: ${Object.keys(currentMerkleData.claims).length}`);
+  log(`${errors.length > 0 ? '✗' : '✓'} Total Errors: ${errors.length}`);
+  log(`${warnings.length > 0 ? '⚠' : '✓'} Total Warnings: ${warnings.length}`);
   
   if (errors.length > 0) {
     log("\n❌ Errors found:");
@@ -219,7 +231,7 @@ export const verifyVlCVXDistribution = async (
   }
 
   // Token totals verification
-  log("\n=== Token Totals Verification ===");
+  log("\n=== Token Distribution Totals ===");
   const calculatedTotals: Record<string, bigint> = {};
   
   // Sum up all week changes from merkle data
@@ -242,23 +254,28 @@ export const verifyVlCVXDistribution = async (
   
   if (merkleType === "forwarders") {
     // For forwarders merkle, compare with forwarders portion only
-    log("Comparing with forwarders portion only:");
+    log("\nExpected Distribution (Forwarders Only):");
     for (const [token, groupAmounts] of Object.entries(totalPerGroup)) {
       const normalizedToken = getAddress(token);
       const expected = BigInt(groupAmounts.forwarders);
       const calculated = calculatedTotals[normalizedToken] || 0n;
       
-      log(`${token}: expected ${expected.toString()}, calculated ${calculated.toString()}`);
+      const tokenSymbol = token.startsWith('0x') ? `Token ${token.slice(0, 10)}...` : token;
+      log(`${tokenSymbol}:`);
+      log(`  Expected: ${expected.toString()}`);
+      log(`  Calculated: ${calculated.toString()}`);
       
       if (expected !== calculated) {
         const diff = expected > calculated ? expected - calculated : calculated - expected;
         const percentage = Number(diff * 10000n / expected) / 100;
         log(`  ⚠️  Difference: ${diff.toString()} (${percentage.toFixed(2)}%)`);
+      } else {
+        log(`  ✓ Match`);
       }
     }
   } else {
     // For combined merkle, compare with non-forwarders portion + direct voters
-    log("Comparing with non-forwarders + direct voters:");
+    log("\nExpected Distribution (Non-Forwarders + Direct Voters):");
     
     // Calculate expected totals for non-forwarders + direct voters
     const expectedTotals: Record<string, bigint> = {};
@@ -281,12 +298,17 @@ export const verifyVlCVXDistribution = async (
     for (const [token, expected] of Object.entries(expectedTotals)) {
       const calculated = calculatedTotals[token] || 0n;
       
-      log(`${token}: expected ${expected.toString()}, calculated ${calculated.toString()}`);
+      const tokenSymbol = token.startsWith('0x') ? `Token ${token.slice(0, 10)}...` : token;
+      log(`${tokenSymbol}:`);
+      log(`  Expected: ${expected.toString()}`);
+      log(`  Calculated: ${calculated.toString()}`);
       
       if (expected !== calculated) {
         const diff = expected > calculated ? expected - calculated : calculated - expected;
         const percentage = expected > 0n ? Number(diff * 10000n / expected) / 100 : 0;
         log(`  ⚠️  Difference: ${diff.toString()} (${percentage.toFixed(2)}%)`);
+      } else {
+        log(`  ✓ Match`);
       }
     }
   }
