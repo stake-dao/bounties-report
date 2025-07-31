@@ -284,7 +284,8 @@ export const distributionVerifier = async (
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
   proposalId: any,
   chainId: string = "1",
-  merkleType: "forwarders" | "combined" = "combined"
+  merkleType: "forwarders" | "combined" = "combined",
+  compactMode: boolean = false
 ) => {
   const addressCount = Object.keys(distribution).length;
   console.log(`Current Distribution has ${addressCount} addresses.`);
@@ -406,7 +407,12 @@ export const distributionVerifier = async (
     space,
     currentPeriodTimestamp
   );
-  logDistributionRowsToFile(comparisonRows, tokenInfos, log, merkleChain);
+  // Use compact mode if there are many distributions
+  const useCompactMode = compactMode || comparisonRows.length > 100;
+  if (useCompactMode) {
+    log("\n📊 Using compact mode due to large number of distributions");
+  }
+  logDistributionRowsToFile(comparisonRows, tokenInfos, log, merkleChain, useCompactMode);
 
   // --- Log formatted week-change totals per token ---
   console.log("\n=== Week Changes ===");
@@ -601,118 +607,196 @@ const logDistributionRowsToFile = (
   distributionRows: DistributionRow[],
   tokenInfos: { [token: string]: { decimals: number; symbol: string } },
   log: (message: string) => void,
-  chain?: Chain
+  chain?: Chain,
+  compactMode: boolean = false
 ) => {
-  // Group rows by address
-  const groupedByAddress: { [address: string]: DistributionRow[] } = {};
-  distributionRows.forEach((row) => {
-    const addr = row.address.toLowerCase();
-    if (!groupedByAddress[addr]) {
-      groupedByAddress[addr] = [];
-    }
-    groupedByAddress[addr].push(row);
-  });
+  // Add chain info to headers if available
+  const chainInfo = chain ? ` (Chain: ${chain.name})` : "";
 
-  // Sort addresses and prepare consolidated rows
-  const sortedAddresses = Object.keys(groupedByAddress).sort();
-  const consolidatedRows: any[] = [];
-
-  sortedAddresses.forEach((address) => {
-    const addressRows = groupedByAddress[address];
-    // Sort tokens within each address by week change (descending)
-    addressRows.sort((a, b) => {
-      if (b.weekChange > a.weekChange) return 1;
-      if (b.weekChange < a.weekChange) return -1;
-      return 0;
-    });
-
-    // Get user type from first row (should be same for all tokens of same address)
-    const userType = addressRows[0].userType;
-    let statusDisplay = "-";
-    if (userType === "forwarder") {
-      statusDisplay = "Forwarder";
-    } else if (userType === "non-forwarder") {
-      statusDisplay = "Non-Forwarder";
-    } else if (userType === "voter") {
-      statusDisplay = "Voter";
-    }
-
-    // Aggregate data for this address
-    const tokenData: string[] = [];
-    const prevAmounts: string[] = [];
-    const newAmounts: string[] = [];
-    const changes: string[] = [];
-    const percentages: string[] = [];
-    let allClaimed = true;
-    let hasError = false;
-
-    addressRows.forEach((row) => {
-      const tokenInfo = tokenInfos[row.tokenAddress] || {
-        decimals: 18,
-        symbol: row.symbol !== "UNKNOWN" ? row.symbol : "UNKNOWN",
-      };
-      const decimals = tokenInfo.decimals;
-      
-      // Only include tokens with non-zero week change
-      if (row.weekChange !== 0n) {
-        tokenData.push(tokenInfo.symbol);
-        prevAmounts.push((Number(row.prevAmount) / 10 ** decimals).toFixed(2));
-        newAmounts.push((Number(row.newAmount) / 10 ** decimals).toFixed(2));
-        changes.push((Number(row.weekChange) / 10 ** decimals).toFixed(2));
-        
-        const percentageStr =
-          row.weekChange > 0n && row.weekChangePercentage !== undefined
-            ? `${row.weekChangePercentage.toFixed(2)}%`
-            : "-";
-        percentages.push(percentageStr);
+  // In compact mode, group by address and show summary
+  if (compactMode) {
+    // Group rows by address
+    const groupedByAddress: { [address: string]: DistributionRow[] } = {};
+    distributionRows.forEach((row) => {
+      if (row.weekChange === 0n) return; // Skip zero changes
+      const addr = row.address.toLowerCase();
+      if (!groupedByAddress[addr]) {
+        groupedByAddress[addr] = [];
       }
-      
-      if (!row.claimed) allClaimed = false;
-      if (row.isError) hasError = true;
+      groupedByAddress[addr].push(row);
     });
 
-    // Only add row if there are tokens with changes
-    if (tokenData.length > 0) {
-      consolidatedRows.push({
-        address: addressRows[0].address,
-        status: statusDisplay,
-        tokens: tokenData.join(", "),
-        prev: prevAmounts.join(", "),
-        new: newAmounts.join(", "),
-        change: changes.join(", "),
-        percentage: percentages.join(", "),
-        claimed: allClaimed ? "✅" : "❌",
-        valid: hasError ? "❌" : "✅",
+    const sortedAddresses = Object.keys(groupedByAddress).sort();
+    
+    log("\n=== Distribution Verification (Compact Mode) ===" + chainInfo);
+    log(`Total unique addresses: ${sortedAddresses.length}`);
+    log(`Total token distributions: ${distributionRows.filter(r => r.weekChange !== 0n).length}\n`);
+
+    const headers = ["Address", "Status", "Tokens", "Total Change", "Claimed", "Valid"];
+    const rows: string[][] = [];
+
+    sortedAddresses.forEach((address) => {
+      const addressRows = groupedByAddress[address];
+      const firstRow = addressRows[0];
+      
+      // Get user type
+      let statusDisplay = "-";
+      if (firstRow.userType === "forwarder") {
+        statusDisplay = "Forwarder";
+      } else if (firstRow.userType === "non-forwarder") {
+        statusDisplay = "Non-Forwarder";
+      } else if (firstRow.userType === "voter") {
+        statusDisplay = "Voter";
+      }
+
+      // Aggregate token info
+      const tokenSummary: { [symbol: string]: number } = {};
+      let allClaimed = true;
+      let hasError = false;
+
+      addressRows.forEach((row) => {
+        const tokenInfo = tokenInfos[row.tokenAddress] || {
+          decimals: 18,
+          symbol: row.symbol || "UNKNOWN",
+        };
+        const change = Number(row.weekChange) / 10 ** tokenInfo.decimals;
+        tokenSummary[tokenInfo.symbol] = (tokenSummary[tokenInfo.symbol] || 0) + change;
+        
+        if (!row.claimed) allClaimed = false;
+        if (row.isError) hasError = true;
       });
+
+      // Format tokens and changes
+      const tokenList = Object.keys(tokenSummary).sort();
+      const tokenStr = tokenList.length > 3 
+        ? `${tokenList.slice(0, 3).join(", ")}... (${tokenList.length} tokens)`
+        : tokenList.join(", ");
+      
+      const totalChangeStr = Object.values(tokenSummary)
+        .reduce((sum, val) => sum + val, 0)
+        .toFixed(2) + " USD";
+
+      rows.push([
+        formatAddress(firstRow.address),
+        statusDisplay,
+        tokenStr,
+        totalChangeStr,
+        allClaimed ? "✅" : "❌",
+        hasError ? "❌" : "✅",
+      ]);
+    });
+
+    const columnWidths = headers.map((header, index) =>
+      Math.max(header.length, ...rows.map((row) => row[index].length))
+    );
+
+    const headerLine = headers.map((h, i) => h.padEnd(columnWidths[i])).join(" | ");
+    const separatorLine = columnWidths.map((w) => "-".repeat(w)).join("-|-");
+    const formattedRows = rows.map((row) =>
+      row.map((cell, i) => cell.padEnd(columnWidths[i])).join(" | ")
+    );
+
+    log([headerLine, separatorLine, ...formattedRows].join("\n") + "\n");
+    return;
+  }
+
+  // Regular detailed mode
+  // Sort rows by address first, then by week change within each address
+  distributionRows.sort((a, b) => {
+    if (a.address.toLowerCase() !== b.address.toLowerCase()) {
+      return a.address.toLowerCase() < b.address.toLowerCase() ? -1 : 1;
     }
+    // Within same address, sort by descending week changes
+    if (b.weekChange > a.weekChange) return 1;
+    if (b.weekChange < a.weekChange) return -1;
+    return 0;
   });
 
   const headers = [
     "Address",
-    "Status",
-    "Tokens",
-    "Prev",
-    "New",
+    "Token",
+    "Previous",
+    "Current",
     "Change",
-    "% Share",
+    "Share %",
     "Claimed",
-    "Valid",
   ];
 
-  // Add chain info to headers if available
-  const chainInfo = chain ? ` (Chain: ${chain.name})` : "";
+  const rows: string[][] = [];
+  let lastAddress = "";
+  const uniqueAddresses = new Set<string>();
+  const addressesWithErrors = new Set<string>();
+  const addressesUnclaimed = new Set<string>();
 
-  const rows = consolidatedRows.map((row) => [
-    row.address,
-    row.status,
-    row.tokens,
-    row.prev,
-    row.new,
-    row.change,
-    row.percentage,
-    row.claimed,
-    row.valid,
-  ]);
+  distributionRows.forEach((row) => {
+    const tokenInfo = tokenInfos[row.tokenAddress] || {
+      decimals: 18,
+      symbol: row.symbol || "UNKNOWN",
+    };
+    const decimals = tokenInfo.decimals;
+    
+    // Skip tokens with zero week change
+    if (row.weekChange === 0n) {
+      return;
+    }
+
+    uniqueAddresses.add(row.address.toLowerCase());
+    if (row.isError) addressesWithErrors.add(row.address.toLowerCase());
+    if (!row.claimed) addressesUnclaimed.add(row.address.toLowerCase());
+
+    // Format status column
+    let statusDisplay = "-";
+    if (row.userType === "forwarder") {
+      statusDisplay = "Forwarder";
+    } else if (row.userType === "non-forwarder") {
+      statusDisplay = "Non-Forwarder";
+    } else if (row.userType === "voter") {
+      statusDisplay = "Voter";
+    }
+
+    // Convert raw BigInt values to floating point numbers for display
+    const formattedPrev = Number(row.prevAmount) / 10 ** decimals;
+    const formattedNew = Number(row.newAmount) / 10 ** decimals;
+    const formattedWeekChange = Number(row.weekChange) / 10 ** decimals;
+
+    const percentageStr =
+      row.weekChange > 0n && row.weekChangePercentage !== undefined
+        ? `${row.weekChangePercentage.toFixed(2)}%`
+        : "-";
+
+    // For repeated addresses, show abbreviated address with status indicator
+    const isNewAddress = row.address !== lastAddress;
+    let displayAddress = "";
+    
+    if (isNewAddress) {
+      const statusIndicator = 
+        row.userType === "forwarder" ? "🔄" :
+        row.userType === "voter" ? "🗳️" : 
+        row.userType === "non-forwarder" ? "👤" : "";
+      displayAddress = `${statusIndicator} ${formatAddress(row.address)}`;
+    } else {
+      displayAddress = "  └─";
+    }
+
+    rows.push([
+      displayAddress,
+      tokenInfo.symbol,
+      formattedPrev.toFixed(2),
+      formattedNew.toFixed(2),
+      formattedWeekChange.toFixed(2),
+      percentageStr,
+      row.claimed ? "✅" : "❌",
+    ]);
+
+    // Add a separator row after each address group (except the last)
+    if (isNewAddress && lastAddress !== "") {
+      // Insert empty row before the new address
+      const emptyRow = new Array(7).fill(""); // 7 columns now
+      rows.splice(rows.length - 1, 0, emptyRow);
+    }
+
+    lastAddress = row.address;
+  });
 
   const columnWidths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => row[index].length))
@@ -727,9 +811,13 @@ const logDistributionRowsToFile = (
   );
 
   log("\n=== Distribution Verification ===" + chainInfo);
-  log(`Total addresses: ${consolidatedRows.length}`);
-  log(`Errors found: ${consolidatedRows.filter((r) => r.valid === "❌").length}`);
-  log(`Unclaimed: ${consolidatedRows.filter((r) => r.claimed === "❌").length}\n`);
+  log(`Total unique addresses: ${uniqueAddresses.size}`);
+  log(`Total token distributions: ${rows.filter(r => r[0] !== "").length}`);
+  if (addressesWithErrors.size > 0) {
+    log(`⚠️  Addresses with errors: ${addressesWithErrors.size}`);
+  }
+  log(`📊 Unclaimed tokens: ${addressesUnclaimed.size} addresses`);
+  log("\nLegend: 🔄 Forwarder | 🗳️ Voter | 👤 Non-Forwarder Delegator\n");
 
   const fileContent = [headerLine, separatorLine, ...formattedRows].join("\n");
 
