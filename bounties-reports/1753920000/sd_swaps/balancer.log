@@ -1,0 +1,27 @@
+Stake DAO - Swap Report
+Protocol: BALANCER
+Timestamp: 1753920000
+Date: 2025-07-31 00:00:00 UTC
+--------------------------------------------------------------------------------
+
+📊 BALANCER Swap Report
+
+🔄 https://etherscan.io/tx/0x5cb105070066c9320a52fe915d7617b679c49821cc50d95b2bb3dd3b31e0f57c Transaction
+├─ https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL: 962.54 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 1.3613
+├─ https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 WETH: 0.23 → 0.2335 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (16.2%)
+└─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 2,116.07 → 1.1278 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (78.4%)
+
+🔄 https://etherscan.io/tx/0xd750adb24a791d61292b0d63856e3a7973ecc47d84ed163a4d01a2b5fd68bd25 Transaction
+├─ https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL: 54.58 • https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL: 221.41 • https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH: 0.0771
+└─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 286.68 → 0.0771 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH (5.4%)
+
+
+🔍 Token Contributions:
+├─ https://etherscan.io/token/0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f SDT: 2,116.07 → 1.1278 WETH (78.4%)
+├─ https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 WETH: 0.23 → 0.2335 WETH (16.2%)
+├─ https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 USDC: 286.68 → 0.0771 WETH (5.4%)
+
+📈 Final Summary
+└─ 1,979.67 https://etherscan.io/token/0xF24d8651578a55b0C119B9910759a351A3458895 sdBAL
+   └─ via 1.4384 https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 WETH
+      └─ to 221.41 https://etherscan.io/token/0xba100000625a3754423978a60c9317c58a424e3D BAL
