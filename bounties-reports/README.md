@@ -15,7 +15,6 @@ bounties-reports/
 │   │       └── {protocol}.csv
 │   ├── vlCVX/                  # vlCVX specific files
 │   ├── spectra/                # Spectra specific files
-│   └── sd_swaps/               # Swap analysis logs
 └── latest/                     # Current active distributions
     ├── merkle.json
     ├── delegationsAPRs.json
@@ -104,19 +103,6 @@ Files are automatically updated after each weekly distribution.
 ### Special Files
 - **pendle-otc.csv** - OTC distributions for Pendle
 - **curve-otc.csv** - OTC distributions for Curve
-
-## 🔍 Swap Analysis
-
-The `sd_swaps/` directory contains logs from swap analysis:
-```
-sd_swaps/
-├── curve.log
-├── balancer.log
-├── frax.log
-└── fxn.log
-```
-
-These logs track sdToken swap activity to calculate reward distributions.
 
 ## 🛠️ Generation Process
 
