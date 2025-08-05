@@ -282,10 +282,9 @@ export const distributionVerifier = async (
   currentMerkleData: MerkleData,
   previousMerkleData: MerkleData,
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
-  proposalId: any,
-  chainId: string = "1",
-  merkleType: "forwarders" | "combined" = "combined",
-  compactMode: boolean = false
+  proposalId?: string,
+  merkleType?: string,
+  merkleSubType?: string
 ) => {
   const addressCount = Object.keys(distribution).length;
   console.log(`Current Distribution has ${addressCount} addresses.`);
@@ -373,7 +372,7 @@ export const distributionVerifier = async (
 
   proposalInformationLogger(space, activeProposal, log);
   log("\n=== Delegation Information ===");
-  await delegationLogger(space, activeProposal, votes, log, chainId);
+  await delegationLogger(space, activeProposal, votes, log, merkleChain.id.toString());
   log(`\nTotal Votes: ${votes.length}`);
   log(`\nHolder Distribution:`);
 
@@ -407,12 +406,7 @@ export const distributionVerifier = async (
     space,
     currentPeriodTimestamp
   );
-  // Use compact mode if there are many distributions
-  const useCompactMode = compactMode || comparisonRows.length > 100;
-  if (useCompactMode) {
-    log("\n📊 Using compact mode due to large number of distributions");
-  }
-  logDistributionRowsToFile(comparisonRows, tokenInfos, log, merkleChain, useCompactMode);
+  logDistributionRowsToFile(comparisonRows, tokenInfos, log, merkleChain);
 
   // --- Log formatted week-change totals per token ---
   console.log("\n=== Week Changes ===");
@@ -607,98 +601,10 @@ const logDistributionRowsToFile = (
   distributionRows: DistributionRow[],
   tokenInfos: { [token: string]: { decimals: number; symbol: string } },
   log: (message: string) => void,
-  chain?: Chain,
-  compactMode: boolean = false
+  chain?: Chain
 ) => {
   // Add chain info to headers if available
   const chainInfo = chain ? ` (Chain: ${chain.name})` : "";
-
-  // In compact mode, group by address and show summary
-  if (compactMode) {
-    // Group rows by address
-    const groupedByAddress: { [address: string]: DistributionRow[] } = {};
-    distributionRows.forEach((row) => {
-      if (row.weekChange === 0n) return; // Skip zero changes
-      const addr = row.address.toLowerCase();
-      if (!groupedByAddress[addr]) {
-        groupedByAddress[addr] = [];
-      }
-      groupedByAddress[addr].push(row);
-    });
-
-    const sortedAddresses = Object.keys(groupedByAddress).sort();
-    
-    log("\n=== Distribution Verification (Compact Mode) ===" + chainInfo);
-    log(`Total unique addresses: ${sortedAddresses.length}`);
-    log(`Total token distributions: ${distributionRows.filter(r => r.weekChange !== 0n).length}\n`);
-
-    const headers = ["Address", "Status", "Tokens", "Total Change", "Claimed", "Valid"];
-    const rows: string[][] = [];
-
-    sortedAddresses.forEach((address) => {
-      const addressRows = groupedByAddress[address];
-      const firstRow = addressRows[0];
-      
-      // Get user type
-      let statusDisplay = "-";
-      if (firstRow.userType === "forwarder") {
-        statusDisplay = "Forwarder";
-      } else if (firstRow.userType === "non-forwarder") {
-        statusDisplay = "Non-Forwarder";
-      } else if (firstRow.userType === "voter") {
-        statusDisplay = "Voter";
-      }
-
-      // Aggregate token info
-      const tokenSummary: { [symbol: string]: number } = {};
-      let allClaimed = true;
-      let hasError = false;
-
-      addressRows.forEach((row) => {
-        const tokenInfo = tokenInfos[row.tokenAddress] || {
-          decimals: 18,
-          symbol: row.symbol || "UNKNOWN",
-        };
-        const change = Number(row.weekChange) / 10 ** tokenInfo.decimals;
-        tokenSummary[tokenInfo.symbol] = (tokenSummary[tokenInfo.symbol] || 0) + change;
-        
-        if (!row.claimed) allClaimed = false;
-        if (row.isError) hasError = true;
-      });
-
-      // Format tokens and changes
-      const tokenList = Object.keys(tokenSummary).sort();
-      const tokenStr = tokenList.length > 3 
-        ? `${tokenList.slice(0, 3).join(", ")}... (${tokenList.length} tokens)`
-        : tokenList.join(", ");
-      
-      const totalChangeStr = Object.values(tokenSummary)
-        .reduce((sum, val) => sum + val, 0)
-        .toFixed(2) + " USD";
-
-      rows.push([
-        formatAddress(firstRow.address),
-        statusDisplay,
-        tokenStr,
-        totalChangeStr,
-        allClaimed ? "✅" : "❌",
-        hasError ? "❌" : "✅",
-      ]);
-    });
-
-    const columnWidths = headers.map((header, index) =>
-      Math.max(header.length, ...rows.map((row) => row[index].length))
-    );
-
-    const headerLine = headers.map((h, i) => h.padEnd(columnWidths[i])).join(" | ");
-    const separatorLine = columnWidths.map((w) => "-".repeat(w)).join("-|-");
-    const formattedRows = rows.map((row) =>
-      row.map((cell, i) => cell.padEnd(columnWidths[i])).join(" | ")
-    );
-
-    log([headerLine, separatorLine, ...formattedRows].join("\n") + "\n");
-    return;
-  }
 
   // Regular detailed mode
   // Sort rows by address first, then by week change within each address
@@ -719,7 +625,7 @@ const logDistributionRowsToFile = (
     "Current",
     "Change",
     "Share %",
-    "Claimed",
+    "Status",
   ];
 
   const rows: string[][] = [];
@@ -727,7 +633,27 @@ const logDistributionRowsToFile = (
   const uniqueAddresses = new Set<string>();
   const addressesWithErrors = new Set<string>();
   const addressesUnclaimed = new Set<string>();
+  const addressStats: { [address: string]: { totalChange: number; tokenCount: number; hasError: boolean; allClaimed: boolean } } = {};
 
+  // First pass: collect statistics per address
+  distributionRows.forEach((row) => {
+    if (row.weekChange === 0n) return;
+    
+    const addr = row.address.toLowerCase();
+    if (!addressStats[addr]) {
+      addressStats[addr] = { totalChange: 0, tokenCount: 0, hasError: false, allClaimed: true };
+    }
+    
+    const tokenInfo = tokenInfos[row.tokenAddress] || { decimals: 18, symbol: "UNKNOWN" };
+    const change = Number(row.weekChange) / 10 ** tokenInfo.decimals;
+    
+    addressStats[addr].totalChange += change;
+    addressStats[addr].tokenCount++;
+    if (row.isError) addressStats[addr].hasError = true;
+    if (!row.claimed) addressStats[addr].allClaimed = false;
+  });
+
+  // Second pass: create rows
   distributionRows.forEach((row) => {
     const tokenInfo = tokenInfos[row.tokenAddress] || {
       decimals: 18,
@@ -744,16 +670,6 @@ const logDistributionRowsToFile = (
     if (row.isError) addressesWithErrors.add(row.address.toLowerCase());
     if (!row.claimed) addressesUnclaimed.add(row.address.toLowerCase());
 
-    // Format status column
-    let statusDisplay = "-";
-    if (row.userType === "forwarder") {
-      statusDisplay = "Forwarder";
-    } else if (row.userType === "non-forwarder") {
-      statusDisplay = "Non-Forwarder";
-    } else if (row.userType === "voter") {
-      statusDisplay = "Voter";
-    }
-
     // Convert raw BigInt values to floating point numbers for display
     const formattedPrev = Number(row.prevAmount) / 10 ** decimals;
     const formattedNew = Number(row.newAmount) / 10 ** decimals;
@@ -764,36 +680,36 @@ const logDistributionRowsToFile = (
         ? `${row.weekChangePercentage.toFixed(2)}%`
         : "-";
 
-    // For repeated addresses, show abbreviated address with status indicator
+    // For repeated addresses, show abbreviated address
     const isNewAddress = row.address !== lastAddress;
     let displayAddress = "";
     
     if (isNewAddress) {
-      const statusIndicator = 
-        row.userType === "forwarder" ? "🔄" :
-        row.userType === "voter" ? "🗳️" : 
-        row.userType === "non-forwarder" ? "👤" : "";
-      displayAddress = `${statusIndicator} ${formatAddress(row.address)}`;
+      displayAddress = formatAddress(row.address);
     } else {
       displayAddress = "  └─";
     }
+
+    // Status column shows claim status and user type with error indicators
+    let statusStr = row.claimed ? "✅" : "❌";
+    
+    // Add user type if available
+    if (row.userType === "forwarder") statusStr += " 🔄";
+    else if (row.userType === "voter") statusStr += " 🗳️";
+    else if (row.userType === "non-forwarder") statusStr += " 👤";
+    
+    // Add error indicator if applicable
+    if (row.isError) statusStr += " ⚠️";
 
     rows.push([
       displayAddress,
       tokenInfo.symbol,
       formattedPrev.toFixed(2),
       formattedNew.toFixed(2),
-      formattedWeekChange.toFixed(2),
+      formattedWeekChange > 0 ? `+${formattedWeekChange.toFixed(2)}` : formattedWeekChange.toFixed(2),
       percentageStr,
-      row.claimed ? "✅" : "❌",
+      statusStr,
     ]);
-
-    // Add a separator row after each address group (except the last)
-    if (isNewAddress && lastAddress !== "") {
-      // Insert empty row before the new address
-      const emptyRow = new Array(7).fill(""); // 7 columns now
-      rows.splice(rows.length - 1, 0, emptyRow);
-    }
 
     lastAddress = row.address;
   });
@@ -811,13 +727,35 @@ const logDistributionRowsToFile = (
   );
 
   log("\n=== Distribution Verification ===" + chainInfo);
-  log(`Total unique addresses: ${uniqueAddresses.size}`);
-  log(`Total token distributions: ${rows.filter(r => r[0] !== "").length}`);
+  log(`📊 Summary:`);
+  log(`  • Total addresses: ${uniqueAddresses.size}`);
+  log(`  • Total distributions: ${rows.length}`);
   if (addressesWithErrors.size > 0) {
-    log(`⚠️  Addresses with errors: ${addressesWithErrors.size}`);
+    log(`  • ⚠️  Addresses with errors: ${addressesWithErrors.size}`);
   }
-  log(`📊 Unclaimed tokens: ${addressesUnclaimed.size} addresses`);
-  log("\nLegend: 🔄 Forwarder | 🗳️ Voter | 👤 Non-Forwarder Delegator\n");
+  if (addressesUnclaimed.size > 0) {
+    log(`  • 📋 Unclaimed distributions: ${addressesUnclaimed.size} addresses`);
+  }
+  
+  // Calculate total changes by token
+  const tokenTotals: { [symbol: string]: number } = {};
+  distributionRows.forEach((row) => {
+    if (row.weekChange === 0n) return;
+    const tokenInfo = tokenInfos[row.tokenAddress] || { decimals: 18, symbol: row.symbol || "UNKNOWN" };
+    const change = Number(row.weekChange) / 10 ** tokenInfo.decimals;
+    tokenTotals[tokenInfo.symbol] = (tokenTotals[tokenInfo.symbol] || 0) + change;
+  });
+  
+  if (Object.keys(tokenTotals).length > 0) {
+    log(`\n📈 Token Distribution Summary:`);
+    Object.entries(tokenTotals)
+      .sort(([, a], [, b]) => b - a)
+      .forEach(([symbol, total]) => {
+        log(`  • ${symbol}: ${total.toFixed(2)}`);
+      });
+  }
+  
+  log("\n🔍 Legend (Status column): ✅ Claimed | ❌ Unclaimed | 🔄 Forwarder | 🗳️ Voter | 👤 Non-Forwarder | ⚠️ Error\n");
 
   const fileContent = [headerLine, separatorLine, ...formattedRows].join("\n");
 

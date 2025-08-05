@@ -593,7 +593,7 @@ async function processForwarders() {
       currentDistribution.distribution,
       proposalId,
       "1",
-      "forwarders",
+      "forwarders"
     );
   } catch (error) {
     console.error("Error running distribution verifier:", error);
