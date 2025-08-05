@@ -153,54 +153,24 @@ export async function getSpectraDistribution() {
 
     console.log(`Processing pool ${claim.poolAddress} with PT symbol: ${symbol}`);
 
-    let maturity: number;
-    let maturityFormatted: string;
+    const splits = symbol.split("-");
+    const m = splits.pop().toString()
 
-    // First, try to get maturity from the PT contract directly
-    try {
-      maturity = await client.readContract({
-        address: coinPT,
-        abi: ptAbi,
-        functionName: "maturity",
-      });
-      maturityFormatted = moment.unix(Number(maturity)).format("L");
-    } catch (error) {
-      console.error(`Failed to get maturity for ${symbol}:`, error);
-      
-      // Fallback: try to parse from symbol
-      const splits = symbol.split("-");
-      const lastElement = splits[splits.length - 1];
-      
-      // Check if the last element is a valid timestamp
-      if (!isNaN(parseInt(lastElement)) && lastElement.length >= 9) {
-        maturity = parseInt(lastElement);
-        maturityFormatted = moment.unix(maturity).format("L");
-      } else {
-        // Try to parse date format like "2026/01/18"
-        const dateMatch = symbol.match(/(\d{4})\/(\d{2})\/(\d{2})/);
-        if (dateMatch) {
-          const [, year, month, day] = dateMatch;
-          maturityFormatted = `${month}/${day}/${year}`;
-        } else {
-          maturityFormatted = "01/01/1970"; // Final fallback
-        }
-      }
+    let maturityFormatted = "";
+    if (m.indexOf("/") > -1) {
+      maturityFormatted = moment(m, 'YYYY/MM/DD').format('MM/DD/YYYY');
+    } else {
+      const maturity = parseInt(m as string);
+      maturityFormatted = moment.unix(maturity).format("L");
     }
 
     const chainName = getChainIdName(claim.chainId)
       .toLowerCase()
       .replace(" ", "");
 
-    // Clean up the symbol by removing PT prefix, parentheses content, timestamps, and dates
-    let cleanedSymbol = symbol
-      .replace(/^PT-/, '') // Remove PT prefix
-      .replace(/\([^)]*\)/g, '') // Remove parentheses content
-      .replace(/-\d{10}/, '') // Remove Unix timestamps (10 digits)
-      .replace(/\d{4}\/\d{2}\/\d{2}/, '') // Remove date format
-      .replace(/-+$/, '') // Remove trailing dashes
-      .trim();
-    
-    claim.name = `${chainName}-${cleanedSymbol}-${maturityFormatted}`;
+    claim.name = `${chainName}-${splits.join(
+      "-"
+    )}-${maturityFormatted}`.replace("-PT", "");
   }
 
   return claimeds;
