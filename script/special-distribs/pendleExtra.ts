@@ -1,21 +1,11 @@
-/*
-1. Reading from latest month of folders : https://github.com/pendle-finance/merkle-distributions/tree/main/external-rewards/1
-2. `campaign.json` : File containing details (need to take our rewards (DELEGATION) + the pool info (in extInfo assetId -)) (the token is TOKEN field)
-3. Minus 15% of fees; for each token, generate a merkle tree -> based on holders from https://github.com/stake-dao/api/blob/main/api/strategies/pendle/holders/index.json; matched with timestamp on each token 
-from `fromTimestamp` to `toTimestamp` (use historical + current holders)
-*/
-
-import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { getAddress } from "viem";
-import MerkleTree from "merkletreejs";
-import keccak256 from "keccak256";
-import { MerkleData } from "../interfaces/MerkleData";
-import { UniversalMerkle } from "../interfaces/UniversalMerkle";
+import crypto from "crypto";
 
 const PENDLE_MERKLE_DISTRIBUTIONS_API = "https://api.github.com/repos/pendle-finance/merkle-distributions/contents/external-rewards/1";
-const STAKE_DAO_HOLDERS_API = "https://raw.githubusercontent.com/stake-dao/api/main/api/strategies/pendle/holders/index.json";
+// Use environment variable or default to production
+const STAKE_DAO_API_BASE = "http://localhost:3000/strategies/pendle/holders";
 const FEE_PERCENTAGE = 0.15; // 15% fee
 const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 
@@ -36,61 +26,136 @@ interface PendleCampaign {
   [key: string]: any;
 }
 
-interface CurrentHolder {
+interface PeriodHolder {
   user: string;
-  balance: string;
+  holding_duration_days: number;
+  max_balance_in_period: string;
+  is_current_holder: boolean;
+  entry_date: string;
+  exit_date: string | null;
 }
 
-interface HistoricalHolder {
-  user: string;
-  entry_block: number;
-  entry_ts: string;
-  max_balance: string;
-  exit_block?: number;
-  exit_ts?: string;
-  is_past_user: boolean;
+interface GaugePeriodData {
+  gauge_id: string;
+  token: {
+    address: string;
+    symbol: string;
+  };
+  holders_in_period: number;
+  holders: PeriodHolder[];
 }
 
-interface PoolHolderEntry {
-  id: string;
-  lpt: string;
-  lpt_symbol: string;
-  holders: CurrentHolder[];
-  holder_count: number;
-  historical_data: HistoricalHolder[];
-  past_users: HistoricalHolder[];
-  total_unique_users: number;
-  past_users_count: number;
+interface PeriodResponse {
+  period: {
+    start: string;
+    end: string;
+  };
+  gauges: GaugePeriodData[];
 }
 
-interface HolderApiResponse {
-  lp_holder: string;
-  gauge_count: number;
-  gauges: PoolHolderEntry[];
+interface UniversalMerkle {
+  [address: string]: {
+    [token: string]: string;
+  };
 }
 
-interface HolderData {
-  address: string;
-  balance: string;
-  timestamp: number;
+interface MerkleData {
+  merkleRoot: string;
+  claims: any;
 }
 
+// Simple keccak256 implementation
+function keccak256(data: Buffer): Buffer {
+  return crypto.createHash('sha3-256').update(data).digest();
+}
 
+// Simple MerkleTree implementation
+class MerkleTree {
+  private leaves: Buffer[];
+  private layers: Buffer[][];
+
+  constructor(leaves: string[], hashFn: (data: Buffer) => Buffer, options?: { sortPairs?: boolean }) {
+    this.leaves = leaves.map(leaf => Buffer.from(leaf, 'hex'));
+    if (options?.sortPairs) {
+      this.leaves.sort(Buffer.compare);
+    }
+    this.layers = [this.leaves];
+    this.createTree(hashFn);
+  }
+
+  private createTree(hashFn: (data: Buffer) => Buffer) {
+    let currentLayer = this.leaves;
+    while (currentLayer.length > 1) {
+      const nextLayer: Buffer[] = [];
+      for (let i = 0; i < currentLayer.length; i += 2) {
+        if (i + 1 === currentLayer.length) {
+          nextLayer.push(currentLayer[i]);
+        } else {
+          const left = currentLayer[i];
+          const right = currentLayer[i + 1];
+          const combined = Buffer.compare(left, right) < 0 
+            ? Buffer.concat([left, right])
+            : Buffer.concat([right, left]);
+          nextLayer.push(hashFn(combined));
+        }
+      }
+      this.layers.push(nextLayer);
+      currentLayer = nextLayer;
+    }
+  }
+
+  getHexRoot(): string {
+    if (this.layers.length === 0 || this.layers[this.layers.length - 1].length === 0) {
+      return '0x0000000000000000000000000000000000000000000000000000000000000000';
+    }
+    return '0x' + this.layers[this.layers.length - 1][0].toString('hex');
+  }
+
+  getHexProof(leaf: Buffer): string[] {
+    const proof: string[] = [];
+    let index = this.leaves.findIndex(l => l.equals(leaf));
+    
+    if (index === -1) return proof;
+
+    for (let i = 0; i < this.layers.length - 1; i++) {
+      const layer = this.layers[i];
+      const isRightNode = index % 2 === 1;
+      const pairIndex = isRightNode ? index - 1 : index + 1;
+
+      if (pairIndex < layer.length) {
+        proof.push('0x' + layer[pairIndex].toString('hex'));
+      }
+
+      index = Math.floor(index / 2);
+    }
+
+    return proof;
+  }
+}
 
 async function fetchCampaignData(folderName: string): Promise<PendleCampaign[]> {
   try {
     const campaignUrl = `https://raw.githubusercontent.com/pendle-finance/merkle-distributions/main/external-rewards/1/${folderName}/campaign.json`;
     console.log(`Fetching campaign data from: ${campaignUrl}`);
     
-    const response = await axios.get(campaignUrl);
+    const response = await fetch(campaignUrl);
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.error(`Campaign file not found for folder ${folderName}`);
+        return [];
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
     
     // Check if the response has the expected structure
-    if (!response.data || !response.data.distributions) {
+    if (!data || !data.distributions) {
       console.log("Campaign data does not have 'distributions' field");
       return [];
     }
     
-    const distributions = response.data.distributions;
+    const distributions = data.distributions;
     if (!Array.isArray(distributions)) {
       console.log("Distributions is not an array");
       return [];
@@ -128,78 +193,67 @@ async function fetchCampaignData(folderName: string): Promise<PendleCampaign[]> 
     console.log(`Found ${ourCampaigns.length} distributions for delegation address`);
     return ourCampaigns;
   } catch (error: any) {
-    if (error.response?.status === 404) {
-      console.error(`Campaign file not found for folder ${folderName}`);
-      return [];
-    }
     console.error("Error fetching campaign data:", error.message);
     throw error;
   }
 }
 
-async function fetchHolderData(): Promise<PoolHolderEntry[]> {
+async function fetchHoldersForPeriod(
+  tokenAddress: string,
+  fromTimestamp: number,
+  toTimestamp: number
+): Promise<PeriodHolder[]> {
   try {
-    const response = await axios.get<HolderApiResponse>(STAKE_DAO_HOLDERS_API);
-    return response.data.gauges;
-  } catch (error) {
-    console.error("Error fetching holder data:", error);
-    throw error;
+    // Convert timestamps to ISO date strings
+    const startDate = new Date(fromTimestamp * 1000).toISOString().split('T')[0];
+    const endDate = new Date(toTimestamp * 1000).toISOString().split('T')[0];
+    
+    console.log(`Fetching holders for token ${tokenAddress} from ${startDate} to ${endDate}`);
+    
+    const url = new URL(`${STAKE_DAO_API_BASE}/period`);
+    url.searchParams.append('start_date', startDate);
+    url.searchParams.append('end_date', endDate);
+    url.searchParams.append('token', tokenAddress);
+    
+    console.log(`API URL: ${url.toString()}`);
+    
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`API Error Response: ${errorText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data: PeriodResponse = await response.json();
+    
+    if (!data.gauges || data.gauges.length === 0) {
+      console.log(`No gauge found for token ${tokenAddress}`);
+      return [];
+    }
+    
+    // Should only have one gauge for a specific token
+    const gauge = data.gauges[0];
+    console.log(`Found ${gauge.holders_in_period} holders for ${gauge.token.symbol}`);
+    
+    return gauge.holders || [];
+  } catch (error: any) {
+    console.error(`Error fetching holders for token ${tokenAddress}:`, error.message);
+    if (error.cause) {
+      console.error(`Cause:`, error.cause);
+    }
+    return [];
   }
 }
 
-function getHoldersForPeriod(
-  poolEntry: PoolHolderEntry,
-  fromTimestamp: number,
-  toTimestamp: number
-): HolderData[] {
-  const relevantHolders: Map<string, HolderData> = new Map();
-  
-  // Process historical holders
-  poolEntry.historical_data.forEach(holder => {
-    const entryTs = parseInt(holder.entry_ts);
-    const exitTs = holder.exit_ts ? parseInt(holder.exit_ts) : Number.MAX_SAFE_INTEGER;
-    
-    // Check if holder was active during the period
-    if (entryTs <= toTimestamp && exitTs >= fromTimestamp) {
-      // Use the timestamp that's within our period
-      const effectiveTimestamp = Math.max(entryTs, fromTimestamp);
-      
-      relevantHolders.set(holder.user, {
-        address: holder.user,
-        balance: holder.max_balance,
-        timestamp: effectiveTimestamp
-      });
-    }
-  });
-  
-  // Process current holders
-  poolEntry.holders.forEach(holder => {
-    // Current holders are assumed to be active now, so check if they were active during the period
-    // We don't have exact entry timestamps for current holders, so we'll include them if they exist
-    const existingHolder = relevantHolders.get(holder.user);
-    
-    // If this holder is not in historical data or has a more recent balance, update it
-    if (!existingHolder || !poolEntry.historical_data.some(h => h.user === holder.user && !h.is_past_user)) {
-      relevantHolders.set(holder.user, {
-        address: holder.user,
-        balance: holder.balance,
-        timestamp: toTimestamp // Use end timestamp for current holders
-      });
-    }
-  });
-  
-  return Array.from(relevantHolders.values());
-}
-
 function calculateRewards(
-  holders: HolderData[],
+  holders: PeriodHolder[],
   totalReward: bigint
 ): Map<string, bigint> {
   const rewards = new Map<string, bigint>();
   
   // Calculate total balance
   const totalBalance = holders.reduce((sum, holder) => {
-    return sum + BigInt(holder.balance);
+    return sum + BigInt(holder.max_balance_in_period);
   }, BigInt(0));
   
   if (totalBalance === BigInt(0)) {
@@ -212,11 +266,11 @@ function calculateRewards(
   
   // Distribute rewards proportionally
   holders.forEach(holder => {
-    const holderBalance = BigInt(holder.balance);
+    const holderBalance = BigInt(holder.max_balance_in_period);
     const holderReward = (distributableReward * holderBalance) / totalBalance;
     
     if (holderReward > BigInt(0)) {
-      rewards.set(getAddress(holder.address), holderReward);
+      rewards.set(getAddress(holder.user), holderReward);
     }
   });
   
@@ -286,20 +340,26 @@ async function main() {
     console.log(`Looking for campaigns with delegation address: ${DELEGATION_ADDRESS}`);
     
     // Get all distribution folders
-    const response = await axios.get(PENDLE_MERKLE_DISTRIBUTIONS_API, {
+    const response = await fetch(PENDLE_MERKLE_DISTRIBUTIONS_API, {
       headers: {
         'Accept': 'application/vnd.github.v3+json',
         'User-Agent': 'stake-dao-pendle-script'
       }
     });
     
+    if (!response.ok) {
+      throw new Error(`GitHub API error! status: ${response.status}`);
+    }
+    
+    const folders = await response.json();
+    
     // Filter for directories only, excluding 'deprecated' folder
-    const folders = response.data.filter((item: any) => 
+    const validFolders = folders.filter((item: any) => 
       item.type === "dir" && item.name !== "deprecated"
     );
     
     // Sort folders by name in descending order
-    folders.sort((a: any, b: any) => {
+    validFolders.sort((a: any, b: any) => {
       const aNum = parseInt(a.name);
       const bNum = parseInt(b.name);
       if (!isNaN(aNum) && !isNaN(bNum)) {
@@ -308,14 +368,14 @@ async function main() {
       return b.name.localeCompare(a.name);
     });
     
-    console.log(`\nFound ${folders.length} distribution folders. Checking each for delegation campaigns...`);
+    console.log(`\nFound ${validFolders.length} distribution folders. Checking each for delegation campaigns...`);
     
     let allCampaigns: PendleCampaign[] = [];
     
     // Check multiple folders and aggregate all campaigns
     const foundInFolders: string[] = [];
     
-    for (const folder of folders.slice(0, 10)) { // Check up to 10 latest folders
+    for (const folder of validFolders.slice(0, 10)) { // Check up to 10 latest folders
       console.log(`\nChecking folder: ${folder.name}`);
       const campaigns = await fetchCampaignData(folder.name);
       
@@ -334,9 +394,6 @@ async function main() {
     
     console.log(`\nProcessing ${allCampaigns.length} campaigns from folders: ${foundInFolders.join(', ')}`);
     
-    // Fetch holder data
-    const allHolders = await fetchHolderData();
-    
     // Process each campaign
     const allDistributions: UniversalMerkle = {};
     
@@ -350,30 +407,30 @@ async function main() {
       console.log(`- Pool: ${campaign.extInfo.assetId}`);
       console.log(`- Period: ${new Date(campaign.fromTimestamp * 1000).toISOString()} to ${new Date(campaign.toTimestamp * 1000).toISOString()}`);
       
-      // Extract the pool address from assetId (format: "1-0x8e1c2be682b0d3d8f8ee32024455a34cc724cf08")
+      // Extract the token address from assetId (format: "1-0x8e1c2be682b0d3d8f8ee32024455a34cc724cf08")
       const assetIdParts = campaign.extInfo.assetId.split('-');
-      const poolAddress = assetIdParts.length > 1 ? assetIdParts[1] : campaign.extInfo.assetId;
-      
-      // Find the matching pool holder entry by lpt address
-      const poolHolderEntry = allHolders.find(entry => {
-        // Match either by full lpt or just the address part after the hyphen
-        const lptAddress = entry.lpt.includes('-') ? entry.lpt.split('-')[1] : entry.lpt;
-        return lptAddress.toLowerCase() === poolAddress.toLowerCase();
-      });
-      
-      if (!poolHolderEntry) {
-        console.warn(`No holder data found for pool ${poolAddress}`);
+      if (assetIdParts.length !== 2) {
+        console.warn(`Invalid assetId format: ${campaign.extInfo.assetId}`);
         continue;
       }
       
-      console.log(`Found holder data for pool: ${poolHolderEntry.lpt_symbol}`);
+      const chainId = assetIdParts[0];
+      const tokenAddress = assetIdParts[1];
       
-      // Get holders for the campaign period
-      const periodHolders = getHoldersForPeriod(
-        poolHolderEntry,
+      console.log(`- Chain ID: ${chainId}`);
+      console.log(`- Token Address: ${tokenAddress}`);
+      
+      // Fetch holders for the period using the new API
+      const periodHolders = await fetchHoldersForPeriod(
+        tokenAddress,
         campaign.fromTimestamp,
         campaign.toTimestamp
       );
+      
+      if (periodHolders.length === 0) {
+        console.warn(`No holders found for token ${tokenAddress} in the specified period`);
+        continue;
+      }
       
       console.log(`Found ${periodHolders.length} holders for the period`);
       
@@ -381,21 +438,29 @@ async function main() {
       const totalReward = BigInt(campaign.amount);
       const rewards = calculateRewards(periodHolders, totalReward);
       
+      console.log(`Calculated rewards for ${rewards.size} holders after applying ${FEE_PERCENTAGE * 100}% fee`);
+      
       // Add to distribution
       rewards.forEach((amount, address) => {
         if (!allDistributions[address]) {
           allDistributions[address] = {};
         }
         
-        const tokenAddress = getAddress(campaign.token);
-        if (!allDistributions[address][tokenAddress]) {
-          allDistributions[address][tokenAddress] = "0";
+        const rewardTokenAddress = getAddress(campaign.token);
+        if (!allDistributions[address][rewardTokenAddress]) {
+          allDistributions[address][rewardTokenAddress] = "0";
         }
         
         // Add to existing amount
-        const currentAmount = BigInt(allDistributions[address][tokenAddress]);
-        allDistributions[address][tokenAddress] = (currentAmount + amount).toString();
+        const currentAmount = BigInt(allDistributions[address][rewardTokenAddress]);
+        allDistributions[address][rewardTokenAddress] = (currentAmount + amount).toString();
       });
+    }
+    
+    // Check if we have any distributions
+    if (Object.keys(allDistributions).length === 0) {
+      console.log("\nNo distributions to process. No holders found for any campaigns.");
+      return;
     }
     
     // Generate merkle tree
@@ -456,5 +521,3 @@ async function main() {
 if (require.main === module) {
   main();
 }
-
-
