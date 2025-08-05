@@ -68,9 +68,35 @@ const main = async () => {
   Object.entries(csvResult).forEach(([gauge, rewardSdValue]) => {
     let choiceId = (proposal.choices as string[]).findIndex((choice: string) => choice.toLowerCase() === gauge.toLowerCase());
 
+    // If exact match not found, try more flexible matching
+    if (choiceId === -1) {
+      // Try to find a choice that contains the gauge name (ignoring parentheses content)
+      choiceId = (proposal.choices as string[]).findIndex((choice: string) => {
+        // Remove parentheses content from both gauge and choice for comparison
+        const cleanGauge = gauge.replace(/\([^)]*\)/g, '').trim();
+        const cleanChoice = choice.replace(/\([^)]*\)/g, '').trim();
+        
+        // Check if they match exactly
+        if (cleanChoice.toLowerCase() === cleanGauge.toLowerCase()) {
+          return true;
+        }
+        
+        // If not, try matching without dates
+        const gaugeParts = cleanGauge.split('-');
+        const choiceParts = cleanChoice.split('-');
+        const datePattern = /^\d{2}\/\d{2}\/\d{4}$/;
+        
+        const gaugeWithoutDate = gaugeParts.filter(part => !datePattern.test(part)).join('-');
+        const choiceWithoutDate = choiceParts.filter(part => !datePattern.test(part)).join('-');
+        
+        return choiceWithoutDate.toLowerCase() === gaugeWithoutDate.toLowerCase();
+      });
+    }
+
     console.log("choiceId for", gauge, choiceId);
 
     if (choiceId === -1) {
+      console.error(`Available choices:`, proposal.choices);
       throw new Error(`Choice ID not found for gauge: ${gauge}`);
     }
     choiceId += 1 // + 1 because when you vote for the first gauge, id starts at 1 and not 0
