@@ -4,7 +4,6 @@ import { getAddress } from "viem";
 import crypto from "crypto";
 
 const PENDLE_MERKLE_DISTRIBUTIONS_API = "https://api.github.com/repos/pendle-finance/merkle-distributions/contents/external-rewards/1";
-// Use environment variable or default to production
 const STAKE_DAO_API_BASE = "http://localhost:3000/strategies/pendle/holders";
 const FEE_PERCENTAGE = 0.15; // 15% fee
 const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
@@ -247,16 +246,26 @@ async function fetchHoldersForPeriod(
 
 function calculateRewards(
   holders: PeriodHolder[],
-  totalReward: bigint
+  totalReward: bigint,
+  campaignFromTimestamp: number,
+  campaignToTimestamp: number
 ): Map<string, bigint> {
   const rewards = new Map<string, bigint>();
   
-  // Calculate total balance
-  const totalBalance = holders.reduce((sum, holder) => {
-    return sum + BigInt(holder.max_balance_in_period);
+  // Calculate campaign duration in days
+  const campaignDurationDays = (campaignToTimestamp - campaignFromTimestamp) / (24 * 60 * 60);
+  
+  // Calculate total time-weighted balance (TWAP)
+  const totalTimeWeightedBalance = holders.reduce((sum, holder) => {
+    const holderBalance = BigInt(holder.max_balance_in_period);
+    // Use holding_duration_days for time weighting
+    // If holding_duration_days is greater than campaign duration, cap it
+    const effectiveDays = Math.min(holder.holding_duration_days, campaignDurationDays);
+    const timeWeightedBalance = holderBalance * BigInt(Math.floor(effectiveDays * 10000)) / BigInt(Math.floor(campaignDurationDays * 10000));
+    return sum + timeWeightedBalance;
   }, BigInt(0));
   
-  if (totalBalance === BigInt(0)) {
+  if (totalTimeWeightedBalance === BigInt(0)) {
     return rewards;
   }
   
@@ -264,10 +273,14 @@ function calculateRewards(
   const feeAmount = (totalReward * BigInt(Math.floor(FEE_PERCENTAGE * 10000))) / BigInt(10000);
   const distributableReward = totalReward - feeAmount;
   
-  // Distribute rewards proportionally
+  // Distribute rewards proportionally based on time-weighted balance
   holders.forEach(holder => {
     const holderBalance = BigInt(holder.max_balance_in_period);
-    const holderReward = (distributableReward * holderBalance) / totalBalance;
+    // Calculate time-weighted balance for this holder
+    const effectiveDays = Math.min(holder.holding_duration_days, campaignDurationDays);
+    const timeWeightedBalance = holderBalance * BigInt(Math.floor(effectiveDays * 10000)) / BigInt(Math.floor(campaignDurationDays * 10000));
+    
+    const holderReward = (distributableReward * timeWeightedBalance) / totalTimeWeightedBalance;
     
     if (holderReward > BigInt(0)) {
       rewards.set(getAddress(holder.user), holderReward);
@@ -436,7 +449,7 @@ async function main() {
       
       // Calculate rewards
       const totalReward = BigInt(campaign.amount);
-      const rewards = calculateRewards(periodHolders, totalReward);
+      const rewards = calculateRewards(periodHolders, totalReward, campaign.fromTimestamp, campaign.toTimestamp);
       
       console.log(`Calculated rewards for ${rewards.size} holders after applying ${FEE_PERCENTAGE * 100}% fee`);
       
