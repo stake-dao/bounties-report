@@ -132,7 +132,6 @@ DEBUG=true npm run generate-merkle
 
 Common log locations:
 - `log.json` - sdToken distribution logs
-- `bounties-reports/{timestamp}/sd_swaps/` - Swap analysis logs
 
 ## 📚 Further Reading
 
