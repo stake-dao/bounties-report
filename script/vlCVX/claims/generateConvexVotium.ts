@@ -30,7 +30,6 @@ import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
 import { getTokenAddress } from "../../utils/tokenMappings";
 import { getTokenPrices, TokenIdentifier } from "../../utils/priceUtils";
 
-// The Union's address (from comment in constants.ts)
 const THE_UNION_ADDRESS = "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49";
 
 interface Forwarder {
@@ -123,6 +122,8 @@ async function getAllForwarders(
 
   console.log(`Total voters in proposal: ${voters.length}`);
 
+  // TEMP: Add that one, 
+
   // Handle delegators who delegated to The Union
   // These are addresses that delegated to The Union, who then forwards to us
   const unionDelegatorsList = [
@@ -130,6 +131,10 @@ async function getAllForwarders(
       address: "0x2dbeDd2632D831E61eB3fCc6720f072eeF9d522D",
       vp: 71266.07740464392, // Their voting power
     },
+    {
+      address: "0xb82bE987cF6f25d0F040Ca4567e3dacb4b92Aa91",
+      vp: 3500
+    }
     // Add more Union delegators here as needed
   ];
 
