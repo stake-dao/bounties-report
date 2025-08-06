@@ -1,10 +1,12 @@
 import fs from "fs";
 import path from "path";
 import { getAddress } from "viem";
-import crypto from "crypto";
+import { UniversalMerkle } from "../interfaces/UniversalMerkle";
+import { MerkleData } from "../interfaces/MerkleData";
+import { generateMerkleTree } from "../vlCVX/utils";
 
 const PENDLE_MERKLE_DISTRIBUTIONS_API = "https://api.github.com/repos/pendle-finance/merkle-distributions/contents/external-rewards/1";
-const STAKE_DAO_API_BASE = "http://localhost:3000/strategies/pendle/holders";
+const GITHUB_HOLDERS_DATA_URL = "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/strategies/pendle/holders/index.json";
 const FEE_PERCENTAGE = 0.15; // 15% fee
 const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 
@@ -12,125 +14,123 @@ interface PendleCampaign {
   campaignId: string;
   token: string;
   amount: string;
-  originalTotalAmount?: string;
   fromTimestamp: number;
   toTimestamp: number;
-  users?: {
-    [address: string]: string;
-  };
   extInfo: {
     assetId: string;
-    [key: string]: any;
   };
-  [key: string]: any;
+}
+
+interface TokenInfo {
+  address: string;
+  symbol: string;
+  decimals: number;
+}
+
+// Cache for token info to avoid repeated fetches
+const tokenInfoCache: { [address: string]: TokenInfo } = {};
+
+// Minimal ERC20 ABI for symbol and decimals
+const ERC20_ABI = [
+  {
+    constant: true,
+    inputs: [],
+    name: "symbol",
+    outputs: [{ name: "", type: "string" }],
+    type: "function"
+  },
+  {
+    constant: true,
+    inputs: [],
+    name: "decimals",
+    outputs: [{ name: "", type: "uint8" }],
+    type: "function"
+  }
+];
+
+async function fetchTokenInfo(address: string): Promise<TokenInfo> {
+  const checksumAddress = getAddress(address);
+  
+  // Check cache first
+  if (tokenInfoCache[checksumAddress.toLowerCase()]) {
+    return tokenInfoCache[checksumAddress.toLowerCase()];
+  }
+  
+  try {
+    // Use ethers.js to fetch token info
+    const ethers = await import("ethers");
+    const provider = new ethers.providers.JsonRpcProvider("https://eth.llamarpc.com");
+    const contract = new ethers.Contract(checksumAddress, ERC20_ABI, provider);
+    
+    // Fetch symbol and decimals in parallel
+    const [symbol, decimals] = await Promise.all([
+      contract.symbol().catch(() => "???"),
+      contract.decimals().catch(() => 18)
+    ]);
+    
+    const tokenInfo: TokenInfo = {
+      address: checksumAddress,
+      symbol: symbol,
+      decimals: Number(decimals)
+    };
+    
+    // Cache the result
+    tokenInfoCache[checksumAddress.toLowerCase()] = tokenInfo;
+    
+    return tokenInfo;
+  } catch (error) {
+    console.warn(`Failed to fetch token info for ${checksumAddress}, using defaults`);
+    const fallback = {
+      address: checksumAddress,
+      symbol: checksumAddress.slice(0, 6) + "...",
+      decimals: 18
+    };
+    tokenInfoCache[checksumAddress.toLowerCase()] = fallback;
+    return fallback;
+  }
+}
+
+function formatTokenAmount(amount: bigint, decimals: number): string {
+  const divisor = BigInt(10 ** decimals);
+  const wholePart = amount / divisor;
+  const fractionalPart = amount % divisor;
+  
+  // Format with 4 decimal places
+  const fractionalStr = fractionalPart.toString().padStart(decimals, '0').slice(0, 4);
+  return `${wholePart.toString()}.${fractionalStr}`;
+}
+
+interface HoldersData {
+  metadata: {
+    total_gauges: number;
+  };
+  gauges: Array<{
+    gauge_id: string;
+    token: {
+      address: string;
+      symbol: string;
+    };
+    user_histories: {
+      [address: string]: {
+        events: Array<{
+          type: string;
+          amount: string;
+          balance_after: string;
+          block: number;
+          timestamp: number;
+          datetime: string;
+        }>;
+      };
+    };
+  }>;
 }
 
 interface PeriodHolder {
   user: string;
-  holding_duration_days: number;
-  max_balance_in_period: string;
-  is_current_holder: boolean;
-  entry_date: string;
-  exit_date: string | null;
+  time_weighted_balance: string; // Accurate TWAP from events
 }
 
-interface GaugePeriodData {
-  gauge_id: string;
-  token: {
-    address: string;
-    symbol: string;
-  };
-  holders_in_period: number;
-  holders: PeriodHolder[];
-}
 
-interface PeriodResponse {
-  period: {
-    start: string;
-    end: string;
-  };
-  gauges: GaugePeriodData[];
-}
-
-interface UniversalMerkle {
-  [address: string]: {
-    [token: string]: string;
-  };
-}
-
-interface MerkleData {
-  merkleRoot: string;
-  claims: any;
-}
-
-// Simple keccak256 implementation
-function keccak256(data: Buffer): Buffer {
-  return crypto.createHash('sha3-256').update(data).digest();
-}
-
-// Simple MerkleTree implementation
-class MerkleTree {
-  private leaves: Buffer[];
-  private layers: Buffer[][];
-
-  constructor(leaves: string[], hashFn: (data: Buffer) => Buffer, options?: { sortPairs?: boolean }) {
-    this.leaves = leaves.map(leaf => Buffer.from(leaf, 'hex'));
-    if (options?.sortPairs) {
-      this.leaves.sort(Buffer.compare);
-    }
-    this.layers = [this.leaves];
-    this.createTree(hashFn);
-  }
-
-  private createTree(hashFn: (data: Buffer) => Buffer) {
-    let currentLayer = this.leaves;
-    while (currentLayer.length > 1) {
-      const nextLayer: Buffer[] = [];
-      for (let i = 0; i < currentLayer.length; i += 2) {
-        if (i + 1 === currentLayer.length) {
-          nextLayer.push(currentLayer[i]);
-        } else {
-          const left = currentLayer[i];
-          const right = currentLayer[i + 1];
-          const combined = Buffer.compare(left, right) < 0 
-            ? Buffer.concat([left, right])
-            : Buffer.concat([right, left]);
-          nextLayer.push(hashFn(combined));
-        }
-      }
-      this.layers.push(nextLayer);
-      currentLayer = nextLayer;
-    }
-  }
-
-  getHexRoot(): string {
-    if (this.layers.length === 0 || this.layers[this.layers.length - 1].length === 0) {
-      return '0x0000000000000000000000000000000000000000000000000000000000000000';
-    }
-    return '0x' + this.layers[this.layers.length - 1][0].toString('hex');
-  }
-
-  getHexProof(leaf: Buffer): string[] {
-    const proof: string[] = [];
-    let index = this.leaves.findIndex(l => l.equals(leaf));
-    
-    if (index === -1) return proof;
-
-    for (let i = 0; i < this.layers.length - 1; i++) {
-      const layer = this.layers[i];
-      const isRightNode = index % 2 === 1;
-      const pairIndex = isRightNode ? index - 1 : index + 1;
-
-      if (pairIndex < layer.length) {
-        proof.push('0x' + layer[pairIndex].toString('hex'));
-      }
-
-      index = Math.floor(index / 2);
-    }
-
-    return proof;
-  }
-}
 
 async function fetchCampaignData(folderName: string): Promise<PendleCampaign[]> {
   try {
@@ -178,12 +178,9 @@ async function fetchCampaignData(folderName: string): Promise<PendleCampaign[]> 
           campaignId: `${folderName}-${distribution.extInfo?.assetId || 'unknown'}`,
           token: distribution.token,
           amount: delegationAmount, // Use delegation-specific amount
-          originalTotalAmount: distribution.sumAmount, // Keep original total for reference
           fromTimestamp: distribution.fromTimestamp,
           toTimestamp: distribution.toTimestamp,
-          users: distribution.users,
-          extInfo: distribution.extInfo || { assetId: 'unknown' },
-          description: distribution.description
+          extInfo: distribution.extInfo || { assetId: 'unknown' }
         });
         console.log(`Found distribution for pool ${distribution.extInfo?.assetId} with delegation amount: ${delegationAmount}`);
       }
@@ -197,75 +194,174 @@ async function fetchCampaignData(folderName: string): Promise<PendleCampaign[]> 
   }
 }
 
-async function fetchHoldersForPeriod(
-  tokenAddress: string,
-  fromTimestamp: number,
-  toTimestamp: number
-): Promise<PeriodHolder[]> {
+async function fetchHoldersData(): Promise<HoldersData> {
   try {
-    // Convert timestamps to ISO date strings
-    const startDate = new Date(fromTimestamp * 1000).toISOString().split('T')[0];
-    const endDate = new Date(toTimestamp * 1000).toISOString().split('T')[0];
+    console.log(`Fetching holders data from GitHub...`);
     
-    console.log(`Fetching holders for token ${tokenAddress} from ${startDate} to ${endDate}`);
-    
-    const url = new URL(`${STAKE_DAO_API_BASE}/period`);
-    url.searchParams.append('start_date', startDate);
-    url.searchParams.append('end_date', endDate);
-    url.searchParams.append('token', tokenAddress);
-    
-    console.log(`API URL: ${url.toString()}`);
-    
-    const response = await fetch(url.toString());
+    const response = await fetch(GITHUB_HOLDERS_DATA_URL);
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`API Error Response: ${errorText}`);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const data: PeriodResponse = await response.json();
+    const data: HoldersData = await response.json();
+    console.log(`Fetched data for ${data.metadata.total_gauges} gauges`);
     
-    if (!data.gauges || data.gauges.length === 0) {
-      console.log(`No gauge found for token ${tokenAddress}`);
-      return [];
-    }
-    
-    // Should only have one gauge for a specific token
-    const gauge = data.gauges[0];
-    console.log(`Found ${gauge.holders_in_period} holders for ${gauge.token.symbol}`);
-    
-    return gauge.holders || [];
+    return data;
   } catch (error: any) {
-    console.error(`Error fetching holders for token ${tokenAddress}:`, error.message);
-    if (error.cause) {
-      console.error(`Cause:`, error.cause);
+    console.error(`Error fetching holders data:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Get the exact balance of a user at a specific timestamp based on events
+ */
+function getBalanceAtTimestamp(
+  events: Array<{
+    type: string;
+    amount: string;
+    balance_after: string;
+    block: number;
+    timestamp: number;
+    datetime: string;
+  }>,
+  targetTimestamp: number
+): bigint {
+  // Sort events by timestamp
+  const sortedEvents = [...events].sort((a, b) => a.timestamp - b.timestamp);
+  
+  // Find the last event before or at the target timestamp
+  let balance = BigInt(0);
+  
+  for (const event of sortedEvents) {
+    if (event.timestamp <= targetTimestamp) {
+      balance = BigInt(event.balance_after);
+    } else {
+      break;
     }
+  }
+  
+  return balance;
+}
+
+/**
+ * Calculate time-weighted average balance for a period using events
+ */
+function calculateTimeWeightedBalance(
+  events: Array<{
+    type: string;
+    amount: string;
+    balance_after: string;
+    block: number;
+    timestamp: number;
+    datetime: string;
+  }>,
+  periodStart: number,
+  periodEnd: number
+): bigint {
+  // Sort events by timestamp
+  const sortedEvents = [...events].sort((a, b) => a.timestamp - b.timestamp);
+  
+  // Get balance at period start
+  let currentBalance = getBalanceAtTimestamp(sortedEvents, periodStart);
+  let lastTimestamp = periodStart;
+  let weightedSum = BigInt(0);
+  
+  // Process events within the period
+  for (const event of sortedEvents) {
+    if (event.timestamp > periodStart && event.timestamp <= periodEnd) {
+      // Add weighted balance for the time before this event
+      const timeDiff = BigInt(event.timestamp - lastTimestamp);
+      weightedSum += currentBalance * timeDiff;
+      
+      // Update current balance and timestamp
+      currentBalance = BigInt(event.balance_after);
+      lastTimestamp = event.timestamp;
+    }
+  }
+  
+  // Add weighted balance for the remaining time until period end
+  const finalTimeDiff = BigInt(periodEnd - lastTimestamp);
+  weightedSum += currentBalance * finalTimeDiff;
+  
+  // Calculate average (total weighted sum / total time)
+  const totalTime = BigInt(periodEnd - periodStart);
+  if (totalTime === BigInt(0)) {
+    return BigInt(0);
+  }
+  
+  return weightedSum / totalTime;
+}
+
+function getHoldersForPeriod(
+  holdersData: HoldersData,
+  tokenAddress: string,
+  fromTimestamp: number,
+  toTimestamp: number
+): PeriodHolder[] {
+  // Find the gauge for this token
+  const gauge = holdersData.gauges.find(g => 
+    g.token.address.toLowerCase() === tokenAddress.toLowerCase()
+  );
+  
+  if (!gauge) {
+    console.log(`No gauge found for token ${tokenAddress}`);
     return [];
   }
+  
+  console.log(`Processing gauge ${gauge.gauge_id} for token ${gauge.token.symbol}`);
+  
+  const periodHolders: PeriodHolder[] = [];
+  
+  // Process user histories to find holders during the campaign period
+  Object.entries(gauge.user_histories).forEach(([userAddress, history]) => {
+    // Check if user had any balance during the campaign period using events
+    const balanceAtStart = getBalanceAtTimestamp(history.events, fromTimestamp);
+    const balanceAtEnd = getBalanceAtTimestamp(history.events, toTimestamp);
+    
+    // Check if there were any events during the period
+    const eventsInPeriod = history.events.filter(
+      event => event.timestamp >= fromTimestamp && event.timestamp <= toTimestamp
+    );
+    
+    // User was holding if they had balance at start, end, or any events during period
+    const wasHoldingDuringPeriod = balanceAtStart > BigInt(0) || 
+                                   balanceAtEnd > BigInt(0) || 
+                                   eventsInPeriod.length > 0;
+    
+    if (wasHoldingDuringPeriod) {
+      // Calculate time-weighted average balance for the period
+      const timeWeightedBalance = calculateTimeWeightedBalance(
+        history.events,
+        fromTimestamp,
+        toTimestamp
+      );
+      
+      periodHolders.push({
+        user: userAddress,
+        time_weighted_balance: timeWeightedBalance.toString()
+      });
+    }
+  });
+  
+  console.log(`Found ${periodHolders.length} holders for the period`);
+  return periodHolders;
 }
 
 function calculateRewards(
   holders: PeriodHolder[],
-  totalReward: bigint,
-  campaignFromTimestamp: number,
-  campaignToTimestamp: number
+  totalReward: bigint
 ): Map<string, bigint> {
   const rewards = new Map<string, bigint>();
   
-  // Calculate campaign duration in days
-  const campaignDurationDays = (campaignToTimestamp - campaignFromTimestamp) / (24 * 60 * 60);
-  
-  // Calculate total time-weighted balance (TWAP)
+  // Calculate total time-weighted balance using the pre-calculated values
   const totalTimeWeightedBalance = holders.reduce((sum, holder) => {
-    const holderBalance = BigInt(holder.max_balance_in_period);
-    // Use holding_duration_days for time weighting
-    // If holding_duration_days is greater than campaign duration, cap it
-    const effectiveDays = Math.min(holder.holding_duration_days, campaignDurationDays);
-    const timeWeightedBalance = holderBalance * BigInt(Math.floor(effectiveDays * 10000)) / BigInt(Math.floor(campaignDurationDays * 10000));
-    return sum + timeWeightedBalance;
+    // Use the time-weighted balance calculated from events
+    return sum + BigInt(holder.time_weighted_balance);
   }, BigInt(0));
   
   if (totalTimeWeightedBalance === BigInt(0)) {
+    console.log("WARNING: Total time-weighted balance is 0, no rewards to distribute");
     return rewards;
   }
   
@@ -273,84 +369,52 @@ function calculateRewards(
   const feeAmount = (totalReward * BigInt(Math.floor(FEE_PERCENTAGE * 10000))) / BigInt(10000);
   const distributableReward = totalReward - feeAmount;
   
+  // Log top recipients
+  console.log(`\nTop 5 reward recipients:`);
+  const sortedHolders = [...holders].sort((a, b) => {
+    const balA = BigInt(a.time_weighted_balance);
+    const balB = BigInt(b.time_weighted_balance);
+    return balB > balA ? 1 : balB < balA ? -1 : 0;
+  });
+  
   // Distribute rewards proportionally based on time-weighted balance
   holders.forEach(holder => {
-    const holderBalance = BigInt(holder.max_balance_in_period);
-    // Calculate time-weighted balance for this holder
-    const effectiveDays = Math.min(holder.holding_duration_days, campaignDurationDays);
-    const timeWeightedBalance = holderBalance * BigInt(Math.floor(effectiveDays * 10000)) / BigInt(Math.floor(campaignDurationDays * 10000));
+    // Use the pre-calculated time-weighted balance from events
+    const holderTimeWeightedBalance = BigInt(holder.time_weighted_balance);
     
-    const holderReward = (distributableReward * timeWeightedBalance) / totalTimeWeightedBalance;
+    const holderReward = (distributableReward * holderTimeWeightedBalance) / totalTimeWeightedBalance;
     
     if (holderReward > BigInt(0)) {
       rewards.set(getAddress(holder.user), holderReward);
     }
   });
   
+  // Log top 5 recipients with their rewards
+  sortedHolders.slice(0, 5).forEach((holder, index) => {
+    const reward = rewards.get(getAddress(holder.user));
+    if (reward) {
+      const percentage = (BigInt(holder.time_weighted_balance) * BigInt(10000) / totalTimeWeightedBalance);
+      console.log(`  ${index + 1}. ${holder.user}:`);
+      console.log(`     - Share: ${(Number(percentage) / 100).toFixed(2)}%`);
+      console.log(`     - Reward: ${reward.toString()} wei`);
+    }
+  });
+  
   return rewards;
 }
 
-function generateMerkleTree(distribution: UniversalMerkle): MerkleData {
-  const elements: string[] = [];
-  const values: { [address: string]: { [token: string]: string } } = {};
-  
-  // Create leaf nodes
-  Object.entries(distribution).forEach(([address, tokens]) => {
-    Object.entries(tokens).forEach(([token, amount]) => {
-      const leaf = keccak256(
-        Buffer.concat([
-          Buffer.from(address.slice(2), "hex"),
-          Buffer.from(token.slice(2), "hex"),
-          Buffer.from(BigInt(amount).toString(16).padStart(64, "0"), "hex"),
-        ])
-      );
-      elements.push(leaf.toString("hex"));
-      
-      if (!values[address]) {
-        values[address] = {};
-      }
-      values[address][token] = amount;
-    });
-  });
-  
-  // Create merkle tree
-  const merkleTree = new MerkleTree(elements, keccak256, { sortPairs: true });
-  const root = merkleTree.getHexRoot();
-  
-  // Generate proofs
-  const claims: any = {};
-  Object.entries(values).forEach(([address, tokens]) => {
-    claims[address] = {
-      tokens: {},
-    };
-    
-    Object.entries(tokens).forEach(([token, amount]) => {
-      const leaf = keccak256(
-        Buffer.concat([
-          Buffer.from(address.slice(2), "hex"),
-          Buffer.from(token.slice(2), "hex"),
-          Buffer.from(BigInt(amount).toString(16).padStart(64, "0"), "hex"),
-        ])
-      );
-      const proof = merkleTree.getHexProof(leaf);
-      
-      claims[address].tokens[token] = {
-        amount,
-        proof,
-      };
-    });
-  });
-  
-  return {
-    merkleRoot: root,
-    claims,
-  };
-}
+
 
 async function main() {
   try {
     console.log("Starting Pendle extra distribution processing...");
     console.log(`Looking for campaigns with delegation address: ${DELEGATION_ADDRESS}`);
+    
+    // Pre-fetch token info for known tokens to speed up processing
+    console.log("Fetching token information...");
+    
+    // Fetch holders data once
+    const holdersData = await fetchHoldersData();
     
     // Get all distribution folders
     const response = await fetch(PENDLE_MERKLE_DISTRIBUTIONS_API, {
@@ -407,18 +471,38 @@ async function main() {
     
     console.log(`\nProcessing ${allCampaigns.length} campaigns from folders: ${foundInFolders.join(', ')}`);
     
+    // Pre-fetch all token info to speed up processing
+    const uniqueTokens = [...new Set(allCampaigns.map(c => c.token))];
+    console.log(`\nPre-fetching token information for ${uniqueTokens.length} tokens...`);
+    await Promise.all(uniqueTokens.map(token => fetchTokenInfo(token)));
+    console.log("Token information fetched successfully");
+    
     // Process each campaign
     const allDistributions: UniversalMerkle = {};
     
+    // Track campaign results for recap
+    interface CampaignResult {
+      campaignId: string;
+      token: string;
+      tokenInfo: TokenInfo;
+      pool: string;
+      inputAmount: bigint;
+      feeAmount: bigint;
+      distributedAmount: bigint;
+      recipients: number;
+      period: { from: Date; to: Date; days: number };
+    }
+    const campaignResults: CampaignResult[] = [];
+    
     for (const campaign of allCampaigns) {
-      console.log(`\nProcessing campaign ${campaign.campaignId}:`);
-      console.log(`- Token: ${campaign.token}`);
-      console.log(`- Delegation Amount: ${campaign.amount}`);
-      if (campaign.originalTotalAmount) {
-        console.log(`- Total Campaign Amount: ${campaign.originalTotalAmount}`);
-      }
+      const tokenInfo = await fetchTokenInfo(campaign.token);
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`Processing campaign ${campaign.campaignId}:`);
+      console.log(`- Token: ${tokenInfo.symbol} (${campaign.token})`);
+      console.log(`- Delegation Amount: ${formatTokenAmount(BigInt(campaign.amount), tokenInfo.decimals)} ${tokenInfo.symbol}`);
       console.log(`- Pool: ${campaign.extInfo.assetId}`);
       console.log(`- Period: ${new Date(campaign.fromTimestamp * 1000).toISOString()} to ${new Date(campaign.toTimestamp * 1000).toISOString()}`);
+      console.log(`- Duration: ${((campaign.toTimestamp - campaign.fromTimestamp) / (24 * 60 * 60)).toFixed(2)} days`);
       
       // Extract the token address from assetId (format: "1-0x8e1c2be682b0d3d8f8ee32024455a34cc724cf08")
       const assetIdParts = campaign.extInfo.assetId.split('-');
@@ -433,8 +517,9 @@ async function main() {
       console.log(`- Chain ID: ${chainId}`);
       console.log(`- Token Address: ${tokenAddress}`);
       
-      // Fetch holders for the period using the new API
-      const periodHolders = await fetchHoldersForPeriod(
+      // Get holders for the period from the fetched data
+      const periodHolders = getHoldersForPeriod(
+        holdersData,
         tokenAddress,
         campaign.fromTimestamp,
         campaign.toTimestamp
@@ -447,11 +532,49 @@ async function main() {
       
       console.log(`Found ${periodHolders.length} holders for the period`);
       
+      // Calculate total time-weighted balance for this gauge
+      const totalGaugeTWB = periodHolders.reduce((sum, holder) => 
+        sum + BigInt(holder.time_weighted_balance), BigInt(0)
+      );
+      console.log(`Total time-weighted balance for gauge: ${totalGaugeTWB.toString()}`);
+      
+      // Log detailed holder information
+      console.log(`\nDetailed holder breakdown (top 5 by time-weighted balance):`);
+      const sortedHolders = [...periodHolders].sort((a, b) => {
+        const balA = BigInt(a.time_weighted_balance);
+        const balB = BigInt(b.time_weighted_balance);
+        return balB > balA ? 1 : balB < balA ? -1 : 0;
+      });
+      
+      sortedHolders.slice(0, 5).forEach((holder, index) => {
+        const twb = BigInt(holder.time_weighted_balance);
+        const percentage = totalGaugeTWB > BigInt(0) 
+          ? (twb * BigInt(10000) / totalGaugeTWB).toString() 
+          : "0";
+        console.log(`  ${index + 1}. ${holder.user}:`);
+        console.log(`     - Time-weighted balance: ${twb.toString()} (${Number(percentage) / 100}%)`);
+      });
+      
       // Calculate rewards
       const totalReward = BigInt(campaign.amount);
-      const rewards = calculateRewards(periodHolders, totalReward, campaign.fromTimestamp, campaign.toTimestamp);
+      const feeAmount = (totalReward * BigInt(Math.floor(FEE_PERCENTAGE * 10000))) / BigInt(10000);
+      const distributableAmount = totalReward - feeAmount;
       
-      console.log(`Calculated rewards for ${rewards.size} holders after applying ${FEE_PERCENTAGE * 100}% fee`);
+      console.log(`\nCalculating rewards distribution:`);
+      console.log(`- Total reward amount: ${formatTokenAmount(totalReward, tokenInfo.decimals)} ${tokenInfo.symbol}`);
+      console.log(`- Fee percentage: ${FEE_PERCENTAGE * 100}%`);
+      console.log(`- Fee amount: ${formatTokenAmount(feeAmount, tokenInfo.decimals)} ${tokenInfo.symbol}`);
+      console.log(`- Distributable amount: ${formatTokenAmount(distributableAmount, tokenInfo.decimals)} ${tokenInfo.symbol}`);
+      
+      const rewards = calculateRewards(periodHolders, totalReward);
+      
+      console.log(`\nReward distribution complete:`);
+      console.log(`- Recipients: ${rewards.size}`);
+      
+      // Calculate total distributed
+      let totalDistributed = BigInt(0);
+      rewards.forEach(amount => totalDistributed += amount);
+      console.log(`- Total distributed: ${formatTokenAmount(totalDistributed, tokenInfo.decimals)} ${tokenInfo.symbol}`);
       
       // Add to distribution
       rewards.forEach((amount, address) => {
@@ -468,6 +591,23 @@ async function main() {
         const currentAmount = BigInt(allDistributions[address][rewardTokenAddress]);
         allDistributions[address][rewardTokenAddress] = (currentAmount + amount).toString();
       });
+      
+      // Track campaign results
+      campaignResults.push({
+        campaignId: campaign.campaignId,
+        token: campaign.token,
+        tokenInfo: tokenInfo,
+        pool: campaign.extInfo.assetId,
+        inputAmount: totalReward,
+        feeAmount: feeAmount,
+        distributedAmount: totalDistributed,
+        recipients: rewards.size,
+        period: {
+          from: new Date(campaign.fromTimestamp * 1000),
+          to: new Date(campaign.toTimestamp * 1000),
+          days: (campaign.toTimestamp - campaign.fromTimestamp) / (24 * 60 * 60)
+        }
+      });
     }
     
     // Check if we have any distributions
@@ -480,32 +620,50 @@ async function main() {
     console.log("\nGenerating merkle tree...");
     const merkleData = generateMerkleTree(allDistributions);
     
-    // Save results
-    const outputDir = path.join(__dirname, "../../data/pendle-extra");
+    // Create output directory with current week timestamp (Thursday 00:00 UTC)
+    const now = new Date();
+    const currentThursday = new Date(now);
+    currentThursday.setUTCHours(0, 0, 0, 0);
+    
+    // Find the most recent Thursday
+    const dayOfWeek = currentThursday.getUTCDay();
+    const daysUntilThursday = (4 - dayOfWeek + 7) % 7;
+    if (daysUntilThursday > 0) {
+      currentThursday.setUTCDate(currentThursday.getUTCDate() - (7 - daysUntilThursday));
+    }
+    
+    const timestamp = Math.floor(currentThursday.getTime() / 1000);
+    console.log(`\nUsing week timestamp: ${timestamp} (${currentThursday.toISOString()})`);
+    
+    const outputDir = path.join(__dirname, "../../data/pendle-extra", timestamp.toString());
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
     
-    const timestamp = Math.floor(Date.now() / 1000);
-    const outputPath = path.join(outputDir, `distribution_${timestamp}.json`);
+    // Save repartition file
+    const repartitionPath = path.join(outputDir, "repartition.json");
+    const repartitionData = {
+      timestamp,
+      folderNames: foundInFolders,
+      distribution: allDistributions
+    };
     
     fs.writeFileSync(
-      outputPath,
-      JSON.stringify(
-        {
-          timestamp,
-          folderNames: foundInFolders,
-          merkleRoot: merkleData.merkleRoot,
-          distribution: allDistributions,
-          claims: merkleData.claims,
-        },
-        null,
-        2
-      )
+      repartitionPath,
+      JSON.stringify(repartitionData, null, 2)
     );
     
-    console.log(`\nDistribution saved to: ${outputPath}`);
-    console.log(`Merkle root: ${merkleData.merkleRoot}`);
+    // Save merkle file
+    const merklePath = path.join(outputDir, "merkle.json");
+    fs.writeFileSync(
+      merklePath,
+      JSON.stringify(merkleData, null, 2)
+    );
+    
+    console.log(`\nFiles saved to: ${outputDir}`);
+    console.log(`- Repartition: ${path.basename(repartitionPath)}`);
+    console.log(`- Merkle: ${path.basename(merklePath)}`);
+    console.log(`\nMerkle root: ${merkleData.merkleRoot}`);
     console.log(`Total recipients: ${Object.keys(allDistributions).length}`);
     
     // Summary by token
@@ -520,9 +678,88 @@ async function main() {
     });
     
     console.log("\nToken distribution summary:");
-    Object.entries(tokenSummary).forEach(([token, total]) => {
-      console.log(`- ${token}: ${total.toString()}`);
+    for (const [token, total] of Object.entries(tokenSummary)) {
+      const tokenInfo = await fetchTokenInfo(token);
+      console.log(`- ${tokenInfo.symbol}: ${formatTokenAmount(total, tokenInfo.decimals)} (${token})`);
+    }
+    
+
+    
+    // Campaign recap
+    console.log("\n" + "=".repeat(80));
+    console.log("CAMPAIGN RECAP:");
+    console.log("=".repeat(80));
+    
+    campaignResults.forEach((result, index) => {
+      console.log(`\n${index + 1}. ${result.campaignId}`);
+      console.log(`   Token: ${result.tokenInfo.symbol} (${result.token})`);
+      console.log(`   Pool: ${result.pool}`);
+      console.log(`   Period: ${result.period.days.toFixed(1)} days`);
+      console.log(`   Input: ${formatTokenAmount(result.inputAmount, result.tokenInfo.decimals)} ${result.tokenInfo.symbol}`);
+      console.log(`   Fee (${FEE_PERCENTAGE * 100}%): ${formatTokenAmount(result.feeAmount, result.tokenInfo.decimals)} ${result.tokenInfo.symbol}`);
+      console.log(`   Distributed: ${formatTokenAmount(result.distributedAmount, result.tokenInfo.decimals)} ${result.tokenInfo.symbol}`);
+      console.log(`   Recipients: ${result.recipients}`);
     });
+    
+    console.log("\n" + "=".repeat(80));
+    console.log(`Total unique recipients: ${Object.keys(allDistributions).length}`);
+    
+    // Save summary file with detailed information
+    const summaryPath = path.join(outputDir, "summary.json");
+    
+    // Build detailed token summary with info
+    const detailedTokenSummary: { [token: string]: any } = {};
+    for (const [token, total] of Object.entries(tokenSummary)) {
+      const tokenInfo = await fetchTokenInfo(token);
+      detailedTokenSummary[token] = {
+        symbol: tokenInfo.symbol,
+        decimals: tokenInfo.decimals,
+        totalAmount: total.toString(),
+        totalAmountFormatted: formatTokenAmount(total, tokenInfo.decimals)
+      };
+    }
+    
+    // Build campaign details for summary
+    const campaignDetails = campaignResults.map(result => ({
+      campaignId: result.campaignId,
+      token: {
+        address: result.token,
+        symbol: result.tokenInfo.symbol,
+        decimals: result.tokenInfo.decimals
+      },
+      pool: result.pool,
+      period: {
+        from: result.period.from.toISOString(),
+        to: result.period.to.toISOString(),
+        days: result.period.days
+      },
+      amounts: {
+        input: result.inputAmount.toString(),
+        inputFormatted: formatTokenAmount(result.inputAmount, result.tokenInfo.decimals),
+        fee: result.feeAmount.toString(),
+        feeFormatted: formatTokenAmount(result.feeAmount, result.tokenInfo.decimals),
+        distributed: result.distributedAmount.toString(),
+        distributedFormatted: formatTokenAmount(result.distributedAmount, result.tokenInfo.decimals)
+      },
+      recipients: result.recipients
+    }));
+    
+    fs.writeFileSync(
+      summaryPath,
+      JSON.stringify({
+        timestamp,
+        generatedAt: new Date().toISOString(),
+        weekStartDate: new Date(timestamp * 1000).toISOString(),
+        folderNames: foundInFolders,
+        delegationAddress: DELEGATION_ADDRESS,
+        feePercentage: FEE_PERCENTAGE,
+        merkleRoot: merkleData.merkleRoot,
+        totalRecipients: Object.keys(allDistributions).length,
+        totalCampaigns: allCampaigns.length,
+        tokenSummary: detailedTokenSummary,
+        campaignDetails: campaignDetails
+      }, null, 2)
+    );
     
   } catch (error) {
     console.error("Error in main process:", error);
