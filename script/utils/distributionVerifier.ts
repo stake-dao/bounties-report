@@ -62,7 +62,7 @@ const KNOWN_TOKENS_BY_CHAIN: {
     "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": { symbol: "SAV3", decimals: 18 },
     "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": { symbol: "FXS", decimals: 18 },
     "0x5f018e73C185aB23647c82bD039e762813877f0e": { symbol: "FXN", decimals: 18 },
-    "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7": { symbol: "sdCRV", decimals: 18 },
+    "0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5": { symbol: "sdCRV", decimals: 18 },
     "0x30D20208d987713f46DFD34EF128Bb16C404D10f": { symbol: "SD", decimals: 18 },
     "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F": { symbol: "SDT", decimals: 18 },
     "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E": { symbol: "crvUSD", decimals: 18 },
@@ -91,7 +91,7 @@ const KNOWN_TOKENS_BY_CHAIN: {
     "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F": { symbol: "FRAX", decimals: 18 },
     "0x13Ad51ed4F1B7e9Dc168d8a00cB3f4dDD85EfA60": { symbol: "LDO", decimals: 18 },
     "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a": { symbol: "GMX", decimals: 18 },
-    "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7": { symbol: "sdCRV", decimals: 18 },
+    "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7": { symbol: "EYWA", decimals: 18 },
   },
   // Base
   8453: {
