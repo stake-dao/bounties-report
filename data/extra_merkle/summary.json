@@ -1,157 +1,32 @@
 {
-  "timestamp": 1753920000,
-  "generatedAt": "2025-08-06T11:09:54.237Z",
-  "weekStartDate": "2025-07-31T00:00:00.000Z",
-  "folderNames": [
-    "2025-07-21-fluid-gho",
-    "2025-07-23-corn"
-  ],
-  "delegationAddress": "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC",
-  "feePercentage": 0.15,
-  "merkleRoot": "0xd8a36488a1bf932cc7f11f4bbd8818bb7c4e55189e798f7176f77ea21b9203bd",
-  "totalRecipients": 29,
-  "totalCampaigns": 5,
-  "tokenSummary": {
-    "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb": {
-      "symbol": "FLUID",
-      "decimals": 18,
-      "totalAmount": "18354920531635856428",
-      "totalAmountFormatted": "18.3549"
-    },
-    "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f": {
-      "symbol": "GHO",
-      "decimals": 18,
-      "totalAmount": "1538681889969713464122",
-      "totalAmountFormatted": "1538.6818"
-    },
-    "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d": {
-      "symbol": "stkGHO",
-      "decimals": 18,
-      "totalAmount": "2261909623617267110403",
-      "totalAmountFormatted": "2261.9096"
-    },
-    "0x44f49ff0da2498bCb1D3Dc7C0f999578F67FD8C6": {
-      "symbol": "CORN",
-      "decimals": 18,
-      "totalAmount": "32719931872770239",
-      "totalAmountFormatted": "0.0327"
-    }
-  },
-  "campaignDetails": [
+  "timestamp": 1755012470,
+  "merkleRoot": "0x23d0e6c656b7b80dff539691de048abd48b633ed174859db42dd0e1dc5dbed3d",
+  "totalRecipients": 36,
+  "tokens": [
     {
-      "campaignId": "2025-07-21-fluid-gho-1-0x8e1c2be682b0d3d8f8ee32024455a34cc724cf08",
-      "token": {
-        "address": "0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
-        "symbol": "FLUID",
-        "decimals": 18
-      },
-      "pool": "1-0x8e1c2be682b0d3d8f8ee32024455a34cc724cf08",
-      "period": {
-        "from": "2024-12-19T00:00:00.000Z",
-        "to": "2025-06-26T00:00:00.000Z",
-        "days": 189
-      },
-      "amounts": {
-        "input": "21594024154865713444",
-        "inputFormatted": "21.5940",
-        "fee": "3239103623229857016",
-        "feeFormatted": "3.2391",
-        "distributed": "18354920531635856428",
-        "distributedFormatted": "18.3549"
-      },
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "totalAmount": "18354920531635856428",
       "recipients": 1
     },
     {
-      "campaignId": "2025-07-21-fluid-gho-1-0xd4f6592de90024e541187527d7f1de83f6cb6a52",
-      "token": {
-        "address": "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f",
-        "symbol": "GHO",
-        "decimals": 18
-      },
-      "pool": "1-0xd4f6592de90024e541187527d7f1de83f6cb6a52",
-      "period": {
-        "from": "2025-06-12T00:00:00.000Z",
-        "to": "2025-07-01T13:00:00.000Z",
-        "days": 19.541666666666668
-      },
-      "amounts": {
-        "input": "1810213988199662898982",
-        "inputFormatted": "1810.2139",
-        "fee": "271532098229949434847",
-        "feeFormatted": "271.5320",
-        "distributed": "1538681889969713464122",
-        "distributedFormatted": "1538.6818"
-      },
+      "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "totalAmount": "1538681889969713464122",
       "recipients": 25
     },
     {
-      "campaignId": "2025-07-21-fluid-gho-1-0xd4f6592de90024e541187527d7f1de83f6cb6a52",
-      "token": {
-        "address": "0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
-        "symbol": "stkGHO",
-        "decimals": 18
-      },
-      "pool": "1-0xd4f6592de90024e541187527d7f1de83f6cb6a52",
-      "period": {
-        "from": "2025-07-01T13:00:00.000Z",
-        "to": "2025-07-08T13:00:00.000Z",
-        "days": 7
-      },
-      "amounts": {
-        "input": "1337535839291292325969",
-        "inputFormatted": "1337.5358",
-        "fee": "200630375893693848895",
-        "feeFormatted": "200.6303",
-        "distributed": "1136905463397598477063",
-        "distributedFormatted": "1136.9054"
-      },
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "totalAmount": "2261909623617267110403",
       "recipients": 24
     },
     {
-      "campaignId": "2025-07-21-fluid-gho-1-0xd4f6592de90024e541187527d7f1de83f6cb6a52",
-      "token": {
-        "address": "0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
-        "symbol": "stkGHO",
-        "decimals": 18
-      },
-      "pool": "1-0xd4f6592de90024e541187527d7f1de83f6cb6a52",
-      "period": {
-        "from": "2025-07-08T13:00:00.000Z",
-        "to": "2025-07-15T13:13:00.000Z",
-        "days": 7.009027777777778
-      },
-      "amounts": {
-        "input": "1323534306140786627475",
-        "inputFormatted": "1323.5343",
-        "fee": "198530145921117994121",
-        "feeFormatted": "198.5301",
-        "distributed": "1125004160219668633340",
-        "distributedFormatted": "1125.0041"
-      },
-      "recipients": 23
+      "token": "0x44f49ff0da2498bCb1D3Dc7C0f999578F67FD8C6",
+      "totalAmount": "32719931872770239",
+      "recipients": 1
     },
     {
-      "campaignId": "2025-07-23-corn-1-0xedda7526ec81055f2af99d51d968fc2fbca9ee96",
-      "token": {
-        "address": "0x44f49ff0da2498bcb1d3dc7c0f999578f67fd8c6",
-        "symbol": "CORN",
-        "decimals": 18
-      },
-      "pool": "1-0xedda7526ec81055f2af99d51d968fc2fbca9ee96",
-      "period": {
-        "from": "2025-01-01T00:00:00.000Z",
-        "to": "2025-05-22T00:00:00.000Z",
-        "days": 141
-      },
-      "amounts": {
-        "input": "38494037497376751",
-        "inputFormatted": "0.0384",
-        "fee": "5774105624606512",
-        "feeFormatted": "0.0057",
-        "distributed": "32719931872770239",
-        "distributedFormatted": "0.0327"
-      },
-      "recipients": 1
+      "token": "0xC4441c2BE5d8fA8126822B9929CA0b81Ea0DE38E",
+      "totalAmount": "900697232962302299999997",
+      "recipients": 7
     }
   ]
 }
