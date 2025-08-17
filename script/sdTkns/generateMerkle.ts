@@ -9,6 +9,7 @@ import {
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDPENDLE_SPACE,
+  SDFXS_SPACE,
   SPACE_TO_NETWORK,
   SPACES,
   SPACES_IMAGE,
@@ -104,6 +105,12 @@ const main = async () => {
 
   // Loop through each space (except Pendle, handled separately)
   for (const space of Object.keys(proposalIdPerSpace)) {
+    // Skip sdFXS as it now uses Universal Merkle
+    if (space === SDFXS_SPACE) {
+      console.log(`Skipping ${space} - now uses Universal Merkle`);
+      continue;
+    }
+    
     checkSpace(
       space,
       SPACES_SYMBOL,

@@ -64,6 +64,8 @@ export const VLCVX_NON_DELEGATORS_MERKLE =
   "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
 export const SPECTRA_SAFE_MODULE =
   "0xA3ec797267Ad92199a11125FE31B94fac4A06C38" as `0x${string}`;
+export const SDFXS_UNIVERSAL_MERKLE =
+  "0x0000000000000000000000000000000000000000"; // TODO: Deploy and update this address
 export const WEEK = 604800;
 export const TWOWEEKS = WEEK * 2;
 
@@ -223,6 +225,7 @@ export const CHAINS_IDS_TO_SHORTS: Record<number, string> = {
   10: "optimism",
   8453: "base",
   137: "polygon",
+  252: "fraxtal",
 };
 
 export const abi = [
