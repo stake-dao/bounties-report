@@ -88,6 +88,8 @@ export const FXN_STAKE_DAO_LOCKER =
 export const FXN_CONVEX_LOCKER = "0xd11a4Ee017cA0BECA8FA45fF2abFe9C6267b7881";
 
 // Tokens
+// NOTE: For dynamic token lookups, use tokenService instead of hardcoded addresses
+// import { getTokenAddress } from "../utils/tokenService";
 export const SD_CRV = getAddress("0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5");
 export const SD_BAL = getAddress("0xF24d8651578a55b0C119B9910759a351A3458895");
 export const SD_FXS = getAddress("0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36");

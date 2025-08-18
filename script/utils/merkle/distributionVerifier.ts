@@ -4,7 +4,6 @@ import {
   erc20Abi,
   getAddress,
   http,
-  parseAbi,
 } from "viem";
 import { DistributionRow } from "../../interfaces/DistributionRow";
 import { MerkleData } from "../../interfaces/MerkleData";
@@ -22,6 +21,7 @@ import {
   WEEK,
 } from "../constants";
 import { verifyVlCVXDistribution } from "../vlCVXDistributionVerifier";
+import { getTokenByAddress } from "../tokenService";
 import fs from "fs";
 import path from "path";
 const merkleAbi = [
@@ -44,83 +44,6 @@ const globalTokenInfoCache: {
   };
 } = {};
 
-// Chain-specific known token mappings
-const KNOWN_TOKENS_BY_CHAIN: {
-  [chainId: number]: { [address: string]: { symbol: string; decimals: number } };
-} = {
-  // Ethereum Mainnet
-  1: {
-    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": { symbol: "USDC", decimals: 6 },
-    "0xdAC17F958D2ee523a2206206994597C13D831ec7": { symbol: "USDT", decimals: 6 },
-    "0x6B175474E89094C44Da98b954EedeAC495271d0F": { symbol: "DAI", decimals: 18 },
-    "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": { symbol: "WBTC", decimals: 8 },
-    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": { symbol: "WETH", decimals: 18 },
-    "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": { symbol: "wstETH", decimals: 18 },
-    "0xD533a949740bb3306d119CC777fa900bA034cd52": { symbol: "CRV", decimals: 18 },
-    "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": { symbol: "CVX", decimals: 18 },
-    "0x090185f2135308BaD17527004364eBcC2D37e5F6": { symbol: "SPELL", decimals: 18 },
-    "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": { symbol: "SAV3", decimals: 18 },
-    "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": { symbol: "FXS", decimals: 18 },
-    "0x5f018e73C185aB23647c82bD039e762813877f0e": { symbol: "FXN", decimals: 18 },
-    "0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5": { symbol: "sdCRV", decimals: 18 },
-    "0x30D20208d987713f46DFD34EF128Bb16C404D10f": { symbol: "SD", decimals: 18 },
-    "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F": { symbol: "SDT", decimals: 18 },
-    "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E": { symbol: "crvUSD", decimals: 18 },
-    "0x853d955aCEf822Db058eb8505911ED77F175b99e": { symbol: "FRAX", decimals: 18 },
-    "0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF": { symbol: "AURA", decimals: 18 },
-    "0xba100000625a3754423978a60c9317c58a424e3D": { symbol: "BAL", decimals: 18 },
-    "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32": { symbol: "LDO", decimals: 18 },
-    "0xae78736Cd615f374D3085123A210448E74Fc6393": { symbol: "rETH", decimals: 18 },
-    "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f": { symbol: "GHO", decimals: 18 },
-    "0x085780639CC2cACd35E474e71f4d000e2405d8f6": { symbol: "YFI", decimals: 18 },
-  },
-  // Arbitrum
-  42161: {
-    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831": { symbol: "USDC", decimals: 6 },
-    "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9": { symbol: "USDT", decimals: 6 },
-    "0x912CE59144191C1204E64559FE8253a0e49E6548": { symbol: "ARB", decimals: 18 },
-    "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8": { symbol: "BAL", decimals: 18 },
-    "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0": { symbol: "UNI", decimals: 18 },
-    "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978": { symbol: "CRV", decimals: 18 },
-    "0xf97f4df75117a78c1A5a0DBb814Af92458539FB4": { symbol: "LINK", decimals: 18 },
-    "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f": { symbol: "WBTC", decimals: 8 },
-    "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1": { symbol: "WETH", decimals: 18 },
-    "0x5979D7b546E38E414F7E9822514be443A4800529": { symbol: "wstETH", decimals: 18 },
-    "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1": { symbol: "DAI", decimals: 18 },
-    "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8": { symbol: "USDC.e", decimals: 6 },
-    "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F": { symbol: "FRAX", decimals: 18 },
-    "0x13Ad51ed4F1B7e9Dc168d8a00cB3f4dDD85EfA60": { symbol: "LDO", decimals: 18 },
-    "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a": { symbol: "GMX", decimals: 18 },
-    "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7": { symbol: "EYWA", decimals: 18 },
-  },
-  // Base
-  8453: {
-    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913": { symbol: "USDC", decimals: 6 },
-    "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415": { symbol: "CRV", decimals: 18 },
-    "0x4200000000000000000000000000000000000006": { symbol: "WETH", decimals: 18 },
-    "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA": { symbol: "USDbC", decimals: 6 },
-    "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb": { symbol: "DAI", decimals: 18 },
-  },
-  // Optimism
-  10: {
-    "0x7F5c764cBc14f9669B88837ca1490cCa17c31607": { symbol: "USDC.e", decimals: 6 },
-    "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85": { symbol: "USDC", decimals: 6 },
-    "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58": { symbol: "USDT", decimals: 6 },
-    "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1": { symbol: "DAI", decimals: 18 },
-    "0x4200000000000000000000000000000000000006": { symbol: "WETH", decimals: 18 },
-    "0x68f180fcCe6836688e9084f035309E29Bf0A2095": { symbol: "WBTC", decimals: 8 },
-  },
-  // Polygon
-  137: {
-    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174": { symbol: "USDC.e", decimals: 6 },
-    "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359": { symbol: "USDC", decimals: 6 },
-    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F": { symbol: "USDT", decimals: 6 },
-    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063": { symbol: "DAI", decimals: 18 },
-    "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619": { symbol: "WETH", decimals: 18 },
-    "0x1bfd67037b42cf73acF2047067bd4F2C47D9BfD6": { symbol: "WBTC", decimals: 8 },
-  },
-};
-
 export const getAllTokensInfos = async (
   tokenAddresses: string[],
   chain: Chain
@@ -133,7 +56,6 @@ export const getAllTokensInfos = async (
   }
 
   const chainCache = globalTokenInfoCache[chainId];
-  const knownTokensForChain = KNOWN_TOKENS_BY_CHAIN[chainId] || {};
 
   // Normalize all addresses first
   const normalizedAddresses = tokenAddresses.map((addr) => {
@@ -145,10 +67,16 @@ export const getAllTokensInfos = async (
     }
   });
 
-  // First, check known tokens for this chain
+  // First, check tokenService for known tokens
   for (const addr of normalizedAddresses) {
-    if (!chainCache[addr] && knownTokensForChain[addr]) {
-      chainCache[addr] = knownTokensForChain[addr];
+    if (!chainCache[addr]) {
+      const tokenInfo = await getTokenByAddress(addr, chainId.toString());
+      if (tokenInfo) {
+        chainCache[addr] = {
+          symbol: tokenInfo.symbol,
+          decimals: tokenInfo.decimals
+        };
+      }
     }
   }
 
@@ -205,17 +133,21 @@ export const getAllTokensInfos = async (
     if (decimalsResults[i].status === "success") {
       decimals = Number(decimalsResults[i].result);
     } else {
-      // Check if this might be a token from another chain
+      // Try to get token info from tokenService for other chains
       let foundInOtherChain = false;
-      for (const [otherChainId, tokens] of Object.entries(KNOWN_TOKENS_BY_CHAIN)) {
-        if (otherChainId !== chainId.toString() && tokens[normalizedAddress]) {
-          console.warn(
-            `Token ${normalizedAddress} appears to be from chain ${otherChainId}, not chain ${chainId}. Using known info.`
-          );
-          decimals = tokens[normalizedAddress].decimals;
-          symbol = tokens[normalizedAddress].symbol;
-          foundInOtherChain = true;
-          break;
+      const chainIds = ["1", "10", "137", "42161", "8453"]; // Common chain IDs
+      for (const otherChainId of chainIds) {
+        if (otherChainId !== chainId.toString()) {
+          const tokenInfo = await getTokenByAddress(normalizedAddress, otherChainId);
+          if (tokenInfo) {
+            console.warn(
+              `Token ${normalizedAddress} appears to be from chain ${otherChainId}, not chain ${chainId}. Using known info.`
+            );
+            decimals = tokenInfo.decimals;
+            symbol = tokenInfo.symbol;
+            foundInOtherChain = true;
+            break;
+          }
         }
       }
       if (!foundInOtherChain) {
@@ -228,16 +160,20 @@ export const getAllTokensInfos = async (
     if (symbolResults[i].status === "success") {
       symbol = symbolResults[i].result as string;
     } else if (symbol === "UNKNOWN") {
-      // Check if this might be a token from another chain
+      // Try to get token info from tokenService for other chains
       let foundInOtherChain = false;
-      for (const [otherChainId, tokens] of Object.entries(KNOWN_TOKENS_BY_CHAIN)) {
-        if (otherChainId !== chainId.toString() && tokens[normalizedAddress]) {
-          console.warn(
-            `Token ${normalizedAddress} appears to be from chain ${otherChainId}, not chain ${chainId}. Using known info.`
-          );
-          symbol = tokens[normalizedAddress].symbol;
-          foundInOtherChain = true;
-          break;
+      const chainIds = ["1", "10", "137", "42161", "8453"]; // Common chain IDs
+      for (const otherChainId of chainIds) {
+        if (otherChainId !== chainId.toString()) {
+          const tokenInfo = await getTokenByAddress(normalizedAddress, otherChainId);
+          if (tokenInfo) {
+            console.warn(
+              `Token ${normalizedAddress} appears to be from chain ${otherChainId}, not chain ${chainId}. Using known info.`
+            );
+            symbol = tokenInfo.symbol;
+            foundInOtherChain = true;
+            break;
+          }
         }
       }
       if (!foundInOtherChain) {

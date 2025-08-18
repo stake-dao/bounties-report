@@ -7,6 +7,7 @@ import {
   DELEGATION_ADDRESS,
   getClient,
   VOTIUM_FORWARDER_REGISTRY,
+  WEEK,
 } from "../../utils/constants";
 import { getGaugesInfos } from "../../utils/reportUtils";
 import { createPublicClient, http } from "viem";
@@ -27,8 +28,9 @@ import {
   getForwardedDelegators,
 } from "../../utils/delegationHelper";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
-import { getTokenAddress } from "../../utils/tokenMappings";
+import { getTokenAddress as getTokenAddressFromService, getTokenDecimals as getTokenDecimalsFromService } from "../../utils/tokenService";
 import { getTokenPrices, TokenIdentifier } from "../../utils/priceUtils";
+import { isOddWeek } from "../../utils/utils";
 
 const THE_UNION_ADDRESS = "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49";
 
@@ -49,29 +51,18 @@ interface TokenAllocation {
 
 // ========== HELPER FUNCTIONS ==========
 
-// Common token decimals mapping
-const TOKEN_DECIMALS: Record<string, number> = {
-  // Stablecoins
-  "0x6B175474E89094C44Da98b954EedeAC495271d0F": 18, // DAI
-  "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": 6, // USDC
-  "0xdAC17F958D2ee523a2206206994597C13D831ec7": 6, // USDT
-
-  // Major tokens
-  "0xD533a949740bb3306d119CC777fa900bA034cd52": 18, // CRV
-  "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": 18, // CVX
-  "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": 18, // FXS
-  "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": 18, // FXN
-  "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": 18, // ALCX
-  "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": 18, // INV
-  "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": 18, // RSUP
-  "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF": 18, // SDEX
-};
-
 /**
  * Get token decimals with fallback to 18
  */
-function getTokenDecimals(tokenAddress: string): number {
-  return TOKEN_DECIMALS[tokenAddress] || 18;
+async function getTokenDecimals(tokenAddress: string): Promise<number> {
+  return getTokenDecimalsFromService(tokenAddress);
+}
+
+/**
+ * Wrapper for token address lookup
+ */
+async function getTokenAddress(symbol: string): Promise<string | undefined> {
+  return getTokenAddressFromService(symbol);
 }
 
 /**
@@ -268,13 +259,11 @@ async function getAllForwarders(
 
   console.log(`\n✅ Found ${forwarders.length} forwarders:`);
   console.log(
-    `   - Delegator forwarders: ${
-      forwarders.filter((f) => f.type === "delegator").length
+    `   - Delegator forwarders: ${forwarders.filter((f) => f.type === "delegator").length
     }`
   );
   console.log(
-    `   - Direct voter forwarders: ${
-      forwarders.filter((f) => f.type === "direct-voter").length
+    `   - Direct voter forwarders: ${forwarders.filter((f) => f.type === "direct-voter").length
     }`
   );
 
@@ -282,8 +271,7 @@ async function getAllForwarders(
   console.log("\nAll forwarders:");
   forwarders.forEach((f, idx) => {
     console.log(
-      `${idx + 1}. ${f.address} (${
-        f.type
+      `${idx + 1}. ${f.address} (${f.type
       }) - VP: ${f.votingPower.toLocaleString()}`
     );
   });
@@ -482,15 +470,15 @@ function computeVoteSharesForGauge(
 /**
  * Aggregate bribes by token for overall distribution
  */
-function aggregateBribesByToken(
+async function aggregateBribesByToken(
   gaugeBribes: any[],
   matchingBribesAggregated: any,
   delegationShare: number,
   bribesType: "curve" | "fxn"
 ) {
-  gaugeBribes.forEach((bribe: any) => {
+  for (const bribe of gaugeBribes) {
     // Convert token symbol to address if needed
-    const tokenKey = getTokenAddress(bribe.token) || bribe.token;
+    const tokenKey = (await getTokenAddress(bribe.token)) || bribe.token;
 
     if (!matchingBribesAggregated[tokenKey]) {
       matchingBribesAggregated[tokenKey] = {
@@ -512,7 +500,7 @@ function aggregateBribesByToken(
       );
     } else {
       // Convert bribe amount to wei
-      const decimals = getTokenDecimals(tokenKey);
+      const decimals = await getTokenDecimals(tokenKey);
       delegatedClaimOverall = BigInt(
         Math.floor(Number(bribe.amount) * delegationShare * 10 ** decimals)
       );
@@ -529,7 +517,7 @@ function aggregateBribesByToken(
       delegationShare,
       type: bribesType,
     });
-  });
+  }
 }
 
 /**
@@ -744,7 +732,7 @@ async function processGaugeVotes(
       if (
         gaugeInfo.choiceId === 395 ||
         gaugeAddress.toLowerCase() ===
-          "0xaf01d68714e7ea67f43f08b5947e367126b889b1"
+        "0xaf01d68714e7ea67f43f08b5947e367126b889b1"
       ) {
         console.log("  This is the gauge we are tracking!");
         forwarderVotes.forEach((v) => {
@@ -819,11 +807,10 @@ async function processGaugeVotes(
     );
 
     // Distribute bribes among forwarders for per-address tracking
-    gaugeBribes.forEach((bribe: any) => {
+    for (const bribe of gaugeBribes) {
       const amountInDollars = bribe.amountDollars || 0;
       console.log(
-        `  Distributing bribe: $${amountInDollars.toFixed(2)} (${
-          bribe.amount
+        `  Distributing bribe: $${amountInDollars.toFixed(2)} (${bribe.amount
         } ${bribe.token}) from ${bribe.pool}`
       );
 
@@ -842,7 +829,7 @@ async function processGaugeVotes(
         totalChoiceScore
       );
 
-      forwarders.forEach((forwarder) => {
+      for (const forwarder of forwarders) {
         const share = addressShares.get(forwarder.address) || 0;
         if (share > 0) {
           const allocatedDollars = amountInDollars * share;
@@ -851,8 +838,7 @@ async function processGaugeVotes(
           console.log(
             `    Allocating to ${forwarder.address}: ${(share * 100).toFixed(
               2
-            )}% = $${allocatedDollars.toFixed(2)} (${allocatedAmount} ${
-              bribe.token
+            )}% = $${allocatedDollars.toFixed(2)} (${allocatedAmount} ${bribe.token
             })`
           );
 
@@ -861,7 +847,7 @@ async function processGaugeVotes(
           }
 
           // Convert token symbol to address if needed
-          const tokenKey = getTokenAddress(bribe.token) || bribe.token;
+          const tokenKey = await getTokenAddress(bribe.token) || bribe.token;
 
           if (!tokenAllocations[forwarder.address][tokenKey]) {
             tokenAllocations[forwarder.address][tokenKey] = {
@@ -880,7 +866,7 @@ async function processGaugeVotes(
           };
 
           // Also track for per-address token allocations (for claimed bounties)
-          const tokenAddress = getTokenAddress(bribe.token) || bribe.token;
+          const tokenAddress = await getTokenAddress(bribe.token) || bribe.token;
 
           // Check if the bribe amount looks like it's already in wei
           const brideAmountNum = Number(bribe.amount);
@@ -894,7 +880,7 @@ async function processGaugeVotes(
             amountInWei = BigInt(Math.floor(Number(bribe.amount) * share));
           } else {
             // Looks like human-readable, convert to wei
-            const decimals = getTokenDecimals(tokenAddress);
+            const decimals = await getTokenDecimals(tokenAddress);
             console.log(
               `    Token ${bribe.token}: Converting ${bribe.amount} to wei with ${decimals} decimals`
             );
@@ -910,8 +896,8 @@ async function processGaugeVotes(
           perAddressTokenAllocations[forwarder.address][tokenAddress] +=
             amountInWei;
         }
-      });
-    });
+      }
+    }
 
     if (gaugeBribes.length > 0) {
       processedGauges++;
@@ -1296,8 +1282,7 @@ async function fetchAndProcessClaimedBounties(
   });
 
   console.log(
-    `Split bounties: ${Object.keys(protocolBounties.curve).length} curve, ${
-      Object.keys(protocolBounties.fxn).length
+    `Split bounties: ${Object.keys(protocolBounties.curve).length} curve, ${Object.keys(protocolBounties.fxn).length
     } fxn`
   );
 
@@ -1307,10 +1292,10 @@ async function fetchAndProcessClaimedBounties(
 /**
  * Main function to generate Convex Votium bounties
  */
-export async function generateConvexVotiumBountiesImproved(): Promise<void> {
+export async function generateConvexVotiumBounties(): Promise<void> {
   try {
     console.log("=".repeat(80));
-    console.log("Generating Convex Votium Bounties (Improved)");
+    console.log("Generating Convex Votium Bounties");
     console.log("=".repeat(80));
 
     // Initialize client
@@ -1331,16 +1316,24 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
       },
     ] as const;
 
-    const currentEpoch = await ethereumClient.readContract({
+    let currentEpoch = await ethereumClient.readContract({
       address: VOTIUM_FORWARDER_REGISTRY as `0x${string}`,
       abi: epochAbi,
       functionName: "currentEpoch",
     });
 
-    console.log(`Current Votium epoch: ${currentEpoch}`);
+    const now = Math.floor(Date.now() / 1000);
+
+    // If we are on an even week, take the prev round epoch
+    if (!isOddWeek(now)) {
+      console.log("using prev round epoch");
+      currentEpoch = currentEpoch - BigInt(2 * WEEK)
+    }
+
+    console.log(`Current Votium epoch: ${currentEpoch} (${new Date(Number(currentEpoch) * 1000).toLocaleDateString('en-GB')})`);
+
 
     // Get Curve proposal for reference
-    const now = Math.floor(Date.now() / 1000);
     const curveProposalIds = await fetchLastProposalsIdsCurrentPeriod(
       [CVX_SPACE],
       now,
@@ -1533,7 +1526,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
 
       // First, get the actual claimed tokens and amounts from votiumConvexBounties
       // Reset claimedTokenAmounts (already declared outside try block)
-      
+
       // Process all votium bounties to get actual claimed amounts
       for (const bounty of votiumConvexBounties.votiumBounties) {
         const token = bounty.rewardToken;
@@ -1565,7 +1558,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
       // Remove unclaimed tokens
       for (const token of uniqueTokensToRemove) {
         console.log(`❌ Removing unclaimed token: ${token}`);
-        
+
         // Count how many addresses have this token before removal
         let addressCount = 0;
         for (const voter in perAddressTokenAllocations) {
@@ -1574,13 +1567,13 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
             delete perAddressTokenAllocations[voter][token];
           }
         }
-        
+
         for (const voter in tokenAllocations) {
           if (tokenAllocations[voter][token]) {
             delete tokenAllocations[voter][token];
           }
         }
-        
+
         console.log(`   Removed from ${addressCount} addresses`);
       }
 
@@ -1598,7 +1591,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
       // Calculate total USD value per user
       const userTotalUsd: Record<string, number> = {};
       let grandTotalUsd = 0;
-      
+
       for (const voter in originalTokenAllocations) {
         userTotalUsd[voter] = 0;
         for (const token in originalTokenAllocations[voter]) {
@@ -1608,18 +1601,18 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
         }
         grandTotalUsd += userTotalUsd[voter];
       }
-      
+
       console.log(`\n💵 Total USD value to distribute: $${grandTotalUsd.toFixed(2)}`);
-      
+
       // Get token prices for claimed tokens
       // Reset tokenPrices (already declared outside try block)
       tokenPrices = {};
       const tokenIdentifiers: TokenIdentifier[] = [];
-      
+
       for (const token of Object.keys(claimedTokenAmounts)) {
         tokenIdentifiers.push({ chainId: 1, address: token.toLowerCase() });
       }
-      
+
       try {
         const prices = await getTokenPrices(tokenIdentifiers);
         for (const [key, price] of Object.entries(prices)) {
@@ -1629,17 +1622,17 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
       } catch (error) {
         console.error("Error fetching token prices:", error);
       }
-      
+
       // Calculate token amounts based on USD values
       console.log("\n🔄 Calculating token amounts based on USD allocations...");
-      
+
       for (const token in claimedTokenAmounts) {
         const tokenPrice = tokenPrices[token.toLowerCase()];
         const actualTotal = claimedTokenAmounts[token];
-        
+
         if (!tokenPrice || tokenPrice === 0) {
           console.warn(`⚠️  No price found for token ${token}, using proportional distribution`);
-          
+
           // Fallback to proportional distribution if no price
           const theoreticalTotal = theoreticalTotals[token] || 0n;
           if (theoreticalTotal > 0n) {
@@ -1653,7 +1646,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
           }
           continue;
         }
-        
+
         // Calculate total USD value that should be distributed for this token
         let tokenUsdTotal = 0;
         for (const voter in originalTokenAllocations) {
@@ -1661,36 +1654,36 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
             tokenUsdTotal += originalTokenAllocations[voter][token].usd;
           }
         }
-        
+
         // Calculate total token amount needed based on USD value
-        const decimals = getTokenDecimals(token);
+      const decimals = await getTokenDecimals(token);
         const totalTokensNeeded = BigInt(Math.floor((tokenUsdTotal / tokenPrice) * (10 ** decimals)));
-        
+
         console.log(`\nToken ${token}:`);
         console.log(`  Price: $${tokenPrice.toFixed(4)}`);
         console.log(`  Total USD to distribute: $${tokenUsdTotal.toFixed(2)}`);
         console.log(`  Tokens needed: ${totalTokensNeeded.toString()} (${Number(totalTokensNeeded) / (10 ** decimals)} tokens)`);
         console.log(`  Actual claimed: ${actualTotal.toString()} (${Number(actualTotal) / (10 ** decimals)} tokens)`);
-        
+
         // Check if we have enough tokens
         if (totalTokensNeeded > actualTotal) {
           console.warn(`  ⚠️  Not enough tokens! Need ${totalTokensNeeded.toString()} but only have ${actualTotal.toString()}`);
           console.log(`  📊 Will distribute all available tokens proportionally based on USD shares`);
         }
-        
+
         // Distribute tokens based on each user's USD share
         const tokensToDistribute = totalTokensNeeded > actualTotal ? actualTotal : totalTokensNeeded;
         let distributedAmount = 0n;
-        
+
         for (const voter in perAddressTokenAllocations) {
           if (originalTokenAllocations[voter] && originalTokenAllocations[voter][token]) {
             const userUsdForToken = originalTokenAllocations[voter][token].usd;
             const userShare = tokenUsdTotal > 0 ? userUsdForToken / tokenUsdTotal : 0;
             const userTokenAmount = BigInt(Math.floor(Number(tokensToDistribute) * userShare));
-            
+
             perAddressTokenAllocations[voter][token] = userTokenAmount;
             distributedAmount += userTokenAmount;
-            
+
             // Update tokenAllocations with the new amount
             if (tokenAllocations[voter] && tokenAllocations[voter][token]) {
               tokenAllocations[voter][token] = {
@@ -1700,7 +1693,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
             }
           }
         }
-        
+
         console.log(`  Distributed: ${distributedAmount.toString()} (${Number(distributedAmount) / (10 ** decimals)} tokens)`);
         console.log(`  Remaining: ${(tokensToDistribute - distributedAmount).toString()}`);
       }
@@ -1770,7 +1763,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
     // For the merkle tree, we need wei amounts (from formattedPerAddressAllocations)
     // But we also want to keep the USD values for the combined merkle script
     const tokenAllocationsWithWei: Record<string, Record<string, { amount: string; amountWei: string; usd: number }>> = {};
-    
+
     for (const voter in tokenAllocations) {
       tokenAllocationsWithWei[voter] = {};
       for (const token in tokenAllocations[voter]) {
@@ -1783,7 +1776,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
         }
       }
     }
-    
+
     const perAddressOutput = {
       curveVotes: curveAddressBreakdown,
       fxnVotes: fxnAddressBreakdown,
@@ -1801,7 +1794,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
 
     // Debug: Log CRV amount for the specific address
     const debugAddress = "0x2dbedd2632d831e61eb3fcc6720f072eef9d522d";
-    const crvToken = "0xD533a949740bb3306d119CC777fa900bA034cd52";
+    const crvToken = await getTokenAddressFromService("CRV") || "0xD533a949740bb3306d119CC777fa900bA034cd52";
     if (
       cleanedPerAddressOutput.tokenAllocations &&
       cleanedPerAddressOutput.tokenAllocations[debugAddress] &&
@@ -1824,13 +1817,11 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
     console.log("=".repeat(80));
     console.log(`Total forwarders: ${forwarders.length}`);
     console.log(
-      `- Delegator forwarders: ${
-        forwarders.filter((f) => f.type === "delegator").length
+      `- Delegator forwarders: ${forwarders.filter((f) => f.type === "delegator").length
       }`
     );
     console.log(
-      `- Direct voter forwarders: ${
-        forwarders.filter((f) => f.type === "direct-voter").length
+      `- Direct voter forwarders: ${forwarders.filter((f) => f.type === "direct-voter").length
       }`
     );
     // Calculate total USD value across all tokens
@@ -1846,19 +1837,19 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
       .sort(([, a], [, b]) => b.usd - a.usd)
       .slice(0, 10);
 
-    sortedTokens.forEach(([token, allocation]) => {
-      const decimals = getTokenDecimals(token);
+    for (const [token, allocation] of sortedTokens) {
+      const decimals = await getTokenDecimals(token);
       const claimedAmount = claimedTokenAmounts[token];
       const distributedWei = Object.values(perAddressTokenAllocations).reduce(
         (sum, userAllocs) => sum + (userAllocs[token] || 0n),
         0n
       );
-      
+
       if (claimedAmount) {
         const claimedFormatted = Number(claimedAmount) / (10 ** decimals);
         const distributedFormatted = Number(distributedWei) / (10 ** decimals);
         const percentUsed = (Number(distributedWei) * 100 / Number(claimedAmount)).toFixed(2);
-        
+
         console.log(
           `  ${token}: ${allocation.amount} ($${allocation.usd.toFixed(2)})`
         );
@@ -1870,7 +1861,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
           `  ${token}: ${allocation.amount} ($${allocation.usd.toFixed(2)}) - NOT CLAIMED`
         );
       }
-    });
+    }
 
     // Show top forwarder allocations
     console.log("\nForwarder allocations:");
@@ -1888,39 +1879,39 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
     sortedForwarders.forEach(({ address, totalUsd, type }) => {
       console.log(`  ${address} (${type}): $${totalUsd.toFixed(2)}`);
     });
-    
+
     // Final summary of token distribution efficiency
     console.log("\n" + "=".repeat(80));
     console.log("TOKEN DISTRIBUTION EFFICIENCY");
     console.log("=".repeat(80));
-    
+
     let totalClaimedUsd = 0;
     let totalDistributedUsd = 0;
-    
+
     for (const [token, claimedAmount] of Object.entries(claimedTokenAmounts)) {
-      const decimals = getTokenDecimals(token);
+      const decimals = await getTokenDecimals(token);
       const distributedWei = Object.values(perAddressTokenAllocations).reduce(
         (sum, userAllocs) => sum + (userAllocs[token] || 0n),
         0n
       );
-      
+
       // Get token price if available
       const tokenPrice = tokenPrices?.[token.toLowerCase()] || 0;
-      
+
       if (tokenPrice > 0) {
         const claimedUsd = (Number(claimedAmount) / (10 ** decimals)) * tokenPrice;
         const distributedUsd = (Number(distributedWei) / (10 ** decimals)) * tokenPrice;
-        
+
         totalClaimedUsd += claimedUsd;
         totalDistributedUsd += distributedUsd;
       }
     }
-    
+
     console.log(`Total claimed value: $${totalClaimedUsd.toFixed(2)}`);
     console.log(`Total distributed value: $${totalDistributedUsd.toFixed(2)}`);
     console.log(`Distribution efficiency: ${(totalDistributedUsd * 100 / totalClaimedUsd).toFixed(2)}%`);
     console.log(`Remaining value: $${(totalClaimedUsd - totalDistributedUsd).toFixed(2)}`);
-    
+
   } catch (error) {
     console.error("Error generating Convex Votium bounties:", error);
     throw error;
@@ -1929,7 +1920,7 @@ export async function generateConvexVotiumBountiesImproved(): Promise<void> {
 
 // Run if called directly
 if (require.main === module) {
-  generateConvexVotiumBountiesImproved()
+  generateConvexVotiumBounties()
     .then(() => process.exit(0))
     .catch((error) => {
       console.error(error);
