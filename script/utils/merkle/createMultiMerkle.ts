@@ -49,7 +49,7 @@ import { processAllDelegators } from "./cacheUtils";
  * @param overrideTokenAddress - Optional: distribute a different token (for raw tokens)
  * @returns MerkleStat object containing merkle tree, APR, and logs
  */
-export const createMerkle = async (
+export const createMultiMerkle = async (
   ids: string[],
   space: string,
   lastMerkles: any,

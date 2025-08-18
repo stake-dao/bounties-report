@@ -27,7 +27,7 @@ import {
   getAllAccountClaimedSinceLastFreeze,
   PendleCSVType,
 } from "../utils/utils";
-import { createMerkle } from "../utils/createMerkle";
+import { createMultiMerkle } from "../utils/merkle/createMultiMerkle;
 import {
   Chain,
   createPublicClient,
@@ -225,7 +225,7 @@ const main = async () => {
     });
 
     // Create the merkle for this space.
-    const merkleStat = await createMerkle(
+    const merkleStat = await createMultiMerkle(
       ids,
       space,
       lastMerkles,
@@ -310,7 +310,7 @@ const main = async () => {
       try {
         // Create merkle tree using the same voting rules as the space
         // but distributing the raw token instead of the sdToken
-        const merkleStat = await createMerkle(
+        const merkleStat = await createMultiMerkle(
           [proposalId],
           space,
           lastMerkles,

@@ -1,7 +1,7 @@
 import { createPublicClient, http, getAddress, encodePacked, keccak256, pad } from "viem";
 import { fraxtal } from "viem/chains";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { SD_FXS } from "../utils/constants";
+import { FRAXTAL_SD_FXS, SD_FXS } from "../utils/constants";
 
 const FRAXTAL_RECIPIENT = "0xAeB87C92b2E7d3b21fA046Ae1E51E0ebF11A41Af";
 
@@ -25,20 +25,20 @@ export async function getSdFXSTransfersOnFraxtal(weekTimestamp: number): Promise
 
   // Get block numbers for the week
   const startBlock = await getClosestBlockTimestamp("fraxtal", weekTimestamp);
-  const endBlock = await getClosestBlockTimestamp("fraxtal", weekTimestamp + 604800); // +1 week
+  const endBlock = Number(await fraxtalClient.getBlockNumber());
 
   console.log(`Fetching sdFXS transfers on Fraxtal from block ${startBlock} to ${endBlock}`);
 
   // Transfer event signature
-  const transferSig = "Transfer(address,address,uint256)";
-  const transferHash = keccak256(encodePacked(["string"], [transferSig]));
+  // const transferSig = "Transfer(address,address,uint256)";
+  // const transferHash = keccak256(encodePacked(["string"], [transferSig]));
 
   // Pad the recipient address for topic matching
-  const paddedRecipient = pad(FRAXTAL_RECIPIENT as `0x${string}`, { size: 32 }).toLowerCase();
+  // const paddedRecipient = pad(FRAXTAL_RECIPIENT as `0x${string}`, { size: 32 }).toLowerCase();
 
   // Get transfer logs
   const logs = await fraxtalClient.getLogs({
-    address: SD_FXS as `0x${string}`,
+    address: FRAXTAL_SD_FXS as `0x${string}`,
     event: {
       type: 'event',
       name: 'Transfer',

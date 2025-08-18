@@ -13,7 +13,7 @@ import {
 import { 
   generateUniversalMerkle, 
   UniversalMerkleConfig 
-} from "../utils/universalMerkleGenerator";
+} from "../utils/merkle/universalMerkleGenerator";
 
 dotenv.config();
 

@@ -6,22 +6,22 @@ import {
   http,
   parseAbi,
 } from "viem";
-import { DistributionRow } from "../interfaces/DistributionRow";
-import { MerkleData } from "../interfaces/MerkleData";
-import { formatAddress } from "./address";
+import { DistributionRow } from "../../interfaces/DistributionRow";
+import { MerkleData } from "../../interfaces/MerkleData";
+import { formatAddress } from "../address";
 import {
   delegationLogger,
   proposalInformationLogger,
-} from "./delegationHelper";
-import { getProposal, getVoters } from "./snapshot";
+} from "../delegationHelper";
+import { getProposal, getVoters } from "../snapshot";
 import {
   getClient,
   VOTIUM_FORWARDER_REGISTRY,
   CVX_SPACE,
   CVX_FXN_SPACE,
   WEEK,
-} from "./constants";
-import { verifyVlCVXDistribution } from "./vlCVXDistributionVerifier";
+} from "../constants";
+import { verifyVlCVXDistribution } from "../vlCVXDistributionVerifier";
 import fs from "fs";
 import path from "path";
 const merkleAbi = [

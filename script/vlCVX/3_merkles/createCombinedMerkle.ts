@@ -5,11 +5,11 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import { mainnet } from "viem/chains";
-import { createCombineDistribution } from "../../utils/merkle";
+import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { generateMerkleTree, mergeMerkleData } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { CVX_SPACE, WEEK } from "../../utils/constants";
-import { distributionVerifier } from "../../utils/distributionVerifier";
+import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { fetchLastProposalsIds } from "../../utils/snapshot";
 
 // Round current UTC time down to the nearest week for the current period

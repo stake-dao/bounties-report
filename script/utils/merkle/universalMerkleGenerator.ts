@@ -11,13 +11,13 @@ import {
   getVotingPower,
   formatVotingPowerResult,
   getDelegationVotingPower,
-} from "./snapshot";
+} from "../snapshot";
 import {
   AUTO_VOTER_DELEGATION_ADDRESS,
   DELEGATION_ADDRESS,
   SPACE_TO_CHAIN_ID,
   WEEK,
-} from "./constants";
+} from "../constants";
 import {
   extractCSV,
   extractAllRawTokenCSVs,
@@ -25,12 +25,12 @@ import {
   getChoiceWhereExistsBribe,
   addVotersFromAutoVoter,
   RawTokenDistribution,
-} from "./utils";
-import { processAllDelegators } from "./cacheUtils";
-import { MerkleData } from "../interfaces/MerkleData";
-import { Distribution } from "../interfaces/Distribution";
+} from "../utils";
+import { processAllDelegators } from "../cacheUtils";
+import { MerkleData } from "../../interfaces/MerkleData";
+import { Distribution } from "../../interfaces/Distribution";
 import { createCombineDistribution } from "./merkle";
-import { generateMerkleTree } from "../vlCVX/utils";
+import { generateMerkleTree } from "../../vlCVX/utils";
 
 export interface UniversalMerkleConfig {
   space: string;

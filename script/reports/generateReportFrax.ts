@@ -5,22 +5,15 @@ import { mainnet } from "viem/chains";
 import dotenv from "dotenv";
 import {
   getTimestampsBlocks,
-  fetchSwapInEvents,
-  fetchSwapOutEvents,
   PROTOCOLS_TOKENS,
-  processSwapsOTC,
   aggregateBounties,
   collectAllTokens,
   fetchAllTokenInfos,
-  processSwaps,
   escapeCSV,
   addGaugeNamesToBounties,
   getGaugesInfos,
 } from "../utils/reportUtils";
-import { ALL_MIGHT } from "../utils/reportUtils";
-import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { getSdFXSTransfersOnFraxtal } from "./fraxtalFetcher";
-import processReport from "./processReport";
 
 dotenv.config();
 
@@ -179,8 +172,8 @@ const publicClient = createPublicClient({
   transport: http("https://rpc.flashbots.net"),
 });
 
+// TODO: Fetch swaps on mainnet to not rely on usd values (can be wrong in case of price changes)
 async function main() {
-  // This script is specifically for frax
   const protocol = "frax";
 
   // Get block numbers and timestamps
