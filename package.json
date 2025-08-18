@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "sd-merkle": "pnpm tsx script/sdTkns/generateMerkle.ts",
-    "sd-merkle:universal:frax": "pnpm tsx script/sdTkns/generateUniversalMerkleFrax.ts",
+    "sd-merkle:universal:frax": "pnpm tsx script/sdTkns/generateUniversalMerkle.ts --token sdFXS",
+    "sd-merkle:universal:spectra": "pnpm tsx script/sdTkns/generateUniversalMerkle.ts --token sdSpectra",
     "sd-merkle:universal": "pnpm tsx script/sdTkns/generateUniversalMerkleGeneric.ts",
     "vlcvx-repartition": "pnpm tsx script/vlCVX/generatevlCVXRepartition.ts",
     "vlcvx-merkle-thursday": "pnpm tsx script/vlCVX/3_merkles/createCombinedMerkle.ts",

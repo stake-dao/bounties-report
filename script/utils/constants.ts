@@ -105,6 +105,7 @@ export const SDT = getAddress("0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F");
 export const CVX = getAddress("0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B");
 
 export const FRAXTAL_SD_FXS = getAddress("0x1AEe2382e05Dc68BDfC472F1E46d570feCca5814")
+export const SD_SPECTRA = getAddress("0x8e7801bAC71E92993f6924e7D767D7dbC5fCE0AE")
 
 export const SPACES: string[] = [
   SDCRV_SPACE,
