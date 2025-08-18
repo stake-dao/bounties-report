@@ -1,9 +1,7 @@
 import { createPublicClient, http, getAddress, encodePacked, keccak256, pad } from "viem";
 import { fraxtal } from "viem/chains";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { FRAXTAL_SD_FXS, SD_FXS } from "../utils/constants";
-
-const FRAXTAL_RECIPIENT = "0xAeB87C92b2E7d3b21fA046Ae1E51E0ebF11A41Af";
+import { FRAXTAL_SD_FXS, SD_FXS, SDFXS_UNIVERSAL_MERKLE } from "../utils/constants";
 
 export interface SdFXSTransferResult {
   amount: bigint;
@@ -51,7 +49,7 @@ export async function getSdFXSTransfersOnFraxtal(weekTimestamp: number): Promise
     fromBlock: BigInt(startBlock),
     toBlock: BigInt(endBlock),
     args: {
-      to: FRAXTAL_RECIPIENT as `0x${string}`
+      to: SDFXS_UNIVERSAL_MERKLE as `0x${string}`
     }
   });
 

@@ -65,7 +65,7 @@ export const VLCVX_NON_DELEGATORS_MERKLE =
 export const SPECTRA_SAFE_MODULE =
   "0xA3ec797267Ad92199a11125FE31B94fac4A06C38" as `0x${string}`;
 export const SDFXS_UNIVERSAL_MERKLE =
-  "0x0000000000000000000000000000000000000000"; // TODO: Deploy and update this address
+  "0xAeB87C92b2E7d3b21fA046Ae1E51E0ebF11A41Af";
 export const WEEK = 604800;
 export const TWOWEEKS = WEEK * 2;
 

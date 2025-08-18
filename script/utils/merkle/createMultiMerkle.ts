@@ -14,13 +14,13 @@ import {
   SPACES_SYMBOL,
   SPACES_TOKENS,
   SPACES_UNDERLYING_TOKEN,
-} from "./constants";
+} from "../constants";
 import {
   formatVotingPowerResult,
   getProposal,
   getVoters,
   getVotingPower,
-} from "./snapshot";
+} from "../snapshot";
 import {
   addVotersFromAutoVoter,
   ChoiceBribe,
@@ -29,11 +29,11 @@ import {
   getChoicesBasedOnReport,
   getChoiceWhereExistsBribe,
   getDelegationVotingPower,
-} from "./utils";
-import { Log, MerkleStat } from "./types";
+} from "../utils";
+import { Log, MerkleStat } from "../types";
 import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
-import { processAllDelegators } from "./cacheUtils";
+import { processAllDelegators } from "../cacheUtils";
 
 /**
  * Creates a merkle tree for token distribution based on voting results

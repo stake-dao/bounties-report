@@ -11,9 +11,9 @@ import {
   SDFXS_UNIVERSAL_MERKLE,
 } from "../utils/constants";
 import { 
-  generateUniversalMerkle, 
-  UniversalMerkleConfig 
-} from "../utils/merkle/universalMerkleGenerator";
+  generateSdTokensMerkle, 
+  SdTokensMerkleConfig 
+} from "../utils/merkle/sdTokensMerkleGenerator";
 
 dotenv.config();
 
@@ -24,8 +24,8 @@ const main = async () => {
   const now = moment.utc().unix();
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
   
-  // Configuration for sdFXS Universal Merkle
-  const config: UniversalMerkleConfig = {
+  // Configuration for sdFXS Merkle
+  const config: SdTokensMerkleConfig = {
     space: SDFXS_SPACE,
     sdToken: SD_FXS,
     sdTokenSymbol: "sdFXS",
@@ -37,27 +37,35 @@ const main = async () => {
     outputFileName: "universal_merkle_frax.json"
   };
   
-  // Generate Universal Merkle using shared utility
-  const result = await generateUniversalMerkle(config, currentPeriodTimestamp);
+  // Generate sdTokens Merkle using shared utility
+  const result = await generateSdTokensMerkle(config, currentPeriodTimestamp);
   
   if (!result) {
     console.error("Failed to generate Universal Merkle for sdFXS");
     return;
   }
   
-  // Save the merkle data
-  const outputPath = path.join(
+  // Save the merkle data to the new organized location
+  const outputDir = path.join(
     __dirname,
     "..",
     "..",
     "bounties-reports",
     currentPeriodTimestamp.toString(),
-    config.outputFileName
+    "sdTkns"
   );
+  
+  // Create sdTkns directory if it doesn't exist
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+  
+  // Save as sdtkns_merkle_252.json for Fraxtal
+  const outputPath = path.join(outputDir, "sdtkns_merkle_252.json");
   
   fs.writeFileSync(outputPath, JSON.stringify(result.merkleData, null, 2));
   
-  console.log(`Universal Merkle for sdFXS generated and saved to ${outputPath}`);
+  console.log(`sdFXS Merkle for Fraxtal generated and saved to ${outputPath}`);
   console.log(`Merkle Root: ${result.merkleData.merkleRoot}`);
   console.log(`Total users: ${Object.keys(result.merkleData.claims).length}`);
   

@@ -10,7 +10,6 @@ import {
   getVoters,
   getVotingPower,
   formatVotingPowerResult,
-  getDelegationVotingPower,
 } from "../snapshot";
 import {
   AUTO_VOTER_DELEGATION_ADDRESS,
@@ -25,6 +24,7 @@ import {
   getChoiceWhereExistsBribe,
   addVotersFromAutoVoter,
   RawTokenDistribution,
+  getDelegationVotingPower,
 } from "../utils";
 import { processAllDelegators } from "../cacheUtils";
 import { MerkleData } from "../../interfaces/MerkleData";
@@ -32,7 +32,7 @@ import { Distribution } from "../../interfaces/Distribution";
 import { createCombineDistribution } from "./merkle";
 import { generateMerkleTree } from "../../vlCVX/utils";
 
-export interface UniversalMerkleConfig {
+export interface SdTokensMerkleConfig {
   space: string;
   sdToken: string;
   sdTokenSymbol: string;
@@ -44,7 +44,7 @@ export interface UniversalMerkleConfig {
   outputFileName: string;
 }
 
-export interface UniversalMerkleResult {
+export interface SdTokensMerkleResult {
   merkleData: MerkleData;
   statistics: {
     [tokenSymbol: string]: {
@@ -55,13 +55,14 @@ export interface UniversalMerkleResult {
 }
 
 /**
- * Generic Universal Merkle generator for sdTokens
+ * Generic merkle generator for sdTokens
  * Can process both sdToken rewards and raw token rewards
+ * Distributes rewards to voters and delegators proportionally
  */
-export async function generateUniversalMerkle(
-  config: UniversalMerkleConfig,
+export async function generateSdTokensMerkle(
+  config: SdTokensMerkleConfig,
   currentPeriodTimestamp: number
-): Promise<UniversalMerkleResult | null> {
+): Promise<SdTokensMerkleResult | null> {
   console.log(`Generating Universal Merkle for ${config.space} - Period: ${currentPeriodTimestamp}`);
   
   // Fetch proposal IDs
@@ -287,26 +288,33 @@ export async function generateUniversalMerkle(
   }
   
   // Handle delegation rewards
-  const delegationVote = voters.find(
-    v => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
-  );
+  const delegationAddressLower = DELEGATION_ADDRESS.toLowerCase();
+  const delegationRewards = userRewards[delegationAddressLower];
   
-  if (delegationVote && delegationVote.totalRewards) {
-    // Distribute delegation rewards
-    for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
-      const vp = delegatorsVotingPower[delegatorAddress];
-      const ratioVp = (vp * 100) / delegatorSumVotingPower;
+  if (delegationRewards && delegatorSumVotingPower > 0) {
+    console.log(`Distributing delegation rewards to ${Object.keys(delegatorsVotingPower).length} delegators`);
+    
+    // Remove delegation address from direct rewards
+    delete userRewards[delegationAddressLower];
+    
+    // Distribute all token rewards earned by delegation address to delegators
+    for (const [tokenAddress, totalAmount] of Object.entries(delegationRewards)) {
+      console.log(`Distributing ${totalAmount} of token ${tokenAddress} to delegators`);
       
-      const sdTokenAmount = (ratioVp * (delegationVote.totalRewards || 0)) / 100;
-      
-      const delAddress = delegatorAddress.toLowerCase();
-      if (!userRewards[delAddress]) {
-        userRewards[delAddress] = {};
+      for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
+        const vp = delegatorsVotingPower[delegatorAddress];
+        const ratioVp = (vp * 100) / delegatorSumVotingPower;
+        const tokenAmount = (ratioVp * totalAmount) / 100;
+        
+        const delAddress = delegatorAddress.toLowerCase();
+        if (!userRewards[delAddress]) {
+          userRewards[delAddress] = {};
+        }
+        if (!userRewards[delAddress][tokenAddress]) {
+          userRewards[delAddress][tokenAddress] = 0;
+        }
+        userRewards[delAddress][tokenAddress] += tokenAmount;
       }
-      if (!userRewards[delAddress][config.sdToken]) {
-        userRewards[delAddress][config.sdToken] = 0;
-      }
-      userRewards[delAddress][config.sdToken] += sdTokenAmount;
     }
   }
   
@@ -335,7 +343,7 @@ export async function generateUniversalMerkle(
       currentDistribution[address].tokens[token] = weiAmount;
     }
   }
-  
+
   // Combine with previous unclaimed rewards
   const combinedDistribution = createCombineDistribution(
     { distribution: currentDistribution },
@@ -346,7 +354,7 @@ export async function generateUniversalMerkle(
   const merkleData = generateMerkleTree(combinedDistribution);
   
   // Calculate statistics
-  const statistics: UniversalMerkleResult["statistics"] = {};
+  const statistics: SdTokensMerkleResult["statistics"] = {};
   
   // Initialize token stats
   statistics[config.sdTokenSymbol] = { total: "0", recipients: 0 };

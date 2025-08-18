@@ -22,8 +22,26 @@ jobs:
           CURRENT_TIMESTAMP=$(date +%s)
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
 
+          # Copy legacy merkle files (for backward compatibility)
           cp "bounties-reports/${CURRENT_PERIOD}/merkle.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/merkle.json"
           cp "bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/delegationsAPRs.json"
+
+          # Create sdTkns directory in latest if it doesn't exist
+          mkdir -p "${GITHUB_WORKSPACE}/bounties-reports/latest/sdTkns"
+
+          # Copy new sdTkns merkle files
+          if [ -d "bounties-reports/${CURRENT_PERIOD}/sdTkns" ]; then
+            # Copy all sdtkns merkle files (including chain-specific ones)
+            for file in bounties-reports/${CURRENT_PERIOD}/sdTkns/sdtkns_merkle_*.json; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                cp "$file" "${GITHUB_WORKSPACE}/bounties-reports/latest/sdTkns/${filename}"
+                echo "Copied ${filename} to latest/sdTkns/"
+              fi
+            done
+          else
+            echo "No sdTkns directory found for period ${CURRENT_PERIOD}"
+          fi
 
 
       - uses: stefanzweifel/git-auto-commit-action@v5
