@@ -106,11 +106,11 @@ const main = async () => {
   // Loop through each space (except Pendle, handled separately)
   for (const space of Object.keys(proposalIdPerSpace)) {
     // Skip sdFXS as it now uses Universal Merkle
-    // if (space === SDFXS_SPACE) {
-    //   console.log(`Skipping ${space} - now uses Universal Merkle`);
-    //   continue;
-    // }
-    
+    if (space === SDFXS_SPACE) {
+      console.log(`Skipping ${space} - now uses Universal Merkle`);
+      continue;
+    }
+
     checkSpace(
       space,
       SPACES_SYMBOL,
