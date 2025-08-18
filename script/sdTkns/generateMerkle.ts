@@ -9,6 +9,7 @@ import {
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDPENDLE_SPACE,
+  SDFXS_SPACE,
   SPACE_TO_NETWORK,
   SPACES,
   SPACES_IMAGE,
@@ -26,7 +27,7 @@ import {
   getAllAccountClaimedSinceLastFreeze,
   PendleCSVType,
 } from "../utils/utils";
-import { createMerkle } from "../utils/createMerkle";
+import { createMultiMerkle } from "../utils/merkle/createMultiMerkle";
 import {
   Chain,
   createPublicClient,
@@ -104,6 +105,12 @@ const main = async () => {
 
   // Loop through each space (except Pendle, handled separately)
   for (const space of Object.keys(proposalIdPerSpace)) {
+    // Skip sdFXS as it now uses Universal Merkle
+    if (space === SDFXS_SPACE) {
+      console.log(`Skipping ${space} - now uses Universal Merkle`);
+      continue;
+    }
+
     checkSpace(
       space,
       SPACES_SYMBOL,
@@ -218,7 +225,7 @@ const main = async () => {
     });
 
     // Create the merkle for this space.
-    const merkleStat = await createMerkle(
+    const merkleStat = await createMultiMerkle(
       ids,
       space,
       lastMerkles,
@@ -303,7 +310,7 @@ const main = async () => {
       try {
         // Create merkle tree using the same voting rules as the space
         // but distributing the raw token instead of the sdToken
-        const merkleStat = await createMerkle(
+        const merkleStat = await createMultiMerkle(
           [proposalId],
           space,
           lastMerkles,

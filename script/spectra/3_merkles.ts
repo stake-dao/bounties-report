@@ -11,11 +11,11 @@ import {
 } from "../utils/constants";
 import { generateMerkleTree } from "../vlCVX/utils";
 import { MerkleData } from "../interfaces/MerkleData";
-import { createCombineDistribution } from "../utils/merkle";
+import { createCombineDistribution } from "../utils/merkle/merkle";
 import { fetchTokenInfos } from "../utils/tokens";
 import { base } from "viem/chains";
 import { Distribution } from "../interfaces/Distribution";
-import { distributionVerifier } from "../utils/distributionVerifier";
+import { distributionVerifier } from "../utils/merkle/distributionVerifier";
 import { getLastClosedProposal } from "../utils/snapshot";
 
 const MERKLE_ADDRESS = "0x665d334388012d17f1d197de72b7b708ffccb67d" as `0x${string}`;

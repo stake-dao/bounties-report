@@ -7,7 +7,7 @@ dotenv.config();
 import { getAddress, PublicClient } from "viem";
 import { mainnet } from "viem/chains";
 import { createPublicClient, http } from "viem";
-import { createCombineDistribution } from "../../utils/merkle";
+import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { generateMerkleTree } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
 import {
@@ -18,7 +18,7 @@ import {
 } from "../../utils/constants";
 import { getCRVUsdTransfer } from "../utils";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
-import { distributionVerifier } from "../../utils/distributionVerifier";
+import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import {
   fetchLastProposalsIds,
   getProposal,

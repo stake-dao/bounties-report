@@ -1,4 +1,4 @@
-import { fetchVotiumClaimedBounties } from "../../utils/votiumClaims";
+import { fetchVotiumClaimedBounties } from "../../utils/claims/votiumClaims";
 import fs from "fs";
 import path from "path";
 import {
@@ -63,10 +63,8 @@ const TOKEN_DECIMALS: Record<string, number> = {
   "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": 18, // FXN
   "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": 18, // ALCX
   "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": 18, // INV
-  "0xb794Ad95317f75c44090f64955954C3849315fFe": 18, // RSUP
+  "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": 18, // RSUP
   "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF": 18, // SDEX
-
-  // Add more as needed
 };
 
 /**

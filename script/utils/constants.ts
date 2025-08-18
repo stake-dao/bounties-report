@@ -64,6 +64,8 @@ export const VLCVX_NON_DELEGATORS_MERKLE =
   "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
 export const SPECTRA_SAFE_MODULE =
   "0xA3ec797267Ad92199a11125FE31B94fac4A06C38" as `0x${string}`;
+export const SDFXS_UNIVERSAL_MERKLE =
+  "0xAeB87C92b2E7d3b21fA046Ae1E51E0ebF11A41Af";
 export const WEEK = 604800;
 export const TWOWEEKS = WEEK * 2;
 
@@ -101,6 +103,8 @@ export const SD_CAKE = getAddress("0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A");
 export const CRVUSD = getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E");
 export const SDT = getAddress("0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F");
 export const CVX = getAddress("0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B");
+
+export const FRAXTAL_SD_FXS = getAddress("0x1AEe2382e05Dc68BDfC472F1E46d570feCca5814")
 
 export const SPACES: string[] = [
   SDCRV_SPACE,
@@ -223,6 +227,7 @@ export const CHAINS_IDS_TO_SHORTS: Record<number, string> = {
   10: "optimism",
   8453: "base",
   137: "polygon",
+  252: "fraxtal",
 };
 
 export const abi = [

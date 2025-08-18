@@ -83,7 +83,7 @@ jobs:
 
       - name: Run generateReport for Frax
         if: env.ACTION_TYPE == 'normal' && (env.PROTOCOL == 'all' || env.PROTOCOL == 'frax')
-        run: pnpm tsx script/reports/generateReport.ts frax
+        run: pnpm tsx script/reports/generateReportFrax.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
