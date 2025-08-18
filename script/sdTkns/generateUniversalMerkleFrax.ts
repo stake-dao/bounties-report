@@ -9,6 +9,7 @@ import {
   SD_FXS,
   WEEK,
   SDFXS_UNIVERSAL_MERKLE,
+  FRAXTAL_SD_FXS,
 } from "../utils/constants";
 import { 
   generateSdTokensMerkle, 
@@ -27,7 +28,7 @@ const main = async () => {
   // Configuration for sdFXS Merkle
   const config: SdTokensMerkleConfig = {
     space: SDFXS_SPACE,
-    sdToken: SD_FXS,
+    sdToken: FRAXTAL_SD_FXS,
     sdTokenSymbol: "sdFXS",
     rawTokens: [{
       address: FXS_ADDRESS,
