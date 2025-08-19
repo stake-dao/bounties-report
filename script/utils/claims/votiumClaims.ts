@@ -6,7 +6,7 @@ import {
   parseAbi,
   pad,
 } from "viem";
-import { createBlockchainExplorerUtils } from "./explorerUtils";
+import { createBlockchainExplorerUtils } from "../explorerUtils";
 
 export const fetchVotiumClaimedBounties = async (
   block_min: number,

@@ -39,6 +39,20 @@ export type CvxCSVType = Record<
 
 export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType;
 
+export function isOddWeek(timestamp?: number): boolean {
+  // If no timestamp provided, use current time in seconds
+  if (timestamp === undefined) {
+    timestamp = Math.floor(Date.now() / 1000);
+  }
+  
+  // Get the week number (0-based) from Unix epoch
+  const ONE_WEEK = 604800; // seconds in a week
+  const weekNumber = Math.floor(timestamp / ONE_WEEK);
+  
+  // Check if week number is odd
+  return Boolean(weekNumber % 2);
+}
+
 export const extractCSV = async (
   currentPeriodTimestamp: number,
   space: string
