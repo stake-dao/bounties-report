@@ -29,15 +29,20 @@ jobs:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
 
-      - name: Pull latest changes
+      - name: Commit and push changes
         run: |
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # Add all changes and commit
+          git add .
+          git commit -m "chore: Update Spectra merkles" || echo "No changes to commit"
+          
+          # Fetch and rebase
           git pull --rebase origin main
-
-      - uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: Update Spectra merkles"
+          
+          # Push changes
+          git push origin main
 
       - name: Clean up
         if: always()
