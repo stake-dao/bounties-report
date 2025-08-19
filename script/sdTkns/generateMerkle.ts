@@ -107,7 +107,6 @@ const main = async () => {
   for (const space of Object.keys(proposalIdPerSpace)) {
     // Skip sdFXS as it now uses Universal Merkle
     if (space === SDFXS_SPACE) {
-      console.log(`Skipping ${space} - now uses Universal Merkle`);
       continue;
     }
 
