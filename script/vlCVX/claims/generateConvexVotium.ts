@@ -117,14 +117,29 @@ async function getAllForwarders(
   // These are addresses that delegated to The Union, who then forwards to us
   const unionDelegatorsList = [
     {
-      address: "0x2dbeDd2632D831E61eB3fCc6720f072eeF9d522D",
-      vp: 71266.07740464392, // Their voting power
+      address: "0x75ba9A999ED393E8E801151419F9a7622f988284",
+      vp: 1
     },
     {
       address: "0xb82bE987cF6f25d0F040Ca4567e3dacb4b92Aa91",
-      vp: 3500
+      vp: 5007.366755006013
+    },
+    {
+      address: "0xeE33e09ae46d84587a8A89bb7a74e70F8961058B",
+      vp: 356.81411683626874
+    },
+    {
+      address: "0xF68d4b506ED84e4c9F30652dA9c511A32Bd1A192",
+      vp: 3.8238337432065075
+    },
+    {
+      address: "0xB1359fA99e2c8A824783a4483D5C0D55F1Cb7731",
+      vp: 45.27103666293498
+    },
+    {
+      address: "0x8Ac4c0630C5ed1636537924eC9B037fC652ADee8",
+      vp: 711.2931533366008
     }
-    // Add more Union delegators here as needed
   ];
 
   // Create a map for easy lookup
@@ -1863,20 +1878,36 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       }
     }
 
-    // Show top forwarder allocations
-    console.log("\nForwarder allocations:");
-    const sortedForwarders = Object.entries(tokenAllocations)
-      .map(([address, tokens]) => ({
-        address,
-        totalUsd: Object.values(tokens).reduce(
-          (sum, allocation) => sum + allocation.usd,
-          0
-        ),
-        type: forwarders.find((f) => f.address === address)?.type || "unknown",
-      }))
-      .sort((a, b) => b.totalUsd - a.totalUsd);
+    // Show top forwarder allocations (using adjusted values that match actual claims)
+    console.log("\nForwarder allocations (actual distributed):");
+    const adjustedForwarderAllocations: Record<string, { totalUsd: number; type: string }> = {};
 
-    sortedForwarders.forEach(({ address, totalUsd, type }) => {
+    // Calculate USD values using adjusted token amounts
+    for (const address in perAddressTokenAllocations) {
+      let totalUsd = 0;
+      for (const token in perAddressTokenAllocations[address]) {
+        const tokenAmount = perAddressTokenAllocations[address][token];
+        const decimals = await getTokenDecimals(token);
+        const tokenPrice = tokenPrices?.[token.toLowerCase()] || 0;
+        
+        if (tokenPrice > 0 && tokenAmount > 0n) {
+          const usdValue = (Number(tokenAmount) / (10 ** decimals)) * tokenPrice;
+          totalUsd += usdValue;
+        }
+      }
+      
+      if (totalUsd > 0) {
+        adjustedForwarderAllocations[address] = {
+          totalUsd,
+          type: forwarders.find((f) => f.address === address)?.type || "unknown",
+        };
+      }
+    }
+
+    const sortedAdjustedForwarders = Object.entries(adjustedForwarderAllocations)
+      .sort(([,a], [,b]) => b.totalUsd - a.totalUsd);
+
+    sortedAdjustedForwarders.forEach(([address, { totalUsd, type }]) => {
       console.log(`  ${address} (${type}): $${totalUsd.toFixed(2)}`);
     });
 
