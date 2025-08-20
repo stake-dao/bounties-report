@@ -482,18 +482,52 @@ async function main() {
     );
 
     // Read existing file if it exists
-    let existingData = {};
+    let existingData: any = {};
     try {
       existingData = JSON.parse(readFileSync(outputPath, "utf8"));
     } catch (error) {
       // File doesn't exist or is invalid, start fresh
     }
 
-    // Merge new data with existing (excluding delegatorsAprWithoutSDT)
-    const { delegatorsAprWithoutSDT, ...cleanExistingData } = existingData as any;
+    // Helper function to calculate mean of non-null values
+    const calculateMean = (current: number, history: any): number => {
+      const values = [current];
+      if (history) {
+        Object.values(history).forEach(val => {
+          if (val !== null && typeof val === 'number') {
+            values.push(val as number);
+          }
+        });
+      }
+      return values.reduce((sum, val) => sum + val, 0) / values.length;
+    };
+
+    // Helper function to shift historical values
+    const shiftHistory = (history: any, previousValue: number) => {
+      return {
+        "-1": previousValue,  // Previous week's value
+        "-2": history?.["-1"] || null,
+        "-3": history?.["-2"] || null,
+        "-4": history?.["-3"] || null
+      };
+    };
+
+    // Get current values
+    const currentDelegatorsApr = result.annualizedAPR;
+
+    // Update historical data - shift using the previous APR values (current existing values)
+    const previousDelegatorsApr = existingData.delegatorsApr || currentDelegatorsApr;
+    
+    const delegatorsAprHistory = shiftHistory(existingData.delegatorsAprHistory, previousDelegatorsApr);
+
+    // Calculate means
+    const delegatorsAprMean = calculateMean(currentDelegatorsApr, delegatorsAprHistory);
+
+    // Create updated data structure
     const updatedData = {
-      ...cleanExistingData,
-      delegatorsApr: result.annualizedAPR,
+      delegatorsApr: currentDelegatorsApr,
+      delegatorsAprHistory,
+      delegatorsAprMean
     };
 
     writeFileSync(outputPath, JSON.stringify(updatedData, null, 2));
@@ -513,6 +547,14 @@ async function main() {
     console.log(
       `Period: ${result.periodStartBlock} - ${result.periodEndBlock}`
     );
+    console.log(`\n=== APR History & Averages ===`);
+    console.log(`Current Delegators APR: ${currentDelegatorsApr.toFixed(2)}%`);
+    console.log(`Delegators APR Mean (5 weeks): ${delegatorsAprMean.toFixed(2)}%`);
+    console.log(`\nDelegators APR History:`);
+    console.log(`  -1 week: ${delegatorsAprHistory["-1"] ? delegatorsAprHistory["-1"].toFixed(2) + '%' : 'N/A'}`);
+    console.log(`  -2 weeks: ${delegatorsAprHistory["-2"] ? delegatorsAprHistory["-2"].toFixed(2) + '%' : 'N/A'}`);
+    console.log(`  -3 weeks: ${delegatorsAprHistory["-3"] ? delegatorsAprHistory["-3"].toFixed(2) + '%' : 'N/A'}`);
+    console.log(`  -4 weeks: ${delegatorsAprHistory["-4"] ? delegatorsAprHistory["-4"].toFixed(2) + '%' : 'N/A'}`);
     console.log(`APR saved to: ${outputPath}`);
   } catch (error) {
     console.error("Error:", error);
