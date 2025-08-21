@@ -7,12 +7,12 @@ import {
   pad,
   PublicClient,
 } from "viem";
-import { getBlockNumberByTimestamp } from "./chainUtils";
-import { createBlockchainExplorerUtils } from "./explorerUtils";
-import { getClientWithFallback } from "./getClients";
-import { ContractRegistry } from "./contractRegistry";
-import { VotemarketV2Bounty, VotemarketBounty } from "./types";
-import { BSC_CAKE_LOCKER, BSC_CAKE_VM } from "./reportUtils";
+import { getBlockNumberByTimestamp } from "../chainUtils";
+import { createBlockchainExplorerUtils } from "../explorerUtils.js";
+import { getClientWithFallback } from "../getClients.js";
+import { ContractRegistry } from "../contractRegistry.js";
+import { VotemarketV2Bounty, VotemarketBounty } from "../types.js";
+import { BSC_CAKE_LOCKER, BSC_CAKE_VM } from "../reportUtils.js";
 
 export const fetchVotemarketV2ClaimedBounties = async (
   protocol: string,

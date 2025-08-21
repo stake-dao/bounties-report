@@ -6,10 +6,10 @@ import {
   parseAbi,
   pad,
 } from "viem";
-import { getBlockNumberByTimestamp } from "./chainUtils";
-import { createBlockchainExplorerUtils } from "./explorerUtils";
-import { getClient } from "./constants";
-import { VotemarketBounty, PlatformConfigs } from "./types";
+import { getBlockNumberByTimestamp } from "../chainUtils";
+import { createBlockchainExplorerUtils } from "../explorerUtils.js";
+import { getClient } from "../constants.js";
+import { VotemarketBounty, PlatformConfigs } from "../types.js";
 
 const platformAbi = [
   {
