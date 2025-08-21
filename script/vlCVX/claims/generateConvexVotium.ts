@@ -1690,27 +1690,70 @@ export async function generateConvexVotiumBounties(): Promise<void> {
         const tokensToDistribute = totalTokensNeeded > actualTotal ? actualTotal : totalTokensNeeded;
         let distributedAmount = 0n;
 
-        for (const voter in perAddressTokenAllocations) {
-          if (originalTokenAllocations[voter] && originalTokenAllocations[voter][token]) {
-            const userUsdForToken = originalTokenAllocations[voter][token].usd;
-            const userShare = tokenUsdTotal > 0 ? userUsdForToken / tokenUsdTotal : 0;
-            const userTokenAmount = BigInt(Math.floor(Number(tokensToDistribute) * userShare));
+        // Sort voters deterministically for consistent distribution
+        const votersWithAllocation = Object.keys(perAddressTokenAllocations)
+          .filter(voter => originalTokenAllocations[voter] && originalTokenAllocations[voter][token])
+          .sort(); // Alphabetical sort for determinism
 
-            perAddressTokenAllocations[voter][token] = userTokenAmount;
-            distributedAmount += userTokenAmount;
+        // Process all voters except the last one
+        for (let i = 0; i < votersWithAllocation.length - 1; i++) {
+          const voter = votersWithAllocation[i];
+          const userUsdForToken = originalTokenAllocations[voter][token].usd;
+          const userShare = tokenUsdTotal > 0 ? userUsdForToken / tokenUsdTotal : 0;
+          const userTokenAmount = BigInt(Math.floor(Number(tokensToDistribute) * userShare));
 
-            // Update tokenAllocations with the new amount
-            if (tokenAllocations[voter] && tokenAllocations[voter][token]) {
-              tokenAllocations[voter][token] = {
-                amount: (Number(userTokenAmount) / (10 ** decimals)).toFixed(6),
-                usd: originalTokenAllocations[voter][token].usd,
-              };
-            }
+          perAddressTokenAllocations[voter][token] = userTokenAmount;
+          distributedAmount += userTokenAmount;
+
+          // Update tokenAllocations with the new amount
+          if (tokenAllocations[voter] && tokenAllocations[voter][token]) {
+            tokenAllocations[voter][token] = {
+              amount: (Number(userTokenAmount) / (10 ** decimals)).toFixed(6),
+              usd: originalTokenAllocations[voter][token].usd,
+            };
+          }
+        }
+
+        // Give the last voter exactly the remaining amount (with safety checks)
+        if (votersWithAllocation.length > 0) {
+          const lastVoter = votersWithAllocation[votersWithAllocation.length - 1];
+          const remainingAmount = tokensToDistribute - distributedAmount;
+          
+          // Safety check: remaining amount should be small (just rounding dust)
+          const lastVoterExpectedAmount = originalTokenAllocations[lastVoter][token] 
+            ? BigInt(Math.floor(Number(tokensToDistribute) * (originalTokenAllocations[lastVoter][token].usd / tokenUsdTotal)))
+            : 0n;
+          
+          const dustThreshold = lastVoterExpectedAmount / 1000n; // 0.1% tolerance
+          const dustAmount = remainingAmount > lastVoterExpectedAmount 
+            ? remainingAmount - lastVoterExpectedAmount 
+            : lastVoterExpectedAmount - remainingAmount;
+          
+          if (dustAmount > dustThreshold && dustThreshold > 0n) {
+            console.error(`  DANGER: Remaining amount ${remainingAmount} differs significantly from expected ${lastVoterExpectedAmount} for ${lastVoter}`);
+            console.error(`  Dust amount ${dustAmount} exceeds threshold ${dustThreshold}. This indicates a calculation error!`);
+            throw new Error(`Token distribution error: Remaining amount too large for ${token}`);
+          }
+          
+          perAddressTokenAllocations[lastVoter][token] = remainingAmount;
+          distributedAmount += remainingAmount;
+
+          // Update tokenAllocations for the last voter
+          if (tokenAllocations[lastVoter] && tokenAllocations[lastVoter][token]) {
+            tokenAllocations[lastVoter][token] = {
+              amount: (Number(remainingAmount) / (10 ** decimals)).toFixed(6),
+              usd: originalTokenAllocations[lastVoter][token].usd,
+            };
           }
         }
 
         console.log(`  Distributed: ${distributedAmount.toString()} (${Number(distributedAmount) / (10 ** decimals)} tokens)`);
         console.log(`  Remaining: ${(tokensToDistribute - distributedAmount).toString()}`);
+        
+        // Validation: ensure we distributed exactly the intended amount
+        if (distributedAmount !== tokensToDistribute) {
+          console.error(`  ERROR: Distribution mismatch! Expected ${tokensToDistribute}, distributed ${distributedAmount}`);
+        }
       }
 
       // Add Telegram logger
