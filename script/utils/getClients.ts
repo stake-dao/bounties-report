@@ -8,6 +8,7 @@ import {
   polygon,
   arbitrum,
   sonic,
+  hemi
 } from "viem/chains";
 
 interface ChainConfig {
@@ -97,6 +98,12 @@ const CHAIN_CONFIGS: Record<number, ChainConfig> = {
       "https://arb1.arbitrum.io/rpc",
     ].filter(Boolean),
   },
+  43111: {
+    chain: hemi,
+    rpcUrls: [
+      "https://rpc.hemi.network/rpc"
+    ].filter(Boolean)
+  }
 };
 
 const clientCache = new Map<string, PublicClient>();
