@@ -7,6 +7,7 @@ temp/
 artifacts/
 cache/
 .claude/
+.cache/
 
 # Files
 .DS_Store
