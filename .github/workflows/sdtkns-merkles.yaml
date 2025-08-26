@@ -16,37 +16,13 @@ on:
     types: [generate-spectra-merkle, generate-sdfxs-merkle, generate-all-sd-merkles]
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      should-run-spectra: ${{ steps.check.outputs.spectra }}
-      should-run-sdfxs: ${{ steps.check.outputs.sdfxs }}
-    steps:
-      - name: Check conditions
-        id: check
-        run: |
-          if [[ "${{ github.event.inputs.token }}" == "all" ]] || \
-             [[ "${{ github.event.inputs.token }}" == "spectra" ]] || \
-             [[ "${{ github.event.action }}" == "generate-spectra-merkle" ]] || \
-             [[ "${{ github.event.action }}" == "generate-all-sd-merkles" ]]; then
-            echo "spectra=true" >> $GITHUB_OUTPUT
-          else
-            echo "spectra=false" >> $GITHUB_OUTPUT
-          fi
-          
-          if [[ "${{ github.event.inputs.token }}" == "all" ]] || \
-             [[ "${{ github.event.inputs.token }}" == "sdfxs" ]] || \
-             [[ "${{ github.event.action }}" == "generate-sdfxs-merkle" ]] || \
-             [[ "${{ github.event.action }}" == "generate-all-sd-merkles" ]]; then
-            echo "sdfxs=true" >> $GITHUB_OUTPUT
-          else
-            echo "sdfxs=false" >> $GITHUB_OUTPUT
-          fi
-
   generate-spectra-merkle:
     runs-on: ubuntu-latest
-    needs: setup
-    if: needs.setup.outputs.should-run-spectra == 'true'
+    if: |
+      github.event.inputs.token == 'all' || 
+      github.event.inputs.token == 'spectra' || 
+      github.event.action == 'generate-spectra-merkle' ||
+      github.event.action == 'generate-all-sd-merkles'
 
     steps:
       - name: Checkout repository
@@ -61,35 +37,17 @@ jobs:
           python-version: "3.10.13"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v2
         with:
           node-version: "20.5.1"
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 9.12.3
-          run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run Spectra merkle generation
         run: make -f automation/spectra/run.mk run-all
@@ -118,11 +76,14 @@ jobs:
 
   generate-sdfxs-merkle:
     runs-on: ubuntu-latest
-    needs: [setup, generate-spectra-merkle]
+    needs: generate-spectra-merkle
     if: |
       always() && 
-      needs.setup.outputs.should-run-sdfxs == 'true' &&
-      (needs.generate-spectra-merkle.result == 'success' || needs.generate-spectra-merkle.result == 'skipped')
+      (needs.generate-spectra-merkle.result == 'success' || needs.generate-spectra-merkle.result == 'skipped') &&
+      (github.event.inputs.token == 'all' || 
+       github.event.inputs.token == 'sdfxs' || 
+       github.event.action == 'generate-sdfxs-merkle' ||
+       github.event.action == 'generate-all-sd-merkles')
 
     steps:
       - name: Checkout repository
@@ -137,35 +98,17 @@ jobs:
           python-version: "3.10.13"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v2
         with:
           node-version: "20.5.1"
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 9.12.3
-          run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run sdFXS merkle generation
         run: make -f automation/sdfxs/run.mk run-merkle
