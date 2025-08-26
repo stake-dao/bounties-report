@@ -4,8 +4,6 @@ tmp/
 venv/
 .nodeenv/
 temp/
-artifacts/
-cache/
 .claude/
 .cache/
 
@@ -13,8 +11,6 @@ cache/
 .DS_Store
 .env
 .vscode/settings.json
-solidity-files-cache.json
 
 # Patterns
 *lock*
-cache/hardhat-*
