@@ -135,7 +135,7 @@ export const getAllTokensInfos = async (
     } else {
       // Try to get token info from tokenService for other chains
       let foundInOtherChain = false;
-      const chainIds = ["1", "10", "137", "42161", "8453"]; // Common chain IDs
+      const chainIds = ["1", "10", "137", "42161", "8453", "252"]; // Common chain IDs
       for (const otherChainId of chainIds) {
         if (otherChainId !== chainId.toString()) {
           const tokenInfo = await getTokenByAddress(normalizedAddress, otherChainId);
@@ -162,7 +162,7 @@ export const getAllTokensInfos = async (
     } else if (symbol === "UNKNOWN") {
       // Try to get token info from tokenService for other chains
       let foundInOtherChain = false;
-      const chainIds = ["1", "10", "137", "42161", "8453"]; // Common chain IDs
+      const chainIds = ["1", "10", "137", "42161", "8453", "252"]; // Common chain IDs
       for (const otherChainId of chainIds) {
         if (otherChainId !== chainId.toString()) {
           const tokenInfo = await getTokenByAddress(normalizedAddress, otherChainId);
@@ -220,7 +220,6 @@ export const distributionVerifier = async (
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
   proposalId?: string,
   merkleType?: string,
-  merkleSubType?: string
 ) => {
   const addressCount = Object.keys(distribution).length;
   console.log(`Current Distribution has ${addressCount} addresses.`);

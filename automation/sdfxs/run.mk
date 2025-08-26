@@ -1,12 +1,12 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-weekly clean
+.PHONY: all setup install-deps run-merkle clean
 
 # Define the default target
 .DEFAULT_GOAL := all
 
-all: setup install-deps run-report run-repartition
+all: setup install-deps run-merkle
 
 setup: setup-node
 
@@ -15,21 +15,16 @@ install-deps:
 	@$(PNPM) install
 	@$(PNPM) add -D tsx
 
-run-all: setup install-deps
-	@echo "Running report generation..."
-	@$(PNPM) tsx script/spectra/1_report.ts
-	@echo "Running repartition generation..."
-	@$(PNPM) tsx script/spectra/2_repartition.ts
-	@echo "Running universal merkle generation..."
-	@$(PNPM) tsx script/sdTkns/generateUniversalMerkleSpectra.ts
+run-merkle: setup install-deps
+	@echo "Running sdFXS universal merkle generation..."
+	@$(PNPM) tsx script/sdTkns/generateUniversalMerkleFrax.ts
 
 commit-and-push:
 	@echo "Committing and pushing changes..."
 	@git config --global user.name 'GitHub Action'
 	@git config --global user.email 'action@github.com'
 	@git add bounties-reports
-	@git add delegationsAPRs.json || true
-	@git commit -m "Add Spectra report + repartition + merkle" || true
+	@git commit -m "Add sdFXS universal merkle" || true
 	@git pull --rebase origin main
 	@git push
 

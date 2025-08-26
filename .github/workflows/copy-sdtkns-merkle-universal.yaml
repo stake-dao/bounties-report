@@ -1,0 +1,69 @@
+name: "[sdTokens] Merkle - Copy to latest (Universal)"
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [copy-spectra-merkle, copy-sdfxs-merkle, copy-all-sd-merkles]
+
+jobs:
+  copy-merkles:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        env:
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Determine which merkles to copy
+        id: determine
+        run: |
+          if [ "${{ github.event.action }}" == "copy-spectra-merkle" ]; then
+            echo "COPY_SPECTRA=true" >> $GITHUB_OUTPUT
+            echo "COPY_SDFXS=false" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.action }}" == "copy-sdfxs-merkle" ]; then
+            echo "COPY_SPECTRA=false" >> $GITHUB_OUTPUT
+            echo "COPY_SDFXS=true" >> $GITHUB_OUTPUT
+          else
+            # copy-all-sd-merkles or workflow_dispatch
+            echo "COPY_SPECTRA=true" >> $GITHUB_OUTPUT
+            echo "COPY_SDFXS=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Copy merkle files
+        run: |
+          # Calculate current period
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+
+          # Copy Spectra merkle if needed (Base chain 8453)
+          if [ "${{ steps.determine.outputs.COPY_SPECTRA }}" == "true" ]; then
+            if [ -f "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/sdTkns/sdtkns_merkle_8453.json" ]; then
+              echo "Copying Spectra merkle..."
+              mkdir -p "${GITHUB_WORKSPACE}/bounties-reports/latest"
+              cp "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/sdTkns/sdtkns_merkle_8453.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/spectra_merkle.json"
+            else
+              echo "Spectra merkle (sdtkns_merkle_8453.json) not found for period ${CURRENT_PERIOD}, skipping..."
+            fi
+          fi
+
+          # Copy sdFXS merkle if needed (Fraxtal chain 252)
+          if [ "${{ steps.determine.outputs.COPY_SDFXS }}" == "true" ]; then
+            if [ -f "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/sdTkns/sdtkns_merkle_252.json" ]; then
+              echo "Copying sdFXS merkle..."
+              mkdir -p "${GITHUB_WORKSPACE}/bounties-reports/latest"
+              cp "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/sdTkns/sdtkns_merkle_252.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/sdfxs_merkle.json"
+            else
+              echo "sdFXS merkle (sdtkns_merkle_252.json) not found for period ${CURRENT_PERIOD}, skipping..."
+            fi
+          fi
+
+          # Copy delegationsAPRs.json if it exists
+          if [ -f "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" ]; then
+            cp "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/delegationsAPRs.json"
+          fi
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Update SD token merkles to latest"
