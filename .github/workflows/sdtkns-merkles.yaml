@@ -87,7 +87,7 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
@@ -163,7 +163,7 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
