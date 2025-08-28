@@ -1,0 +1,34 @@
+{
+  "distribution": {
+    "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "57638027"
+      }
+    },
+    "0x5180db0237291A6449DdA9ed33aD90a38787621c": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "775752273"
+      }
+    },
+    "0x1102fE5a9ba1517e57f8aef09F108d0Ce096E4FB": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "4303390"
+      }
+    },
+    "0x5bfF1A68663ff91b0650327D83D4230Cd00023Ad": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "12693495"
+      }
+    },
+    "0x118ad981e3be9a5a16ec7136125425aF9C2128f4": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "26270257"
+      }
+    },
+    "0xFf6FAf21b2812ee1db1bF2C3f02a7FA7b8F6ADc8": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "1478317"
+      }
+    }
+  }
+}
