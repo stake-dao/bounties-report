@@ -87,6 +87,9 @@ export const FXN_STAKE_DAO_LOCKER =
 // FXN Convex locker
 export const FXN_CONVEX_LOCKER = "0xd11a4Ee017cA0BECA8FA45fF2abFe9C6267b7881";
 
+// Pendle Stake DAO locker
+export const PENDLE_STAKE_DAO_LOCKER = "0xD8fa8dC5aDeC503AcC5e026a98F32Ca5C1Fa289A";
+
 // Tokens
 // NOTE: For dynamic token lookups, use tokenService instead of hardcoded addresses
 // import { getTokenAddress } from "../utils/tokenService";

@@ -22,8 +22,8 @@ jobs:
         with:
           python-version: "3.10.13"
 
-      - name: Run report generation
-        run: make -f automation/vlCVX/repartition.mk run-report
+      - name: Run report generation and validation
+        run: make -f automation/vlCVX/repartition.mk validate-reports
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
