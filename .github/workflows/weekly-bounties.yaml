@@ -118,19 +118,9 @@ jobs:
           TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
           TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
-      - name: Commit and push changes
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-
-          BOUNTY_TYPE="${{ inputs.bountyType || github.event.inputs.bountyType }}"
-
-          # Add all changes and commit
-          git add .
-          git commit -m "Update ${BOUNTY_TYPE} bounties" || echo "No changes to commit"
-
-          # Fetch and rebase
-          git pull --rebase origin main
-
-          # Push changes
-          git push origin main
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore: Update ${{ inputs.bountyType || github.event.inputs.bountyType || 'weekly' }} bounties"
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
