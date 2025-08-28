@@ -10,6 +10,7 @@ import {
   sonic,
   hemi
 } from "viem/chains";
+import { hyperliquid } from "./chains/hyperliquid";
 
 interface ChainConfig {
   chain: Chain;
@@ -103,6 +104,10 @@ const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     rpcUrls: [
       "https://rpc.hemi.network/rpc"
     ].filter(Boolean)
+  },
+  999: {
+    chain: hyperliquid,
+    rpcUrls: ["https://rpc.hyperliquid.xyz/evm"]
   }
 };
 
