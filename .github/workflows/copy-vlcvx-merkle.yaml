@@ -62,10 +62,21 @@ jobs:
             cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/merkle_data_delegators.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
           fi
 
-      - name: Compute delegation APR
+      - name: Compute delegation APR and copy to latest
         run: |
           if [ "${{ github.event.inputs.type || github.event.client_payload.type }}" == "delegators" ]; then
+            # Run APR computation (saves to current week folder)
             pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
+            
+            # Calculate current period
+            WEEK=604800
+            CURRENT_TIMESTAMP=$(date +%s)
+            CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+            
+            # Copy APRs.json from current week to latest folder
+            if [ -f "bounties-reports/${CURRENT_PERIOD}/vlCVX/APRs.json" ]; then
+              cp "bounties-reports/${CURRENT_PERIOD}/vlCVX/APRs.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/vlCVX/APRs.json"
+            fi
           fi
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
