@@ -1,4 +1,4 @@
-name: "[vlCVX] Report and repartition"
+name: "[vlCVX] Process - Repartition"
 
 on:
   workflow_dispatch:

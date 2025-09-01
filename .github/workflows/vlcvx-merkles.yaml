@@ -1,4 +1,4 @@
-name: "[vlCVX] Merkles"
+name: "[vlCVX] Generate - Merkles"
 
 on:
   workflow_dispatch:

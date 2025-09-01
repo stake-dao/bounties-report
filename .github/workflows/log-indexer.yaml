@@ -1,4 +1,4 @@
-name: "[Indexer] Get and push logs"
+name: "[System] Index - Delegator Logs"
 
 on:
   workflow_dispatch:

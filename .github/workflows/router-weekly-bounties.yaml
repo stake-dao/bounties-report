@@ -1,4 +1,4 @@
-name: "[Automatic] API Callable job for weekly bounties"
+name: "[Bounties] Process - API Router"
 
 on:
   repository_dispatch:

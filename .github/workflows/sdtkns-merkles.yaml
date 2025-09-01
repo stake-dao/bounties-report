@@ -1,4 +1,4 @@
-name: "[sdTokens] Universal Merkles"
+name: "[sdTokens] Generate - Universal Merkles"
 
 on:
   workflow_dispatch:

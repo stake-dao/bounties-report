@@ -1,4 +1,4 @@
-name: "[sdTokens] Scheduled OTC Reports - Monday Evening"
+name: "[sdTokens] Generate - OTC Reports"
 
 on:
   schedule:

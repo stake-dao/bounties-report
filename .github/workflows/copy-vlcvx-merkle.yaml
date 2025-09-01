@@ -1,4 +1,4 @@
-name: "[vlCVX] Merkle - Copy to latest"
+name: "[vlCVX] Publish - Merkles"
 
 on:
   workflow_dispatch:

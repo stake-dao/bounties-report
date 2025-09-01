@@ -1,4 +1,4 @@
-name: "[sdTokens] Merkle - Copy to latest"
+name: "[sdTokens] Publish - Merkles"
 
 on:
   workflow_dispatch:

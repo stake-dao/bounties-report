@@ -1,4 +1,4 @@
-name: "[Votemarket] Weekly Bounties"
+name: "[Bounties] Process - Weekly Claims"
 
 on:
   workflow_call:
