@@ -68,6 +68,17 @@ const main = async () => {
   Object.entries(csvResult).forEach(([gauge, rewardSdValue]) => {
     let choiceId = (proposal.choices as string[]).findIndex((choice: string) => choice.toLowerCase() === gauge.toLowerCase());
 
+    // If not found, try to match by removing network prefix and comparing the rest
+    if (choiceId === -1) {
+      // Extract the part after the first dash
+      const gaugeSuffix = gauge.substring(gauge.indexOf('-') + 1);
+      
+      choiceId = (proposal.choices as string[]).findIndex((choice: string) => {
+        const choiceSuffix = choice.substring(choice.indexOf('-') + 1);
+        return choiceSuffix.toLowerCase() === gaugeSuffix.toLowerCase();
+      });
+    }
+
     console.log("choiceId for", gauge, choiceId);
 
     if (choiceId === -1) {
