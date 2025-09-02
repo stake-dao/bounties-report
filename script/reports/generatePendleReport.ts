@@ -121,6 +121,7 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
   if (!logs?.result) return BigInt(0);
 
   let totalAmount = BigInt(0);
+  const TARGET_ADDRESS = getAddress("0xe42a462dbF54F281F95776e663D8c942dcf94f17");
 
   // Group logs by transaction hash
   const txGroups = logs.result.reduce((acc, log) => {
@@ -132,24 +133,45 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
     return acc;
   }, {} as Record<string, typeof logs.result>);
 
+  // Check each transaction to see if it contains transfers from TARGET_ADDRESS
+  const validTxHashes = new Set<string>();
+  
+  // Get all transactions that have sdPENDLE transfers to BOTMARKET
+  const allTxHashes = Object.keys(txGroups);
+  
+  for (const txHash of allTxHashes) {
+    // Get the transaction details to inspect all transfers within it
+    const txDetails = await publicClient.getTransaction({ hash: txHash as `0x${string}` });
+    const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+    
+    // Check if any log in this transaction is a Transfer from TARGET_ADDRESS
+    for (const log of receipt.logs) {
+      if (log.topics[0] === transferHash && log.topics.length >= 3) {
+        try {
+          const decodedLog = decodeEventLog({
+            abi: transferAbi,
+            data: log.data,
+            topics: log.topics,
+            strict: false,
+          });
+
+          if (decodedLog.args.from.toLowerCase() === TARGET_ADDRESS.toLowerCase()) {
+            validTxHashes.add(txHash);
+            break;
+          }
+        } catch (error) {
+          // Skip logs that don't match Transfer event signature
+          continue;
+        }
+      }
+    }
+  }
+
   // Process each transaction
   for (const [txHash, txLogs] of Object.entries(txGroups)) {
-    // Check if any transfer in this tx comes from OTC_REGISTRY
-    let hasOTCTransfer = false;
-
-    // Get all sdPENDLE transfers in this transaction
-    const allSdPendleTransfersInTx =
-      await explorerUtils.getLogsByAddressesAndTopics(
-        [sdPENDLE],
-        Number(txLogs[0].blockNumber),
-        Number(txLogs[0].blockNumber),
-        { "0": transferHash },
-        1,
-        txHash
-      );
-
-    if (allSdPendleTransfersInTx?.result) {
-      for (const log of allSdPendleTransfersInTx.result) {
+    // Only sum transfers if this tx has funds coming from TARGET_ADDRESS
+    if (validTxHashes.has(txHash)) {
+      for (const log of txLogs) {
         const decodedLog = decodeEventLog({
           abi: transferAbi,
           data: log.data,
@@ -157,28 +179,8 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
           strict: true,
         });
 
-        if (decodedLog.args.from.toLowerCase() === OTC_REGISTRY.toLowerCase()) {
-          hasOTCTransfer = true;
-          break;
-        }
+        totalAmount += decodedLog.args.value;
       }
-    }
-
-    // If this tx has any transfer from OTC_REGISTRY, skip all transfers in this tx
-    if (hasOTCTransfer) {
-      continue;
-    }
-
-    // Process valid transfers to BOTMARKET in this tx
-    for (const log of txLogs) {
-      const decodedLog = decodeEventLog({
-        abi: transferAbi,
-        data: log.data,
-        topics: log.topics,
-        strict: true,
-      });
-
-      totalAmount += decodedLog.args.value;
     }
   }
 
