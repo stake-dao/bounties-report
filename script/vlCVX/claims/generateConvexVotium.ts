@@ -118,7 +118,7 @@ async function getAllForwarders(
 const unionDelegatorsList = [
     {
       address: "0xC6D1ed1F2Db34d138da62B13138313DADD6A5AbC",
-      vp: 9180.975
+      vp: 12047.795
     },
     {
       address: "0xf47FD47c6241EfD6e5a6c03be3fe3F8E45f0325B",
@@ -126,7 +126,7 @@ const unionDelegatorsList = [
     },
     {
       address: "0xCA0073964efe7f9422CeB16901018b1DB0cC4785",
-      vp: 5964.127
+      vp: 4964.127
     },
     {
       address: "0x8Ac4c0630C5ed1636537924eC9B037fC652ADee8",
