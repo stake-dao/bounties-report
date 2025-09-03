@@ -115,30 +115,26 @@ async function getAllForwarders(
 
   // Handle delegators who delegated to The Union
   // These are addresses that delegated to The Union, who then forwards to us
-  const unionDelegatorsList = [
+const unionDelegatorsList = [
     {
-      address: "0x75ba9A999ED393E8E801151419F9a7622f988284",
-      vp: 1
+      address: "0xC6D1ed1F2Db34d138da62B13138313DADD6A5AbC",
+      vp: 9180.975
     },
     {
-      address: "0xb82bE987cF6f25d0F040Ca4567e3dacb4b92Aa91",
-      vp: 5007.366755006013
+      address: "0xf47FD47c6241EfD6e5a6c03be3fe3F8E45f0325B",
+      vp: 7500
     },
     {
-      address: "0xeE33e09ae46d84587a8A89bb7a74e70F8961058B",
-      vp: 356.81411683626874
-    },
-    {
-      address: "0xF68d4b506ED84e4c9F30652dA9c511A32Bd1A192",
-      vp: 3.8238337432065075
-    },
-    {
-      address: "0xB1359fA99e2c8A824783a4483D5C0D55F1Cb7731",
-      vp: 45.27103666293498
+      address: "0xCA0073964efe7f9422CeB16901018b1DB0cC4785",
+      vp: 5964.127
     },
     {
       address: "0x8Ac4c0630C5ed1636537924eC9B037fC652ADee8",
-      vp: 711.2931533366008
+      vp: 711.293 
+    },
+    {
+      address: "0xeE33e09ae46d84587a8A89bb7a74e70F8961058B",
+      vp: 356.814
     }
   ];
 
@@ -493,7 +489,10 @@ async function aggregateBribesByToken(
 ) {
   for (const bribe of gaugeBribes) {
     // Convert token symbol to address if needed
-    const tokenKey = (await getTokenAddress(bribe.token)) || bribe.token;
+    const tokenKey = (await getTokenAddress(bribe.token));
+
+
+    console.log("key", tokenKey, "(for symbol", bribe.token)
 
     if (!matchingBribesAggregated[tokenKey]) {
       matchingBribesAggregated[tokenKey] = {
@@ -881,7 +880,7 @@ async function processGaugeVotes(
           };
 
           // Also track for per-address token allocations (for claimed bounties)
-          const tokenAddress = await getTokenAddress(bribe.token) || bribe.token;
+          const tokenAddress = await getTokenAddress(bribe.token);
 
           // Check if the bribe amount looks like it's already in wei
           const brideAmountNum = Number(bribe.amount);
@@ -1218,7 +1217,6 @@ async function fetchAndProcessClaimedBounties(
   );
 
   // Map token addresses to overall bribes data
-  // matchingBribesAggregated already uses token addresses as keys after our changes
   const tokenAddressToBribes = matchingBribesAggregated;
 
   // Group by protocol with proper amount splitting
@@ -1338,12 +1336,13 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     });
 
     const now = Math.floor(Date.now() / 1000);
-
+    /*
     // If we are on an even week, take the prev round epoch
     if (!isOddWeek(now)) {
       console.log("using prev round epoch");
       currentEpoch = currentEpoch - BigInt(2 * WEEK)
     }
+    */
 
     console.log(`Current Votium epoch: ${currentEpoch} (${new Date(Number(currentEpoch) * 1000).toLocaleDateString('en-GB')})`);
 
