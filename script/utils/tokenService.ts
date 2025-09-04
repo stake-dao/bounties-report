@@ -43,6 +43,15 @@ class TokenService {
     },
     SDEX: {
       "1": "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF"
+    },
+    opASF: {
+      "1": "0x7fE24F1A024D33506966CB7CA48Bab8c65fB632d"
+    },
+    EYWA: {
+      "42161": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7"
+    },
+    RZR: {
+      "1": "0xb4444468e444f89e1c2CAc2F1D3ee7e336cBD1f5"
     }
   };
 
@@ -154,9 +163,66 @@ class TokenService {
    */
   async getTokenByAddress(address: string, chainId: string = "1"): Promise<TokenInfo | undefined> {
     await this.ensureInitialized();
+    
+    // First check if this address matches any override
+    const lowerAddress = address.toLowerCase();
+    for (const [symbol, addresses] of Object.entries(this.TOKEN_OVERRIDES)) {
+      if (addresses[chainId] && addresses[chainId].toLowerCase() === lowerAddress) {
+        // Create a TokenInfo object for the override
+        return {
+          id: symbol.toLowerCase(),
+          name: this.getTokenNameFromSymbol(symbol),
+          symbol: symbol,
+          address: addresses,
+          decimals: this.getTokenDecimalsFromSymbol(symbol, chainId),
+          logoURI: "",
+          tags: [],
+          extensions: {}
+        };
+      }
+    }
+    
+    // Then check the regular token map
     const chainMap = this.addressToToken.get(chainId);
     if (!chainMap) return undefined;
-    return chainMap.get(address.toLowerCase());
+    return chainMap.get(lowerAddress);
+  }
+  
+  /**
+   * Helper to get token name from symbol
+   */
+  private getTokenNameFromSymbol(symbol: string): string {
+    const names: Record<string, string> = {
+      'USDC': 'USD Coin',
+      'USDT': 'Tether USD',
+      'SDEX': 'Stake DAO Exchange',
+      'EYWA': 'EYWA Token',
+      'USDaf': 'Asymmetry Finance USD',
+      'RSUP': 'RSup Token',
+      'USDf': 'Fluid USD',
+      'fxUSD': 'f(x) Protocol USD',
+      'CRV': 'Curve DAO Token',
+      'CVX': 'Convex Finance',
+      'FXS': 'Frax Share',
+      'SDT': 'Stake DAO Token',
+      'WETH': 'Wrapped Ether',
+      'PAL': 'Paladin',
+      'SPELL': 'Spell Token',
+      'INV': 'Inverse Finance',
+      'crvUSD': 'Curve USD',
+      'ASF': 'Asymmetry Finance'
+    };
+    return names[symbol] || symbol;
+  }
+  
+  /**
+   * Helper to get token decimals from symbol
+   */
+  private getTokenDecimalsFromSymbol(symbol: string, chainId: string): number {
+    // Special cases for decimals
+    if (symbol === 'USDC' && chainId === '56') return 18; // BSC USDC has 18 decimals
+    if (symbol === 'USDC' || symbol === 'USDT') return 6;
+    return 18; // Default to 18
   }
 
   /**

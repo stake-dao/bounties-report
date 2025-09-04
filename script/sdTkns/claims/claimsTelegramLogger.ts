@@ -1,167 +1,106 @@
-// ClaimsTelegramLogger.ts
-import { createPublicClient, http, formatUnits } from "viem";
-import { mainnet, bsc, polygon, base, optimism, arbitrum } from "viem/chains";
+import { formatUnits } from "viem";
 import { sendTelegramMessage } from "../../utils/telegramUtils";
+import { tokenService } from "../../utils/tokenService";
 
-const ERC20_ABI = [
-  {
-    name: "name",
-    type: "function",
-    inputs: [],
-    outputs: [{ name: "", type: "string" }],
-    stateMutability: "view",
-  },
-  {
-    name: "symbol",
-    type: "function",
-    inputs: [],
-    outputs: [{ name: "", type: "string" }],
-    stateMutability: "view",
-  },
-  {
-    name: "decimals",
-    type: "function",
-    inputs: [],
-    outputs: [{ name: "", type: "uint8" }],
-    stateMutability: "view",
-  },
-];
+interface TokenClaim {
+  rewardToken: string;
+  amount: string | number | bigint;
+  chainId?: number;
+  isWrapped?: boolean;
+  protocol?: string;
+}
+
+type ClaimsData = Record<string, Record<string, TokenClaim>>;
+type AggregatedClaims = Record<string, Record<string, bigint>>;
 
 export class ClaimsTelegramLogger {
-  // Returns a public client for the given chain ID.
-  private getPublicClientForChain(chainId: number) {
-    if (chainId === 1) {
-      return createPublicClient({
-        chain: mainnet,
-        transport: http("https://rpc.flashbots.net"),
-      });
-    } else if (chainId === 56) {
-      return createPublicClient({
-        chain: bsc,
-        transport: http("https://rpc.flashbots.net"),
-      });
-    } else if (chainId === 137) {
-      return createPublicClient({
-        chain: polygon,
-        transport: http("https://rpc.flashbots.net"),
-      });
-    } else if (chainId === 8453) {
-      return createPublicClient({
-        chain: base,
-        transport: http("https://base.meowrpc.com"),
-      });
-    } else if (chainId === 10) {
-      return createPublicClient({
-        chain: optimism,
-        transport: http("https://rpc.flashbots.net"),
-      });
-    } else if (chainId === 42161) {
-      return createPublicClient({
-        chain: arbitrum,
-        transport: http("https://1rpc.io/arb"),
-      });
-    }
-    // Default to mainnet if unknown.
-    return createPublicClient({
-      chain: mainnet,
-      transport: http("https://rpc.flashbots.net"),
-    });
-  }
-
-  // Retrieves ERC20 token info (name, symbol, decimals) from the token contract.
+  /**
+   * Retrieves token info using tokenService with fallback
+   */
   private async getTokenInfo(
-    client: any,
-    tokenAddress: string
+    tokenAddress: string,
+    chainId: number
   ): Promise<{ symbol: string; decimals: number }> {
     try {
-      // Try to get symbol and decimals
-      const [symbol, decimals] = await Promise.all([
-        client
-          .readContract({
-            address: tokenAddress as `0x${string}`,
-            abi: ERC20_ABI,
-            functionName: "symbol",
-            args: [],
-          })
-          .catch(
-            () =>
-              `Unknown (${tokenAddress.slice(0, 6)}...${tokenAddress.slice(
-                -4
-              )})`
-          ),
-        client
-          .readContract({
-            address: tokenAddress as `0x${string}`,
-            abi: ERC20_ABI,
-            functionName: "decimals",
-            args: [],
-          })
-          .catch(() => 18), // Default to 18 decimals if not available
-      ]);
-      return { symbol, decimals: Number(decimals) };
-    } catch (error) {
-      console.warn(
-        `Failed to get complete token info for ${tokenAddress}, using fallback values`
+      // Try to get token from service
+      const tokenInfo = await tokenService.getTokenByAddress(
+        tokenAddress,
+        chainId.toString()
       );
+
+      if (tokenInfo) {
+        return {
+          symbol: tokenInfo.symbol,
+          decimals: tokenInfo.decimals,
+        };
+      }
+
+      // Fallback if not found in service
+      const decimals = await tokenService.getTokenDecimals(
+        tokenAddress,
+        chainId.toString()
+      );
+
       return {
-        symbol: `Unknown (${tokenAddress.slice(0, 6)}...${tokenAddress.slice(
-          -4
-        )})`,
+        symbol: this.formatUnknownToken(tokenAddress),
+        decimals,
+      };
+    } catch (error) {
+      console.warn(`Failed to get token info for ${tokenAddress}:`, error);
+      return {
+        symbol: this.formatUnknownToken(tokenAddress),
         decimals: 18,
       };
     }
   }
 
   /**
-   * Aggregates claims by token address.
-   *
-   * also format amounts and put token names
+   * Format unknown token address for display
    */
-  private aggregateClaims(claims: any): {
-    [protocol: string]: { [token: string]: bigint };
-  } {
-    const aggregated: { [protocol: string]: { [token: string]: bigint } } = {};
+  private formatUnknownToken(address: string): string {
+    return `Unknown (${address.slice(0, 6)}...${address.slice(-4)})`;
+  }
+
+  /**
+   * Safely converts an amount to BigInt
+   */
+  private toBigInt(amount: string | number | bigint): bigint {
+    if (typeof amount === "bigint") return amount;
+
+    try {
+      return BigInt(amount);
+    } catch {
+      // Handle floating point numbers
+      if (typeof amount === "number") {
+        return BigInt(Math.round(amount));
+      }
+      if (typeof amount === "string" && amount.includes(".")) {
+        return BigInt(Math.round(parseFloat(amount)));
+      }
+      console.warn(`Failed to convert amount: ${amount}`);
+      return 0n;
+    }
+  }
+
+  /**
+   * Aggregates claims by token address
+   */
+  private aggregateClaims(claims: ClaimsData): AggregatedClaims {
+    const aggregated: AggregatedClaims = {};
 
     for (const protocol in claims) {
       const protocolClaims = claims[protocol];
+      aggregated[protocol] = {};
 
-      // Iterate through numeric keys in the protocol claims
       for (const claimIndex in protocolClaims) {
         const claim = protocolClaims[claimIndex];
-        const rewardToken = claim.rewardToken;
-
-        // Safely convert amount to BigInt, handling non-integer values
-        let amount: bigint;
-        try {
-          amount = BigInt(claim.amount);
-        } catch (error) {
-          // If direct conversion fails (e.g., for floating point numbers),
-          // round to the nearest integer before converting
-          if (error instanceof RangeError && typeof claim.amount === "number") {
-            amount = BigInt(Math.round(claim.amount));
-          } else if (
-            typeof claim.amount === "string" &&
-            claim.amount.includes(".")
-          ) {
-            // For string representations of floating point numbers
-            amount = BigInt(Math.round(parseFloat(claim.amount)));
-          } else {
-            console.warn(
-              `Failed to convert amount for ${protocol}/${claimIndex}: ${claim.amount}`
-            );
-            amount = 0n;
-          }
-        }
-
-        if (!aggregated[protocol]) {
-          aggregated[protocol] = {};
-        }
+        const { rewardToken, amount } = claim;
 
         if (!aggregated[protocol][rewardToken]) {
           aggregated[protocol][rewardToken] = 0n;
         }
 
-        aggregated[protocol][rewardToken] += amount;
+        aggregated[protocol][rewardToken] += this.toBigInt(amount);
       }
     }
 
@@ -169,95 +108,105 @@ export class ClaimsTelegramLogger {
   }
 
   /**
-   * Logs claim data to Telegram:
-   * - Aggregates raw claim amounts per token (using rewardToken addresses).
-   * - For each token, queries on‑chain ERC20 info (name, symbol, decimals).
-   * - Formats the aggregated amount using the token's decimals.
-   * - Sends an HTML‑formatted message with token name, symbol, and formatted total.
-   *
-   * @param currentPeriod - The current period timestamp.
-   * @param claims - The raw claims data.
-   * @param defaultChainId - The default chain ID to use if not found in claims (defaults to 1).
+   * Extract claim metadata for a token
+   */
+  private getClaimMetadata(
+    claims: ClaimsData,
+    protocol: string,
+    tokenAddress: string,
+    defaultChainId: number
+  ): { chainId: number; isWrapped: boolean; protocolInfo: string } {
+    let chainId = defaultChainId;
+    let isWrapped = false;
+    let protocolInfo = "";
+
+    // Find first claim with this token to get metadata
+    for (const claimIndex in claims[protocol]) {
+      const claim = claims[protocol][claimIndex];
+      if (claim.rewardToken === tokenAddress) {
+        chainId = claim.chainId ?? defaultChainId;
+        isWrapped = claim.isWrapped ?? false;
+        protocolInfo = claim.protocol ? ` (${claim.protocol})` : "";
+        break;
+      }
+    }
+
+    return { chainId, isWrapped, protocolInfo };
+  }
+
+  /**
+   * Format protocol display name
+   */
+  private formatProtocolName(title: string): string {
+    const [protocol, fileName] = title.split("/");
+    return fileName?.includes("convex") ? `${protocol}-convex` : protocol;
+  }
+
+  /**
+   * Build GitHub report URL
+   */
+  private buildReportUrl(period: number, title: string): string {
+    return `https://github.com/stake-dao/bounties-report/tree/main/weekly-bounties/${period}/${title}`;
+  }
+
+  /**
+   * Format period date for display
+   */
+  private formatPeriodDate(period: number): string {
+    return new Date(period * 1000).toLocaleDateString("fr-FR");
+  }
+
+  /**
+   * Logs claim data to Telegram
    */
   async logClaims(
     title: string,
     currentPeriod: number,
-    claims: any,
+    claims: ClaimsData,
     defaultChainId: number = 1
   ): Promise<void> {
     const aggregated = this.aggregateClaims(claims);
+    const displayProtocol = this.formatProtocolName(title);
+    const reportUrl = this.buildReportUrl(currentPeriod, title);
 
-    let displayProtocol = title.split("/")[0];
-    const fileName = title.split("/")[1];
-
-    if (fileName.includes("convex")) {
-      displayProtocol = displayProtocol + "-convex";
-    }
-
-    // Build the message
-    const reportUrl = `https://github.com/stake-dao/bounties-report/tree/main/weekly-bounties/${currentPeriod}/${title}`;
+    // Build message header
     let message = `<a href="${reportUrl}"><b>[Distribution] Claimed bounties for ${displayProtocol.toUpperCase()}</b></a>\n\n`;
-    message += `<b>Period:</b> ${
-      new Date(currentPeriod * 1000).toLocaleDateString('fr-FR')
-    }\n\n`;
+    message += `<b>Period:</b> ${this.formatPeriodDate(currentPeriod)}\n\n`;
 
     // Process each protocol
     for (const protocol in aggregated) {
-      // Show the protocol field if it exists in the claims data
-      const protocolDisplay = protocol.toUpperCase();
-      message += `<b>${protocolDisplay}</b>\n\n`;
+      message += `<b>${protocol.toUpperCase()}</b>\n\n`;
 
-      // Process each token in this protocol
+      // Process each token
       for (const tokenAddress in aggregated[protocol]) {
         try {
-          // Find chainId and isWrapped from the first claim for this token in this protocol
-          let chainId = defaultChainId;
-          let isWrapped = false;
-          let protocolInfo = "";
+          const { chainId, isWrapped, protocolInfo } = this.getClaimMetadata(
+            claims,
+            protocol,
+            tokenAddress,
+            defaultChainId
+          );
 
-          // Look for a claim with this token to get its chainId, isWrapped status, and protocol info
-          for (const claimIndex in claims[protocol]) {
-            const claim = claims[protocol][claimIndex];
-            if (claim.rewardToken === tokenAddress) {
-              if (claim.chainId) chainId = claim.chainId;
-              if (claim.isWrapped !== undefined) isWrapped = claim.isWrapped;
-              if (claim.protocol) protocolInfo = ` (${claim.protocol})`;
-              break;
-            }
-          }
-
-          // If token is wrapped, always use Ethereum mainnet client
-          // Otherwise use the client for the specified chain
-          const client = isWrapped
-            ? this.getPublicClientForChain(1) // Use Ethereum mainnet for wrapped tokens
-            : this.getPublicClientForChain(chainId);
-
-          // Get token info from blockchain
-          const tokenInfo = await this.getTokenInfo(client, tokenAddress);
+          // Use mainnet (chainId 1) for wrapped tokens
+          const effectiveChainId = isWrapped ? 1 : chainId;
+          const tokenInfo = await this.getTokenInfo(tokenAddress, effectiveChainId);
+          
           const amount = aggregated[protocol][tokenAddress];
           const formattedAmount = formatUnits(amount, tokenInfo.decimals);
+          const displayAmount = parseFloat(formattedAmount).toFixed(2);
 
-          // Add to message with chain ID indicator and wrapped status if applicable
           const wrappedIndicator = isWrapped ? " [Wrapped]" : "";
-          message += `• ${tokenInfo.symbol}${protocolInfo}: <code>${parseFloat(
-            formattedAmount
-          ).toFixed(2)}</code> [Chain: ${chainId}]${wrappedIndicator}\n\n`;
+          message += `• ${tokenInfo.symbol}${protocolInfo}: <code>${displayAmount}</code> [Chain: ${chainId}]${wrappedIndicator}\n\n`;
         } catch (err) {
-          console.error(`Error processing token ${tokenAddress}: ${err}`);
-          // Use address as fallback with shortened format
-          const shortAddress = `${tokenAddress.slice(
-            0,
-            6
-          )}...${tokenAddress.slice(-4)}`;
-          message += `• Token ${shortAddress}: ${formatUnits(
-            aggregated[protocol][tokenAddress],
-            18
-          )} [Chain: Unknown]\n\n`;
+          console.error(`Error processing token ${tokenAddress}:`, err);
+          // Fallback formatting
+          const shortAddress = this.formatUnknownToken(tokenAddress);
+          const fallbackAmount = formatUnits(aggregated[protocol][tokenAddress], 18);
+          message += `• ${shortAddress}: <code>${fallbackAmount}</code> [Chain: Unknown]\n\n`;
         }
       }
     }
 
-    // Send the message
     await sendTelegramMessage(message, "HTML");
   }
 }
