@@ -43,7 +43,7 @@ dependencies:
     version: 4.3.0(graphql@16.11.0)
   hyparquet:
     specifier: ^1.5.0
-    version: 1.17.5
+    version: 1.17.6
   keccak256:
     specifier: ^1.0.6
     version: 1.0.6
@@ -4075,8 +4075,8 @@ packages:
       resolve-alpn: 1.2.1
     dev: false
 
-  /hyparquet@1.17.5:
-    resolution: {integrity: sha512-2YEtSIp8j6N0nJL/JQSbQeYskCYTRFy1cyFFMBoh8DJ9YFjborqMpYKYIyxpaYCeLlRj01+d0097J5Ic2+o6+A==}
+  /hyparquet@1.17.6:
+    resolution: {integrity: sha512-hzAmojt12XkOnClQ5vAmMHbL5bp+3PDaDcbyTa4fRhShqwANV5aq8tgCHk8Zv0ijeYiAzyOygNzJvBYpvFwItQ==}
     dev: false
 
   /iconv-lite@0.4.24:
