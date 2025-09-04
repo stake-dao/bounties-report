@@ -100,12 +100,23 @@ export const getAllTokensInfos = async (
     `Chain ${chainId}: Fetching info for ${uncachedAddresses.length} uncached tokens (${normalizedAddresses.length - uncachedAddresses.length} cached)`
   );
 
-  const client =
-    (await getClient(chainId)) ||
-    createPublicClient({
+  let client;
+  try {
+    client = await getClient(chainId);
+  } catch (error) {
+    console.warn(`Failed to get client for chain ${chainId}, using fallback RPC`);
+    const fallbackRpc = chain.id === 1 
+      ? "https://ethereum-rpc.publicnode.com"
+      : "https://rpc.ankr.com/eth";
+    client = createPublicClient({
       chain,
-      transport: http(),
+      transport: http(fallbackRpc, {
+        retryCount: 3,
+        retryDelay: 1000,
+        timeout: 30000,
+      }),
     });
+  }
 
   const symbolCalls = uncachedAddresses.map((tokenAddr) => ({
     address: tokenAddr as `0x${string}`,
@@ -239,12 +250,20 @@ export const distributionVerifier = async (
   if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
     console.log("\n=== Votium Epoch Check ===");
     try {
-      const ethereumClient =
-        (await getClient(1)) ||
-        createPublicClient({
+      let ethereumClient;
+      try {
+        ethereumClient = await getClient(1);
+      } catch (error) {
+        console.warn(`Failed to get Ethereum client, using fallback RPC`);
+        ethereumClient = createPublicClient({
           chain: merkleChain,
-          transport: http(),
+          transport: http("https://ethereum-rpc.publicnode.com", {
+            retryCount: 3,
+            retryDelay: 1000,
+            timeout: 30000,
+          }),
         });
+      }
 
       const votiumEpochAbi = [
         {
@@ -377,12 +396,28 @@ const compareMerkleData = async (
   space?: string,
   currentPeriodTimestamp?: number
 ): Promise<DistributionRow[]> => {
-  const client =
-    (await getClient(chain.id)) ||
-    createPublicClient({
+  let client;
+  try {
+    client = await getClient(chain.id);
+  } catch (error) {
+    console.warn(`Failed to get client for chain ${chain.id}, using fallback RPC`);
+    // Use a reliable public RPC as fallback
+    const fallbackRpc = chain.id === 1 
+      ? "https://ethereum-rpc.publicnode.com"
+      : chain.rpcUrls.default.http[0];
+    client = createPublicClient({
       chain,
-      transport: http(),
+      transport: http(fallbackRpc, {
+        retryCount: 3,
+        retryDelay: 1000,
+        timeout: 30000,
+      }),
     });
+  }
+  
+  if (!client) {
+    throw new Error(`Failed to create client for chain ${chain.id}`);
+  }
 
   // Load user type data for vlCVX
   let forwarders: Set<string> = new Set();

@@ -1,6 +1,6 @@
 import { createPublicClient, http, PublicClient, Chain } from "viem";
 import {
-  mainnet,
+  mainnet as viemMainnet,
   bsc,
   optimism,
   fraxtal,
@@ -11,6 +11,16 @@ import {
   hemi
 } from "viem/chains";
 import { hyperliquid } from "./chains/hyperliquid";
+
+// Create a custom mainnet chain without eth.merkle.io
+const mainnet: Chain = {
+  ...viemMainnet,
+  rpcUrls: {
+    default: {
+      http: ["https://ethereum-rpc.publicnode.com"],
+    },
+  },
+};
 
 interface ChainConfig {
   chain: Chain;
@@ -125,6 +135,10 @@ async function testRpcEndpoint(url: string, chainId: number): Promise<number> {
     const latency = Date.now() - startTime;
     return latency;
   } catch (error: any) {
+    // Skip eth.merkle.io as it's unreliable
+    if (url.includes("eth.merkle.io")) {
+      console.warn("[RPC] Skipping eth.merkle.io - known unreliable endpoint");
+    }
     return Infinity;
   }
 }
