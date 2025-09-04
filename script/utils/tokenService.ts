@@ -25,6 +25,27 @@ class TokenService {
   private isInitialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
 
+  // Special case overrides for tokens with multiple entries
+  private readonly TOKEN_OVERRIDES: Record<string, Record<string, string>> = {
+    USDC: {
+      "1": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "10": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "100": "0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83",
+      "137": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+      "146": "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
+      "250": "0x04068DA6C83AFCFA0e13ba15A6696662335D5B75",
+      "252": "0xDcc0F2D8F90FDe85b10aC1c8Ab57dc0AE946A543",
+      "8453": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "42161": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "42220": "0x37f750B7cC259A2f741AF45294f6a16572CF5cAd",
+      "43114": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+      "56": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+    },
+    SDEX: {
+      "1": "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF"
+    }
+  };
+
   /**
    * Initialize the token service by fetching data from the API
    */
@@ -102,7 +123,25 @@ class TokenService {
    */
   async getTokenBySymbol(symbol: string, chainId: string = "1"): Promise<TokenInfo | undefined> {
     await this.ensureInitialized();
-    const token = this.symbolToToken.get(symbol.toUpperCase());
+    
+    const upperSymbol = symbol.toUpperCase();
+    
+    // Check for overrides first
+    if (this.TOKEN_OVERRIDES[upperSymbol] && this.TOKEN_OVERRIDES[upperSymbol][chainId]) {
+      // Create a token info object with override addresses
+      return {
+        id: upperSymbol.toLowerCase(),
+        name: upperSymbol === 'USDT' ? 'Tether USD' : upperSymbol === 'USDC' ? 'USD Coin' : upperSymbol,
+        symbol: upperSymbol,
+        address: this.TOKEN_OVERRIDES[upperSymbol],
+        decimals: upperSymbol === 'USDC' && chainId === '56' ? 18 : 6, // Binance USDC has 18 decimals
+        logoURI: "",
+        tags: [],
+        extensions: {}
+      };
+    }
+    
+    const token = this.symbolToToken.get(upperSymbol);
     // Check if token exists on the specified chain
     if (token && token.address[chainId]) {
       return token;
@@ -124,6 +163,13 @@ class TokenService {
    * Get token address by symbol for a specific chain
    */
   async getTokenAddress(symbol: string, chainId: string = "1"): Promise<string | undefined> {
+    const upperSymbol = symbol.toUpperCase();
+    
+    // Check for overrides first for direct address lookup
+    if (this.TOKEN_OVERRIDES[upperSymbol] && this.TOKEN_OVERRIDES[upperSymbol][chainId]) {
+      return this.TOKEN_OVERRIDES[upperSymbol][chainId];
+    }
+    
     const token = await this.getTokenBySymbol(symbol, chainId);
     return token?.address[chainId];
   }
