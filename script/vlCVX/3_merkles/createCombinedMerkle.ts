@@ -318,13 +318,30 @@ function processChain(
     return;
   }
 
-  // 3. (On curve merkle, just to add one time) Reads forwarders' voted rewards from the weekly-bounties folder and adds them.
+  // 3. (On curve merkle) Log Votium forwarders' rewards but DO NOT distribute them
   if (gaugeType === "curve" && chainId === "1") {
     const votiumRewardsDir = path.join(
       "weekly-bounties",
       currentPeriodTimestamp.toString(),
       "votium"
     );
+    
+    // Create a log file for Votium forwarders info
+    const logFilePath = path.join(
+      reportsDir,
+      "votium_forwarders_log.json"
+    );
+    
+    const votiumLog: {
+      timestamp: number;
+      message: string;
+      forwardersData?: any;
+      totalRewardsSkipped?: { [token: string]: string };
+      addressesSkipped?: string[];
+    } = {
+      timestamp: currentPeriodTimestamp,
+      message: "Votium forwarders rewards are no longer distributed through merkle trees",
+    };
     
     // Try to load actual claimed bounties first
     const claimedBountiesFile = path.join(
@@ -333,9 +350,10 @@ function processChain(
     );
     
     if (fs.existsSync(claimedBountiesFile)) {
-      console.log("Loading actual claimed bounties from", claimedBountiesFile);
+      console.log("\n⚠️  NOTICE: Found Votium claimed bounties, but NOT distributing to forwarders");
+      console.log("   File:", claimedBountiesFile);
       
-      // Also load forwarders data to get the allocation shares
+      // Load forwarders data to log what would have been distributed
       const forwardersRewardsFile = path.join(
         votiumRewardsDir,
         "forwarders_voted_rewards.json"
@@ -346,136 +364,97 @@ function processChain(
           fs.readFileSync(forwardersRewardsFile, "utf8")
         );
         
-        console.log("Using token allocations from forwarders_voted_rewards.json...");
+        console.log("\n📊 Votium Forwarders Summary (NOT DISTRIBUTED):");
+        console.log("   ═══════════════════════════════════════════");
         
-        // Get token mapping from forwarders data (token symbol to actual allocations)
         if (forwardersData.tokenAllocations) {
           const tokenAllocations = forwardersData.tokenAllocations;
+          const totalsByToken: { [token: string]: bigint } = {};
+          const uniqueAddresses = new Set<string>();
           
-          // Use the actual token amounts calculated in generateConvexVotium
+          // Calculate totals that would have been distributed
           for (const address in tokenAllocations) {
-            const lowerAddress = address.toLowerCase();
-            if (!combined[lowerAddress]) {
-              combined[lowerAddress] = { tokens: {} };
-            }
+            uniqueAddresses.add(address.toLowerCase());
             
             for (const token in tokenAllocations[address]) {
               const tokenData = tokenAllocations[address][token];
               
-              // Handle new format with amount, amountWei and usd properties
               let amountStr: string;
               if (typeof tokenData === 'object' && tokenData.amountWei) {
-                // Use wei amount if available (this is what we want from our fix)
                 amountStr = tokenData.amountWei;
               } else if (typeof tokenData === 'object' && tokenData.amount) {
-                // Fallback to amount field (but this might have decimals)
                 amountStr = tokenData.amount;
-                console.warn(`Using decimal amount for ${address}:${token}, this may cause precision loss`);
               } else if (typeof tokenData === 'string') {
-                // Backward compatibility for old format
                 amountStr = tokenData;
               } else {
-                console.warn(`Invalid token data format for ${address}:${token}:`, tokenData);
                 continue;
               }
               
-              const amount = BigInt(amountStr);
+              const amount = BigInt(amountStr.split('.')[0]);
               
-              if (amount > 0n) {
-                if (!combined[lowerAddress].tokens[token]) {
-                  combined[lowerAddress].tokens[token] = amount;
-                } else {
-                  combined[lowerAddress].tokens[token] += amount;
-                }
-                
-                console.log(`  Added ${amount.toString()} of ${token} to ${address}`);
+              if (!totalsByToken[token]) {
+                totalsByToken[token] = 0n;
               }
+              totalsByToken[token] += amount;
             }
           }
           
-          console.log("Added Votium rewards from forwarders_voted_rewards.json to combined distribution.");
+          console.log(`   📍 Unique forwarders: ${uniqueAddresses.size}`);
+          console.log(`   💰 Token totals that would have been distributed:`);
           
-          // Debug log for specific address
-          const debugAddress = "0x2dbedd2632d831e61eb3fcc6720f072eef9d522d";
-          if (tokenAllocations[debugAddress]) {
-            console.log(`\nDEBUG: Token allocations for ${debugAddress}:`);
-            for (const token in tokenAllocations[debugAddress]) {
-              const tokenData = tokenAllocations[debugAddress][token];
-              console.log(`  ${token}:`, tokenData);
-            }
+          for (const [token, total] of Object.entries(totalsByToken)) {
+            console.log(`      • ${token}: ${total.toString()} wei`);
           }
+          
+          // Add to log
+          votiumLog.forwardersData = forwardersData;
+          votiumLog.totalRewardsSkipped = Object.fromEntries(
+            Object.entries(totalsByToken).map(([k, v]) => [k, v.toString()])
+          );
+          votiumLog.addressesSkipped = Array.from(uniqueAddresses);
+          
+          console.log("\n   ℹ️  These rewards should be handled through a separate process");
+          console.log("   ℹ️  Log saved to:", logFilePath);
         }
       } else {
-        console.warn("Forwarders rewards file not found, cannot compute shares for claimed bounties");
+        console.warn("   ⚠️  Forwarders rewards file not found");
       }
     } else {
-      // Fallback to theoretical amounts from forwarders file
+      // Check if theoretical forwarders file exists
       const forwardersRewardsFile = path.join(
         votiumRewardsDir,
         "forwarders_voted_rewards.json"
       );
       
       if (fs.existsSync(forwardersRewardsFile)) {
-        console.log(
-          "No claimed bounties found, using theoretical amounts from",
-          forwardersRewardsFile
-        );
+        console.log("\n⚠️  NOTICE: Found theoretical Votium forwarders rewards, but NOT distributing");
+        console.log("   File:", forwardersRewardsFile);
+        
         const forwardersData = JSON.parse(
           fs.readFileSync(forwardersRewardsFile, "utf8")
         );
+        
         if (forwardersData.tokenAllocations) {
           const tokenAllocations = forwardersData.tokenAllocations;
-          for (const address in tokenAllocations) {
-            const lowerAddress = address.toLowerCase();
-            if (!combined[lowerAddress]) {
-              combined[lowerAddress] = { tokens: {} };
-            }
-            for (const token in tokenAllocations[address]) {
-              const tokenData = tokenAllocations[address][token];
-              
-              // Handle new format with amount, amountWei and usd properties
-              let amountStr: string;
-              if (typeof tokenData === 'object' && tokenData.amountWei) {
-                // Use wei amount if available
-                amountStr = tokenData.amountWei;
-              } else if (typeof tokenData === 'object' && tokenData.amount) {
-                // Fallback to amount field (but this might have decimals)
-                amountStr = tokenData.amount;
-                console.warn(`Using decimal amount for ${address}:${token}, this may cause precision loss`);
-              } else if (typeof tokenData === 'string') {
-                // Backward compatibility for old format
-                amountStr = tokenData;
-              } else {
-                console.warn(`Invalid token data format for ${address}:${token}:`, tokenData);
-                continue;
-              }
-              
-              // Convert amount to BigInt - amounts should already be in wei
-              // Remove any decimal points if present (amounts should be integers)
-              const amountBigInt = BigInt(amountStr.split('.')[0]);
-              
-              if (!combined[lowerAddress].tokens[token]) {
-                combined[lowerAddress].tokens[token] = amountBigInt;
-              } else {
-                combined[lowerAddress].tokens[token] += amountBigInt;
-              }
-              
-              console.log(`Added ${token}: ${amountBigInt.toString()} wei to ${lowerAddress}`);
-            }
-          }
-          console.log("Added theoretical forwarders rewards to combined distribution.");
-        } else {
-          console.warn(
-            "VOTIUM : Forwarders data does not contain tokenAllocations property."
-          );
+          const uniqueAddresses = Object.keys(tokenAllocations).length;
+          
+          console.log(`   📍 Would have distributed to ${uniqueAddresses} forwarders`);
+          console.log("   ℹ️  These theoretical rewards are NOT being added to the merkle tree");
+          
+          votiumLog.forwardersData = { 
+            tokenAllocations: tokenAllocations,
+            source: "theoretical" 
+          };
+          votiumLog.addressesSkipped = Object.keys(tokenAllocations).map(a => a.toLowerCase());
         }
       } else {
-        console.log(
-          "No forwarders voted rewards file found at",
-          forwardersRewardsFile
-        );
+        console.log("   ℹ️  No Votium forwarders rewards found for this period");
       }
     }
+    
+    // Save the log file
+    fs.writeFileSync(logFilePath, JSON.stringify(votiumLog, null, 2));
+    console.log("\n═══════════════════════════════════════════════════════════");
   }
 
   // 4. Load previous Merkle data from the previous week period folder (for this gauge type)
