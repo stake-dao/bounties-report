@@ -28,9 +28,7 @@ import {
   Distribution,
 } from "./nonDelegators";
 import { getGaugesInfos } from "../../utils/reportUtils";
-import { http } from "viem";
-import { createPublicClient } from "viem";
-import { mainnet } from "viem/chains";
+import { getClient } from "../../utils/getClients";
 
 dotenv.config();
 
@@ -107,11 +105,8 @@ const processGaugeProposal = async (
   const proposal = await getProposal(proposalId);
 
   // Get snapshot block timestamp
-  const publicClient = createPublicClient({
-    chain: mainnet,
-    transport: http(),
-  });
-  const block = await publicClient.getBlock({
+  const publicClient = await getClient(1); // Use getClient to get a reliable Ethereum mainnet client
+  const block = await (publicClient as any).getBlock({
     blockNumber: BigInt(proposal.snapshot),
   });
   const snapshotBlockTimestamp = block.timestamp;

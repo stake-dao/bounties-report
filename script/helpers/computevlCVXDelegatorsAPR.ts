@@ -87,10 +87,10 @@ const skippedUsers = new Set([
 ]);
 
 // Chain configurations
-const CHAIN_CONFIGS = {
-	1: { chain: mainnet, name: "ethereum" },
-	8453: { chain: base, name: "base" },
-	42161: { chain: arbitrum, name: "arbitrum" },
+const CHAIN_CONFIGS: Record<number, { chain: any; name: string; rpcUrl: string }> = {
+	1: { chain: mainnet, name: "ethereum", rpcUrl: "https://ethereum-rpc.publicnode.com" },
+	8453: { chain: base, name: "base", rpcUrl: "https://base.publicnode.com" },
+	42161: { chain: arbitrum, name: "arbitrum", rpcUrl: "https://arbitrum-one.publicnode.com" },
 };
 
 async function getTokenDecimals(
@@ -117,7 +117,7 @@ async function getTokenDecimals(
 
 		const client = createPublicClient({
 			chain: chainConfig.chain,
-			transport: http(),
+			transport: http(chainConfig.rpcUrl || "https://ethereum-rpc.publicnode.com"),
 		});
 
 		// Prepare multicall
@@ -128,9 +128,8 @@ async function getTokenDecimals(
 		}));
 
 		try {
-			const results = await client.multicall({ contracts: calls });
-
-			results.forEach((result, index) => {
+			const results = await (client as any).multicall({ contracts: calls });
+			results.forEach((result: any, index: number) => {
 				const address = addresses[index];
 				if (result.status === "success") {
 					decimalsMap[address] = Number(result.result);
@@ -207,9 +206,9 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 
 			for (const [choiceIndex, value] of Object.entries(vote.choice)) {
 				if (gaugeInfo.choiceId === parseInt(choiceIndex)) {
-					currentChoiceIndex = value;
+					currentChoiceIndex = value as number;
 				}
-				vpChoiceSum += value;
+				vpChoiceSum += value as number;
 			}
 
 			if (currentChoiceIndex > 0) {
@@ -238,7 +237,7 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 	console.log("Thursday rewards:", thursdayRewards.chainRewards);
 
 	// Get ALL CRVUSD transfers to delegators merkle during the period
-	const currentBlock = Number(await publicClient.getBlockNumber());
+	const currentBlock = Number(await (publicClient as any).getBlockNumber());
 	const minBlock = await getClosestBlockTimestamp(
 		"ethereum",
 		currentPeriodTimestamp,

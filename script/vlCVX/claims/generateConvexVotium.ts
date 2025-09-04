@@ -7,11 +7,8 @@ import {
   DELEGATION_ADDRESS,
   getClient,
   VOTIUM_FORWARDER_REGISTRY,
-  WEEK,
 } from "../../utils/constants";
 import { getGaugesInfos } from "../../utils/reportUtils";
-import { createPublicClient, http } from "viem";
-import { mainnet } from "viem/chains";
 import {
   getBlockNumberByTimestamp,
   getClosestBlockTimestamp,
@@ -1312,11 +1309,7 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     console.log("=".repeat(80));
 
     // Initialize client
-    const ethereumClient = ((await getClient(1)) ||
-      createPublicClient({
-        chain: mainnet,
-        transport: http(),
-      })) as any;
+    const ethereumClient = (await getClient(1)) as any;
 
     // Get current epoch
     const epochAbi = [
