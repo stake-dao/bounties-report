@@ -66,7 +66,14 @@ async function fetchOTCWithdrawals(
   );
 
   if (!response || !response.result || response.result.length === 0) {
-    throw new Error("No logs found");
+    console.log("No OTC withdrawals found for this period");
+    return {
+      curve: [],
+      balancer: [],
+      fxn: [],
+      frax: [],
+      pendle: []
+    };
   }
 
   const decodedLogs: {
@@ -96,6 +103,7 @@ async function fetchOTCWithdrawals(
     balancer: [],
     fxn: [],
     frax: [],
+    pendle: [],
   };
 
   // For each log, fetch detailed OTC data from the contract and store it under its protocol

@@ -201,8 +201,8 @@ async function main() {
   const { regular: regularBounties, raw: rawBounties } = separateRawTokenBounties(aggregatedBounties);
   
   // Keep bounties only for the specified protocol
-  aggregatedBounties = { [protocol]: regularBounties[protocol] };
-  const rawProtocolBounties = { [protocol]: rawBounties[protocol] };
+  aggregatedBounties = { [protocol]: regularBounties[protocol] || {} };
+  const rawProtocolBounties = { [protocol]: rawBounties[protocol] || {} };
 
   // Collect tokens and fetch their info (including raw tokens)
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
@@ -341,6 +341,12 @@ async function main() {
 
   // Generate regular CSV reports
   for (const [protocol, rows] of Object.entries(processedReport)) {
+    // Skip if no data
+    if (!rows || rows.length === 0) {
+      console.log(`No data to report for ${protocol}`);
+      continue;
+    }
+    
     // Special handling for Pendle protocol
     if (protocol === "pendle") {
       // Generate pendle-otc.csv with Period column (matching OTC report format)

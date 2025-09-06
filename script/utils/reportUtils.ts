@@ -433,7 +433,7 @@ export function processSwapsOTC(
 export function aggregateBounties(
   claimedBounties: ClaimedBounties
 ): Record<string, Bounty[]> {
-  const protocols = ["curve", "balancer", "fxn", "frax"];
+  const protocols = ["curve", "balancer", "fxn", "frax", "pendle"];
   const aggregated: Record<string, Bounty[]> = {};
   for (const protocol of protocols) {
     aggregated[protocol] = [
@@ -954,7 +954,7 @@ export async function getCakeGaugesInfos(): Promise<GaugeInfo[]> {
 
 export const getPendleGaugesInfos = async (): Promise<GaugeInfo[]> => {
   try {
-    const chains = [1, 42161, 5000, 56, 8453];
+    const chains = [1, 42161, 5000, 56, 8453, 146];
     const responses = await Promise.all(
       chains.map((chainId) =>
         axios.get(
