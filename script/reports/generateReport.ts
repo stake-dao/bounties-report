@@ -181,9 +181,9 @@ const publicClient = createPublicClient({
 async function main() {
   // Validate protocol argument
   const protocol = process.argv[2];
-  if (!protocol || !["curve", "balancer", "fxn", "frax"].includes(protocol)) {
+  if (!protocol || !["curve", "balancer", "fxn", "frax", "pendle"].includes(protocol)) {
     console.error(
-      "Please specify a valid protocol: curve, balancer, fxn, or frax"
+      "Please specify a valid protocol: curve, balancer, fxn, frax, or pendle"
     );
     process.exit(1);
   }
@@ -243,6 +243,9 @@ async function main() {
       break;
     case "frax":
       gaugesInfo = await getGaugesInfos("frax");
+      break;
+    case "pendle":
+      gaugesInfo = await getGaugesInfos("pendle");
       break;
   }
   // Convert aggregatedBounties to array format for processReport
@@ -338,23 +341,46 @@ async function main() {
 
   // Generate regular CSV reports
   for (const [protocol, rows] of Object.entries(processedReport)) {
-    const csvContent = [
-      "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-      ...rows.map(
-        (row) =>
-          `${escapeCSV(row.gaugeName)};${escapeCSV(
-            row.gaugeAddress
-          )};${escapeCSV(row.rewardToken)};` +
-          `${escapeCSV(row.rewardAddress)};${row.rewardAmount.toFixed(
-            6
-          )};${row.rewardSdValue.toFixed(6)};` +
-          `${row.sharePercentage.toFixed(2)}`
-      ),
-    ].join("\n");
+    // Special handling for Pendle protocol
+    if (protocol === "pendle") {
+      // Generate pendle-otc.csv with Period column (matching OTC report format)
+      const csvContent = [
+        "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+        ...rows.map(
+          (row) =>
+            `${currentPeriod};${escapeCSV(row.gaugeName)};${escapeCSV(
+              row.gaugeAddress
+            )};${escapeCSV(row.rewardToken)};` +
+            `${escapeCSV(row.rewardAddress)};${row.rewardAmount.toFixed(
+              6
+            )};${row.rewardSdValue.toFixed(6)};` +
+            `${row.sharePercentage.toFixed(2)}`
+        ),
+      ].join("\n");
 
-    const fileName = `${protocol}.csv`;
-    fs.writeFileSync(path.join(dirPath, fileName), csvContent);
-    console.log(`Report generated for ${protocol}: ${fileName}`);
+      const fileName = `${protocol}-otc.csv`;
+      fs.writeFileSync(path.join(dirPath, fileName), csvContent);
+      console.log(`Report generated for ${protocol}: ${fileName}`);
+    } else {
+      // Standard format for other protocols
+      const csvContent = [
+        "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+        ...rows.map(
+          (row) =>
+            `${escapeCSV(row.gaugeName)};${escapeCSV(
+              row.gaugeAddress
+            )};${escapeCSV(row.rewardToken)};` +
+            `${escapeCSV(row.rewardAddress)};${row.rewardAmount.toFixed(
+              6
+            )};${row.rewardSdValue.toFixed(6)};` +
+            `${row.sharePercentage.toFixed(2)}`
+        ),
+      ].join("\n");
+
+      const fileName = `${protocol}.csv`;
+      fs.writeFileSync(path.join(dirPath, fileName), csvContent);
+      console.log(`Report generated for ${protocol}: ${fileName}`);
+    }
   }
 
   // Generate raw token CSV reports

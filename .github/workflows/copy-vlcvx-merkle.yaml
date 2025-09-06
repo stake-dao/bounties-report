@@ -82,9 +82,30 @@ jobs:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
+      - name: Pull latest changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull origin main --rebase
+
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "chore: Update vlCVX merkle to latest"
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+
+      - name: Send error notification to Telegram
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: -1002354704686
+          token: ${{ secrets.TG_API_KEY_BOT_ERROR }}
+          format: html
+          message: |
+            ❌ <b>Workflow failed</b>
+            • <b>Workflow:</b> ${{ github.workflow }}
+            • <b>Job:</b> copy-merkle
+            • <b>Trigger:</b> ${{ github.event_name }}
+            • <b>Status:</b> ${{ job.status }}
+            📋 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View workflow logs</a>
