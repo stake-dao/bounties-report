@@ -13,9 +13,9 @@ import MerkleTree from "merkletreejs";
 import { MerkleData } from "../interfaces/MerkleData";
 import { UniversalMerkle } from "../interfaces/UniversalMerkle";
 
-export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
+export async function getSCRVUsdTransfer(minBlock: number, maxBlock: number) {
   const explorerUtils = createBlockchainExplorerUtils();
-  const crvUsdAddress = getAddress(
+  const scrvUsdAddress = getAddress(
     "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367"
   );
 
@@ -30,7 +30,7 @@ export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   };
 
   const response = await explorerUtils.getLogsByAddressesAndTopics(
-    [crvUsdAddress],
+    [scrvUsdAddress],
     minBlock,
     maxBlock,
     topics,

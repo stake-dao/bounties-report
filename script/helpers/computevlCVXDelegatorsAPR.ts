@@ -23,6 +23,7 @@ import {
 	CVX_SPACE,
 	WEEK,
 	VLCVX_DELEGATORS_MERKLE,
+	SCRVUSD,
 	CRVUSD,
 	CVX,
 } from "../utils/constants";
@@ -35,13 +36,13 @@ import { join } from "path";
 import { processAllDelegators } from "../utils/cacheUtils";
 import { getAllRewardsForDelegators } from "./utils";
 
-import { getCRVUsdTransfer } from "../vlCVX/utils";
+import { getSCRVUsdTransfer } from "../vlCVX/utils";
 import {
 	getHistoricalTokenPrices,
 	TokenIdentifier,
 	LLAMA_NETWORK_MAPPING,
 } from "../utils/priceUtils";
-const REWARD_TOKENS = [CRVUSD];
+const REWARD_TOKENS = [SCRVUSD, CRVUSD];
 
 interface USDPerCVXResult {
 	totalVotingPower: number;
@@ -244,28 +245,28 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 	);
 
 	// Use the same method as createDelegatorsMerkle.ts
-	const crvUsdTransfer = await getCRVUsdTransfer(minBlock, currentBlock);
+	const scrvUsdTransfer = await getSCRVUsdTransfer(minBlock, currentBlock);
 	console.log(
-		"Total CRVUSD transferred to delegators merkle:",
-		crvUsdTransfer.amount.toString(),
+		"Total sCRVUSD transferred to delegators merkle:",
+		scrvUsdTransfer.amount.toString(),
 	);
 
 	// Calculate total delegator rewards by combining Thursday rewards and CRVUSD transfers
 	const totalDelegatorsRewards = { ...thursdayRewards };
 
-	// Add CRVUSD transfers to forwarders on Ethereum chain
-	if (crvUsdTransfer.amount > 0n) {
+	// Add sCRVUSD transfers to forwarders on Ethereum chain
+	if (scrvUsdTransfer.amount > 0n) {
 		if (!totalDelegatorsRewards.chainRewards[1]) {
 			totalDelegatorsRewards.chainRewards[1] = {
 				rewards: {},
 				rewardsPerGroup: { forwarders: {}, nonForwarders: {} },
 			};
 		}
-		// All CRVUSD sent to delegators merkle goes to forwarders
-		totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.forwarders[CRVUSD] =
+		// All sCRVUSD sent to delegators merkle goes to forwarders
+		totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.forwarders[SCRVUSD] =
 			(totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.forwarders[
-				CRVUSD
-			] || 0n) + crvUsdTransfer.amount;
+				SCRVUSD
+			] || 0n) + scrvUsdTransfer.amount;
 	}
 
 	console.log("Total delegators rewards (Ethereum):", {
