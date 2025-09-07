@@ -20,13 +20,33 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        env:
-          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+        with:
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          fetch-depth: 0
+
+      - name: Pull latest changes after checkout
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull origin main --rebase
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20.5.1"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.3
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run merkles generation
         run: |
@@ -34,12 +54,6 @@ jobs:
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-
-      - name: Pull latest changes
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull origin main --rebase
 
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:

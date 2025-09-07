@@ -16,7 +16,7 @@ install-deps:
 	@$(PNPM) add -D tsx
 
 # Single target that handles both types based on TYPE parameter
-run-merkles: setup install-deps
+run-merkles:
 	@echo "Running merkles generation..."
 	@if [ "$(TYPE)" = "delegators" ]; then \
 		echo "Generating delegators merkle..."; \
