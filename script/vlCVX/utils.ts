@@ -16,7 +16,7 @@ import { UniversalMerkle } from "../interfaces/UniversalMerkle";
 export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   const explorerUtils = createBlockchainExplorerUtils();
   const crvUsdAddress = getAddress(
-    "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"
+    "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367"
   );
 
   const transferSig = "Transfer(address,address,uint256)";
@@ -38,7 +38,7 @@ export async function getCRVUsdTransfer(minBlock: number, maxBlock: number) {
   );
 
   if (response.result.length === 0) {
-    throw new Error("No CRVUSD transfers found");
+    throw new Error("No sCRVUSD transfers found");
   }
 
   let totalAmount = 0n;
