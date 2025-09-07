@@ -105,7 +105,7 @@ export const SD_PENDLE = getAddress(
 export const SD_FXN = getAddress("0xe19d1c837B8A1C83A56cD9165b2c0256D39653aD");
 export const SD_CAKE = getAddress("0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A");
 
-export const CRVUSD = getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E");
+export const CRVUSD = getAddress("0x0655977FEb2f289A4aB78af67BAB0d17aAb84367");
 export const SDT = getAddress("0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F");
 export const CVX = getAddress("0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B");
 
