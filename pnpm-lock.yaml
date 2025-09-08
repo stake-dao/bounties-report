@@ -809,7 +809,7 @@ packages:
   /@libp2p/interface@2.11.0:
     resolution: {integrity: sha512-0MUFKoXWHTQW3oWIgSHApmYMUKWO/Y02+7Hpyp+n3z+geD4Xo2Rku2gYWmxcq+Pyjkz6Q9YjDWz3Yb2SoV2E8Q==}
     dependencies:
-      '@multiformats/dns': 1.0.6
+      '@multiformats/dns': 1.0.9
       '@multiformats/multiaddr': 12.5.1
       it-pushable: 3.2.3
       it-stream-types: 2.0.2
@@ -1076,10 +1076,9 @@ packages:
       - supports-color
     dev: false
 
-  /@multiformats/dns@1.0.6:
-    resolution: {integrity: sha512-nt/5UqjMPtyvkG9BQYdJ4GfLK3nMqGpFZOzf4hAmIa0sJh2LlS9YKXZ4FgwBDsaHvzZqR/rUFIywIc7pkHNNuw==}
+  /@multiformats/dns@1.0.9:
+    resolution: {integrity: sha512-Ja4hevWI9p96ICx11K3suFvFirnMmXILzS7FpsR2KG3FoKF/XJijm8ylf3vY6kRFGr98yfZYM+zIn18KaINs3A==}
     dependencies:
-      '@types/dns-packet': 5.6.5
       buffer: 6.0.3
       dns-packet: 5.6.1
       hashlru: 2.3.0
@@ -1093,7 +1092,7 @@ packages:
     dependencies:
       '@chainsafe/is-ip': 2.1.0
       '@chainsafe/netmask': 2.0.0
-      '@multiformats/dns': 1.0.6
+      '@multiformats/dns': 1.0.9
       abort-error: 1.0.1
       multiformats: 13.4.0
       uint8-varint: 2.0.4
@@ -1638,12 +1637,6 @@ packages:
     resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
     dependencies:
       '@types/ms': 2.1.0
-    dev: false
-
-  /@types/dns-packet@5.6.5:
-    resolution: {integrity: sha512-qXOC7XLOEe43ehtWJCMnQXvgcIpv6rPmQ1jXT98Ad8A3TB1Ue50jsCbSSSyuazScEuZ/Q026vHbrOTVkmwA+7Q==}
-    dependencies:
-      '@types/node': 24.3.1
     dev: false
 
   /@types/estree@1.0.8:
