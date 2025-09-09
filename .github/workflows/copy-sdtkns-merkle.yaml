@@ -15,6 +15,12 @@ jobs:
         env:
           GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
 
+      - name: Configure git and pull latest changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull origin main --rebase
+
       - name: Copy SDTokens merkle
         run: |
           # Calculate current period
@@ -42,12 +48,6 @@ jobs:
           else
             echo "No sdTkns directory found for period ${CURRENT_PERIOD}"
           fi
-
-      - name: Pull latest changes
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull origin main --rebase
 
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
