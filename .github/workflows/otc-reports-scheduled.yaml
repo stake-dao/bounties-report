@@ -21,6 +21,12 @@ jobs:
         env:
           GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
 
+      - name: Configure git and pull latest changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull origin main --rebase
+
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
@@ -83,13 +89,12 @@ jobs:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
-      - name: Commit and push if changed
-        run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git add .
-          git commit -m "Update OTC reports - Monday scheduled run" || exit 0
-          git push
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore: Update OTC reports - Monday scheduled run"
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
 
       - name: Send error notification to Telegram
         if: failure()

@@ -1,10 +1,6 @@
 import {
 	createPublicClient,
 	http,
-	keccak256,
-	encodePacked,
-	pad,
-	decodeAbiParameters,
 	getAddress,
 	erc20Abi,
 } from "viem";
@@ -22,16 +18,12 @@ import {
 	DELEGATION_ADDRESS,
 	CVX_SPACE,
 	WEEK,
-	VLCVX_DELEGATORS_MERKLE,
 	SCRVUSD,
 	CRVUSD,
-	CVX,
 } from "../utils/constants";
 import { extractCSV } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { ALL_MIGHT, REWARDS_ALLOCATIONS_POOL } from "../utils/reportUtils";
-import { writeFileSync, readFileSync } from "fs";
+import { writeFileSync } from "fs";
 import { join } from "path";
 import { processAllDelegators } from "../utils/cacheUtils";
 import { getAllRewardsForDelegators } from "./utils";
@@ -42,8 +34,6 @@ import {
 	TokenIdentifier,
 	LLAMA_NETWORK_MAPPING,
 } from "../utils/priceUtils";
-const REWARD_TOKENS = [SCRVUSD, CRVUSD];
-
 interface USDPerCVXResult {
 	totalVotingPower: number;
 	delegationVotingPower: number;
@@ -55,37 +45,15 @@ interface USDPerCVXResult {
 	timestamp: number;
 }
 
-interface TokenPrice {
-	address: string;
-	price: number;
-	decimals: number;
-	chainId: number;
-}
-
 type CvxCSVType = Record<
 	string,
 	{ rewardAddress: string; rewardAmount: bigint; chainId?: number }[]
 >;
 
-interface ChainDelegationData {
-	totalTokens: Record<string, string>;
-	totalPerGroup: Record<
-		string,
-		{
-			forwarders: string;
-			nonForwarders: string;
-		}
-	>;
-}
-
 const publicClient = createPublicClient({
 	chain: mainnet,
 	transport: http("https://rpc.flashbots.net"),
 });
-
-const skippedUsers = new Set([
-	getAddress("0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b"), // Bent
-]);
 
 // Chain configurations
 const CHAIN_CONFIGS: Record<number, { chain: any; name: string; rpcUrl: string }> = {
@@ -296,7 +264,7 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 
 	// Prepare token identifiers for price fetching
 	const thursdayTokens: TokenIdentifier[] = [];
-	const crvusdTokens: TokenIdentifier[] = [];
+	const currentTokens: TokenIdentifier[] = [];
 	const seenTokens = new Set<string>();
 
 	// Collect tokens for price fetching
@@ -317,11 +285,17 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 			},
 		);
 
-		// Only CRVUSD from forwarders needs pricing (current price)
+		// CRVUSD and sCRVUSD from forwarders need current pricing
 		if (chainData.rewardsPerGroup.forwarders?.[CRVUSD]) {
-			crvusdTokens.push({
+			currentTokens.push({
 				chainId: Number(chainId),
 				address: getAddress(CRVUSD),
+			});
+		}
+		if (chainData.rewardsPerGroup.forwarders?.[SCRVUSD]) {
+			currentTokens.push({
+				chainId: Number(chainId),
+				address: getAddress(SCRVUSD),
 			});
 		}
 	}
@@ -333,17 +307,17 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 		currentPeriodTimestamp,
 	);
 
-	// CRVUSD: use current prices
+	// CRVUSD and sCRVUSD: use current prices
 	const currentTimestamp = Math.floor(Date.now() / 1000);
-	const crvusdPrices = await getHistoricalTokenPrices(
-		crvusdTokens,
+	const currentPrices = await getHistoricalTokenPrices(
+		currentTokens,
 		currentTimestamp,
 	);
 
 	// Merge all prices
-	const prices = { ...thursdayPrices, ...crvusdPrices };
+	const prices = { ...thursdayPrices, ...currentPrices };
 	console.log("Thursday prices:", thursdayPrices);
-	console.log("Current prices for CRVUSD:", crvusdPrices);
+	console.log("Current prices for CRVUSD/sCRVUSD:", currentPrices);
 
 	// Collect all unique tokens that need decimals
 	const tokensNeedingDecimals: { chainId: number; address: string }[] = [];
@@ -409,13 +383,13 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 		}
 	}
 
-	// Process ONLY CRVUSD from forwarders (other tokens are swapped to CRVUSD)
+	// Process CRVUSD and sCRVUSD from forwarders
 	for (const [chainId, chainData] of Object.entries(
 		totalDelegatorsRewards.chainRewards,
 	)) {
 		const forwarderRewards = chainData.rewardsPerGroup.forwarders || {};
 
-		// Only process CRVUSD for forwarders
+		// Process CRVUSD for forwarders
 		const crvusdAmount = forwarderRewards[CRVUSD] || 0n;
 		if (crvusdAmount > 0n) {
 			const normalizedAddress = getAddress(CRVUSD);
@@ -433,6 +407,29 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 				console.log(`  Amount: ${amountInUnits.toFixed(6)}`);
 				console.log(`  Price: $${tokenPriceUSD.toFixed(4)} (current)`);
 				console.log(`  Value: $${valueUSD.toFixed(2)}`);
+			}
+		}
+
+		// Process sCRVUSD for forwarders  
+		const scrvusdAmount = forwarderRewards[SCRVUSD] || 0n;
+		if (scrvusdAmount > 0n) {
+			const normalizedAddress = getAddress(SCRVUSD);
+			const priceKey = `${LLAMA_NETWORK_MAPPING[Number(chainId)]}:${normalizedAddress.toLowerCase()}`;
+			const tokenPriceUSD = prices[priceKey];
+
+			if (tokenPriceUSD) {
+				const decimals = tokenDecimals[normalizedAddress] || 18;
+				const amountInUnits = Number(scrvusdAmount) / Math.pow(10, decimals);
+				const valueUSD = amountInUnits * tokenPriceUSD;
+
+				rewardValueUSD += valueUSD;
+
+				console.log(`sCRVUSD on chain ${chainId} (forwarders):`);
+				console.log(`  Amount: ${amountInUnits.toFixed(6)}`);
+				console.log(`  Price: $${tokenPriceUSD.toFixed(4)} (current)`);
+				console.log(`  Value: $${valueUSD.toFixed(2)}`);
+			} else {
+				console.warn(`No price found for sCRVUSD on chain ${chainId}`);
 			}
 		}
 	}
