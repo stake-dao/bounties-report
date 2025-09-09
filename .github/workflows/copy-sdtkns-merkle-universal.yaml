@@ -15,6 +15,12 @@ jobs:
         env:
           GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
 
+      - name: Pull latest changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull origin main --rebase
+
       - name: Determine which merkles to copy
         id: determine
         run: |
@@ -63,12 +69,6 @@ jobs:
           if [ -f "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" ]; then
             cp "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/delegationsAPRs.json"
           fi
-
-      - name: Pull latest changes
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull origin main --rebase
 
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
