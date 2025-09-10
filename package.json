@@ -20,7 +20,8 @@
     "spectra-report": "pnpm tsx script/spectra/1_report.ts",
     "spectra-repartition": "pnpm tsx script/spectra/2_repartition.ts",
     "spectra-merkle": "pnpm tsx script/spectra/3_merkles.ts",
-    "pendle-extra": "pnpm tsx script/special-distribs/pendleExtra.ts"
+    "pendle-extra": "pnpm tsx script/special-distribs/pendleExtra.ts",
+    "sdpendle-apr": "pnpm tsx script/sdTkns/computeSdPendleAPR.ts"
   },
   "author": "",
   "license": "ISC",

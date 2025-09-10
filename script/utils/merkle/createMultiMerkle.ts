@@ -330,10 +330,13 @@ export const createMultiMerkle = async (
           });
         }
 
-        aprs.push({
-          vp: delegationVote.vp,
-          amount: delegationVote.totalRewards,
-        });
+        // Skip APR computation for SDPENDLE_SPACE - it will be handled externally
+        if (space !== SDPENDLE_SPACE) {
+          aprs.push({
+            vp: delegationVote.vp,
+            amount: delegationVote.totalRewards,
+          });
+        }
       }
     }
 
