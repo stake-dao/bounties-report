@@ -390,6 +390,16 @@ export function processSwaps(
   tokenInfos: Record<string, TokenInfo>
 ): ProcessedSwapEvent[] {
   const seen = new Set<string>();
+  
+  // First identify blocks that have BOTMARKET transactions
+  const blocksWithBotmarket = new Set<number>();
+  swaps.forEach(swap => {
+    if (swap.from.toLowerCase() === BOTMARKET.toLowerCase() || 
+        swap.to.toLowerCase() === BOTMARKET.toLowerCase()) {
+      blocksWithBotmarket.add(swap.blockNumber);
+    }
+  });
+  
   return swaps
     .filter(
       (swap) =>
@@ -404,6 +414,10 @@ export function processSwaps(
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
+    })
+    .filter((swap) => {
+      // Additional filter: only keep swaps from blocks that have BOTMARKET activity
+      return blocksWithBotmarket.has(swap.blockNumber);
     })
     .map((swap) => formatSwap(swap, tokenInfos));
 }
