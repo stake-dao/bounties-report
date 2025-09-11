@@ -1,0 +1,19 @@
+{
+  "distribution": {
+    "0x5180db0237291A6449DdA9ed33aD90a38787621c": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "240996605"
+      }
+    },
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "202279412"
+      }
+    },
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "tokens": {
+        "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "37526499"
+      }
+    }
+  }
+}
