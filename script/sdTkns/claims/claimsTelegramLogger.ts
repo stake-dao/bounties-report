@@ -15,14 +15,14 @@ type AggregatedClaims = Record<string, Record<string, bigint>>;
 
 export class ClaimsTelegramLogger {
   /**
-   * Retrieves token info using tokenService with fallback
+   * Retrieves token info using tokenService with RPC fallback
    */
   private async getTokenInfo(
     tokenAddress: string,
     chainId: number
   ): Promise<{ symbol: string; decimals: number }> {
     try {
-      // Try to get token from service
+      // Try to get token from service (includes RPC fallback for unknown tokens)
       const tokenInfo = await tokenService.getTokenByAddress(
         tokenAddress,
         chainId.toString()
@@ -35,18 +35,20 @@ export class ClaimsTelegramLogger {
         };
       }
 
-      // Fallback if not found in service
+      // If still not found, try to get at least decimals
       const decimals = await tokenService.getTokenDecimals(
         tokenAddress,
         chainId.toString()
       );
 
+      console.warn(`Token ${tokenAddress} on chain ${chainId} not found in token service or RPC, using fallback`);
+      
       return {
         symbol: this.formatUnknownToken(tokenAddress),
         decimals,
       };
     } catch (error) {
-      console.warn(`Failed to get token info for ${tokenAddress}:`, error);
+      console.warn(`Failed to get token info for ${tokenAddress} on chain ${chainId}:`, error);
       return {
         symbol: this.formatUnknownToken(tokenAddress),
         decimals: 18,

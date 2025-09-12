@@ -1,10 +1,23 @@
 import axios from "axios";
+import { createPublicClient, http, getAddress } from "viem";
+import { mainnet, bsc, optimism, fraxtal, base, polygon, arbitrum } from "viem/chains";
 
 // API URL for Stake DAO token list
 const STAKE_DAO_TOKENS_URL = "https://raw.githubusercontent.com/stake-dao/assets/refs/heads/main/tokens/all.json";
 
 // Cache duration in milliseconds (1 hour)
 const CACHE_DURATION = 60 * 60 * 1000;
+
+// Chain configurations
+const CHAIN_CONFIGS = {
+  "1": { chain: mainnet, rpcUrl: "https://eth-mainnet.public.blastapi.io" },
+  "10": { chain: optimism, rpcUrl: "https://mainnet.optimism.io" },
+  "56": { chain: bsc, rpcUrl: "https://bsc-dataseed1.binance.org" },
+  "137": { chain: polygon, rpcUrl: "https://polygon-rpc.com" },
+  "252": { chain: fraxtal, rpcUrl: "https://rpc.frax.com" },
+  "8453": { chain: base, rpcUrl: "https://mainnet.base.org" },
+  "42161": { chain: arbitrum, rpcUrl: "https://arb1.arbitrum.io/rpc" },
+};
 
 interface TokenInfo {
   id: string;
@@ -21,6 +34,7 @@ class TokenService {
   private tokens: TokenInfo[] = [];
   private symbolToToken: Map<string, TokenInfo> = new Map();
   private addressToToken: Map<string, Map<string, TokenInfo>> = new Map(); // chainId -> address -> token
+  private rpcFetchedTokens: Map<string, TokenInfo> = new Map(); // cacheKey -> token (for RPC fetched tokens)
   private lastFetchTime: number = 0;
   private isInitialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
@@ -185,7 +199,109 @@ class TokenService {
     // Then check the regular token map
     const chainMap = this.addressToToken.get(chainId);
     if (!chainMap) return undefined;
-    return chainMap.get(lowerAddress);
+    const tokenInfo = chainMap.get(lowerAddress);
+    
+    // If not found, try to fetch from RPC
+    if (!tokenInfo) {
+      return await this.fetchTokenFromRpc(address, chainId);
+    }
+    
+    return tokenInfo;
+  }
+  
+  /**
+   * Fetch token information directly from blockchain via RPC
+   */
+  private async fetchTokenFromRpc(address: string, chainId: string): Promise<TokenInfo | undefined> {
+    // Check cache first
+    const cacheKey = `${chainId}-${address.toLowerCase()}`;
+    const cached = this.rpcFetchedTokens.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const chainConfig = CHAIN_CONFIGS[chainId as keyof typeof CHAIN_CONFIGS];
+      if (!chainConfig) {
+        console.warn(`Chain ${chainId} not configured for RPC fallback`);
+        return undefined;
+      }
+
+      const publicClient = createPublicClient({
+        chain: chainConfig.chain,
+        transport: http(chainConfig.rpcUrl, {
+          retryCount: 2,
+          timeout: 10000,
+        }),
+      }) as any;
+
+      // Fetch symbol and decimals from the token contract
+      const [symbol, decimals, name] = await Promise.all([
+        publicClient.readContract({
+          address: getAddress(address),
+          abi: [
+            {
+              inputs: [],
+              name: "symbol",
+              outputs: [{ type: "string" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "symbol",
+        }).catch(() => "UNKNOWN"),
+        
+        publicClient.readContract({
+          address: getAddress(address),
+          abi: [
+            {
+              inputs: [],
+              name: "decimals",
+              outputs: [{ type: "uint8" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "decimals",
+        }).catch(() => 18),
+        
+        publicClient.readContract({
+          address: getAddress(address),
+          abi: [
+            {
+              inputs: [],
+              name: "name",
+              outputs: [{ type: "string" }],
+              stateMutability: "view",
+              type: "function",
+            },
+          ],
+          functionName: "name",
+        }).catch(() => "Unknown Token"),
+      ]);
+
+      console.log(`Fetched unknown token from RPC - Address: ${address}, Symbol: ${symbol}, Decimals: ${decimals}, Chain: ${chainId}`);
+
+      // Create TokenInfo object
+      const tokenInfo: TokenInfo = {
+        id: `${symbol.toLowerCase()}-${chainId}`,
+        name: name as string,
+        symbol: symbol as string,
+        address: { [chainId]: address },
+        decimals: Number(decimals),
+        logoURI: "",
+        tags: ["rpc-fetched"],
+        extensions: {}
+      };
+
+      // Cache the result
+      this.rpcFetchedTokens.set(cacheKey, tokenInfo);
+
+      return tokenInfo;
+    } catch (error) {
+      console.error(`Failed to fetch token info from RPC for ${address} on chain ${chainId}:`, error);
+      return undefined;
+    }
   }
   
   /**
@@ -246,7 +362,7 @@ class TokenService {
   async getTokenDecimals(addressOrSymbol: string, chainId: string = "1"): Promise<number> {
     await this.ensureInitialized();
     
-    // Try as address first
+    // Try as address first (includes RPC fallback)
     let token = await this.getTokenByAddress(addressOrSymbol, chainId);
     
     // If not found, try as symbol
@@ -254,8 +370,21 @@ class TokenService {
       token = await this.getTokenBySymbol(addressOrSymbol, chainId);
     }
     
+    // If still not found and it looks like an address, try RPC directly
+    if (!token && addressOrSymbol.startsWith("0x") && addressOrSymbol.length === 42) {
+      token = await this.fetchTokenFromRpc(addressOrSymbol, chainId);
+    }
+    
     // Return decimals or default to 18
     return token?.decimals || 18;
+  }
+
+  /**
+   * Get token symbol by address - with RPC fallback
+   */
+  async getTokenSymbol(address: string, chainId: string = "1"): Promise<string> {
+    const token = await this.getTokenByAddress(address, chainId);
+    return token?.symbol || "UNKNOWN";
   }
 
   /**
@@ -305,6 +434,10 @@ export async function getTokenBySymbol(symbol: string, chainId: string = "1"): P
 
 export async function getTokenByAddress(address: string, chainId: string = "1"): Promise<TokenInfo | undefined> {
   return tokenService.getTokenByAddress(address, chainId);
+}
+
+export async function getTokenSymbol(address: string, chainId: string = "1"): Promise<string> {
+  return tokenService.getTokenSymbol(address, chainId);
 }
 
 // Initialize on first import (but don't block)
