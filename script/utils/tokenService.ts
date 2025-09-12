@@ -1,23 +1,12 @@
 import axios from "axios";
-import { createPublicClient, http, getAddress } from "viem";
-import { mainnet, bsc, optimism, fraxtal, base, polygon, arbitrum } from "viem/chains";
+import { getAddress } from "viem";
+import { getClient } from "./getClients";
 
 // API URL for Stake DAO token list
 const STAKE_DAO_TOKENS_URL = "https://raw.githubusercontent.com/stake-dao/assets/refs/heads/main/tokens/all.json";
 
 // Cache duration in milliseconds (1 hour)
 const CACHE_DURATION = 60 * 60 * 1000;
-
-// Chain configurations
-const CHAIN_CONFIGS = {
-  "1": { chain: mainnet, rpcUrl: "https://eth-mainnet.public.blastapi.io" },
-  "10": { chain: optimism, rpcUrl: "https://mainnet.optimism.io" },
-  "56": { chain: bsc, rpcUrl: "https://bsc-dataseed1.binance.org" },
-  "137": { chain: polygon, rpcUrl: "https://polygon-rpc.com" },
-  "252": { chain: fraxtal, rpcUrl: "https://rpc.frax.com" },
-  "8453": { chain: base, rpcUrl: "https://mainnet.base.org" },
-  "42161": { chain: arbitrum, rpcUrl: "https://arb1.arbitrum.io/rpc" },
-};
 
 interface TokenInfo {
   id: string;
@@ -221,19 +210,13 @@ class TokenService {
     }
 
     try {
-      const chainConfig = CHAIN_CONFIGS[chainId as keyof typeof CHAIN_CONFIGS];
-      if (!chainConfig) {
-        console.warn(`Chain ${chainId} not configured for RPC fallback`);
+      // Use the existing getClient function from the codebase
+      const publicClient = await getClient(Number(chainId)) as any;
+      
+      if (!publicClient) {
+        console.warn(`No client available for chain ${chainId}`);
         return undefined;
       }
-
-      const publicClient = createPublicClient({
-        chain: chainConfig.chain,
-        transport: http(chainConfig.rpcUrl, {
-          retryCount: 2,
-          timeout: 10000,
-        }),
-      }) as any;
 
       // Fetch symbol and decimals from the token contract
       const [symbol, decimals, name] = await Promise.all([
@@ -249,7 +232,10 @@ class TokenService {
             },
           ],
           functionName: "symbol",
-        }).catch(() => "UNKNOWN"),
+        }).catch((err: any) => {
+          console.warn(`Failed to fetch symbol for ${address} on chain ${chainId}:`, err.message || err);
+          return "UNKNOWN";
+        }),
         
         publicClient.readContract({
           address: getAddress(address),
@@ -263,7 +249,10 @@ class TokenService {
             },
           ],
           functionName: "decimals",
-        }).catch(() => 18),
+        }).catch((err: any) => {
+          console.warn(`Failed to fetch decimals for ${address} on chain ${chainId}:`, err.message || err);
+          return 18;
+        }),
         
         publicClient.readContract({
           address: getAddress(address),
@@ -277,7 +266,10 @@ class TokenService {
             },
           ],
           functionName: "name",
-        }).catch(() => "Unknown Token"),
+        }).catch((err: any) => {
+          console.warn(`Failed to fetch name for ${address} on chain ${chainId}:`, err.message || err);
+          return "Unknown Token";
+        }),
       ]);
 
       console.log(`Fetched unknown token from RPC - Address: ${address}, Symbol: ${symbol}, Decimals: ${decimals}, Chain: ${chainId}`);
