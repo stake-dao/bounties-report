@@ -25,7 +25,7 @@ import {
 import { ALL_MIGHT, OTC_REGISTRY } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import processReport from "./processReport";
+import processOTCReport from "./processOTCReport";
 
 dotenv.config();
 
@@ -331,7 +331,7 @@ async function main() {
       )
   );
 
-  const processedReport = processReport(
+  const processedReport = processOTCReport(
     1,
     uniqueSwapsIn,
     uniqueSwapsOut,
