@@ -92,7 +92,7 @@ const CHAIN_CONFIGS: Record<number, ChainConfig> = {
       "https://base.llamarpc.com",
       "https://rpc.ankr.com/base",
       "https://mainnet.base.org",
-      "https://base.publicnode.com",
+      "https://developer-access-mainnet.base.org"
     ].filter(Boolean),
   },
   42161: {

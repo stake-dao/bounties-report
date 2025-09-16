@@ -384,40 +384,80 @@ export async function getGaugeWeight(
 
 /**
  * Processes non-OTC swap events, filtering out duplicates and unwanted addresses.
+ * @param swaps - Array of swap events to process
+ * @param tokenInfos - Token information for formatting  
+ * @param options - Optional configuration for filtering behavior
+ *                  requiredTxAddresses: Array of addresses that must be present in the block for swaps to be included
+ *                                      If not specified, auto-detects BOTMARKET presence on mainnet
+ *                  excludedFromAddresses: Array of addresses to exclude from 'from' field
+ *                  excludedToAddresses: Array of addresses to exclude from 'to' field
  */
 export function processSwaps(
   swaps: SwapEvent[],
-  tokenInfos: Record<string, TokenInfo>
+  tokenInfos: Record<string, TokenInfo>,
+  options?: { 
+    requiredTxAddresses?: string[];
+    excludedFromAddresses?: string[];
+    excludedToAddresses?: string[];
+  }
 ): ProcessedSwapEvent[] {
   const seen = new Set<string>();
   
-  // First identify blocks that have BOTMARKET transactions
-  const blocksWithBotmarket = new Set<number>();
-  swaps.forEach(swap => {
-    if (swap.from.toLowerCase() === BOTMARKET.toLowerCase() || 
-        swap.to.toLowerCase() === BOTMARKET.toLowerCase()) {
-      blocksWithBotmarket.add(swap.blockNumber);
-    }
-  });
+  // Default excluded addresses if not provided
+  const defaultExcludedFrom = [OTC_REGISTRY, BOTMARKET, SPECTRA_RECEIVER];
+  const defaultExcludedTo = [GOVERNANCE, BOSS];
+  
+  const excludedFrom = (options?.excludedFromAddresses || defaultExcludedFrom)
+    .map(addr => addr.toLowerCase());
+  const excludedTo = (options?.excludedToAddresses || defaultExcludedTo)
+    .map(addr => addr.toLowerCase());
+  
+  // Handle required transaction addresses (e.g., BOTMARKET on mainnet)
+  const blocksWithRequiredAddresses = new Set<number>();
+  let hasRequiredAddresses = false;
+  
+  if (options?.requiredTxAddresses && options.requiredTxAddresses.length > 0) {
+    // If explicitly specified, use those addresses
+    const requiredAddresses = options.requiredTxAddresses.map(addr => addr.toLowerCase());
+    swaps.forEach(swap => {
+      const fromLower = swap.from.toLowerCase();
+      const toLower = swap.to.toLowerCase();
+      if (requiredAddresses.includes(fromLower) || requiredAddresses.includes(toLower)) {
+        hasRequiredAddresses = true;
+        blocksWithRequiredAddresses.add(swap.blockNumber);
+      }
+    });
+  } else {
+    // Auto-detect BOTMARKET for backward compatibility (mainnet behavior)
+    swaps.forEach(swap => {
+      if (swap.from.toLowerCase() === BOTMARKET.toLowerCase() || 
+          swap.to.toLowerCase() === BOTMARKET.toLowerCase()) {
+        hasRequiredAddresses = true;
+        blocksWithRequiredAddresses.add(swap.blockNumber);
+      }
+    });
+  }
   
   return swaps
-    .filter(
-      (swap) =>
-        swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase() &&
-        swap.from.toLowerCase() !== BOTMARKET.toLowerCase() &&
-        swap.from.toLowerCase() !== SPECTRA_RECEIVER.toLowerCase() &&
-        swap.to.toLowerCase() !== GOVERNANCE.toLowerCase() &&
-        swap.to.toLowerCase() !== BOSS.toLowerCase()
-    )
     .filter((swap) => {
+      // Filter out excluded addresses
+      const fromLower = swap.from.toLowerCase();
+      const toLower = swap.to.toLowerCase();
+      return !excludedFrom.includes(fromLower) && !excludedTo.includes(toLower);
+    })
+    .filter((swap) => {
+      // Remove duplicate swaps
       const key = `${swap.blockNumber}-${swap.logIndex}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     })
     .filter((swap) => {
-      // Additional filter: only keep swaps from blocks that have BOTMARKET activity
-      return blocksWithBotmarket.has(swap.blockNumber);
+      // Required addresses block filter:
+      // - If required addresses exist and are found, only keep swaps from those blocks
+      // - Otherwise, keep all swaps
+      if (!hasRequiredAddresses) return true;
+      return blocksWithRequiredAddresses.has(swap.blockNumber);
     })
     .map((swap) => formatSwap(swap, tokenInfos));
 }

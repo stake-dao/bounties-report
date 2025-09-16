@@ -145,7 +145,7 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
         priority: 4,
       },
       {
-        url: "https://base.publicnode.com",
+        url: "https://developer-access-mainnet.base.org",
         priority: 5,
       },
     ],

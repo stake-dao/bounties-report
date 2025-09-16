@@ -198,9 +198,17 @@ async function main() {
     ALL_MIGHT
   );
 
-  // Process swaps
-  const processedSwapIn = processSwaps(swapIn, tokenInfos);
-  const processedSwapOut = processSwaps(swapOut, tokenInfos);
+  // Process swaps - Spectra has different excluded addresses
+  const spectraSwapOptions = {
+    excludedFromAddresses: ["0xbb0a24dee350d29ee0535353ae0d8fd1222c26b9"], // SPECTRA_RECEIVER
+    excludedToAddresses: [
+      "0xfb3485c2e209a5cfbdc1447674256578f2e02e77", // GOVERNANCE
+      "0x1a3ac0979fcd8973c3c789a029d625fb8ad9b2a3"  // BOSS
+    ],
+    requiredTxAddresses: [] // No BOTMARKET requirement for Spectra/Base
+  };
+  const processedSwapIn = processSwaps(swapIn, tokenInfos, spectraSwapOptions);
+  const processedSwapOut = processSwaps(swapOut, tokenInfos, spectraSwapOptions);
 
   const processedReport = processReport(
     8453,
