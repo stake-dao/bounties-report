@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
 import { createPublicClient, http, formatUnits } from "viem";
-import { mainnet, bsc } from "viem/chains";
+import { mainnet, bsc } from "../../utils/chains";
 import {
   BOTMARKETS,
   SPACES_TOKENS,

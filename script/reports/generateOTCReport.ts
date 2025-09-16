@@ -9,7 +9,7 @@ import {
   parseAbi,
   decodeEventLog,
 } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../utils/chains";
 import {
   getTimestampsBlocks,
   fetchSwapInEvents,

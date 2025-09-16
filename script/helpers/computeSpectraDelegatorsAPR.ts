@@ -6,7 +6,7 @@ import {
   pad,
   decodeAbiParameters,
 } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../utils/chains";
 import * as moment from "moment";
 import {
   getVoters,

@@ -17,7 +17,7 @@ import {
   SPACE_TO_CHAIN_ID,
 } from "./constants";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
-import { base, bsc, mainnet } from "viem/chains";
+import { base, bsc, mainnet } from "../utils/chains";
 import * as parquet from "parquetjs";
 import { formatBytes32String } from "ethers/lib/utils";
 

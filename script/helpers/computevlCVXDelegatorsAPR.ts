@@ -4,7 +4,7 @@ import {
 	getAddress,
 	erc20Abi,
 } from "viem";
-import { mainnet, base, arbitrum } from "viem/chains";
+import { mainnet, base, arbitrum } from "../utils/chains";
 import * as moment from "moment";
 import {
 	getProposal,

@@ -7,7 +7,7 @@ import {
   Address,
   PublicClient,
 } from "viem";
-import { bsc } from "viem/chains";
+import { bsc } from "../../utils/chains";
 import axios from "axios";
 import fs from "fs";
 import path from "path";

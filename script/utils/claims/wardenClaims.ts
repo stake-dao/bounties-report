@@ -1,6 +1,6 @@
 import axios from "axios";
 import { createPublicClient, http, parseAbi, decodeEventLog, getAddress, pad, keccak256, encodePacked } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../chains";
 import { createBlockchainExplorerUtils } from "../explorerUtils";
 import { saveToCache, loadFromCache, getFallbackDistributors } from "./wardenCache";
 

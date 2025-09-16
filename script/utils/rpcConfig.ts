@@ -8,7 +8,7 @@ import {
   polygon,
   arbitrum,
   sonic,
-} from "viem/chains";
+} from "../utils/chains";
 
 export interface RpcEndpoint {
   url: string;

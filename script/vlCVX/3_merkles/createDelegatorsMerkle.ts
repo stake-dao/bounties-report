@@ -6,7 +6,7 @@ dotenv.config();
 
 import { type PublicClient, getAddress } from "viem";
 import { http, createPublicClient } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../../utils/chains";
 import type { MerkleData } from "../../interfaces/MerkleData";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
 import { CRVUSD, CVX_SPACE, SCRVUSD } from "../../utils/constants";

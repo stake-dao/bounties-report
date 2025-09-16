@@ -3,7 +3,7 @@ import { fetchVotemarketV2ClaimedBounties } from "../../utils/claims/votemarketV
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../../utils/chains";
 import {
   BALANCER_STAKE_DAO_LOCKER,
   FXN_STAKE_DAO_LOCKER,

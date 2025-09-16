@@ -39,7 +39,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { BigNumber } from "ethers";
 import { ethers } from "ethers";
-import { bsc, mainnet } from "viem/chains";
+import { bsc, mainnet } from "../utils/chains";
 import { Merkle } from "../utils/types";
 
 dotenv.config();

@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
 import { BigNumber } from "ethers";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../utils/chains";
 import {
   SDFXS_SPACE,
   WEEK,

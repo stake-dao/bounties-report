@@ -2,7 +2,7 @@ import { defineChain } from 'viem';
 
 export const hyperliquid = defineChain({
   id: 999,
-  name: 'Hyperliquid',
+  name: 'hype',
   nativeCurrency: {
     decimals: 18,
     name: 'HYPE',

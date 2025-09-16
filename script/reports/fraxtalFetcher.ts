@@ -1,5 +1,5 @@
 import { createPublicClient, http, getAddress, encodePacked, keccak256, pad } from "viem";
-import { fraxtal } from "viem/chains";
+import { fraxtal } from "../utils/chains";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { FRAXTAL_SD_FXS, SD_FXS, SDFXS_UNIVERSAL_MERKLE } from "../utils/constants";
 

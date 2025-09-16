@@ -4,7 +4,7 @@ import path from "path";
 import { CONVEX_LOCKER, FXN_CONVEX_LOCKER } from "../../utils/constants";
 import { getTimestampsBlocks } from "../../utils/reportUtils";
 import { createPublicClient, http } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../../utils/chains";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
 
 const WEEK = 604800;

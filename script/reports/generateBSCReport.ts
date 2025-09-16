@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { createPublicClient, formatUnits, http } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../utils/chains";
 import {
   getTimestampsBlocks,
   fetchSwapInEvents,

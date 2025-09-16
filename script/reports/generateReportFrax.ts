@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http, formatUnits } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../utils/chains";
 import dotenv from "dotenv";
 import {
   getTimestampsBlocks,

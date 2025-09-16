@@ -2,7 +2,7 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { createPublicClient, http, formatUnits, pad } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../utils/chains";
 import { getAddress } from "viem";
 import { WEEK } from "../utils/constants";
 import {

@@ -12,7 +12,7 @@ import { generateMerkleTree } from "../vlCVX/utils";
 import { MerkleData } from "../interfaces/MerkleData";
 import { createCombineDistribution } from "../utils/merkle/merkle";
 import { fetchTokenInfos } from "../utils/tokens";
-import { base } from "viem/chains";
+import { base } from "../utils/chains";
 import { Distribution } from "../interfaces/Distribution";
 import { distributionVerifier } from "../utils/merkle/distributionVerifier";
 import { getLastClosedProposal } from "../utils/snapshot";

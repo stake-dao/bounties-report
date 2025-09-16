@@ -2,7 +2,7 @@
  * Have a fork with the merkle contract funded with required SDT (483278354601357121171288 / 483278.354601357121171288 SDT)
  */
 import { createPublicClient, createWalletClient, encodeFunctionData, erc20Abi, formatUnits, http, parseAbi } from "viem";
-import { bsc } from "viem/chains";
+import { bsc } from "../utils/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { chunk } from "lodash";
 import { generateMerkles, SDT_ADDRESS } from "./utils";

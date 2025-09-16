@@ -7,7 +7,7 @@ import {
 } from "../utils/snapshot";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { mainnet } from "viem/chains";
+import { mainnet } from "../utils/chains";
 import { getAllCurveGauges } from "../utils/curveApi";
 import { getGaugesInfos } from "../utils/reportUtils";
 import { DELEGATION_ADDRESS, VOTIUM_FORWARDER } from "../utils/constants";

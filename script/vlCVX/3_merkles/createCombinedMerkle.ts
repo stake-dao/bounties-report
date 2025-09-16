@@ -4,7 +4,7 @@ import * as moment from "moment";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { mainnet } from "viem/chains";
+import { mainnet } from "../../utils/chains";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { generateMerkleTree, mergeMerkleData } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";

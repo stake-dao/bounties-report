@@ -1,6 +1,6 @@
 import { createPublicClient, http, PublicClient, Chain } from "viem";
 import {
-  mainnet as viemMainnet,
+  mainnet,
   bsc,
   optimism,
   fraxtal,
@@ -8,19 +8,9 @@ import {
   polygon,
   arbitrum,
   sonic,
-  hemi
-} from "viem/chains";
-import { hyperliquid } from "./chains/hyperliquid";
-
-// Create a custom mainnet chain without eth.merkle.io
-const mainnet: Chain = {
-  ...viemMainnet,
-  rpcUrls: {
-    default: {
-      http: ["https://ethereum-rpc.publicnode.com"],
-    },
-  },
-};
+  hemi,
+  hyperliquid
+} from "./chains";
 
 interface ChainConfig {
   chain: Chain;

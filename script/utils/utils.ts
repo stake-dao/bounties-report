@@ -23,7 +23,7 @@ import {
   keccak256,
   pad,
 } from "viem";
-import { bsc, mainnet } from "viem/chains";
+import { bsc, mainnet } from "../utils/chains";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { processAllDelegators } from "./cacheUtils";
 import { getBlockNumberByTimestamp } from "./chainUtils";
