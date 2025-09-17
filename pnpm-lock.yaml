@@ -43,7 +43,7 @@ dependencies:
     version: 4.3.0(graphql@16.11.0)
   hyparquet:
     specifier: ^1.5.0
-    version: 1.17.8
+    version: 1.18.0
   keccak256:
     specifier: ^1.0.6
     version: 1.0.6
@@ -1664,15 +1664,15 @@ packages:
   /@types/node-int64@0.4.32:
     resolution: {integrity: sha512-xf/JsSlnXQ+mzvc0IpXemcrO4BrCfpgNpMco+GLcXkFk01k/gW9lGJu+Vof0ZSvHK6DsHJDPSbjFPs36QkWXqw==}
     dependencies:
-      '@types/node': 24.5.0
+      '@types/node': 24.5.1
     dev: false
 
   /@types/node@12.20.55:
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
     dev: false
 
-  /@types/node@24.5.0:
-    resolution: {integrity: sha512-y1dMvuvJspJiPSDZUQ+WMBvF7dpnEqN4x9DDC9ie5Fs/HUZJA3wFp7EhHoVaKX/iI0cRoECV8X2jL8zi0xrHCg==}
+  /@types/node@24.5.1:
+    resolution: {integrity: sha512-/SQdmUP2xa+1rdx7VwB9yPq8PaKej8TD5cQ+XfKDPWWC+VDJU4rvVVagXqKUzhKjtFoNA8rXDJAkCxQPAe00+Q==}
     dependencies:
       undici-types: 7.12.0
     dev: false
@@ -1686,7 +1686,7 @@ packages:
   /@types/pbkdf2@3.1.2:
     resolution: {integrity: sha512-uRwJqmiXmh9++aSu1VNEn3iIxWOhd8AHXNSdlaLfdAAdSTY9jYVeGWnzejM3dvrkbqE3/hyQkQQ29IFATEGlew==}
     dependencies:
-      '@types/node': 24.5.0
+      '@types/node': 24.5.1
     dev: false
 
   /@types/resolve@1.20.2:
@@ -1702,7 +1702,7 @@ packages:
   /@types/secp256k1@4.0.6:
     resolution: {integrity: sha512-hHxJU6PAEUn0TP4S/ZOzuTUvJWuZ6eIKeNKb5RBpODvSl6hp1Wrw4s7ATY50rklRCScUDpHzVA/DQdSjJ3UoYQ==}
     dependencies:
-      '@types/node': 24.5.0
+      '@types/node': 24.5.1
     dev: false
 
   /@types/trusted-types@2.0.7:
@@ -4068,8 +4068,8 @@ packages:
       resolve-alpn: 1.2.1
     dev: false
 
-  /hyparquet@1.17.8:
-    resolution: {integrity: sha512-6gJdWv4/YSepyb9khqCvEjBE5qllE1K/WgmVtmYoYAhAjRYxJOl0+idyqClLqkEoWSA5LJUu0Uk0MzdE3w51lw==}
+  /hyparquet@1.18.0:
+    resolution: {integrity: sha512-pdg39j047rcJtyxEif0rlJZe1kiILycnBRwp5WTHuwTHe/R7oePN7vFYrDSeEO7Tc+ATHosVcUijtnJpqZApfg==}
     dev: false
 
   /iconv-lite@0.4.24:
