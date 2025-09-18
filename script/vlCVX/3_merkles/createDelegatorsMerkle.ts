@@ -29,6 +29,9 @@ const WEEK = 604800;
 // Round current UTC time down to the nearest week to get the current period timestamp
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
+// Fee recipient for Votium forwarders fee
+const FEE_RECIPIENT = "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063";
+
 // The directory to which we'll write the bounties reports for this period
 const reportsDir = path.join(
 	"bounties-reports",
@@ -458,11 +461,73 @@ async function processForwarders() {
 
 	// Subtract a small buffer to avoid minor rounding issues
 	totalScrvUsd -= BigInt(10 ** 14);
-	console.log("Total sCRVUSD for distribution:", totalScrvUsd.toString());
+	console.log("Total sCRVUSD received:", totalScrvUsd.toString());
+
+	// Calculate fee amount FIRST before any distribution
+	let feeAmount = 0n;
+	const forwardersRewardsPath = path.join(
+		"weekly-bounties",
+		currentPeriodTimestamp.toString(),
+		"votium",
+		"forwarders_voted_rewards.json",
+	);
+
+	if (fs.existsSync(forwardersRewardsPath)) {
+		console.log("Calculating Votium forwarders fee...");
+		const forwardersData = JSON.parse(fs.readFileSync(forwardersRewardsPath, "utf8"));
+
+		let totalForwardersUSD = 0;
+
+		// Calculate total USD from all tokenAllocations
+		if (forwardersData.tokenAllocations) {
+			for (const [forwarder, tokens] of Object.entries(forwardersData.tokenAllocations)) {
+				for (const [token, values] of Object.entries(tokens as Record<string, any>)) {
+					if (values.usd) {
+						totalForwardersUSD += values.usd;
+					}
+				}
+			}
+		}
+
+		if (totalForwardersUSD > 0) {
+			// Get the actual scrvUSD/crvUSD exchange rate from the contract
+			const scrvUsdContract = "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367";
+			const pricePerShareAbi = [
+				{
+					inputs: [],
+					name: "pricePerShare",
+					outputs: [{ name: "", type: "uint256" }],
+					stateMutability: "view",
+					type: "function",
+				},
+			] as const;
+
+			// Fetch the current price per share (crvUSD per scrvUSD)
+			const pricePerShare = await publicClient.readContract({
+				address: scrvUsdContract as `0x${string}`,
+				abi: pricePerShareAbi,
+				functionName: "pricePerShare",
+			});
+
+			console.log(`Total Votium forwarders USD value: $${totalForwardersUSD.toFixed(2)}`);
+			console.log(`scrvUSD price per share: ${(Number(pricePerShare) / 1e18).toFixed(6)} crvUSD per scrvUSD`);
+
+			// Convert USD to crvUSD (1:1), then to scrvUSD using the price per share
+			// scrvUSD amount = crvUSD amount / pricePerShare
+			const crvUsdAmount = BigInt(Math.floor(totalForwardersUSD * 1e18));
+			feeAmount = (crvUsdAmount * BigInt(1e18)) / pricePerShare;
+
+			console.log(`Fee amount: ${(Number(feeAmount) / 1e18).toFixed(6)} scrvUSD`);
+		}
+	}
+
+	// Deduct fee from total BEFORE distribution
+	const availableForDistribution = totalScrvUsd - feeAmount;
+	console.log("Total sCRVUSD for delegators distribution (after fee):", availableForDistribution.toString());
 
 	const protocolShares = await getProtocolShares(
 		publicClient,
-		totalScrvUsd,
+		availableForDistribution, // Use the amount after fee deduction
 		scrvUsdTransfer.txHashes,
 	);
 
@@ -505,6 +570,22 @@ async function processForwarders() {
 
 	// Then add all fxn distributions (summing where needed)
 	mergeDistributions(fxnCombined, combined);
+
+	// Add the pre-calculated fee allocation to the fee recipient
+	if (feeAmount > 0n) {
+		const feeRecipient = getAddress(FEE_RECIPIENT);
+
+		// Add or update the fee recipient's allocation
+		if (!combined[feeRecipient]) {
+			combined[feeRecipient] = { tokens: {} };
+		}
+
+		// Add scrvUSD allocation
+		combined[feeRecipient].tokens[SCRVUSD] =
+			(combined[feeRecipient].tokens[SCRVUSD] || 0n) + feeAmount;
+
+		console.log(`\nAdding fee allocation: ${(Number(feeAmount) / 1e18).toFixed(6)} scrvUSD to ${feeRecipient}`);
+	}
 
 	// Load previous Merkle data for forwarders (if any)
 	// This file is used to ensure continuity of claims across periods
