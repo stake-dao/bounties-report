@@ -27,7 +27,6 @@ import {
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
 import { getTokenAddress as getTokenAddressFromService, getTokenDecimals as getTokenDecimalsFromService } from "../../utils/tokenService";
 import { getTokenPrices, TokenIdentifier } from "../../utils/priceUtils";
-import { isOddWeek } from "../../utils/utils";
 
 const THE_UNION_ADDRESS = "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49";
 
@@ -115,23 +114,31 @@ async function getAllForwarders(
 const unionDelegatorsList = [
     {
       address: "0xC6D1ed1F2Db34d138da62B13138313DADD6A5AbC",
-      vp: 12047.795
+      vp: 12656
     },
     {
       address: "0xf47FD47c6241EfD6e5a6c03be3fe3F8E45f0325B",
       vp: 7500
     },
     {
-      address: "0xCA0073964efe7f9422CeB16901018b1DB0cC4785",
-      vp: 4964.127
-    },
-    {
       address: "0x8Ac4c0630C5ed1636537924eC9B037fC652ADee8",
-      vp: 711.293 
+      vp: 711
     },
     {
       address: "0xeE33e09ae46d84587a8A89bb7a74e70F8961058B",
       vp: 356.814
+    },
+    {
+      address: "0x08c6c666E23454A9e1B514922a5Ce08BF43c561b",
+      vp: 5760
+    },
+    {
+      address: "0x9F03D12e183Da0D9Ddc2DAAAE3591a9129D8d3d0",
+      vp: 204
+    },
+    {
+      address: "0x6620912AC168458ED84D5D3d6c83E728abf9941F",
+      vp: 2114
     }
   ];
 
