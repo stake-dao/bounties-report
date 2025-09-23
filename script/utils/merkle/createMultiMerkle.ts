@@ -421,9 +421,10 @@ export const createMultiMerkle = async (
   for (let i = 0; i < userRewardAddresses.length; i++) {
     const userAddress = userRewardAddresses[i];
 
-    const amount = parseEther(
-      adjustedUserRewards[userAddress.toLowerCase()].toString()
-    );
+    const rewardValue = adjustedUserRewards[userAddress.toLowerCase()];
+    // Convert to fixed decimal notation to avoid scientific notation
+    const rewardString = rewardValue.toFixed(18);
+    const amount = parseEther(rewardString);
 
     elements.push(
       utils.solidityKeccak256(
@@ -443,9 +444,10 @@ export const createMultiMerkle = async (
   let totalAmount = BigNumber.from(0);
   for (let i = 0; i < userRewardAddresses.length; i++) {
     const userAddress = userRewardAddresses[i];
-    const amount = BigNumber.from(
-      parseEther(adjustedUserRewards[userAddress.toLowerCase()].toString())
-    );
+    const rewardValue = adjustedUserRewards[userAddress.toLowerCase()];
+    // Convert to fixed decimal notation to avoid scientific notation
+    const rewardString = rewardValue.toFixed(18);
+    const amount = BigNumber.from(parseEther(rewardString));
     totalAmount = totalAmount.add(amount);
 
     merkle[userAddress.toLowerCase()] = {

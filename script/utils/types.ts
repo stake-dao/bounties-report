@@ -92,7 +92,7 @@ export interface DelegationVote {
   vp: number;
 }
 
-export type LogId = "TotalReported" | "Concentrator" | "sdCAKE" | "Delegators";
+export type LogId = "TotalReported" | "Concentrator" | "sdCAKE" | "Delegators" | "AdditionalRewards";
 
 export interface Log {
   id: LogId;
