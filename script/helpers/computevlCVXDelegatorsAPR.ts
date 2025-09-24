@@ -36,10 +36,10 @@ import {
 } from "../utils/priceUtils";
 interface USDPerCVXResult {
 	totalVotingPower: number;
-	delegationVotingPower: number;
+	delegationVotingPower: number; // Now only forwarders VP
 	delegationShare: number;
-	rewardValueUSD: number; // Total USD value of rewards
-	usdPerCVX: number; // USD value per CVX (weekly)
+	rewardValueUSD: number; // Total USD value of sCRVUSD rewards for forwarders only
+	usdPerCVX: number; // USD value per CVX for forwarders (weekly)
 	periodStartBlock: number;
 	periodEndBlock: number;
 	timestamp: number;
@@ -121,7 +121,7 @@ async function getTokenDecimals(
 	return decimalsMap;
 }
 
-async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
+async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 	const now = moment.utc().unix();
 	const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
@@ -262,8 +262,7 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 
 	console.log(`Total forwarders VP: ${delegationVPForwarders.toFixed(2)}`);
 
-	// Prepare token identifiers for price fetching
-	const thursdayTokens: TokenIdentifier[] = [];
+	// Prepare token identifiers for price fetching - ONLY sCRVUSD
 	const currentTokens: TokenIdentifier[] = [];
 	const seenTokens = new Set<string>();
 
@@ -271,27 +270,7 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 	for (const [chainId, chainData] of Object.entries(
 		totalDelegatorsRewards.chainRewards,
 	)) {
-		// All non-forwarder tokens need Thursday prices
-		Object.keys(chainData.rewardsPerGroup.nonForwarders || {}).forEach(
-			(address) => {
-				const key = `${chainId}:${address.toLowerCase()}`;
-				if (!seenTokens.has(key)) {
-					seenTokens.add(key);
-					thursdayTokens.push({
-						chainId: Number(chainId),
-						address: getAddress(address),
-					});
-				}
-			},
-		);
-
-		// CRVUSD and sCRVUSD from forwarders need current pricing
-		if (chainData.rewardsPerGroup.forwarders?.[CRVUSD]) {
-			currentTokens.push({
-				chainId: Number(chainId),
-				address: getAddress(CRVUSD),
-			});
-		}
+		// ONLY sCRVUSD from forwarders needs current pricing
 		if (chainData.rewardsPerGroup.forwarders?.[SCRVUSD]) {
 			currentTokens.push({
 				chainId: Number(chainId),
@@ -300,38 +279,25 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 		}
 	}
 
-	// Fetch prices at different timestamps
-	// Most tokens use Thursday prices (currentPeriodTimestamp)
-	const thursdayPrices = await getHistoricalTokenPrices(
-		thursdayTokens,
-		currentPeriodTimestamp,
-	);
-
-	// CRVUSD and sCRVUSD: use current prices
+	// Fetch prices - ONLY current prices for sCRVUSD
 	const currentTimestamp = Math.floor(Date.now() / 1000);
-	const currentPrices = await getHistoricalTokenPrices(
+	const prices = await getHistoricalTokenPrices(
 		currentTokens,
 		currentTimestamp,
 	);
+	console.log("Current prices for sCRVUSD:", prices);
 
-	// Merge all prices
-	const prices = { ...thursdayPrices, ...currentPrices };
-	console.log("Thursday prices:", thursdayPrices);
-	console.log("Current prices for CRVUSD/sCRVUSD:", currentPrices);
-
-	// Collect all unique tokens that need decimals
+	// Collect only sCRVUSD that needs decimals
 	const tokensNeedingDecimals: { chainId: number; address: string }[] = [];
 	const seenTokensForDecimals = new Set<string>();
 
 	for (const [chainId, chainData] of Object.entries(
 		totalDelegatorsRewards.chainRewards,
 	)) {
-		const allTokens = [
-			...Object.keys(chainData.rewardsPerGroup.nonForwarders || {}),
-			...Object.keys(chainData.rewardsPerGroup.forwarders || {}),
-		];
+		// Only get forwarders tokens (sCRVUSD)
+		const forwarderTokens = Object.keys(chainData.rewardsPerGroup.forwarders || {});
 
-		allTokens.forEach((address) => {
+		forwarderTokens.forEach((address) => {
 			const key = `${chainId}:${address.toLowerCase()}`;
 			if (!seenTokensForDecimals.has(key)) {
 				seenTokensForDecimals.add(key);
@@ -347,70 +313,18 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 	console.log("Fetching token decimals...");
 	const tokenDecimals = await getTokenDecimals(tokensNeedingDecimals);
 
-	// Calculate USD value for each reward token
+	// Calculate USD value for FORWARDERS ONLY
 	let rewardValueUSD = 0;
 
-	// Process non-forwarder rewards with Thursday prices
-	for (const [chainId, chainData] of Object.entries(
-		totalDelegatorsRewards.chainRewards,
-	)) {
-		const nonForwarderRewards = chainData.rewardsPerGroup.nonForwarders || {};
+	// Skip non-forwarder rewards completely - we only want forwarders APR
 
-		for (const [tokenAddress, amount] of Object.entries(nonForwarderRewards)) {
-			const normalizedAddress = getAddress(tokenAddress);
-			const priceKey = `${LLAMA_NETWORK_MAPPING[Number(chainId)]}:${normalizedAddress.toLowerCase()}`;
-			const tokenPriceUSD = prices[priceKey];
-
-			if (tokenPriceUSD && amount > 0n) {
-				// Get decimals from fetched data
-				const decimals = tokenDecimals[normalizedAddress] || 18;
-				const amountInUnits = Number(amount) / Math.pow(10, decimals);
-				const valueUSD = amountInUnits * tokenPriceUSD;
-
-				rewardValueUSD += valueUSD;
-
-				console.log(
-					`Token ${normalizedAddress} on chain ${chainId} (nonForwarders):`,
-				);
-				console.log(`  Amount: ${amountInUnits.toFixed(6)}`);
-				console.log(`  Price: $${tokenPriceUSD.toFixed(4)}`);
-				console.log(`  Value: $${valueUSD.toFixed(2)}`);
-			} else if (amount > 0n) {
-				console.warn(
-					`No price found for token ${normalizedAddress} on chain ${chainId}`,
-				);
-			}
-		}
-	}
-
-	// Process CRVUSD and sCRVUSD from forwarders
+	// Process ONLY sCRVUSD from forwarders (Tuesday CRVUSD transfers)
 	for (const [chainId, chainData] of Object.entries(
 		totalDelegatorsRewards.chainRewards,
 	)) {
 		const forwarderRewards = chainData.rewardsPerGroup.forwarders || {};
 
-		// Process CRVUSD for forwarders
-		const crvusdAmount = forwarderRewards[CRVUSD] || 0n;
-		if (crvusdAmount > 0n) {
-			const normalizedAddress = getAddress(CRVUSD);
-			const priceKey = `${LLAMA_NETWORK_MAPPING[Number(chainId)]}:${normalizedAddress.toLowerCase()}`;
-			const tokenPriceUSD = prices[priceKey];
-
-			if (tokenPriceUSD) {
-				const decimals = tokenDecimals[normalizedAddress] || 18;
-				const amountInUnits = Number(crvusdAmount) / Math.pow(10, decimals);
-				const valueUSD = amountInUnits * tokenPriceUSD;
-
-				rewardValueUSD += valueUSD;
-
-				console.log(`CRVUSD on chain ${chainId} (forwarders):`);
-				console.log(`  Amount: ${amountInUnits.toFixed(6)}`);
-				console.log(`  Price: $${tokenPriceUSD.toFixed(4)} (current)`);
-				console.log(`  Value: $${valueUSD.toFixed(2)}`);
-			}
-		}
-
-		// Process sCRVUSD for forwarders  
+		// ONLY process sCRVUSD for forwarders (Tuesday CRVUSD)
 		const scrvusdAmount = forwarderRewards[SCRVUSD] || 0n;
 		if (scrvusdAmount > 0n) {
 			const normalizedAddress = getAddress(SCRVUSD);
@@ -434,16 +348,16 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 		}
 	}
 
-	// Calculate USD per CVX (weekly rewards)
+	// Calculate USD per CVX (weekly rewards) - FORWARDERS ONLY
 	const usdPerCVX = rewardValueUSD / delegationVPForwarders;
 
-	console.log("Total rewardValueUSD:", rewardValueUSD);
-	console.log("USD per CVX (weekly):", usdPerCVX.toFixed(4));
+	console.log("Total rewardValueUSD (Forwarders only - sCRVUSD):", rewardValueUSD);
+	console.log("USD per CVX for Forwarders (weekly):", usdPerCVX.toFixed(4));
 
 	return {
 		totalVotingPower,
-		delegationVotingPower,
-		delegationShare: delegationVotingPower / totalVotingPower,
+		delegationVotingPower: delegationVPForwarders, // Use forwarders VP only
+		delegationShare: delegationVPForwarders / totalVotingPower, // Share based on forwarders only
 		rewardValueUSD,
 		usdPerCVX,
 		periodStartBlock: Number(proposal.snapshot),
@@ -454,7 +368,7 @@ async function computeUSDPerCVX(): Promise<USDPerCVXResult> {
 
 async function main() {
 	try {
-		const result = await computeUSDPerCVX();
+		const result = await computeForwardersUSDPerCVX();
 		// Save to current week folder first
 		const currentWeekPath = join(
 			__dirname,
@@ -475,11 +389,11 @@ async function main() {
 
 		writeFileSync(currentWeekPath, JSON.stringify(updatedData, null, 2));
 
-		console.log("\n=== Delegation USD per CVX Calculation ===");
+		console.log("\n=== Forwarders USD per CVX Calculation (Tuesday CRVUSD only) ===");
 		console.log(`Period Timestamp: ${result.timestamp}`);
 		console.log(`Total Voting Power: ${result.totalVotingPower.toFixed(2)}`);
 		console.log(
-			`Delegation Voting Power: ${result.delegationVotingPower.toFixed(2)}`,
+			`Delegation Voting Power (Forwarders only): ${result.delegationVotingPower.toFixed(2)}`,
 		);
 		console.log(
 			`Delegation Share: ${(result.delegationShare * 100).toFixed(2)}%`,
@@ -487,8 +401,8 @@ async function main() {
 		console.log(
 			`Period: ${result.periodStartBlock} - ${result.periodEndBlock}`,
 		);
-		console.log(`Total Reward Value: $${result.rewardValueUSD.toFixed(2)}`);
-		console.log(`USD per CVX (weekly): $${result.usdPerCVX.toFixed(4)}`);
+		console.log(`Total Reward Value (sCRVUSD only): $${result.rewardValueUSD.toFixed(2)}`);
+		console.log(`USD per CVX for Forwarders (weekly): $${result.usdPerCVX.toFixed(4)}`);
 		console.log(`Data saved to: ${currentWeekPath}`);
 	} catch (error) {
 		console.error("Error:", error);
@@ -503,4 +417,4 @@ if (require.main === module) {
 	});
 }
 
-export { computeUSDPerCVX };
+export { computeForwardersUSDPerCVX };
