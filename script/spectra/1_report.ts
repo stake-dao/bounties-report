@@ -12,7 +12,7 @@ import {
   processSwaps,
   PROTOCOLS_TOKENS,
 } from "../utils/reportUtils";
-import { getClient } from "../utils/constants";
+import { getClient, WETH_CHAIN_IDS } from "../utils/constants";
 import processReport from "../reports/processReport";
 
 dotenv.config();
@@ -177,6 +177,9 @@ async function main() {
   }
   allTokens.add(protocolTokens.spectra.sdToken);
   allTokens.add(protocolTokens.spectra.native);
+  // Add WETH for the chain to capture WETH swap events
+  allTokens.add(WETH_CHAIN_IDS[8453]);
+
   const tokenInfos = await fetchAllTokenInfos(
     Array.from(allTokens),
     baseClient
@@ -197,6 +200,7 @@ async function main() {
     Array.from(allTokens),
     ALL_MIGHT
   );
+
 
   // Process swaps - Spectra has different excluded addresses
   const spectraSwapOptions = {
@@ -219,7 +223,7 @@ async function main() {
     []
   );
 
-  console.log(firstReport);
+  console.log(processedReport);
 
   // Generate CSV reports in the designated directory
   const projectRoot = path.resolve(__dirname, "..", "..");
