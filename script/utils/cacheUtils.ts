@@ -405,11 +405,11 @@ async function readParquetFile(filePath: string) {
   }
 
   try {
-    const { asyncBufferFromFile, parquetRead } = await import("hyparquet");
+    const hyparquet = await import("hyparquet");
 
     let data: any[] = [];
-    await parquetRead({
-      file: await asyncBufferFromFile(filePath),
+    await hyparquet.parquetRead({
+      file: await hyparquet.asyncBufferFromFile(filePath),
       rowFormat: "object",
       onComplete: (result: any[]) => {
         data = result;
