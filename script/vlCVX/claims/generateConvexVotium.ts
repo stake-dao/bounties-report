@@ -125,21 +125,13 @@ const unionDelegatorsList = [
       vp: 711
     },
     {
-      address: "0xeE33e09ae46d84587a8A89bb7a74e70F8961058B",
-      vp: 356.814
-    },
-    {
-      address: "0x08c6c666E23454A9e1B514922a5Ce08BF43c561b",
-      vp: 5760
-    },
-    {
       address: "0x9F03D12e183Da0D9Ddc2DAAAE3591a9129D8d3d0",
       vp: 204
     },
     {
-      address: "0x6620912AC168458ED84D5D3d6c83E728abf9941F",
-      vp: 2114
-    }
+      address: "0xe9379fe4f557bcBcC70038Bf76Eb7aAaD628a899",
+      vp: 463
+    },
   ];
 
   // Create a map for easy lookup
