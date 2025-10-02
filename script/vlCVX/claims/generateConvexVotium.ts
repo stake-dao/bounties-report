@@ -128,10 +128,6 @@ const unionDelegatorsList = [
       address: "0x9F03D12e183Da0D9Ddc2DAAAE3591a9129D8d3d0",
       vp: 204
     },
-    {
-      address: "0xe9379fe4f557bcBcC70038Bf76Eb7aAaD628a899",
-      vp: 463
-    },
   ];
 
   // Create a map for easy lookup
