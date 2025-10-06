@@ -1,0 +1,52 @@
+Step 1. Extend shared CSV types to describe OTC rewards per period.
+  1.1 In script/utils/utils.ts, introduce a new type alias (e.g. `export type PeriodizedRewards = Record<string, Record<string, number>>;`).
+  1.2 Define an interface `export type StandardCSVWithOTC = { base: OtherCSVType; otcByPeriod: PeriodizedRewards; };` right next to the existing CSV types.
+  1.3 Update the `ExtractCSVType` union so it reads `PendleCSVType | OtherCSVType | CvxCSVType | StandardCSVWithOTC`.
+  1.4 Export a type guard helper `export const isStandardCSVWithOTC = (value: ExtractCSVType): value is StandardCSVWithOTC => Boolean(value && typeof value === "object" && "base" in value && "otcByPeriod" in value);`.
+
+Step 2. Teach extractCSV to keep OTC rows grouped by period for non-Pendle spaces.
+  2.1 Inside extractCSV (script/utils/utils.ts), keep the existing parsing of the main CSV, but initialise two accumulators when `space !== SDPENDLE_SPACE`: `const baseRewards: OtherCSVType = {};` and `const otcByPeriod: PeriodizedRewards = {};`.
+  2.2 While iterating over the primary records (the week’s standard distribution), populate `baseRewards` exactly as today instead of writing directly into `response`.
+  2.3 When loading `{namespace}-otc.csv`, stop concatenating the OTC rows into the main `records` array. Instead, parse the OTC CSV separately and for each row:
+      • normalise the keys to lowercase as done today;
+      • read `period` from the row and throw if it is missing;
+      • aggregate `parseFloat(row["reward sd value"])` into `otcByPeriod[period][gaugeAddress]` (or `gaugeName` for Spectra) after lowercasing the key that represents the voting choice.
+  2.4 After both loops finish, return `undefined` if baseRewards and otcByPeriod are both empty; otherwise:
+      • for Pendle keep returning the existing `PendleCSVType` instance;
+      • for CVX/CVX_FXN keep returning the `CvxCSVType` branch as-is;
+      • for Spectra and other sdToken spaces return `standardResult` where `standardResult.base = baseRewards` and `standardResult.otcByPeriod = otcByPeriod`.
+
+Step 3. Handle the new shape inside sdToken merkle generation (script/sdTkns/generateMerkle.ts).
+  3.1 After calling extractCSV, keep the `isPendle` check but add logic right under it:
+      • if `csvResult` is `undefined` and `!isPendle`, continue as today;
+      • if `isStandardCSVWithOTC(csvResult)` evaluates true, destructure it into `baseRewards` and `otcByPeriod`.
+  3.2 Initialise `const perProposalRewards: Record<string, Record<string, number>> = {};` that will mirror the Pendle layout.
+  3.3 Add the default proposal id (`proposalIdPerSpace[space]`) into `perProposalRewards` and copy every entry from `baseRewards`.
+  3.4 If `Object.keys(otcByPeriod).length > 0`, fetch proposal ids by period using `fetchProposalsIdsBasedOnExactPeriods(space, Object.keys(otcByPeriod), currentPeriodTimestamp);` and, for each period, merge the OTC gauges into `perProposalRewards[proposalId]` (creating the nested object when missing).
+      • Guard for missing proposal mapping by falling back to the default proposal id so the distribution never gets lost.
+  3.5 Set `ids = Object.keys(perProposalRewards);` and compute `totalSDToken` by summing everything inside `perProposalRewards` (iterate over nested objects so both base and OTC amounts count).
+  3.6 Pass `pendleRewards` into `createMultiMerkle` for this branch: assign `pendleRewards = perProposalRewards;` before the call and keep `csvResult` argument as `baseRewards` (or simply pass `baseRewards` so the type matches what getChoiceWhereExistsBribe expects when pendleRewards is undefined).
+  3.7 Ensure `logData["TotalReported"][SPACES_SYMBOL[space]]` uses the new `totalSDToken`.
+
+Step 4. Update any other callers that consume extractCSV.
+  4.1 In script/utils/merkle/sdTokensMerkleGenerator.ts, run the same `isStandardCSVWithOTC` check after `extractCSV`. When true:
+      • build `perProposalRewards` identically to Step 3 and reuse the single latest proposal id to fetch Snapshot data;
+      • merge OTC periods via `fetchProposalsIdsBasedOnExactPeriods` and overwrite `csvResult` with the base rewards so downstream helpers keep working;
+      • when computing totals or passing data into `getChoiceWhereExistsBribe`, pick the appropriate per-proposal slice (default proposal) or adapt the call so the helper receives the correct gauge map while delegating the proposal loop with your new `perProposalRewards` map.
+  4.2 Scan for other extractCSV usages (`rg "extractCSV" -n`) and confirm they only rely on CVX/Pendle/Spectra branches. If another module expects a plain `OtherCSVType`, add the same type guard handling there.
+
+Step 5. Propagate the new helper where needed.
+  5.1 Import `isStandardCSVWithOTC` (and the new types if necessary) at the top of every file you touched.
+  5.2 Remove any now-unused variables or stale imports.
+
+Step 6. Validate the behaviour.
+  6.1 Rebuild the OTC report (`pnpm ts-node script/reports/generateOTCReport.ts`) for a known week to make sure Period values still land in the CSVs.
+  6.2 Run the merkle generator (`pnpm ts-node script/sdTkns/generateMerkle.ts`) and inspect `bounties-reports/<week>/log.json`:
+      • confirm the sdCRV snapshot list now contains multiple ids if OTC periods map to older proposals;
+      • verify your synthetic OTC line distributes under the proposal returned by the period lookup.
+  6.3 If you have universal merkles enabled, re-run the relevant command (`pnpm ts-node script/utils/merkle/sdTokensMerkleGenerator.ts`) and ensure no type errors occur.
+  6.4 Spot-check resulting merkle proofs or CSV outputs for one OTC gauge to confirm amounts match expectations.
+
+Step 7. Clean up and prepare for review.
+  7.1 Run `pnpm lint` (or the project’s lint command) to catch formatting issues.
+  7.2 Summarise the change in your PR description, emphasising that OTC `Period` now routes rewards to the proposal whose vote week matches the timestamp.

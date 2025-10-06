@@ -37,7 +37,28 @@ export type CvxCSVType = Record<
   Array<{ rewardAddress: string; rewardAmount: bigint; chainId: number }>
 >;
 
-export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType;
+// Step 1.1: New type alias for OTC rewards organized by period
+export type PeriodizedRewards = Record<string, Record<string, number>>;
+
+// Step 1.2: Interface for standard CSV with OTC data separated by period
+export type StandardCSVWithOTC = {
+  base: OtherCSVType;
+  otcByPeriod: PeriodizedRewards;
+};
+
+// Step 1.3: Updated ExtractCSVType union
+export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType | StandardCSVWithOTC;
+
+// Step 1.4: Type guard helper
+export const isStandardCSVWithOTC = (
+  value: ExtractCSVType
+): value is StandardCSVWithOTC =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      "base" in value &&
+      "otcByPeriod" in value
+  );
 
 export function isOddWeek(timestamp?: number): boolean {
   // If no timestamp provided, use current time in seconds
@@ -101,29 +122,82 @@ export const extractCSV = async (
 
   let totalPerToken: Record<string, number | bigint> = {};
 
-  // For non-sdpendle spaces, also check for OTC file
+  // Step 2.1 & 2.2: Initialize accumulators for non-Pendle spaces
+  let baseRewards: OtherCSVType = {};
+  let otcByPeriod: PeriodizedRewards = {};
+  let hasOtcFile = false;
+
+  // Step 2.3: For non-sdpendle spaces, parse OTC file separately instead of concatenating
   if (space !== SDPENDLE_SPACE) {
     const otcFilePath = path.join(
       __dirname,
       `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}-otc.csv`
     );
-    
+
     if (fs.existsSync(otcFilePath)) {
+      hasOtcFile = true;
       const otcCsvFile = fs.readFileSync(otcFilePath, "utf8");
       let otcRecords = parse(otcCsvFile, {
         columns: true,
         skip_empty_lines: true,
         delimiter: ";",
       });
-      
+
       otcRecords = otcRecords.map((row: Record<string, string>) =>
         Object.fromEntries(
           Object.entries(row).map(([key, value]) => [key.toLowerCase(), value])
         )
       );
-      
-      // Merge OTC records into main records
-      records = records.concat(otcRecords);
+
+      // Step 2.3: Process OTC rows separately, grouping by period
+      for (const row of otcRecords) {
+        const period = row["period"];
+        if (!period) {
+          throw new Error(
+            `Missing 'period' field in OTC CSV for space ${space}: ${JSON.stringify(row)}`
+          );
+        }
+
+        const rewardValue = row["reward sd value"];
+        if (!rewardValue) {
+          continue;
+        }
+
+        const amount = parseFloat(rewardValue);
+
+        if (space === SPECTRA_SPACE) {
+          const gaugeName = row["gauge name"];
+          if (!gaugeName) {
+            throw new Error(
+              `Missing 'gauge name' in OTC CSV for Spectra: ${JSON.stringify(row)}`
+            );
+          }
+
+          if (!otcByPeriod[period]) {
+            otcByPeriod[period] = {};
+          }
+          if (!otcByPeriod[period][gaugeName]) {
+            otcByPeriod[period][gaugeName] = 0;
+          }
+          otcByPeriod[period][gaugeName] += amount;
+        } else {
+          const gaugeAddress = row["gauge address"];
+          if (!gaugeAddress) {
+            throw new Error(
+              `Missing 'gauge address' in OTC CSV for space ${space}: ${JSON.stringify(row)}`
+            );
+          }
+
+          const gaugeLower = gaugeAddress.toLowerCase();
+          if (!otcByPeriod[period]) {
+            otcByPeriod[period] = {};
+          }
+          if (!otcByPeriod[period][gaugeLower]) {
+            otcByPeriod[period][gaugeLower] = 0;
+          }
+          otcByPeriod[period][gaugeLower] += amount;
+        }
+      }
     }
   }
 
@@ -187,24 +261,48 @@ export const extractCSV = async (
       totalPerToken[rewardAddress] =
         (totalPerToken[rewardAddress] as bigint) + rewardAmount;
     } else if (space === SPECTRA_SPACE) {
-      const otherResponse = response as OtherCSVType;
-      if (!otherResponse[gaugeName]) {
-        otherResponse[gaugeName] = 0;
+      // Step 2.2: Populate baseRewards for Spectra instead of response
+      if (!baseRewards[gaugeName]) {
+        baseRewards[gaugeName] = 0;
       }
       if (row["reward sd value"]) {
-        otherResponse[gaugeName] += parseFloat(row["reward sd value"]);
+        baseRewards[gaugeName] += parseFloat(row["reward sd value"]);
       }
     } else {
-      const otherResponse = response as OtherCSVType;
-      if (!otherResponse[gaugeAddress]) {
-        otherResponse[gaugeAddress] = 0;
+      // Step 2.2: Populate baseRewards for other sdToken spaces instead of response
+      if (!baseRewards[gaugeAddress]) {
+        baseRewards[gaugeAddress] = 0;
       }
       if (row["reward sd value"]) {
-        otherResponse[gaugeAddress] += parseFloat(row["reward sd value"]);
+        baseRewards[gaugeAddress] += parseFloat(row["reward sd value"]);
       }
     }
   }
-  return response;
+
+  // Step 2.4: Return appropriate structure based on space type
+  if (space === SDPENDLE_SPACE) {
+    // Return Pendle format (unchanged)
+    return Object.keys(response).length > 0 ? response : undefined;
+  } else if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
+    // Return CVX format (unchanged)
+    return Object.keys(response).length > 0 ? response : undefined;
+  } else {
+    // For Spectra and other sdToken spaces, return StandardCSVWithOTC if we have OTC data
+    if (Object.keys(baseRewards).length === 0 && Object.keys(otcByPeriod).length === 0) {
+      return undefined;
+    }
+
+    if (hasOtcFile && Object.keys(otcByPeriod).length > 0) {
+      // Return new structure with separate base and OTC data
+      return {
+        base: baseRewards,
+        otcByPeriod: otcByPeriod,
+      } as StandardCSVWithOTC;
+    } else {
+      // No OTC file or empty OTC data, return plain baseRewards (backward compatible)
+      return baseRewards;
+    }
+  }
 };
 
 /**

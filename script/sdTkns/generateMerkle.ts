@@ -26,6 +26,7 @@ import {
   extractAllRawTokenCSVs,
   getAllAccountClaimedSinceLastFreeze,
   PendleCSVType,
+  isStandardCSVWithOTC,
 } from "../utils/utils";
 import { createMultiMerkle } from "../utils/merkle/createMultiMerkle";
 import {
@@ -134,6 +135,98 @@ const main = async () => {
     let totalSDToken = 0;
     let ids: string[] = [];
     let pendleRewards: Record<string, Record<string, number>> | undefined = undefined;
+
+    // Step 3.1 & 3.2: Handle StandardCSVWithOTC type for non-Pendle spaces
+    if (!isPendle && csvResult && isStandardCSVWithOTC(csvResult)) {
+      const { base: baseRewards, otcByPeriod } = csvResult;
+
+      // Step 3.3: Initialize perProposalRewards with the default proposal
+      const perProposalRewards: Record<string, Record<string, number>> = {};
+      const defaultProposalId = proposalIdPerSpace[space];
+
+      // Add base rewards to the default proposal
+      perProposalRewards[defaultProposalId] = { ...baseRewards };
+
+      // Step 3.4: If there are OTC rewards, fetch proposals by period and merge
+      if (Object.keys(otcByPeriod).length > 0) {
+        const proposalsPeriodsOTC = await fetchProposalsIdsBasedOnExactPeriods(
+          space,
+          Object.keys(otcByPeriod),
+          currentPeriodTimestamp
+        );
+
+        for (const period of Object.keys(otcByPeriod)) {
+          const proposalId = proposalsPeriodsOTC[period] || defaultProposalId; // Fallback to default
+
+          if (!perProposalRewards[proposalId]) {
+            perProposalRewards[proposalId] = {};
+          }
+
+          // Merge OTC gauges for this period
+          for (const gauge of Object.keys(otcByPeriod[period])) {
+            if (!perProposalRewards[proposalId][gauge]) {
+              perProposalRewards[proposalId][gauge] = 0;
+            }
+            perProposalRewards[proposalId][gauge] += otcByPeriod[period][gauge];
+          }
+        }
+      }
+
+      // Step 3.5: Set ids and compute totalSDToken from all proposals
+      ids = Object.keys(perProposalRewards);
+      totalSDToken = 0;
+      for (const proposalId of ids) {
+        for (const gauge of Object.keys(perProposalRewards[proposalId])) {
+          totalSDToken += perProposalRewards[proposalId][gauge];
+        }
+      }
+
+      // Step 3.6: Assign pendleRewards for createMultiMerkle
+      pendleRewards = perProposalRewards;
+
+      // Step 3.7: Log the total
+      logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
+
+      logData["SnapshotIds"].push({
+        space,
+        ids,
+      });
+
+      // Step 3.6: Create merkle, passing baseRewards as csvResult
+      const merkleStat = await createMultiMerkle(
+        ids,
+        space,
+        lastMerkles,
+        baseRewards,
+        pendleRewards,
+        sdFXSWorkingData,
+        sdCakeWorkingData,
+        {}
+      );
+
+      newMerkles.push(merkleStat.merkle);
+
+      if (!toFreeze[network]) {
+        toFreeze[network] = [];
+      }
+      if (!toSet[network]) {
+        toSet[network] = [];
+      }
+      toFreeze[network].push(merkleStat.merkle.address);
+      toSet[network].push(merkleStat.merkle.root);
+
+      delegationAPRs[space] = merkleStat.apr;
+
+      for (const log of merkleStat.logs) {
+        if (!logData[log.id]) {
+          logData[log.id] = [];
+        }
+        logData[log.id] = logData[log.id].concat(log.content);
+      }
+
+      // Continue to next space since we've processed this one
+      continue;
+    }
 
     if (isPendle) {
       // Initialize pendleRewards

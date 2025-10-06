@@ -6,6 +6,7 @@ import { getAddress } from "viem";
 
 import {
   fetchLastProposalsIds,
+  fetchProposalsIdsBasedOnExactPeriods,
   getProposal,
   getVoters,
   getVotingPower,
@@ -25,6 +26,7 @@ import {
   addVotersFromAutoVoter,
   RawTokenDistribution,
   getDelegationVotingPower,
+  isStandardCSVWithOTC,
 } from "../utils";
 import { processAllDelegators } from "../cacheUtils";
 import { MerkleData } from "../../interfaces/MerkleData";
@@ -77,15 +79,36 @@ export async function generateSdTokensMerkle(
   }
   
   console.log(`Processing proposal: ${proposalId}`);
-  
+
   // Extract CSV data for sdToken rewards
-  const csvResult = await extractCSV(currentPeriodTimestamp, config.space);
-  
+  let csvResult = await extractCSV(currentPeriodTimestamp, config.space);
+
   if (!csvResult) {
     console.log(`No ${config.sdTokenSymbol} rewards found for this period`);
     return null;
   }
-  
+
+  // Step 4.1: Handle StandardCSVWithOTC for universal merkle
+  // This generator only uses the latest proposal, so we merge all OTC rewards into it
+  if (isStandardCSVWithOTC(csvResult)) {
+    const { base: baseRewards, otcByPeriod } = csvResult;
+
+    // Merge all OTC rewards into baseRewards (since this uses single proposal)
+    // Note: In universal merkle, we don't route to historical proposals,
+    // we accumulate everything under the current proposal
+    for (const period of Object.keys(otcByPeriod)) {
+      for (const gauge of Object.keys(otcByPeriod[period])) {
+        if (!baseRewards[gauge]) {
+          baseRewards[gauge] = 0;
+        }
+        baseRewards[gauge] += otcByPeriod[period][gauge];
+      }
+    }
+
+    // Override csvResult with merged baseRewards for downstream processing
+    csvResult = baseRewards;
+  }
+
   // Extract raw token distributions if configured
   let rawDistributions: RawTokenDistribution[] = [];
   if (config.rawTokens && config.rawTokens.length > 0) {

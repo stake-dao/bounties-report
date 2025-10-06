@@ -11,6 +11,8 @@ import moment from "moment";
 import {
   CvxCSVType,
   extractCSV,
+  OtherCSVType,
+  isStandardCSVWithOTC,
 } from "../utils/utils";
 import * as dotenv from "dotenv";
 import { getClient } from "../utils/constants";
@@ -202,11 +204,29 @@ const getChainIdName = (chainId: number): string => {
 
 export const getSpectraReport = async (
   currentPeriodTimestamp: number
-): Promise<CvxCSVType> => {
-  const _csvResult = await extractCSV(currentPeriodTimestamp, SPECTRA_SPACE);
+): Promise<OtherCSVType> => {
+  let _csvResult = await extractCSV(currentPeriodTimestamp, SPECTRA_SPACE);
   if (!_csvResult) throw new Error("No CSV report found");
 
-  return _csvResult as CvxCSVType;
+  // Step 4.2: Handle StandardCSVWithOTC for Spectra
+  // Spectra repartition uses single proposal, so merge all OTC into base rewards
+  if (isStandardCSVWithOTC(_csvResult)) {
+    const { base: baseRewards, otcByPeriod } = _csvResult;
+
+    // Merge all OTC periods into baseRewards (Spectra uses single latest proposal)
+    for (const period of Object.keys(otcByPeriod)) {
+      for (const gauge of Object.keys(otcByPeriod[period])) {
+        if (!baseRewards[gauge]) {
+          baseRewards[gauge] = 0;
+        }
+        baseRewards[gauge] += otcByPeriod[period][gauge];
+      }
+    }
+
+    return baseRewards;
+  }
+
+  return _csvResult as OtherCSVType;
 };
 
 
