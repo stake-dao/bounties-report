@@ -1,12 +1,12 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-merkles clean
+.PHONY: all setup install-deps verify-claims run-merkles clean
 
 # Define the default target
 .DEFAULT_GOAL := all
 
-all: setup install-deps run-merkles
+all: setup install-deps verify-claims run-merkles
 
 setup: setup-node
 
@@ -15,8 +15,14 @@ install-deps:
 	@$(PNPM) install
 	@$(PNPM) add -D tsx
 
+# Verify claims completeness before generating merkles
+verify-claims: setup install-deps
+	@echo "🔍 Verifying claims completeness..."
+	@$(PNPM) tsx script/vlCVX/verifyClaimsCompleteness.ts || \
+	(echo "\n❌ Claims verification failed! Fix missing claims before generating merkles." && exit 1)
+
 # Single target that handles both types based on TYPE parameter
-run-merkles: setup install-deps
+run-merkles: verify-claims
 	@echo "Running merkles generation..."
 	@if [ "$(TYPE)" = "delegators" ]; then \
 		echo "Generating delegators merkle..."; \
