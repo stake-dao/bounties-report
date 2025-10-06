@@ -2433,7 +2433,7 @@ packages:
       zod: 3.22.4
     dev: false
 
-  /abitype@1.1.1(typescript@5.9.3)(zod@4.1.11):
+  /abitype@1.1.1(typescript@5.9.3)(zod@4.1.12):
     resolution: {integrity: sha512-Loe5/6tAgsBukY95eGaPSDmQHIjRZYQq8PB1MpsNccDIK8WiV+Uw6WzaIXipvaxTEL2yEB0OpEaQv3gs8pkS9Q==}
     peerDependencies:
       typescript: '>=5.0.4'
@@ -2445,7 +2445,7 @@ packages:
         optional: true
     dependencies:
       typescript: 5.9.3
-      zod: 4.1.11
+      zod: 4.1.12
     dev: false
 
   /abort-error@1.0.1:
@@ -4869,7 +4869,7 @@ packages:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.1.1(typescript@5.9.3)(zod@4.1.11)
+      abitype: 1.1.1(typescript@5.9.3)(zod@4.1.12)
       eventemitter3: 5.0.1
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -4897,7 +4897,7 @@ packages:
       - zod
     dev: false
 
-  /ox@0.9.8(typescript@5.9.3)(zod@4.1.11):
+  /ox@0.9.8(typescript@5.9.3)(zod@4.1.12):
     resolution: {integrity: sha512-bedy2pidGW8/XKVlXiAo/sIJxO4RAY9DsLyzZ7ppzGdPrECjS/7RN26CDoeABkbCtZWtGH5k/+Sx/KD/8J3xUQ==}
     peerDependencies:
       typescript: '>=5.4.0'
@@ -4911,7 +4911,7 @@ packages:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.1.1(typescript@5.9.3)(zod@4.1.11)
+      abitype: 1.1.1(typescript@5.9.3)(zod@4.1.12)
       eventemitter3: 5.0.1
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -5122,12 +5122,12 @@ packages:
       hono: 4.9.10
       idb-keyval: 6.2.2
       mipd: 0.0.7(typescript@5.9.3)
-      ox: 0.9.8(typescript@5.9.3)(zod@4.1.11)
+      ox: 0.9.8(typescript@5.9.3)(zod@4.1.12)
       react: 18.3.1
       typescript: 5.9.3
       viem: 2.37.13(typescript@5.9.3)(zod@3.22.4)
       wagmi: 2.17.5(@tanstack/react-query@5.90.2)(react@18.3.1)(typescript@5.9.3)(viem@2.37.13)
-      zod: 4.1.11
+      zod: 4.1.12
       zustand: 5.0.8(react@18.3.1)(use-sync-external-store@1.4.0)
     transitivePeerDependencies:
       - '@types/react'
@@ -6755,8 +6755,8 @@ packages:
     resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
     dev: false
 
-  /zod@4.1.11:
-    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
+  /zod@4.1.12:
+    resolution: {integrity: sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==}
     dev: false
 
   /zustand@5.0.0(react@18.3.1)(use-sync-external-store@1.4.0):
