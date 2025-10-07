@@ -1,10 +1,10 @@
 {
-  "rewardValueUSD": 50991.165823232404,
-  "usdPerCVX": 0.016154125937397557,
-  "totalVotingPower": 4637205.006903669,
-  "delegationVotingPower": 3156541.3084458793,
-  "delegationShare": 0.6806991072740062,
-  "timestamp": 1758758400,
-  "periodStartBlock": 23336104,
-  "periodEndBlock": 1757980800
+  "rewardValueUSD": 59782.43328835651,
+  "usdPerCVX": 0.015177150441981683,
+  "totalVotingPower": 4452716.744105327,
+  "delegationVotingPower": 3938976.1284168116,
+  "delegationShare": 0.8846231087192725,
+  "timestamp": 1759363200,
+  "periodStartBlock": 23436335,
+  "periodEndBlock": 1759190400
 }
