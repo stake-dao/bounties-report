@@ -67,6 +67,178 @@ const convertToProperHex = (value: any): string => {
   return value.hex || "0x0";
 };
 
+/**
+ * Compute combined APR for sdPendle from both regular and OTC bounties
+ */
+async function computeSdPendleAPR(
+  currentPeriodTimestamp: number,
+  delegationAPRs: Record<string, number>,
+  proposalId: string
+): Promise<void> {
+  const {
+    calculateSdPendleVMVotingPower,
+    computeSdPendleDelegatorsAPR,
+    getVMGaugesFromCSV,
+  } = await import("../helpers/computeSdPendleDelegatorsAPR");
+  const { getProposal, getVoters, getVotingPower, formatVotingPowerResult } = await import("../utils/snapshot");
+  const { extractProposalChoices, addVotersFromAutoVoter, getChoicesBasedOnReport } = await import("../utils/utils");
+  const { DELEGATION_ADDRESS, SPACE_TO_CHAIN_ID } = await import("../utils/constants");
+
+  try {
+    // Check if OTC file exists
+    const otcPath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "bounties-reports",
+      currentPeriodTimestamp.toString(),
+      "pendle-otc.csv"
+    );
+
+    if (!fs.existsSync(otcPath)) {
+      console.log("No pendle-otc.csv found, skipping VM APR calculation");
+      return;
+    }
+
+    // Get proposal and voters
+    const proposal = await getProposal(proposalId);
+    const allAddressesPerChoice = extractProposalChoices(proposal);
+
+    // Get pendle rewards from OTC CSV
+    const parse = require("csv-parse/sync").parse;
+    const csvContent = fs.readFileSync(otcPath, "utf-8");
+    const records = parse(csvContent, {
+      columns: true,
+      skip_empty_lines: true,
+      delimiter: ";",
+    });
+
+    const pendleRewards: Record<string, number> = {};
+    let totalOTCRewards = 0;
+    for (const row of records) {
+      const gaugeAddress = row["Gauge Address"]?.toLowerCase();
+      const rewardAmount = parseFloat(row["Reward sd Value"] || "0");
+      if (gaugeAddress) {
+        pendleRewards[gaugeAddress] = (pendleRewards[gaugeAddress] || 0) + rewardAmount;
+        totalOTCRewards += rewardAmount;
+      }
+    }
+
+    const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, pendleRewards);
+
+    // Get voters
+    let voters = await getVoters(proposalId);
+    const vps = await getVotingPower(
+      proposal,
+      voters.map((v: any) => v.voter),
+      SPACE_TO_CHAIN_ID[SDPENDLE_SPACE]
+    );
+
+    voters = formatVotingPowerResult(voters, vps);
+    voters = await addVotersFromAutoVoter(
+      SDPENDLE_SPACE,
+      proposal,
+      voters,
+      allAddressesPerChoice
+    );
+
+    // Filter out auto voter
+    voters = voters.filter(
+      (voter: any) =>
+        voter.voter.toLowerCase() !== "0x8bBF0c99cc5Eb98177cc42eC397dc542c4903E0a".toLowerCase()
+    );
+
+    // Calculate rewards for each voter
+    for (const voter of voters) {
+      voter.totalRewards = 0;
+    }
+
+    // Process each gauge and distribute rewards
+    for (const [gaugeAddress, choiceData] of Object.entries(addressesPerChoice)) {
+      const index = choiceData.index;
+      const sdTknRewardAmount = pendleRewards[gaugeAddress.toLowerCase()] || 0;
+
+      if (sdTknRewardAmount === 0) continue;
+
+      // Calculate total VP used for this gauge
+      let totalVP = 0;
+      for (const voter of voters) {
+        let vpChoiceSum = 0;
+        let currentChoiceIndex = 0;
+
+        for (const choiceIndex of Object.keys(voter.choice || {})) {
+          if (index === parseInt(choiceIndex)) {
+            currentChoiceIndex = voter.choice[choiceIndex];
+          }
+          vpChoiceSum += voter.choice[choiceIndex];
+        }
+
+        if (currentChoiceIndex === 0) continue;
+
+        const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
+        totalVP += (voter.vp * ratio) / 100;
+      }
+
+      if (totalVP === 0) continue;
+
+      // Distribute rewards proportionally to VP
+      for (const voter of voters) {
+        let vpChoiceSum = 0;
+        let currentChoiceIndex = 0;
+
+        for (const choiceIndex of Object.keys(voter.choice || {})) {
+          if (index === parseInt(choiceIndex)) {
+            currentChoiceIndex = voter.choice[choiceIndex];
+          }
+          vpChoiceSum += voter.choice[choiceIndex];
+        }
+
+        if (currentChoiceIndex === 0) continue;
+
+        const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
+        const vpUsed = (voter.vp * ratio) / 100;
+        const totalVPRatio = (vpUsed * 100) / totalVP;
+        const amountEarned = (totalVPRatio * sdTknRewardAmount) / 100;
+
+        voter.totalRewards += amountEarned;
+      }
+    }
+
+    // Find delegation vote
+    const delegationVote = voters.find(
+      (v: any) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
+    );
+
+    if (!delegationVote) {
+      console.log("No delegation vote found for sdPendle");
+      return;
+    }
+
+    const delegationRewards = delegationVote.totalRewards || 0;
+
+    // Calculate VM-specific voting power
+    const vmVPData = calculateSdPendleVMVotingPower(
+      voters,
+      addressesPerChoice,
+      delegationRewards,
+      currentPeriodTimestamp
+    );
+
+    // Calculate VM APR
+    const vmAPR = computeSdPendleDelegatorsAPR([vmVPData]);
+
+    console.log(`\nsdPendle APR Calculation:`);
+    console.log(`  OTC Rewards: ${totalOTCRewards.toFixed(2)} sdPENDLE`);
+    console.log(`  VM Delegation VP: ${vmVPData.vp.toFixed(2)}`);
+    console.log(`  VM APR: ${vmAPR.toFixed(4)}%`);
+
+    // Set the APR
+    delegationAPRs[SDPENDLE_SPACE] = vmAPR;
+  } catch (error) {
+    console.error("Error computing sdPendle APR:", error);
+  }
+}
+
 const main = async () => {
   const now = moment.utc().unix();
   const filter: string = "*Gauge vote.*$";
@@ -254,6 +426,17 @@ const main = async () => {
       }
       logData[log.id] = logData[log.id].concat(log.content);
     }
+  }
+
+  // =====================================================
+  // Compute combined APR for sdPendle if OTC exists
+  // =====================================================
+  if (proposalIdPerSpace[SDPENDLE_SPACE]) {
+    await computeSdPendleAPR(
+      currentPeriodTimestamp,
+      delegationAPRs,
+      proposalIdPerSpace[SDPENDLE_SPACE]
+    );
   }
 
   // =====================================================
