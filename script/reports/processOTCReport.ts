@@ -267,10 +267,19 @@ function processOTCReport(
       return sum + Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
     }, 0);
     
+    const totalSdTokenFromBounties = sdTokenBounties.reduce((sum, bounty) => {
+      const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
+      return sum + Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+    }, 0);
+    
+    // Calculate available sdToken for distribution
+    // totalSdTokenOut is what we're sending out (to BotMarket)
+    // This is the total available for all bounties (WETH + native + direct sdToken)
+    // But we need to reserve the sdToken bounty amounts for those specific bounties
+    const availableSdTokenForConversion = flows.totalSdTokenOut - totalSdTokenFromBounties;
+    
     // Calculate conversion ratio: native → sdToken (from the vault deposit)
-    // totalNativeIn includes both direct native rewards and native swapped from WETH
-    // So we need to isolate the sdToken portion that came from native tokens
-    const conversionRatio = flows.totalNativeIn > 0 ? flows.totalSdTokenOut / flows.totalNativeIn : 1;
+    const conversionRatio = flows.totalNativeIn > 0 ? availableSdTokenForConversion / flows.totalNativeIn : 1;
 
     // Distribute sdToken values to bounties
     bounties.forEach((bounty) => {
@@ -289,31 +298,17 @@ function processOTCReport(
       } else if (rewardToken === wethAddress) {
         // WETH rewards: Need to calculate what portion of sdToken they represent
         // WETH was swapped to native, then native was deposited to get sdToken
-        // So: WETH → native → sdToken
-        // The sdTokenOut we see includes the native tokens that were deposited
-        // We need to figure out how much native was generated from WETH, then apply conversion
         
-        // All the native that went in (totalNativeIn) came from either:
-        // 1. Direct native bounties (totalNativeFromBounties)
-        // 2. WETH swapped to native (the rest)
-        
-        // The native from WETH would be: totalNativeIn - totalNativeFromBounties
-        // But we need to be careful - if there's no direct native bounty tracking, 
-        // assume all native came from WETH swaps
-        
-        if (totalWethFromBounties > 0 && flows.totalSdTokenOut > 0) {
+        if (totalWethFromBounties > 0 && availableSdTokenForConversion > 0) {
           // Calculate this WETH bounty's share of total WETH
           const wethShare = formattedAmount / totalWethFromBounties;
           
-          // The sdToken output attributable to WETH bounties is:
-          // totalSdTokenOut * (portion of nativeIn that came from WETH)
-          // If we have both WETH and native bounties, we need to split fairly
-          // For now, assume all sdTokenOut is proportionally split by the bounty amounts
-          
+          // The native from WETH is: totalNativeIn - totalNativeFromBounties
           const nativeFromWeth = totalNativeFromBounties > 0 
             ? Math.max(0, flows.totalNativeIn - totalNativeFromBounties)
             : flows.totalNativeIn;
           
+          // The sdToken from WETH-sourced native
           const sdTokenFromWeth = nativeFromWeth * conversionRatio;
           bounty.sdTokenAmount = wethShare * sdTokenFromWeth;
           bounty.share = wethShare;
