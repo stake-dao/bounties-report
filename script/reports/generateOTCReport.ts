@@ -365,17 +365,30 @@ async function main() {
       "Share % per Protocol": "0", // To be computed
     }));
 
-    // Calculate percentages
-    const totalRewardSdValue = rows.reduce(
-      (sum, row) => sum + parseFloat(row["Reward sd Value"]),
-      0
-    );
+    // Calculate percentages - only for WETH-based rewards
+    // Exclude sdToken and native token rewards from percentage calculation
+    const tokenConfig = PROTOCOLS_TOKENS[protocol];
+    const sdTokenAddress = tokenConfig.sdToken.toLowerCase();
+    const nativeAddress = tokenConfig.native.toLowerCase();
+    
+    const totalRewardSdValue = rows
+      .filter(row => {
+        const rewardAddr = row["Reward Address"].toLowerCase();
+        return rewardAddr !== sdTokenAddress && rewardAddr !== nativeAddress;
+      })
+      .reduce((sum, row) => sum + parseFloat(row["Reward sd Value"]), 0);
 
     for (const row of rows) {
-      row["Share % per Protocol"] = (
-        (parseFloat(row["Reward sd Value"]) / totalRewardSdValue) *
-        100
-      ).toFixed(2);
+      const rewardAddr = row["Reward Address"].toLowerCase();
+      const isExcluded = rewardAddr === sdTokenAddress || rewardAddr === nativeAddress;
+      
+      if (isExcluded || totalRewardSdValue === 0) {
+        row["Share % per Protocol"] = "0.00";
+      } else {
+        row["Share % per Protocol"] = (
+          (parseFloat(row["Reward sd Value"]) / totalRewardSdValue) * 100
+        ).toFixed(2);
+      }
     }
 
     // Generate CSV content

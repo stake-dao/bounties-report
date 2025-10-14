@@ -246,56 +246,87 @@ function processOTCReport(
     const flows = protocolFlows[protocol];
     if (!flows) return;
 
-    // For OTC, we need to distribute the sdTokenOut based on WETH bounty proportions
-    // Since OTC bounties are paid in WETH, we calculate based on WETH amounts
     const wethAddress = WETH_CHAIN_IDS[chainId].toLowerCase();
+    const tokenConfig = PROTOCOLS_TOKENS[protocol];
+    const sdTokenAddress = tokenConfig.sdToken.toLowerCase();
+    const nativeAddress = tokenConfig.native.toLowerCase();
     
-    // Calculate total WETH amount from bounties
-    const totalWethFromBounties = bounties
-      .filter(bounty => bounty.rewardToken.toLowerCase() === wethAddress)
-      .reduce((sum, bounty) => {
-        const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
-        return sum + Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
-      }, 0);
+    // Separate bounties by reward token type
+    const wethBounties = bounties.filter(b => b.rewardToken.toLowerCase() === wethAddress);
+    const nativeBounties = bounties.filter(b => b.rewardToken.toLowerCase() === nativeAddress);
+    const sdTokenBounties = bounties.filter(b => b.rewardToken.toLowerCase() === sdTokenAddress);
+    
+    // Calculate total amounts for each type
+    const totalWethFromBounties = wethBounties.reduce((sum, bounty) => {
+      const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
+      return sum + Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+    }, 0);
+    
+    const totalNativeFromBounties = nativeBounties.reduce((sum, bounty) => {
+      const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
+      return sum + Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+    }, 0);
+    
+    // Calculate conversion ratio: native → sdToken (from the vault deposit)
+    // totalNativeIn includes both direct native rewards and native swapped from WETH
+    // So we need to isolate the sdToken portion that came from native tokens
+    const conversionRatio = flows.totalNativeIn > 0 ? flows.totalSdTokenOut / flows.totalNativeIn : 1;
 
-    // If we have WETH bounties and sdToken output, distribute proportionally
-    if (totalWethFromBounties > 0 && flows.totalSdTokenOut > 0) {
-      bounties.forEach((bounty) => {
-        const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
-        const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+    // Distribute sdToken values to bounties
+    bounties.forEach((bounty) => {
+      const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
+      const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
+      const rewardToken = bounty.rewardToken.toLowerCase();
+      
+      if (rewardToken === sdTokenAddress) {
+        // sdToken rewards: sdValue equals the amount (1:1)
+        bounty.sdTokenAmount = formattedAmount;
+        bounty.share = 0; // Not included in percentage calculation
+      } else if (rewardToken === nativeAddress) {
+        // Native token rewards: Convert to sdToken using the vault deposit ratio
+        bounty.sdTokenAmount = formattedAmount * conversionRatio;
+        bounty.share = 0; // Not included in percentage calculation
+      } else if (rewardToken === wethAddress) {
+        // WETH rewards: Need to calculate what portion of sdToken they represent
+        // WETH was swapped to native, then native was deposited to get sdToken
+        // So: WETH → native → sdToken
+        // The sdTokenOut we see includes the native tokens that were deposited
+        // We need to figure out how much native was generated from WETH, then apply conversion
         
-        if (bounty.rewardToken.toLowerCase() === wethAddress) {
-          // Calculate the bounty's share of total WETH
-          const share = formattedAmount / totalWethFromBounties;
+        // All the native that went in (totalNativeIn) came from either:
+        // 1. Direct native bounties (totalNativeFromBounties)
+        // 2. WETH swapped to native (the rest)
+        
+        // The native from WETH would be: totalNativeIn - totalNativeFromBounties
+        // But we need to be careful - if there's no direct native bounty tracking, 
+        // assume all native came from WETH swaps
+        
+        if (totalWethFromBounties > 0 && flows.totalSdTokenOut > 0) {
+          // Calculate this WETH bounty's share of total WETH
+          const wethShare = formattedAmount / totalWethFromBounties;
           
-          // Assign sdToken amount based on share of total sdTokenOut
-          bounty.sdTokenAmount = share * flows.totalSdTokenOut;
-          bounty.share = share;
+          // The sdToken output attributable to WETH bounties is:
+          // totalSdTokenOut * (portion of nativeIn that came from WETH)
+          // If we have both WETH and native bounties, we need to split fairly
+          // For now, assume all sdTokenOut is proportionally split by the bounty amounts
+          
+          const nativeFromWeth = totalNativeFromBounties > 0 
+            ? Math.max(0, flows.totalNativeIn - totalNativeFromBounties)
+            : flows.totalNativeIn;
+          
+          const sdTokenFromWeth = nativeFromWeth * conversionRatio;
+          bounty.sdTokenAmount = wethShare * sdTokenFromWeth;
+          bounty.share = wethShare;
         } else {
-          // For non-WETH bounties in OTC (if any), set to 0
           bounty.sdTokenAmount = 0;
           bounty.share = 0;
         }
-      });
-    } else {
-      // Fallback: distribute evenly if no WETH bounties
-      const totalBountyAmount = bounties.reduce((sum, bounty) => {
-        const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
-        return sum + Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
-      }, 0);
-
-      bounties.forEach((bounty) => {
-        const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
-        const formattedAmount = Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
-        
-        // Calculate the bounty's share of total
-        const share = totalBountyAmount > 0 ? formattedAmount / totalBountyAmount : 0;
-        
-        // Assign sdToken amount based on share of total sdTokenOut
-        bounty.sdTokenAmount = share * flows.totalSdTokenOut;
-        bounty.share = share;
-      });
-    }
+      } else {
+        // Other token rewards
+        bounty.sdTokenAmount = 0;
+        bounty.share = 0;
+      }
+    });
   });
 
   // Step 4: Convert to CSV rows
