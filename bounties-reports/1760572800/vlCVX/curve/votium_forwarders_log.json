@@ -1,0 +1,845 @@
+{
+  "timestamp": 1760572800,
+  "message": "Votium forwarders rewards are no longer distributed through merkle trees",
+  "forwardersData": {
+    "curveVotes": {
+      "0xc6d1ed1f2db34d138da62b13138313dadd6a5abc": {
+        "0": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x7e1444ba99dcdffe8fbdb42c02f0005d14f13be1",
+          "choiceId": 34,
+          "weight": 5139,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x740ba8aa0052e07b925908b380248cb03f3de5cb",
+          "choiceId": 64,
+          "weight": 15498,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x7970489a543fb237abab63d62524d8a5ce165b86",
+          "choiceId": 93,
+          "weight": 4884,
+          "viaUnion": true
+        },
+        "3": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x8133e6b0b2420bba10574a6668ea275f5e7ed253",
+          "choiceId": 97,
+          "weight": 2981,
+          "viaUnion": true
+        },
+        "4": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xfb18127c1471131468a1aad4785c19678e521d86",
+          "choiceId": 108,
+          "weight": 171717,
+          "viaUnion": true
+        },
+        "5": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x821529bb07c83803c9cc7763e5974386e9efedc7",
+          "choiceId": 115,
+          "weight": 13705,
+          "viaUnion": true
+        },
+        "6": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x415f30505368fa1db82feea02eb778be04e75907",
+          "choiceId": 117,
+          "weight": 42409,
+          "viaUnion": true
+        },
+        "7": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xf20bd4d5a4112d5f9c64adf53726f3ef1b7d0d61",
+          "choiceId": 119,
+          "weight": 2142,
+          "viaUnion": true
+        },
+        "8": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xc2075702490f0426e84e00d8b328119027813ac5",
+          "choiceId": 122,
+          "weight": 22473,
+          "viaUnion": true
+        },
+        "9": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x06b30d5f2341c2fb3f6b48b109685997022bd272",
+          "choiceId": 124,
+          "weight": 16276,
+          "viaUnion": true
+        },
+        "10": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x4e21418095d32d15c6e2b96a9910772613a50d50",
+          "choiceId": 168,
+          "weight": 11227,
+          "viaUnion": true
+        },
+        "11": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x724476f141ed2de4da22ebdf435905def1118317",
+          "choiceId": 189,
+          "weight": 529,
+          "viaUnion": true
+        },
+        "12": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xb251c0885c7c1975d773b57e67c138fbceaa6db4",
+          "choiceId": 210,
+          "weight": 19715,
+          "viaUnion": true
+        },
+        "13": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xb53c23d2cc6219adf78ea22bfd38bffc50ec54cb",
+          "choiceId": 214,
+          "weight": 91977,
+          "viaUnion": true
+        },
+        "14": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x8f5e52be9b7bde850ba13e40284f63f14677058f",
+          "choiceId": 337,
+          "weight": 158628,
+          "viaUnion": true
+        },
+        "15": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x8b0abcfc78a5c14520682fcd76a0e52b71126079",
+          "choiceId": 338,
+          "weight": 66289,
+          "viaUnion": true
+        },
+        "16": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x19f9266f349158b54a6d95dce79297df670f7f14",
+          "choiceId": 346,
+          "weight": 27830,
+          "viaUnion": true
+        },
+        "17": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xd303994a0db9b74f3e8ff629ba3097fc7060c331",
+          "choiceId": 357,
+          "weight": 58706,
+          "viaUnion": true
+        },
+        "18": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x52618c40ddba3cbbb69f3aaa4cb26ae649844b17",
+          "choiceId": 359,
+          "weight": 20378,
+          "viaUnion": true
+        },
+        "19": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x09f62a6777032329c0d49f1fd4fbe9b3468cda56",
+          "choiceId": 380,
+          "weight": 7617,
+          "viaUnion": true
+        },
+        "20": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xf84657ca6db485ea38c63ca96dc396c2b3c6fdcc",
+          "choiceId": 391,
+          "weight": 10667,
+          "viaUnion": true
+        },
+        "21": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xbe3cfba845fb3c4f5ced299ed668d6c0598af1ff",
+          "choiceId": 410,
+          "weight": 2610,
+          "viaUnion": true
+        },
+        "22": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x29e9975561fad3a7988ca96361ab5c5317cb32af",
+          "choiceId": 443,
+          "weight": 11958,
+          "viaUnion": true
+        },
+        "23": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x4e89713e0a9971089447d2bee24b736f00672fea",
+          "choiceId": 445,
+          "weight": 14364,
+          "viaUnion": true
+        },
+        "24": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x9a356132605ad599aba34651aa2a606730bacaaa",
+          "choiceId": 446,
+          "weight": 14320,
+          "viaUnion": true
+        },
+        "25": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xd93b3cd2718321ddb341845925db273aedec4d56",
+          "choiceId": 453,
+          "weight": 87336,
+          "viaUnion": true
+        },
+        "26": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xafcd73e242c6d880edfa87b8146825639bda3881",
+          "choiceId": 521,
+          "weight": 6228,
+          "viaUnion": true
+        },
+        "27": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x98a6c35546be6f7c545c99efb48f4673ed2c99fc",
+          "choiceId": 567,
+          "weight": 4154,
+          "viaUnion": true
+        },
+        "28": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xaa6ddba00de48d41e41543ef0a78ab31aae4de8d",
+          "choiceId": 570,
+          "weight": 2076,
+          "viaUnion": true
+        },
+        "29": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xe049aa6fbd64210bdeddc15f5a861084e6ee8b57",
+          "choiceId": 571,
+          "weight": 453,
+          "viaUnion": true
+        },
+        "30": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x64100c172d5dc8007e3ee701ecd99468619b6583",
+          "choiceId": 572,
+          "weight": 2076,
+          "viaUnion": true
+        },
+        "31": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x72bd89f2e3470fa5d188cf04eda17e8145eb4bf1",
+          "choiceId": 573,
+          "weight": 2076,
+          "viaUnion": true
+        },
+        "32": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xd1d981ddd0c9a0469e7d8cee877f83b5877d7260",
+          "choiceId": 574,
+          "weight": 11614,
+          "viaUnion": true
+        },
+        "33": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x8882eb84d0c4894753c0450f2d514e39883c0c82",
+          "choiceId": 576,
+          "weight": 3894,
+          "viaUnion": true
+        },
+        "34": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x070ebc9f46d0a6a523d31eb4ae7901c56ad97ae2",
+          "choiceId": 577,
+          "weight": 632,
+          "viaUnion": true
+        },
+        "35": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x59005665c5060d3abee291a21de0375cf1bbed03",
+          "choiceId": 579,
+          "weight": 4154,
+          "viaUnion": true
+        },
+        "36": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x48100238c4a3cf44cfbf6c7693ed5c216881face",
+          "choiceId": 580,
+          "weight": 14825,
+          "viaUnion": true
+        },
+        "37": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x7ba1e40dae22847e6c521ba297d40ff1c5fd97dd",
+          "choiceId": 581,
+          "weight": 8405,
+          "viaUnion": true
+        },
+        "38": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xbd4af2a6510b988878805956e5111839e55de069",
+          "choiceId": 582,
+          "weight": 3894,
+          "viaUnion": true
+        },
+        "39": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x541f57ab2032a042ce6b02fd435347fbae1f6d0a",
+          "choiceId": 585,
+          "weight": 3894,
+          "viaUnion": true
+        },
+        "40": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xf868b47717f4739ee142b3be6ee0f84da868e917",
+          "choiceId": 586,
+          "weight": 3894,
+          "viaUnion": true
+        },
+        "41": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x86a79cee2734e5357ff6b5495c4a30915921223a",
+          "choiceId": 589,
+          "weight": 2697,
+          "viaUnion": true
+        },
+        "42": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x660622adba5339e62d800be440d6d0c8c1838559",
+          "choiceId": 591,
+          "weight": 5193,
+          "viaUnion": true
+        },
+        "43": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x05600c37d54a4f3cdc76e0867af1530becc332ca",
+          "choiceId": 592,
+          "weight": 2053,
+          "viaUnion": true
+        },
+        "44": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x7506a3e213c362b9e21895c2bd930df454d46573",
+          "choiceId": 598,
+          "weight": 7789,
+          "viaUnion": true
+        },
+        "45": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x9972d7993d8c6d048ca78f067adc6808886067f5",
+          "choiceId": 600,
+          "weight": 8624,
+          "viaUnion": true
+        }
+      },
+      "0x5bff1a68663ff91b0650327d83d4230cd00023ad": {
+        "0": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xd8b712d29381748db89c36bca0138d7c75866ddf",
+          "choiceId": 26,
+          "weight": 1
+        }
+      },
+      "0x8ac4c0630c5ed1636537924ec9b037fc652adee8": {
+        "0": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x7e1444ba99dcdffe8fbdb42c02f0005d14f13be1",
+          "choiceId": 34,
+          "weight": 5139,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x740ba8aa0052e07b925908b380248cb03f3de5cb",
+          "choiceId": 64,
+          "weight": 15498,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x7970489a543fb237abab63d62524d8a5ce165b86",
+          "choiceId": 93,
+          "weight": 4884,
+          "viaUnion": true
+        },
+        "3": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x8133e6b0b2420bba10574a6668ea275f5e7ed253",
+          "choiceId": 97,
+          "weight": 2981,
+          "viaUnion": true
+        },
+        "4": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xfb18127c1471131468a1aad4785c19678e521d86",
+          "choiceId": 108,
+          "weight": 171717,
+          "viaUnion": true
+        },
+        "5": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x821529bb07c83803c9cc7763e5974386e9efedc7",
+          "choiceId": 115,
+          "weight": 13705,
+          "viaUnion": true
+        },
+        "6": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x415f30505368fa1db82feea02eb778be04e75907",
+          "choiceId": 117,
+          "weight": 42409,
+          "viaUnion": true
+        },
+        "7": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xf20bd4d5a4112d5f9c64adf53726f3ef1b7d0d61",
+          "choiceId": 119,
+          "weight": 2142,
+          "viaUnion": true
+        },
+        "8": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xc2075702490f0426e84e00d8b328119027813ac5",
+          "choiceId": 122,
+          "weight": 22473,
+          "viaUnion": true
+        },
+        "9": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x06b30d5f2341c2fb3f6b48b109685997022bd272",
+          "choiceId": 124,
+          "weight": 16276,
+          "viaUnion": true
+        },
+        "10": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x4e21418095d32d15c6e2b96a9910772613a50d50",
+          "choiceId": 168,
+          "weight": 11227,
+          "viaUnion": true
+        },
+        "11": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x724476f141ed2de4da22ebdf435905def1118317",
+          "choiceId": 189,
+          "weight": 529,
+          "viaUnion": true
+        },
+        "12": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xb251c0885c7c1975d773b57e67c138fbceaa6db4",
+          "choiceId": 210,
+          "weight": 19715,
+          "viaUnion": true
+        },
+        "13": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xb53c23d2cc6219adf78ea22bfd38bffc50ec54cb",
+          "choiceId": 214,
+          "weight": 91977,
+          "viaUnion": true
+        },
+        "14": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x8f5e52be9b7bde850ba13e40284f63f14677058f",
+          "choiceId": 337,
+          "weight": 158628,
+          "viaUnion": true
+        },
+        "15": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x8b0abcfc78a5c14520682fcd76a0e52b71126079",
+          "choiceId": 338,
+          "weight": 66289,
+          "viaUnion": true
+        },
+        "16": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x19f9266f349158b54a6d95dce79297df670f7f14",
+          "choiceId": 346,
+          "weight": 27830,
+          "viaUnion": true
+        },
+        "17": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xd303994a0db9b74f3e8ff629ba3097fc7060c331",
+          "choiceId": 357,
+          "weight": 58706,
+          "viaUnion": true
+        },
+        "18": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x52618c40ddba3cbbb69f3aaa4cb26ae649844b17",
+          "choiceId": 359,
+          "weight": 20378,
+          "viaUnion": true
+        },
+        "19": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x09f62a6777032329c0d49f1fd4fbe9b3468cda56",
+          "choiceId": 380,
+          "weight": 7617,
+          "viaUnion": true
+        },
+        "20": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xf84657ca6db485ea38c63ca96dc396c2b3c6fdcc",
+          "choiceId": 391,
+          "weight": 10667,
+          "viaUnion": true
+        },
+        "21": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xbe3cfba845fb3c4f5ced299ed668d6c0598af1ff",
+          "choiceId": 410,
+          "weight": 2610,
+          "viaUnion": true
+        },
+        "22": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x29e9975561fad3a7988ca96361ab5c5317cb32af",
+          "choiceId": 443,
+          "weight": 11958,
+          "viaUnion": true
+        },
+        "23": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x4e89713e0a9971089447d2bee24b736f00672fea",
+          "choiceId": 445,
+          "weight": 14364,
+          "viaUnion": true
+        },
+        "24": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x9a356132605ad599aba34651aa2a606730bacaaa",
+          "choiceId": 446,
+          "weight": 14320,
+          "viaUnion": true
+        },
+        "25": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xd93b3cd2718321ddb341845925db273aedec4d56",
+          "choiceId": 453,
+          "weight": 87336,
+          "viaUnion": true
+        },
+        "26": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xafcd73e242c6d880edfa87b8146825639bda3881",
+          "choiceId": 521,
+          "weight": 6228,
+          "viaUnion": true
+        },
+        "27": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x98a6c35546be6f7c545c99efb48f4673ed2c99fc",
+          "choiceId": 567,
+          "weight": 4154,
+          "viaUnion": true
+        },
+        "28": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xaa6ddba00de48d41e41543ef0a78ab31aae4de8d",
+          "choiceId": 570,
+          "weight": 2076,
+          "viaUnion": true
+        },
+        "29": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xe049aa6fbd64210bdeddc15f5a861084e6ee8b57",
+          "choiceId": 571,
+          "weight": 453,
+          "viaUnion": true
+        },
+        "30": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x64100c172d5dc8007e3ee701ecd99468619b6583",
+          "choiceId": 572,
+          "weight": 2076,
+          "viaUnion": true
+        },
+        "31": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x72bd89f2e3470fa5d188cf04eda17e8145eb4bf1",
+          "choiceId": 573,
+          "weight": 2076,
+          "viaUnion": true
+        },
+        "32": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xd1d981ddd0c9a0469e7d8cee877f83b5877d7260",
+          "choiceId": 574,
+          "weight": 11614,
+          "viaUnion": true
+        },
+        "33": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x8882eb84d0c4894753c0450f2d514e39883c0c82",
+          "choiceId": 576,
+          "weight": 3894,
+          "viaUnion": true
+        },
+        "34": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x070ebc9f46d0a6a523d31eb4ae7901c56ad97ae2",
+          "choiceId": 577,
+          "weight": 632,
+          "viaUnion": true
+        },
+        "35": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x59005665c5060d3abee291a21de0375cf1bbed03",
+          "choiceId": 579,
+          "weight": 4154,
+          "viaUnion": true
+        },
+        "36": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x48100238c4a3cf44cfbf6c7693ed5c216881face",
+          "choiceId": 580,
+          "weight": 14825,
+          "viaUnion": true
+        },
+        "37": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x7ba1e40dae22847e6c521ba297d40ff1c5fd97dd",
+          "choiceId": 581,
+          "weight": 8405,
+          "viaUnion": true
+        },
+        "38": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xbd4af2a6510b988878805956e5111839e55de069",
+          "choiceId": 582,
+          "weight": 3894,
+          "viaUnion": true
+        },
+        "39": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x541f57ab2032a042ce6b02fd435347fbae1f6d0a",
+          "choiceId": 585,
+          "weight": 3894,
+          "viaUnion": true
+        },
+        "40": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0xf868b47717f4739ee142b3be6ee0f84da868e917",
+          "choiceId": 586,
+          "weight": 3894,
+          "viaUnion": true
+        },
+        "41": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x86a79cee2734e5357ff6b5495c4a30915921223a",
+          "choiceId": 589,
+          "weight": 2697,
+          "viaUnion": true
+        },
+        "42": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x660622adba5339e62d800be440d6d0c8c1838559",
+          "choiceId": 591,
+          "weight": 5193,
+          "viaUnion": true
+        },
+        "43": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x05600c37d54a4f3cdc76e0867af1530becc332ca",
+          "choiceId": 592,
+          "weight": 2053,
+          "viaUnion": true
+        },
+        "44": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x7506a3e213c362b9e21895c2bd930df454d46573",
+          "choiceId": 598,
+          "weight": 7789,
+          "viaUnion": true
+        },
+        "45": {
+          "proposalId": "0xff831038cb3a743dcd144a6f3ff56cc13701fbe4c58a8ab6d542e6cfa6f2ce9a",
+          "gauge": "0x9972d7993d8c6d048ca78f067adc6808886067f5",
+          "choiceId": 600,
+          "weight": 8624,
+          "viaUnion": true
+        }
+      }
+    },
+    "fxnVotes": {
+      "0x26602bf417c4e57ba3d2268d7f93a1e16f29e069": {
+        "0": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xf0A3ECed42Dbd8353569639c0eaa833857aA0A75",
+          "choiceId": 15,
+          "weight": 100
+        }
+      },
+      "0xc6d1ed1f2db34d138da62b13138313dadd6a5abc": {
+        "0": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xf594bDfafE4197144C6459FcA611d7B868d36bEa",
+          "choiceId": 4,
+          "weight": 97194,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xb5152D159fce50a7576eBa7FAb61C2B98F0Ed692",
+          "choiceId": 7,
+          "weight": 108354,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xfEFafB9446d84A9e58a3A2f2DDDd7219E8c94FbB",
+          "choiceId": 9,
+          "weight": 312583,
+          "viaUnion": true
+        },
+        "3": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xa295829c082c4d21fe37dbc8c96bfa0ef6dbaa92",
+          "choiceId": 24,
+          "weight": 481869,
+          "viaUnion": true
+        }
+      },
+      "0x8ac4c0630c5ed1636537924ec9b037fc652adee8": {
+        "0": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xf594bDfafE4197144C6459FcA611d7B868d36bEa",
+          "choiceId": 4,
+          "weight": 97194,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xb5152D159fce50a7576eBa7FAb61C2B98F0Ed692",
+          "choiceId": 7,
+          "weight": 108354,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xfEFafB9446d84A9e58a3A2f2DDDd7219E8c94FbB",
+          "choiceId": 9,
+          "weight": 312583,
+          "viaUnion": true
+        },
+        "3": {
+          "proposalId": "0x6d94f6a55dd4579eab4679da7df808d0e47e32ebc38fa2c9e93c0d319cd90832",
+          "gauge": "0xa295829c082c4d21fe37dbc8c96bfa0ef6dbaa92",
+          "choiceId": 24,
+          "weight": 481869,
+          "viaUnion": true
+        }
+      }
+    },
+    "tokenAllocations": {
+      "0xc6d1ed1f2db34d138da62b13138313dadd6a5abc": {
+        "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": {
+          "amount": "23.763095",
+          "amountWei": "23763094643230364160",
+          "usd": 63.742604373412654
+        },
+        "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": {
+          "amount": "4.522373",
+          "amountWei": "4522372834211667232",
+          "usd": 36.22396346663454
+        },
+        "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": {
+          "amount": "54.402754",
+          "amountWei": "54402754216292628992",
+          "usd": 85.25235906520447
+        },
+        "0xD533a949740bb3306d119CC777fa900bA034cd52": {
+          "amount": "16.958964",
+          "amountWei": "16958964193850436608",
+          "usd": 10.186128599699153
+        },
+        "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": {
+          "amount": "4.121347",
+          "amountWei": "4121346836725898624",
+          "usd": 127.1601223152357
+        },
+        "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": {
+          "amount": "16.447776",
+          "amountWei": "16447776099775388032",
+          "usd": 10.366046505285674
+        },
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
+          "amount": "3.851710",
+          "amountWei": "3851710",
+          "usd": 3.8511981732863703
+        },
+        "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": {
+          "amount": "0.016401",
+          "amountWei": "16401354535783606",
+          "usd": 1.0338133399892717
+        },
+        "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF": {
+          "amount": "1378.884175",
+          "amountWei": "1378884174574227193856",
+          "usd": 5.1309413386858775
+        }
+      },
+      "0x8ac4c0630c5ed1636537924ec9b037fc652adee8": {
+        "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": {
+          "amount": "1.334984",
+          "amountWei": "1334984220238368256",
+          "usd": 3.5809885990436467
+        },
+        "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": {
+          "amount": "0.254062",
+          "amountWei": "254061874614767328",
+          "usd": 2.0350219678237322
+        },
+        "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": {
+          "amount": "3.056286",
+          "amountWei": "3056286207947539968",
+          "usd": 4.789382687686503
+        },
+        "0xD533a949740bb3306d119CC777fa900bA034cd52": {
+          "amount": "0.952736",
+          "amountWei": "952735741294853120",
+          "usd": 0.5722453725020621
+        },
+        "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": {
+          "amount": "0.231533",
+          "amountWei": "231532680223776384",
+          "usd": 7.143714204024382
+        },
+        "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": {
+          "amount": "0.924018",
+          "amountWei": "924017762874549888",
+          "usd": 0.5823529602763997
+        },
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
+          "amount": "0.216384",
+          "amountWei": "216384",
+          "usd": 0.21635602885640087
+        },
+        "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": {
+          "amount": "0.000921",
+          "amountWei": "921409851054214",
+          "usd": 0.05807848330691942
+        },
+        "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF": {
+          "amount": "77.464179",
+          "amountWei": "77464178897145659392",
+          "usd": 0.28825057615405014
+        }
+      }
+    }
+  },
+  "totalRewardsSkipped": {
+    "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": "25098078863468732416",
+    "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": "4776434708826434560",
+    "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": "57459040424240168960",
+    "0xD533a949740bb3306d119CC777fa900bA034cd52": "17911699935145289728",
+    "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": "4352879516949675008",
+    "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": "17371793862649937920",
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": "4068094",
+    "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": "17322764386837820",
+    "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF": "1456348353471372853248"
+  },
+  "addressesSkipped": [
+    "0xc6d1ed1f2db34d138da62b13138313dadd6a5abc",
+    "0x8ac4c0630c5ed1636537924ec9b037fc652adee8"
+  ]
+}
