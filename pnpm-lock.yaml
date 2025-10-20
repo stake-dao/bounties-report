@@ -1672,17 +1672,17 @@ packages:
   /@types/node-int64@0.4.32:
     resolution: {integrity: sha512-xf/JsSlnXQ+mzvc0IpXemcrO4BrCfpgNpMco+GLcXkFk01k/gW9lGJu+Vof0ZSvHK6DsHJDPSbjFPs36QkWXqw==}
     dependencies:
-      '@types/node': 24.8.1
+      '@types/node': 24.9.0
     dev: false
 
   /@types/node@12.20.55:
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
     dev: false
 
-  /@types/node@24.8.1:
-    resolution: {integrity: sha512-alv65KGRadQVfVcG69MuB4IzdYVpRwMG/mq8KWOaoOdyY617P5ivaDiMCGOFDWD2sAn5Q0mR3mRtUOgm99hL9Q==}
+  /@types/node@24.9.0:
+    resolution: {integrity: sha512-MKNwXh3seSK8WurXF7erHPJ2AONmMwkI7zAMrXZDPIru8jRqkk6rGDBVbw4mLwfqA+ZZliiDPg05JQ3uW66tKQ==}
     dependencies:
-      undici-types: 7.14.0
+      undici-types: 7.16.0
     dev: false
 
   /@types/parquetjs@0.10.6:
@@ -1694,7 +1694,7 @@ packages:
   /@types/pbkdf2@3.1.2:
     resolution: {integrity: sha512-uRwJqmiXmh9++aSu1VNEn3iIxWOhd8AHXNSdlaLfdAAdSTY9jYVeGWnzejM3dvrkbqE3/hyQkQQ29IFATEGlew==}
     dependencies:
-      '@types/node': 24.8.1
+      '@types/node': 24.9.0
     dev: false
 
   /@types/resolve@1.20.2:
@@ -1710,7 +1710,7 @@ packages:
   /@types/secp256k1@4.0.7:
     resolution: {integrity: sha512-Rcvjl6vARGAKRO6jHeKMatGrvOMGrR/AR11N1x2LqintPCyDZ7NBhrh238Z2VZc7aM7KIwnFpFQ7fnfK4H/9Qw==}
     dependencies:
-      '@types/node': 24.8.1
+      '@types/node': 24.9.0
     dev: false
 
   /@types/trusted-types@2.0.7:
@@ -5941,8 +5941,8 @@ packages:
     resolution: {integrity: sha512-Ql87qFHB3s/De2ClA9e0gsnS6zXG27SkTiSJwjCc9MebbfapQfuPzumMIUMi38ezPZVNFcHI9sUIepeQfw8J8Q==}
     dev: false
 
-  /undici-types@7.14.0:
-    resolution: {integrity: sha512-QQiYxHuyZ9gQUIrmPo3IA+hUl4KYk8uSA7cHrcKd/l3p1OTpZcM0Tbp9x7FAtXdAYhlasd60ncPpgu6ihG6TOA==}
+  /undici-types@7.16.0:
+    resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
     dev: false
 
   /universalify@0.1.2:
