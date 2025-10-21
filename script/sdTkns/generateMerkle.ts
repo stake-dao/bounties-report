@@ -726,6 +726,9 @@ const checkDistribution = async (
     // Allow a small threshold of 0.01
     if (sdTknBalanceInMerkle + amountToDistribute < totalAmount - 0.01) {
       console.error("Distribution is not ok for token " + tokenSymbol);
+      console.error("sdTknBalanceInMerkle", sdTknBalanceInMerkle);
+      console.error("amountToDistribute", amountToDistribute);
+      console.error("totalAmount", totalAmount);
       console.error(
         "Difference",
         totalAmount - (sdTknBalanceInMerkle + amountToDistribute)

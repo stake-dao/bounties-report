@@ -4,6 +4,7 @@ import {
   AUTO_VOTER_DELEGATION_ADDRESS,
   DELEGATION_ADDRESS,
   NETWORK_TO_MERKLE,
+  SDBAL_SPACE,
   SDCAKE_SPACE,
   SDCRV_SPACE,
   SDFXS_SPACE,
@@ -403,6 +404,27 @@ export const createMultiMerkle = async (
   // Since this point, userRewards map contains the new reward amount for each user
   // We have to generate the merkle
   const userRewardAddresses = Object.keys(userRewards);
+
+  // TEMPORARY FIX: Reduce the largest voter by 0.5436014543 for sdBAL to match contract balance
+  if (space === SDBAL_SPACE) {
+    // Find the user with the largest reward
+    let maxReward = 0;
+    let maxRewardAddress = '';
+    for (const [address, reward] of Object.entries(userRewards)) {
+      if (reward > maxReward) {
+        maxReward = reward;
+        maxRewardAddress = address;
+      }
+    }
+
+    if (maxRewardAddress) {
+      const adjustmentAmount = 0.5436014543;
+      console.log(`[TEMP FIX] Reducing ${maxRewardAddress} reward by ${adjustmentAmount} sdBAL`);
+      console.log(`[TEMP FIX] Before: ${userRewards[maxRewardAddress].toFixed(10)} sdBAL`);
+      userRewards[maxRewardAddress] -= adjustmentAmount;
+      console.log(`[TEMP FIX] After: ${userRewards[maxRewardAddress].toFixed(10)} sdBAL`);
+    }
+  }
 
   // Define a threshold below which numbers are considered too small and should be set to 0
   const threshold = 2e-8;
