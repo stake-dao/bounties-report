@@ -405,24 +405,6 @@ export const createMultiMerkle = async (
   // We have to generate the merkle
   const userRewardAddresses = Object.keys(userRewards);
 
-  // TEMPORARY FIX: Reduce the largest voter by 0.5436014543 for sdBAL to match contract balance
-  if (space === SDBAL_SPACE) {
-    // Find the user with the largest reward
-    let maxReward = 0;
-    let maxRewardAddress = '';
-    for (const [address, reward] of Object.entries(userRewards)) {
-      if (reward > maxReward) {
-        maxReward = reward;
-        maxRewardAddress = address;
-      }
-    }
-
-    if (maxRewardAddress) {
-      const adjustmentAmount = 0.5436014543;
-      userRewards[maxRewardAddress] -= adjustmentAmount;
-    }
-  }
-
   // Define a threshold below which numbers are considered too small and should be set to 0
   const threshold = 2e-8;
   const adjustedUserRewards = Object.fromEntries(
