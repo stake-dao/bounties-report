@@ -419,10 +419,7 @@ export const createMultiMerkle = async (
 
     if (maxRewardAddress) {
       const adjustmentAmount = 0.5436014543;
-      console.log(`[TEMP FIX] Reducing ${maxRewardAddress} reward by ${adjustmentAmount} sdBAL`);
-      console.log(`[TEMP FIX] Before: ${userRewards[maxRewardAddress].toFixed(10)} sdBAL`);
       userRewards[maxRewardAddress] -= adjustmentAmount;
-      console.log(`[TEMP FIX] After: ${userRewards[maxRewardAddress].toFixed(10)} sdBAL`);
     }
   }
 
