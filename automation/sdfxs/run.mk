@@ -1,12 +1,12 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-merkle clean
+.PHONY: all setup install-deps run-report run-merkle clean
 
 # Define the default target
 .DEFAULT_GOAL := all
 
-all: setup install-deps run-merkle
+all: setup install-deps run-report run-merkle
 
 setup: setup-node
 
@@ -15,7 +15,11 @@ install-deps:
 	@$(PNPM) install
 	@$(PNPM) add -D tsx
 
-run-merkle: setup install-deps
+run-report: setup install-deps
+	@echo "Generating sdFXS report..."
+	@$(PNPM) tsx script/reports/generateReportFrax.ts
+
+run-merkle: setup install-deps run-report
 	@echo "Running sdFXS universal merkle generation..."
 	@$(PNPM) tsx script/sdTkns/generateUniversalMerkleFrax.ts
 
