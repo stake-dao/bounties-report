@@ -26,6 +26,7 @@ import { ALL_MIGHT, OTC_REGISTRY } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import processOTCReport from "./processOTCReport";
+import { debug, sampleArray, isDebugEnabled } from "../utils/logger";
 
 dotenv.config();
 
@@ -182,6 +183,10 @@ async function main() {
   );
   // Filter bounties for the specified protocol
   aggregatedBounties = { [protocol]: aggregatedBounties[protocol] };
+  if (isDebugEnabled()) {
+    debug("[otc] fetched withdrawals blocks", { from: blockNumber1, to: blockNumber2 });
+    debug("[otc] bounties count", { [protocol]: aggregatedBounties[protocol]?.length || 0 });
+  }
 
   // Collect tokens and fetch their info
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
@@ -339,6 +344,14 @@ async function main() {
     tokenInfos,
     vlcvxRecipientSwapsInBlockNumbers
   );
+  if (isDebugEnabled()) {
+    const summary: Record<string, any> = {};
+    for (const [p, rows] of Object.entries(processedReport)) {
+      const total = (rows || []).reduce((acc, r) => acc + (r.rewardSdValue || 0), 0);
+      summary[p] = { rows: rows?.length || 0, totalSd: Number(total.toFixed(6)) };
+    }
+    debug("[otc report] processed summary", summary);
+  }
 
   // Write updated CSV reports
   const projectRoot = path.resolve(__dirname, "..", "..");
@@ -408,3 +421,9 @@ async function main() {
 }
 
 main().catch(console.error);
+  if (isDebugEnabled()) {
+    debug("[otc swaps] fetched", {
+      inCount: swapIn.length,
+      outCount: swapOut.length,
+    });
+  }

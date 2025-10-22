@@ -16,6 +16,7 @@ import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { getClosestBlockTimestamp } from "./chainUtils";
 import { Proposal } from "../interfaces/Proposal";
 import { Interface } from "ethers/lib/utils";
+import { debug, sampleArray, isDebugEnabled } from "./logger";
 
 const WEEK = 604800; // One week in seconds
 
@@ -395,31 +396,27 @@ export async function getGaugeWeight(
 export function processSwaps(
   swaps: SwapEvent[],
   tokenInfos: Record<string, TokenInfo>,
-  options?: { 
+  options?: {
     requiredTxAddresses?: string[];
     excludedFromAddresses?: string[];
     excludedToAddresses?: string[];
   }
 ): ProcessedSwapEvent[] {
+  const total = swaps.length;
   const seen = new Set<string>();
-  
-  // Default excluded addresses if not provided
+
   const defaultExcludedFrom = [OTC_REGISTRY, BOTMARKET, SPECTRA_RECEIVER];
   const defaultExcludedTo = [GOVERNANCE, BOSS];
-  
-  const excludedFrom = (options?.excludedFromAddresses || defaultExcludedFrom)
-    .map(addr => addr.toLowerCase());
-  const excludedTo = (options?.excludedToAddresses || defaultExcludedTo)
-    .map(addr => addr.toLowerCase());
-  
-  // Handle required transaction addresses (e.g., BOTMARKET on mainnet)
+
+  const excludedFrom = (options?.excludedFromAddresses || defaultExcludedFrom).map((addr) => addr.toLowerCase());
+  const excludedTo = (options?.excludedToAddresses || defaultExcludedTo).map((addr) => addr.toLowerCase());
+
   const blocksWithRequiredAddresses = new Set<number>();
   let hasRequiredAddresses = false;
-  
+
   if (options?.requiredTxAddresses && options.requiredTxAddresses.length > 0) {
-    // If explicitly specified, use those addresses
-    const requiredAddresses = options.requiredTxAddresses.map(addr => addr.toLowerCase());
-    swaps.forEach(swap => {
+    const requiredAddresses = options.requiredTxAddresses.map((addr) => addr.toLowerCase());
+    swaps.forEach((swap) => {
       const fromLower = swap.from.toLowerCase();
       const toLower = swap.to.toLowerCase();
       if (requiredAddresses.includes(fromLower) || requiredAddresses.includes(toLower)) {
@@ -428,38 +425,49 @@ export function processSwaps(
       }
     });
   } else {
-    // Auto-detect BOTMARKET for backward compatibility (mainnet behavior)
-    swaps.forEach(swap => {
-      if (swap.from.toLowerCase() === BOTMARKET.toLowerCase() || 
-          swap.to.toLowerCase() === BOTMARKET.toLowerCase()) {
+    swaps.forEach((swap) => {
+      if (swap.from.toLowerCase() === BOTMARKET.toLowerCase() || swap.to.toLowerCase() === BOTMARKET.toLowerCase()) {
         hasRequiredAddresses = true;
         blocksWithRequiredAddresses.add(swap.blockNumber);
       }
     });
   }
-  
-  return swaps
-    .filter((swap) => {
-      // Filter out excluded addresses
-      const fromLower = swap.from.toLowerCase();
-      const toLower = swap.to.toLowerCase();
-      return !excludedFrom.includes(fromLower) && !excludedTo.includes(toLower);
-    })
-    .filter((swap) => {
-      // Remove duplicate swaps
-      const key = `${swap.blockNumber}-${swap.logIndex}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .filter((swap) => {
-      // Required addresses block filter:
-      // - If required addresses exist and are found, only keep swaps from those blocks
-      // - Otherwise, keep all swaps
-      if (!hasRequiredAddresses) return true;
-      return blocksWithRequiredAddresses.has(swap.blockNumber);
-    })
-    .map((swap) => formatSwap(swap, tokenInfos));
+
+  const afterAddressFilter = swaps.filter((swap) => {
+    const fromLower = swap.from.toLowerCase();
+    const toLower = swap.to.toLowerCase();
+    return !excludedFrom.includes(fromLower) && !excludedTo.includes(toLower);
+  });
+
+  const afterDedup = afterAddressFilter.filter((swap) => {
+    const key = `${swap.blockNumber}-${swap.logIndex}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const afterRequired = afterDedup.filter((swap) => {
+    if (!hasRequiredAddresses) return true;
+    return blocksWithRequiredAddresses.has(swap.blockNumber);
+  });
+
+  if (isDebugEnabled()) {
+    debug("[processSwaps] counts", {
+      total,
+      afterAddressFilter: afterAddressFilter.length,
+      afterDedup: afterDedup.length,
+      afterRequired: afterRequired.length,
+    });
+    debug(
+      "[processSwaps] sample",
+      sampleArray(
+        afterRequired.map((s) => ({ block: s.blockNumber, logIndex: s.logIndex, token: s.token, tx: s.transactionHash })),
+        5
+      )
+    );
+  }
+
+  return afterRequired.map((swap) => formatSwap(swap, tokenInfos));
 }
 
 /**
@@ -470,15 +478,18 @@ export function processSwapsOTC(
   tokenInfos: Record<string, TokenInfo>
 ): ProcessedSwapEvent[] {
   const seen = new Set<string>();
-  return swaps
+  const filtered = swaps
     .filter((swap) => swap.from.toLowerCase() === OTC_REGISTRY.toLowerCase())
     .filter((swap) => {
       const key = `${swap.blockNumber}-${swap.logIndex}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    })
-    .map((swap) => formatSwap(swap, tokenInfos));
+    });
+  if (isDebugEnabled()) {
+    debug("[processSwapsOTC] otc swaps", filtered.length);
+  }
+  return filtered.map((swap) => formatSwap(swap, tokenInfos));
 }
 
 /**
@@ -637,11 +648,17 @@ export async function fetchSwapInEvents(
   const filteredSwapEvents = swapEvents.filter(
     event => event.transactionHash?.toLowerCase() !== '0xf17999a7ba3dfd203d571f95f211f4786005c3cb6d5370e10a6b7dbad2f3e049'
   );
-  return filteredSwapEvents.sort((a, b) =>
+  const sorted = filteredSwapEvents.sort((a, b) =>
     a.blockNumber === b.blockNumber
       ? a.logIndex - b.logIndex
       : a.blockNumber - b.blockNumber
   );
+  if (isDebugEnabled()) {
+    debug("[fetchSwapInEvents] params", { chainId, blockMin, blockMax, tokens: rewardTokens.length, contractAddress });
+    debug("[fetchSwapInEvents] count", sorted.length);
+    debug("[fetchSwapInEvents] sample", sampleArray(sorted.map((s) => ({ block: s.blockNumber, logIndex: s.logIndex, token: s.token, tx: s.transactionHash })), 5));
+  }
+  return sorted;
 }
 
 export async function fetchSwapOutEvents(
@@ -684,11 +701,17 @@ export async function fetchSwapOutEvents(
   const filteredSwapEvents = swapEvents.filter(
     event => event.transactionHash?.toLowerCase() !== '0xf17999a7ba3dfd203d571f95f211f4786005c3cb6d5370e10a6b7dbad2f3e049'
   );
-  return filteredSwapEvents.sort((a, b) =>
+  const sorted = filteredSwapEvents.sort((a, b) =>
     a.blockNumber === b.blockNumber
       ? a.logIndex - b.logIndex
       : a.blockNumber - b.blockNumber
   );
+  if (isDebugEnabled()) {
+    debug("[fetchSwapOutEvents] params", { chainId, blockMin, blockMax, tokens: rewardTokens.length, contractAddress });
+    debug("[fetchSwapOutEvents] count", sorted.length);
+    debug("[fetchSwapOutEvents] sample", sampleArray(sorted.map((s) => ({ block: s.blockNumber, logIndex: s.logIndex, token: s.token, tx: s.transactionHash })), 5));
+  }
+  return sorted;
 }
 
 /**
@@ -704,7 +727,7 @@ export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
     );
   }
   const matchLength = Math.min(wethIn.length, rewardsOut.length);
-  return wethIn
+  const matches = wethIn
     .slice(0, matchLength)
     .map((wethAmount: number, index: number) => ({
       address: rewardsOut[index].token,
@@ -712,6 +735,10 @@ export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
       amount: rewardsOut[index].amount,
       weth: wethAmount,
     }));
+  if (isDebugEnabled()) {
+    debug("[matchWethInWithRewardsOut] pairs", sampleArray(matches, 5));
+  }
+  return matches;
 }
 
 // Using direclty receipts

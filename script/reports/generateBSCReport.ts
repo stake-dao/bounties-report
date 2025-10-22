@@ -20,6 +20,7 @@ import {
   GOVERNANCE,
 } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
+import { debug, sampleArray, isDebugEnabled } from "../utils/logger";
 
 dotenv.config();
 
@@ -280,6 +281,9 @@ async function main() {
 
   const swapInFiltered = processSwaps(swapIn, tokenInfos);
   const swapOutFiltered = processSwaps(swapOut, tokenInfos);
+  if (isDebugEnabled()) {
+    debug("[bsc swaps] filtered", { inFiltered: swapInFiltered.length, outFiltered: swapOutFiltered.length });
+  }
 
   const swapsData: Record<string, Record<number, SwapData>> = {};
 
@@ -634,3 +638,6 @@ async function main() {
 }
 
 main().catch(console.error);
+  if (isDebugEnabled()) {
+    debug("[bsc swaps] fetched", { inCount: swapIn.length, outCount: swapOut.length });
+  }

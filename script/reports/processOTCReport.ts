@@ -4,6 +4,7 @@ import {
   matchWethInWithRewardsOut,
   OTC_REGISTRY,
 } from "../utils/reportUtils";
+import { debug, isDebugEnabled } from "../utils/logger";
 
 interface TokenInfo {
   symbol: string;
@@ -239,6 +240,16 @@ function processOTCReport(
       totalSdTokenIn,
       totalSdTokenOut,
     };
+    if (isDebugEnabled()) {
+      debug("[otc flows] protocol", protocol, {
+        totalWethIn,
+        totalWethOut,
+        totalNativeIn,
+        totalNativeOut,
+        totalSdTokenIn,
+        totalSdTokenOut,
+      });
+    }
   }
 
   // Step 3: For OTC reports, calculate sdToken values based on the flows
@@ -322,6 +333,10 @@ function processOTCReport(
         bounty.share = 0;
       }
     });
+    if (isDebugEnabled()) {
+      const totalSd = bounties.reduce((s, b) => s + (b.sdTokenAmount || 0), 0);
+      debug("[otc sdToken assigned]", protocol, totalSd);
+    }
   });
 
   // Step 4: Convert to CSV rows
@@ -359,6 +374,10 @@ function processOTCReport(
 
     // For OTC reports, we include all rows regardless of sdToken value
     groupedRows[protocol] = Object.values(mergedRows);
+    if (isDebugEnabled()) {
+      const total = groupedRows[protocol].reduce((acc, r) => acc + (r.rewardSdValue || 0), 0);
+      debug("[otc groupedRows]", protocol, { rows: groupedRows[protocol].length, totalSd: Number(total.toFixed(6)) });
+    }
   });
 
   return groupedRows;
