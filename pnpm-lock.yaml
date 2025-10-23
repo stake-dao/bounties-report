@@ -826,7 +826,7 @@ packages:
       '@multiformats/multiaddr': 12.5.1
       interface-datastore: 8.3.2
       multiformats: 13.4.1
-      weald: 1.0.6
+      weald: 1.1.0
     dev: false
 
   /@lit-labs/ssr-dom-shim@1.4.0:
@@ -6236,8 +6236,8 @@ packages:
       - zod
     dev: false
 
-  /weald@1.0.6:
-    resolution: {integrity: sha512-sX1PzkcMJZUJ848JbFzB6aKHHglTxqACEnq2KgI75b7vWYvfXFBNbOuDKqFKwCT44CrP6c5r+L4+5GmPnb5/SQ==}
+  /weald@1.1.0:
+    resolution: {integrity: sha512-wzM8qstGYSnF0mWnr48OjQqs+K6eSy9/jO3Ti4gmOJWRyM5Sed+iWuALQ+pX9nAKQPChv39M6qdVAEL+IH6ONA==}
     dependencies:
       ms: 3.0.0-canary.202508261828
       supports-color: 10.2.2
