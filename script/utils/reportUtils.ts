@@ -1067,3 +1067,70 @@ export const getPendleGaugesInfos = async (): Promise<GaugeInfo[]> => {
     return [];
   }
 };
+
+/**
+ * Fetch transfer events to a specific delegation recipient address
+ */
+export async function fetchDelegationEvents(
+  chainId: number,
+  blockMin: number,
+  blockMax: number,
+  rewardTokens: string[],
+  delegationAddress: string
+): Promise<SwapEvent[]> {
+  const explorerUtils = createBlockchainExplorerUtils();
+  const transferSig = "Transfer(address,address,uint256)";
+  const transferHash = keccak256(encodePacked(["string"], [transferSig]));
+  const paddedDelegationAddress = pad(delegationAddress as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+  const topics = { "0": transferHash, "2": paddedDelegationAddress };
+
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
+    rewardTokens,
+    blockMin,
+    blockMax,
+    topics,
+    chainId
+  );
+
+  const delegationEvents: SwapEvent[] = response.result.map((log) => {
+    const [amount] = decodeAbiParameters([{ type: "uint256" }], log.data);
+    return {
+      blockNumber: parseInt(log.blockNumber, 16),
+      logIndex: parseInt(log.logIndex, 16),
+      from: `0x${log.topics[1].slice(26)}`,
+      to: `0x${log.topics[2].slice(26)}`,
+      token: log.address,
+      amount,
+      transactionHash: log.transactionHash,
+    };
+  });
+
+  const sorted = delegationEvents.sort((a, b) =>
+    a.blockNumber === b.blockNumber
+      ? a.logIndex - b.logIndex
+      : a.blockNumber - b.blockNumber
+  );
+  
+  if (isDebugEnabled()) {
+    debug("[fetchDelegationEvents] params", { 
+      chainId, 
+      blockMin, 
+      blockMax, 
+      tokens: rewardTokens.length, 
+      delegationAddress 
+    });
+    debug("[fetchDelegationEvents] count", sorted.length);
+    debug("[fetchDelegationEvents] sample", 
+      sampleArray(sorted.map((s) => ({ 
+        block: s.blockNumber, 
+        logIndex: s.logIndex, 
+        token: s.token, 
+        tx: s.transactionHash 
+      })), 5)
+    );
+  }
+  
+  return sorted;
+}
