@@ -3,6 +3,7 @@ import {
   PROTOCOLS_TOKENS,
   matchWethInWithRewardsOut,
 } from "../utils/reportUtils";
+import { debug, sampleArray, isDebugEnabled } from "../utils/logger";
 
 interface TokenInfo {
   symbol: string;
@@ -186,12 +187,25 @@ function processReport(
 
     for (const blockData of Object.values(blocks)) {
       const matches = matchWethInWithRewardsOut(blockData);
+      if (isDebugEnabled() && matches.length > 0) {
+        debug("[match] protocol matches", protocol, {
+          matches: sampleArray(
+            matches.map((m) => ({ token: m.address, symbol: m.symbol, amount: m.amount, weth: m.weth })),
+            5
+          ),
+          count: matches.length,
+        });
+      }
       for (const match of matches) {
         if (!tokenValues[protocol][match.address]) {
           tokenValues[protocol][match.address] = 0;
         }
         tokenValues[protocol][match.address] += match.weth;
       }
+    }
+    if (isDebugEnabled()) {
+      const tvEntries = Object.entries(tokenValues[protocol] || {}).map(([addr, weth]) => ({ addr, weth }));
+      debug("[tokenValues] protocol", protocol, sampleArray(tvEntries, 10));
     }
   }
 
@@ -245,6 +259,16 @@ function processReport(
       totalSdTokenIn,
       totalSdTokenOut,
     };
+    if (isDebugEnabled()) {
+      debug("[flows] protocol", protocol, {
+        totalWethIn,
+        totalWethOut,
+        totalNativeIn,
+        totalNativeOut,
+        totalSdTokenIn,
+        totalSdTokenOut,
+      });
+    }
   }
 
   // Step 4: Calculate bounty values
@@ -293,6 +317,16 @@ function processReport(
 
     const effectiveWethToNativeRatio =
       wethToNativeRatio > 0 ? wethToNativeRatio : fallbackWethToNativeRatio;
+    if (isDebugEnabled()) {
+      debug("[ratios]", protocol, {
+        nativeFromBounties,
+        nativeFromWeth,
+        wethToNativeRatio,
+        wethFromBounties,
+        fallbackWethToNativeRatio,
+        effectiveWethToNativeRatio,
+      });
+    }
 
     // Calculate native equivalent for each bounty
     bounties.forEach((bounty) => {
@@ -331,6 +365,9 @@ function processReport(
       (acc, bounty) => acc + (bounty.nativeEquivalent || 0),
       0
     );
+    if (isDebugEnabled()) {
+      debug("[nativeEquivalent] total", protocol, totalNativeEquivalent);
+    }
 
     bounties.forEach((bounty) => {
       bounty.share =
@@ -359,7 +396,28 @@ function processReport(
       (acc, bounty) => acc + (bounty.sdTokenAmount || 0),
       0
     );
-    const remainingSdTokenAmount = flows.totalSdTokenIn - directSdTokenAmount;
+    let remainingSdTokenAmount = flows.totalSdTokenIn - directSdTokenAmount;
+    // For pendle: scale remaining sdToken pool by the share of WETH that
+    // comes from included reward tokens (exclude USDT logs implicitly).
+    if (protocol === "pendle") {
+      const matchedIncludedWeth = Object.values(tokenValues[protocol] || {}).reduce(
+        (acc, v) => acc + (v || 0),
+        0
+      );
+      const includedShare = flows.totalWethIn > 0 ? matchedIncludedWeth / flows.totalWethIn : 1;
+      if (includedShare > 0 && includedShare < 1) {
+        remainingSdTokenAmount = remainingSdTokenAmount * includedShare;
+      }
+      if (isDebugEnabled()) {
+        debug("[pendle scale] includedShare", { matchedIncludedWeth, totalWethIn: flows.totalWethIn, includedShare });
+      }
+    }
+    if (isDebugEnabled()) {
+      debug("[sdToken] direct/remaining", protocol, {
+        directSdTokenAmount,
+        remainingSdTokenAmount,
+      });
+    }
 
     const totalShares = bounties.reduce((acc, b) => acc + (b.share || 0), 0);
     nonSdTokenBounties.forEach((bounty) => {
@@ -408,6 +466,13 @@ function processReport(
     groupedRows[protocol] = Object.values(mergedRows).filter(
       (row) => row.rewardSdValue > 0
     );
+    if (isDebugEnabled()) {
+      const total = groupedRows[protocol].reduce((acc, r) => acc + (r.rewardSdValue || 0), 0);
+      debug("[groupedRows]", protocol, {
+        rows: groupedRows[protocol].length,
+        totalSd: Number(total.toFixed(6)),
+      });
+    }
   });
 
   return groupedRows;
