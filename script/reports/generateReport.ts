@@ -718,7 +718,29 @@ async function main() {
       if (sdInTx <= 0) continue;
 
       const wethBasis = totalWethInTx > 0 ? totalWethInTx : totalWethOutTx;
-      if (wethBasis <= 0) continue;
+      const nativeInTx = inTx
+        .filter((e) => e.token.toLowerCase() === nativeAddr)
+        .reduce((a, b) => a + b.formattedAmount, 0);
+      const nativeOutTx = outTx
+        .filter((e) => e.token.toLowerCase() === nativeAddr)
+        .reduce((a, b) => a + b.formattedAmount, 0);
+      // Portion of sd clearly originating from native bounties this tx
+      // Prefer Botmarket -> ALL_MIGHT native transfers as the source of native-based sd
+      // Use net native outflow as the basis for native-attributed sd (CRV -> sdCRV)
+      const nativeBasis = Math.max(0, nativeOutTx - nativeInTx);
+      const nativeShareSd = Math.min(sdInTx, nativeBasis);
+      if (nativeShareSd > 0) {
+        includedSdByToken[nativeAddr] =
+          (includedSdByToken[nativeAddr] || 0) + nativeShareSd;
+      }
+      // Attribute remainder via WETH flows if present
+      const remSd = sdInTx - nativeShareSd;
+      if (remSd <= 0) continue;
+      if (wethBasis <= 0) {
+        // No WETH basis; attribute remaining sd to native as well (pure native mint)
+        includedSdByToken[nativeAddr] = (includedSdByToken[nativeAddr] || 0) + remSd;
+        continue;
+      }
 
       let tokenToOut: Record<string, bigint> = {};
       try {
@@ -732,7 +754,7 @@ async function main() {
       } catch (e) {
         continue;
       }
-      const sdPerWeth = sdInTx / wethBasis;
+      const sdPerWeth = remSd / wethBasis;
       const totalMappedWeth = Object.values(tokenToOut).reduce(
         (s, v) => s + Number(v) / 1e18,
         0
@@ -743,8 +765,7 @@ async function main() {
         const wethAmt = Number(amount) / 1e18;
         includedSdByToken[tokLower] = (includedSdByToken[tokLower] || 0) + wethAmt * sdPerWeth;
       }
-      // Any leftover WETH (e.g., pure WETH bounties with no matching inbound transfer)
-      // belongs to the WETH reward bucket so it receives the correct sd share.
+      // Assign any leftover WETH to WETH so it receives the correct sd share
       const residualWeth = Math.max(0, wethBasis - totalMappedWeth);
       if (residualWeth > 0) {
         includedSdByToken[wethAddr] =
@@ -752,12 +773,7 @@ async function main() {
       }
     }
 
-    if (isDebugEnabled()) {
-      debug(
-        "[generic per-token sd]",
-        Object.entries(includedSdByToken).map(([k, v]) => ({ token: k, sd: v }))
-      );
-    }
+    if (isDebugEnabled()) debug("[generic per-token sd]", Object.entries(includedSdByToken).map(([k, v]) => ({ token: k, sd: v })));
 
     if (processedReport[protocol] && Object.keys(includedSdByToken).length > 0) {
       const rows = processedReport[protocol] || [];
@@ -766,7 +782,7 @@ async function main() {
         const tok = row.rewardAddress.toLowerCase();
         (rowsByToken[tok] ||= []).push(row);
       }
-      // Re-target SD onto the exact tokens that can be traced back to WETH outflows
+      // Re-target sd onto tokens traced back to WETH outflows
     for (const [tok, tokenRows] of Object.entries(rowsByToken)) {
       if (tok === sdAddr) continue;
       if (!(tok in includedSdByToken)) {
@@ -789,8 +805,7 @@ async function main() {
           r.rewardSdValue = targetSd * (weights[idx] || 0);
         });
       }
-      // Remove native rows when those transfers were only routing through ALL_MIGHT.
-      // We keep the line in the CSV only if we can assign a positive sd share.
+      // If native was only routing through the aggregator, zero its sd unless we attributed native sd
       const nativeRows = rowsByToken[nativeAddr];
       if (nativeRows) {
         const tolerance = 1e-9;
@@ -807,7 +822,8 @@ async function main() {
         const nativeOutTotal = swapOutFiltered
           .filter((e) => e.token.toLowerCase() === nativeAddr)
           .reduce((a, b) => a + b.formattedAmount, 0);
-        if (nativeOutTotal > nativeInAdjusted + tolerance) {
+        const assignedNativeSd = includedSdByToken[nativeAddr] || 0;
+        if (assignedNativeSd <= tolerance && nativeOutTotal > nativeInAdjusted + tolerance) {
           nativeRows.forEach((r) => {
             r.rewardSdValue = 0;
           });
@@ -815,13 +831,13 @@ async function main() {
             debug("[native swap detection]", {
               nativeInAdjusted,
               nativeOutTotal,
+              assignedNativeSd,
               rowsCleared: nativeRows.length,
             });
           }
         }
       }
-      // Same purification for WETH: keep the bounty if WETH actually generated sd,
-      // otherwise zero the value so readers understand it was a pure swap.
+      // Similarly for WETH: zero sd when it's a pure routing tx
       const wethRows = rowsByToken[wethAddr];
       if (wethRows) {
         const tolerance = 1e-9;
@@ -854,7 +870,7 @@ async function main() {
       const finalTotal = rows.reduce((s, r) => s + (r.rewardSdValue || 0), 0);
       if (finalTotal > 0) rows.forEach((r) => (r.sharePercentage = ((r.rewardSdValue || 0) / finalTotal) * 100));
 
-      // Keep only native/sdToken or tokens explicitly attributed; drop others (e.g., WETH when unused)
+      // Keep only native/sdToken or tokens explicitly attributed; drop others
       const includedSet = new Set(Object.keys(includedSdByToken).map((t) => t.toLowerCase()));
       const beforeCount = rows.length;
       processedReport[protocol] = rows.filter((r) => {
@@ -941,7 +957,7 @@ async function main() {
     debug("[report] processed summary", summary);
   }
 
-  // Emit attribution sidecar JSON (per protocol) for auditability
+      // Emit attribution sidecar JSON (per protocol)
   try {
     if (processedReport[protocol]) {
       // Snapshot the post-filter totals so the sidecar echoes exactly what the CSV contains
@@ -988,6 +1004,10 @@ async function main() {
       wethIn: number;
       wethOut: number;
       sdIn: number;
+      nativeIn?: number;
+      nativeOut?: number;
+      nativeShareSd?: number;
+      wethBasis?: number;
       tokenWeth: Record<string, number>;
       tokenSd: Record<string, number>;
     }> = [];
@@ -1029,18 +1049,56 @@ async function main() {
           ALL_MIGHT
         );
       } catch (e) {
-        txAttributions.push({ tx, wethIn: totalWethInTx, wethOut: totalWethOutTx, sdIn: sdInTx, tokenWeth: {}, tokenSd: {} });
+        // On decode issues, still attribute native share and include native in/out in sidecar
+        const tokenWeth: Record<string, number> = {};
+        const tokenSd: Record<string, number> = {};
+        const nativeInTx = inTx
+          .filter((ev) => ev.token.toLowerCase() === nativeAddr)
+          .reduce((a, b) => a + b.formattedAmount, 0);
+        const nativeOutTx = outTx
+          .filter((ev) => ev.token.toLowerCase() === nativeAddr)
+          .reduce((a, b) => a + b.formattedAmount, 0);
+        const nativeBasis = Math.max(0, nativeOutTx - nativeInTx);
+        const nativeShareSd = Math.min(sdInTx, nativeBasis);
+        if (nativeShareSd > 0) {
+          tokenSd[nativeAddr] = (tokenSd[nativeAddr] || 0) + nativeShareSd;
+          includedSdByToken[nativeAddr] = (includedSdByToken[nativeAddr] || 0) + nativeShareSd;
+        }
+        txAttributions.push({ 
+          tx, wethIn: totalWethInTx, wethOut: totalWethOutTx, sdIn: sdInTx,
+          nativeIn: nativeInTx, nativeOut: nativeOutTx, nativeShareSd, wethBasis: 0,
+          tokenWeth, tokenSd 
+        });
         continue;
       }
 
       const wethBasis = totalWethInTx > 0 ? totalWethInTx : totalWethOutTx;
-      const sdPerWeth = wethBasis > 0 ? sdInTx / wethBasis : 0;
+      // Prepare per-tx maps and split sd between native and WETH-driven share for this tx
+      const tokenWeth: Record<string, number> = {};
+      const tokenSd: Record<string, number> = {};
+      const nativeInTx2 = inTx
+        .filter((ev) => ev.token.toLowerCase() === nativeAddr)
+        .reduce((a, b) => a + b.formattedAmount, 0);
+      const nativeOutTx2 = outTx
+        .filter((ev) => ev.token.toLowerCase() === nativeAddr)
+        .reduce((a, b) => a + b.formattedAmount, 0);
+      const nativeBasis2 = Math.max(0, nativeOutTx2 - nativeInTx2);
+      const nativeShareSd2 = Math.min(sdInTx, nativeBasis2);
+      const remSd2 = Math.max(0, sdInTx - nativeShareSd2);
+      if (nativeShareSd2 > 0) {
+        tokenSd[nativeAddr] = (tokenSd[nativeAddr] || 0) + nativeShareSd2;
+        includedSdByToken[nativeAddr] = (includedSdByToken[nativeAddr] || 0) + nativeShareSd2;
+      }
+      if (wethBasis <= 0 && remSd2 > 0) {
+        // No WETH basis; attribute remaining sd to native
+        tokenSd[nativeAddr] = (tokenSd[nativeAddr] || 0) + remSd2;
+        includedSdByToken[nativeAddr] = (includedSdByToken[nativeAddr] || 0) + remSd2;
+      }
+      const sdPerWeth = wethBasis > 0 ? remSd2 / wethBasis : 0;
       const totalMappedWeth = Object.values(tokenToOut).reduce(
         (s, v) => s + Number(v) / 1e18,
         0
       );
-      const tokenWeth: Record<string, number> = {};
-      const tokenSd: Record<string, number> = {};
       for (const [tok, amount] of Object.entries(tokenToOut)) {
         const tokLower = tok.toLowerCase();
         const wethAmt = Number(amount) / 1e18;
@@ -1057,7 +1115,19 @@ async function main() {
         includedSdByToken[wethAddr] =
           (includedSdByToken[wethAddr] || 0) + residualWeth * sdPerWeth;
       }
-      txAttributions.push({ tx, wethIn: totalWethInTx, wethOut: totalWethOutTx, sdIn: sdInTx, tokenWeth, tokenSd });
+      
+      txAttributions.push({ 
+        tx, 
+        wethIn: totalWethInTx, 
+        wethOut: totalWethOutTx, 
+        sdIn: sdInTx, 
+        nativeIn: nativeInTx2, 
+        nativeOut: nativeOutTx2, 
+        nativeShareSd: nativeShareSd2, 
+        wethBasis, 
+        tokenWeth, 
+        tokenSd 
+      });
     }
 
     const tokensNotSwapped = Array.from(includedTokens).filter(

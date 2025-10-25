@@ -59,14 +59,14 @@ interface SwapData {
 }
 
 /**
- * Processes swap events and bounties to generate CSV rows grouped by protocol.
+ * Compute per‑protocol sd attribution and output CSV rows.
  *
- * This function implements the core logic for calculating how much sdToken each bounty generates:
- * 1. Organizes swap events by protocol and block number
- * 2. Matches WETH inputs with reward outputs to determine token values
- * 3. Calculates conversion ratios (WETH → Native → sdToken)
- * 4. Assigns sdToken values to each bounty based on their share
- * 5. Generates CSV rows for reporting
+ * Steps:
+ * 1) Group swaps by protocol/block and track flows (weth/native/sd/rewards)
+ * 2) Match WETH in with rewards out to value tokens in WETH terms
+ * 3) Derive WETH→Native ratio and native equivalents
+ * 4) Allocate sd: direct sd first, remainder by bounty shares
+ * 5) Merge by (gauge, rewardToken) for CSV
  */
 function processReport(
   chainId: number,
@@ -76,7 +76,7 @@ function processReport(
   tokenInfos: Record<string, TokenInfo>,
   excludedSwapsInBlockNumbers: number[]
 ): { [protocol: string]: CSVRow[] } {
-  // Step 1: Organize swaps by protocol and block (same as original)
+  // Step 1: Organize swaps by protocol and block
   const swapsData: Record<string, Record<number, SwapData>> = {};
   
   // First, collect all transactions that involve sdToken for each protocol
@@ -108,7 +108,7 @@ function processReport(
       }
     }
 
-    // Process all swap events - but only from transactions that involve sdToken
+    // Process swap events only from transactions that involve sdToken
     for (const swap of [...swapsIn, ...swapsOut]) {
       if (excludedSwapsInBlockNumbers.includes(swap.blockNumber)) continue;
       
@@ -177,9 +177,7 @@ function processReport(
     }
   }
 
-  // Step 2: Match WETH inputs with reward outputs to determine token values
-  // This is the core logic: when WETH goes in and reward tokens come out in the same block,
-  // we can determine how much WETH each reward token is worth
+  // Step 2: Match WETH in with rewards out to infer WETH value per token
   const tokenValues: Record<string, Record<string, number>> = {}; // protocol -> token -> weth value
 
   for (const [protocol, blocks] of Object.entries(swapsData)) {
@@ -271,11 +269,7 @@ function processReport(
     }
   }
 
-  // Step 4: Calculate bounty values
-  // For each protocol, we need to:
-  // - Calculate the WETH to Native conversion ratio
-  // - Assign native token equivalents to each bounty
-  // - Distribute sdTokens based on bounty shares
+  // Step 4: Calculate bounty values and sd allocation
   Object.entries(aggregatedBounties).forEach(([protocol, bounties]) => {
     const native = PROTOCOLS_TOKENS[protocol].native.toLowerCase();
     const sdToken = PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase();
@@ -283,7 +277,7 @@ function processReport(
 
     if (!flows) return;
 
-    // Calculate native from bounties
+    // Sum native-denominated bounties
     const nativeFromBounties = bounties
       .filter((bounty) => bounty.rewardToken.toLowerCase() === native)
       .reduce((sum, bounty) => {
@@ -296,8 +290,7 @@ function processReport(
     const wethToNativeRatio =
       flows.totalWethIn > 0 ? nativeFromWeth / flows.totalWethIn : 0;
 
-    // Handle edge case: WETH bounties with no WETH swaps
-    // This can happen when bounties are paid in WETH directly
+    // Edge case: WETH bounties with no WETH swaps (paid directly)
     const wethFromBounties = bounties
       .filter(
         (b) =>
@@ -328,7 +321,7 @@ function processReport(
       });
     }
 
-    // Calculate native equivalent for each bounty
+    // Compute native equivalent per bounty
     bounties.forEach((bounty) => {
       const rewardToken = bounty.rewardToken.toLowerCase();
       const tokenInfo = tokenInfos[rewardToken];
@@ -344,7 +337,7 @@ function processReport(
         // Use the token values from WETH matching
         const tokenWethValue = tokenValues[protocol][rewardToken];
         if (tokenWethValue) {
-          // Calculate this bounty's share of the total token amount
+          // Pro‑rate by this token’s share of its total amount
           const totalForToken = bounties
             .filter((b) => b.rewardToken.toLowerCase() === rewardToken)
             .reduce((sum, b) => {
@@ -360,7 +353,7 @@ function processReport(
       bounty.nativeEquivalent = nativeEquivalent;
     });
 
-    // Calculate shares
+    // Shares across all bounties (for remainder sd allocation)
     const totalNativeEquivalent = bounties.reduce(
       (acc, bounty) => acc + (bounty.nativeEquivalent || 0),
       0
@@ -376,7 +369,7 @@ function processReport(
           : 0;
     });
 
-    // Calculate sdToken amounts
+    // sdToken amounts
     const sdTokenBounties = bounties.filter(
       (b) => b.rewardToken.toLowerCase() === sdToken
     );
@@ -384,21 +377,20 @@ function processReport(
       (b) => b.rewardToken.toLowerCase() !== sdToken
     );
 
-    // Direct sdToken bounties
+    // Direct sdToken bounties (pass‑through)
     sdTokenBounties.forEach((bounty) => {
       const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
       bounty.sdTokenAmount =
         Number(bounty.amount) / 10 ** (tokenInfo?.decimals || 18);
     });
 
-    // Distribute remaining sdToken
+    // Distribute remaining sdToken by normalized shares
     const directSdTokenAmount = sdTokenBounties.reduce(
       (acc, bounty) => acc + (bounty.sdTokenAmount || 0),
       0
     );
     let remainingSdTokenAmount = flows.totalSdTokenIn - directSdTokenAmount;
-    // For pendle: scale remaining sdToken pool by the share of WETH that
-    // comes from included reward tokens (exclude USDT logs implicitly).
+    // Pendle: scale by share of WETH that came from included reward tokens
     if (protocol === "pendle") {
       const matchedIncludedWeth = Object.values(tokenValues[protocol] || {}).reduce(
         (acc, v) => acc + (v || 0),

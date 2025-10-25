@@ -252,9 +252,7 @@ interface BlockSwaps {
   [blockNumber: number]: bigint[];
 }
 
-/**
- * Groups swap amounts by block.
- */
+/** Group swap amounts by block number. */
 export function transformSwapEvents(swapEvents: SwapEvent[]): BlockSwaps {
   return swapEvents.reduce((acc: BlockSwaps, event) => {
     if (!acc[event.blockNumber]) acc[event.blockNumber] = [];
@@ -263,9 +261,7 @@ export function transformSwapEvents(swapEvents: SwapEvent[]): BlockSwaps {
   }, {});
 }
 
-/**
- * Fetch proposals based on period and associate them with timestamps.
- */
+/** Fetch proposals for a period and map to timestamps. */
 export async function fetchProposalsIdsBasedOnPeriods(
   space: string,
   period: number
@@ -741,7 +737,7 @@ export function matchWethInWithRewardsOut(blockData: any): MatchedReward[] {
   return matches;
 }
 
-// Using direclty receipts
+// Decode Transfer logs from receipts
 const transferInterface = new Interface([
   {
     anonymous: false,
@@ -758,25 +754,25 @@ const transferInterface = new Interface([
 export async function mapTokenSwapsToOutToken(
   publicClient: PublicClient,
   txHash: string,
-  tokenList: Set<string>, // tokens that were swapped to outToken
+  tokenList: Set<string>, // tokens swapped to outToken
   outToken: string,
-  targetTo: string // only consider events where the transfer is from or to this address
+  targetTo: string // consider only transfers from/to this address
 ): Promise<Record<string, bigint>> {
   const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
   const TRANSFER_TOPIC =
     "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-  // Collect input events: tokens in tokenList that are transferred from targetTo
+  // Inputs: tokens in tokenList transferred FROM targetTo
   const transfersIn: { token: string; amount: bigint; logIndex: number }[] = [];
-  // Collect output events: outToken transfers that go to targetTo
+  // Outputs: outToken transfers TO targetTo
   const transfersOut: { amount: bigint; logIndex: number }[] = [];
 
-  // Transform tokenList has .lower, to not miss any case
+  // Lowercase tokenList for matching
   const tokenListLower = new Set(
     Array.from(tokenList).map((token) => token.toLowerCase())
   );
 
-  // Process each log in the transaction receipt
+  // Walk logs and collect matched transfers
   for (const log of receipt.logs) {
     if (!log.topics || !log.topics[0] || log.topics[0].toLowerCase() !== TRANSFER_TOPIC) continue;
     try {
@@ -784,9 +780,7 @@ export async function mapTokenSwapsToOutToken(
       const tokenAddress = log.address.toLowerCase();
       const value = BigInt(decoded.args.value.toString());
 
-      // For an input event, ensure:
-      //   1. The token is one of the tokens being swapped (tokenList)
-      //   2. The transfer is sent FROM targetTo
+      // Input criteria: token in tokenList, from = targetTo
       if (
         tokenListLower.has(tokenAddress) &&
         (decoded.args.from as string).toLowerCase() === targetTo.toLowerCase()
@@ -798,9 +792,7 @@ export async function mapTokenSwapsToOutToken(
         });
       }
 
-      // For an output event, ensure:
-      //   1. The token is the outToken (e.g. WETH)
-      //   2. The transfer is sent TO targetTo
+      // Output criteria: token is outToken, to = targetTo
       if (
         tokenAddress === outToken.toLowerCase() &&
         (decoded.args.to as string).toLowerCase() === targetTo.toLowerCase()
@@ -814,13 +806,11 @@ export async function mapTokenSwapsToOutToken(
     }
   }
 
-  // Sort both arrays by log index to respect chronological order
+  // Sort by log index to preserve order
   transfersIn.sort((a, b) => a.logIndex - b.logIndex);
   transfersOut.sort((a, b) => a.logIndex - b.logIndex);
 
-  // Pair input events with output events based on log index order.
-  // For each input event, find the first output event (that hasn't been paired yet)
-  // with a log index greater than the input event's log index.
+  // Greedy pair: each input consumes the first later output not yet paired
   const pairedOut = new Array(transfersOut.length).fill(false);
   const tokenToOut: Record<string, bigint> = {};
 
