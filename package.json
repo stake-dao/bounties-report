@@ -22,7 +22,9 @@
     "spectra-merkle": "pnpm tsx script/spectra/3_merkles.ts",
     "pendle-extra": "pnpm tsx script/special-distribs/pendleExtra.ts",
     "sdpendle-apr": "pnpm tsx script/sdTkns/computeSdPendleAPR.ts",
-    "yb-distribution": "pnpm tsx script/special-distribs/yb.ts"
+    "yb-distribution": "pnpm tsx script/special-distribs/yb.ts",
+    "report2": "pnpm tsx script/report2/run.ts",
+    "report2:all": "pnpm tsx script/report2/run.ts all"
   },
   "author": "",
   "license": "ISC",
