@@ -186,9 +186,15 @@ const publicClient = createPublicClient({
 async function main() {
   // Validate protocol argument
   const protocol = process.argv[2];
-  if (!protocol || !["curve", "balancer", "fxn", "frax", "pendle"].includes(protocol)) {
+  if (
+    !protocol ||
+    !["curve", "balancer", "fxn", "frax", "pendle"].includes(protocol)
+  ) {
     console.error(
       "Please specify a valid protocol: curve, balancer, fxn, frax, or pendle"
+    );
+    console.error(
+      "Note: For Pendle reports, run generatePendleReport.ts before generateReport.ts pendle"
     );
     process.exit(1);
   }
@@ -201,9 +207,10 @@ async function main() {
 
   const totalBounties = await fetchBountiesData(currentPeriod);
   if (isDebugEnabled()) {
+    const protocolsForDebug = ["curve", "balancer", "fxn", "frax", "pendle"];
     const countSource = (src: Record<string, any>) =>
       Object.fromEntries(
-        ["curve", "balancer", "fxn", "frax", "pendle"].map((p) => [
+        protocolsForDebug.map((p) => [
           p,
           src?.[p] ? Object.keys(src[p]).length : 0,
         ])
@@ -276,11 +283,11 @@ async function main() {
     case "balancer":
       gaugesInfo = await getGaugesInfos("balancer");
       break;
-    case "fxn":
-      gaugesInfo = await getGaugesInfos("fxn");
-      break;
     case "frax":
       gaugesInfo = await getGaugesInfos("frax");
+      break;
+    case "fxn":
+      gaugesInfo = await getGaugesInfos("fxn");
       break;
     case "pendle":
       gaugesInfo = await getGaugesInfos("pendle");
@@ -479,6 +486,35 @@ async function main() {
     (swap) =>
       !swapOTC.some((otcSwap) => otcSwap.blockNumber === swap.blockNumber)
   );
+
+  if (protocol === "pendle") {
+    const PENDLE_FEE_RECIPIENT =
+      "0xe42a462dbf54f281f95776e663d8c942dcf94f17".toLowerCase();
+    const USDT_ADDRESS =
+      "0xdac17f958d2ee523a2206206994597c13d831ec7".toLowerCase();
+    const feeRecipientTxs = new Set<string>();
+
+    for (const swap of swapInFiltered) {
+      if (
+        swap.token.toLowerCase() === USDT_ADDRESS &&
+        swap.from.toLowerCase() === PENDLE_FEE_RECIPIENT &&
+        swap.transactionHash
+      ) {
+        feeRecipientTxs.add(swap.transactionHash.toLowerCase());
+      }
+    }
+
+    swapInFiltered = swapInFiltered.filter((swap) => {
+      if (swap.token.toLowerCase() !== USDT_ADDRESS) return true;
+      return swap.from.toLowerCase() !== PENDLE_FEE_RECIPIENT;
+    });
+
+    swapOutFiltered = swapOutFiltered.filter((swap) => {
+      if (swap.token.toLowerCase() !== USDT_ADDRESS) return true;
+      const txLower = (swap.transactionHash || "").toLowerCase();
+      return !feeRecipientTxs.has(txLower);
+    });
+  }
   
   // Filter out delegated tokens (NOT entire transactions, just the specific tokens that were delegated)
   const beforeDelegationFilterIn = swapInFiltered.length;
@@ -1216,24 +1252,111 @@ async function main() {
     
     // Special handling for Pendle protocol
     if (protocol === "pendle") {
-      // Generate pendle-otc.csv with Period column (matching OTC report format)
+      const fileName = `${protocol}-otc.csv`;
+      const filePath = path.join(dirPath, fileName);
+      const header =
+        "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol";
+
+      const maybeUnquote = (value: string): string => {
+        const trimmed = value.trim();
+        if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+          return trimmed.slice(1, -1).replace(/""/g, '"');
+        }
+        return trimmed;
+      };
+
+      const parseExistingRows = () => {
+        if (!fs.existsSync(filePath)) {
+          return [];
+        }
+        const content = fs.readFileSync(filePath, "utf-8");
+        return content
+          .split(/\r?\n/)
+          .slice(1) // drop header
+          .filter((line) => line.trim().length > 0)
+          .map((line) => line.split(";"))
+          .filter((parts) => parts.length >= 8)
+          .map((parts) => ({
+            period: Number(maybeUnquote(parts[0])),
+            gaugeName: maybeUnquote(parts[1]),
+            gaugeAddress: maybeUnquote(parts[2]),
+            rewardToken: maybeUnquote(parts[3]),
+            rewardAddress: maybeUnquote(parts[4]),
+            rewardAmount: Number(maybeUnquote(parts[5])),
+            rewardSdValue: Number(maybeUnquote(parts[6])),
+            sharePercentage: Number(maybeUnquote(parts[7])),
+          }));
+      };
+
+      const existingRows: Array<{
+        period: number;
+        gaugeName: string;
+        gaugeAddress: string;
+        rewardToken: string;
+        rewardAddress: string;
+        rewardAmount: number;
+        rewardSdValue: number;
+        sharePercentage: number;
+      }> = parseExistingRows();
+      const newRows = rows.map((row) => ({
+        period: currentPeriod,
+        gaugeName: row.gaugeName,
+        gaugeAddress: row.gaugeAddress,
+        rewardToken: row.rewardToken,
+        rewardAddress: row.rewardAddress,
+        rewardAmount: row.rewardAmount,
+        rewardSdValue: row.rewardSdValue,
+        sharePercentage: 0,
+      }));
+
+      const buildKey = (row: {
+        period: number;
+        gaugeAddress: string;
+        rewardAddress: string;
+        rewardToken: string;
+      }) =>
+        `${row.period}|${row.gaugeAddress.toLowerCase()}|${row.rewardAddress.toLowerCase()}|${row.rewardToken.toLowerCase()}`;
+
+      const newKeys = new Set(newRows.map(buildKey));
+      const mergedRows: Array<{
+        period: number;
+        gaugeName: string;
+        gaugeAddress: string;
+        rewardToken: string;
+        rewardAddress: string;
+        rewardAmount: number;
+        rewardSdValue: number;
+        sharePercentage: number;
+      }> = [
+        ...existingRows.filter((row) => !newKeys.has(buildKey(row))),
+        ...newRows,
+      ];
+
+      const totalSdValue = mergedRows.reduce(
+        (sum, row) => sum + row.rewardSdValue,
+        0
+      );
+      mergedRows.forEach((row) => {
+        row.sharePercentage =
+          totalSdValue > 0 ? (row.rewardSdValue / totalSdValue) * 100 : 0;
+      });
+
       const csvContent = [
-        "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-        ...rows.map(
+        header,
+        ...mergedRows.map(
           (row) =>
-            `${currentPeriod};${escapeCSV(row.gaugeName)};${escapeCSV(
+            `${row.period};${escapeCSV(row.gaugeName)};${escapeCSV(
               row.gaugeAddress
-            )};${escapeCSV(row.rewardToken)};` +
-            `${escapeCSV(row.rewardAddress)};${row.rewardAmount.toFixed(
+            )};${escapeCSV(row.rewardToken)};${escapeCSV(
+              row.rewardAddress
+            )};${row.rewardAmount.toFixed(6)};${row.rewardSdValue.toFixed(
               6
-            )};${row.rewardSdValue.toFixed(6)};` +
-            `${row.sharePercentage.toFixed(2)}`
+            )};${row.sharePercentage.toFixed(2)}`
         ),
       ].join("\n");
 
-      const fileName = `${protocol}-otc.csv`;
-      fs.writeFileSync(path.join(dirPath, fileName), csvContent);
-      console.log(`Report generated for ${protocol}: ${fileName}`);
+      fs.writeFileSync(filePath, csvContent);
+      console.log(`Report updated for ${protocol}: ${fileName}`);
     } else {
       // Standard format for other protocols
       const csvContent = [

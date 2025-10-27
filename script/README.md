@@ -73,10 +73,15 @@ ts-node script/spectra/3_merkles.ts
 ### Report Generation
 
 ```bash
-# Generate protocol reports
+# Generate protocol reports (supports: curve, balancer, fxn, frax, pendle)
 ts-node script/reports/generateReport.ts curve
 ts-node script/reports/generateReport.ts balancer
+ts-node script/reports/generateReport.ts fxn
 ts-node script/reports/generateReport.ts frax
+
+# For Pendle, run BOTH scripts (order matters)
+ts-node script/reports/generatePendleReport.ts     # USDT fee recipient rewards
+ts-node script/reports/generateReport.ts pendle    # Non-USDT VM bounties
 ```
 
 ## 🏗️ Architecture
