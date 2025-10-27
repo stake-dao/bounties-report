@@ -1,0 +1,58 @@
+{
+  "protocol": "balancer",
+  "period": 1761177600,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 978.0459673889205,
+    "sdAssigned": 978.0459673889195,
+    "wethInTotal": 1.0804295992915458,
+    "wethOutTotal": 1.0793918117337018
+  },
+  "dropped": {
+    "tokensNotSwapped": [
+      "0xaf88d065e77c8cc2239327c5edb3a432268e5831"
+    ],
+    "wethNotSwapped": false
+  },
+  "perToken": {
+    "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": {
+      "mappedWeth": 0.190862384886692,
+      "sd": 172.77589024501438
+    },
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0xc0c293ce456ff0ed870add98a0828dd4d2903dbf": {
+      "mappedWeth": 0.6679601290883758,
+      "sd": 604.6629146960099
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0.22160708531647796,
+      "sd": 200.6071624478953
+    }
+  },
+  "txs": [
+    {
+      "tx": "0x0d0271e09495610ad38508805d291c1600c87500d884445fdbe125d82192e319",
+      "wethIn": 1.0804295992915458,
+      "wethOut": 1.0793918117337018,
+      "sdIn": 978.0459673889205,
+      "nativeIn": 4221.423813637311,
+      "nativeOut": 4221.4238136373115,
+      "nativeShareSd": 9.094947017729282e-13,
+      "wethBasis": 1.0804295992915458,
+      "tokenWeth": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.190862384886692,
+        "0xc0c293ce456ff0ed870add98a0828dd4d2903dbf": 0.6679601290883758,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0.22160708531647796
+      },
+      "tokenSd": {
+        "0xba100000625a3754423978a60c9317c58a424e3d": 9.094947017729282e-13,
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 172.77589024501438,
+        "0xc0c293ce456ff0ed870add98a0828dd4d2903dbf": 604.6629146960099,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 200.6071624478953
+      }
+    }
+  ]
+}
