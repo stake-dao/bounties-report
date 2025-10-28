@@ -17,6 +17,7 @@ import { getClosestBlockTimestamp } from "./chainUtils";
 import { Proposal } from "../interfaces/Proposal";
 import { Interface } from "ethers/lib/utils";
 import { debug, sampleArray, isDebugEnabled } from "./logger";
+import { getTokenByAddress } from "./tokenService";
 
 const WEEK = 604800; // One week in seconds
 
@@ -130,8 +131,64 @@ export async function getTokenInfo(
   publicClient: PublicClient,
   tokenAddress: string
 ): Promise<TokenInfo> {
+  let checksumAddress: string | undefined;
+  try {
+    checksumAddress = getAddress(tokenAddress);
+  } catch {
+    checksumAddress = undefined;
+  }
+
+  const lookupAddress = checksumAddress ?? tokenAddress;
+  const primaryChainId =
+    typeof publicClient?.chain?.id === "number"
+      ? publicClient.chain.id.toString()
+      : undefined;
+  const fallbackChains = [
+    "1",
+    "10",
+    "56",
+    "1124",
+    "137",
+    "42161",
+    "8453",
+    "252",
+    "43114",
+  ];
+  const chainCandidates = new Set<string>();
+  if (primaryChainId) {
+    chainCandidates.add(primaryChainId);
+  }
+  fallbackChains.forEach((id) => chainCandidates.add(id));
+
+  for (const chainId of chainCandidates) {
+    try {
+      const tokenInfo = await getTokenByAddress(lookupAddress, chainId);
+      if (tokenInfo) {
+        const symbol = tokenInfo.symbol || "UNKNOWN";
+        const decimals =
+          typeof tokenInfo.decimals === "number" ? tokenInfo.decimals : 18;
+        return { symbol, decimals };
+      }
+    } catch (error) {
+      if (isDebugEnabled()) {
+        debug("[tokenService] lookup failed", {
+          token: lookupAddress,
+          chainId,
+          error: String(error),
+        });
+      }
+    }
+  }
+
+  if (!checksumAddress) {
+    console.warn(
+      `Invalid token address format ${tokenAddress}, defaulting to UNKNOWN`
+    );
+    return { symbol: "UNKNOWN", decimals: 18 };
+  }
+
   const contract = getContract({
-    address: tokenAddress as Address,
+    address: checksumAddress as Address,
     abi: erc20Abi,
     client: { public: publicClient },
   });
@@ -144,7 +201,7 @@ export async function getTokenInfo(
     return { symbol, decimals };
   } catch (error) {
     console.error(`Error fetching info for token ${tokenAddress}:`, error);
-    return { symbol: "Unknown", decimals: 18 };
+    return { symbol: "UNKNOWN", decimals: 18 };
   }
 }
 
