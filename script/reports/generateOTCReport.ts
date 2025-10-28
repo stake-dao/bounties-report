@@ -157,6 +157,53 @@ const publicClient = createPublicClient({
   transport: http("https://rpc.flashbots.net"),
 });
 
+interface CSVRow {
+  Period: string;
+  "Gauge Name": string;
+  "Gauge Address": string;
+  "Reward Token": string;
+  "Reward Address": string;
+  "Reward Amount": string;
+  "Reward sd Value": string;
+  "Share % per Protocol": string;
+}
+
+/**
+ * Read existing bounties from a CSV file if it exists
+ */
+function readExistingBounties(filePath: string): CSVRow[] {
+  if (!fs.existsSync(filePath)) {
+    return [];
+  }
+
+  const content = fs.readFileSync(filePath, "utf-8");
+  const lines = content.trim().split("\n");
+
+  if (lines.length <= 1) {
+    return [];
+  }
+
+  // Parse CSV (skip header)
+  const rows: CSVRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(";");
+    if (parts.length === 8) {
+      rows.push({
+        Period: parts[0],
+        "Gauge Name": parts[1],
+        "Gauge Address": parts[2],
+        "Reward Token": parts[3],
+        "Reward Address": parts[4],
+        "Reward Amount": parts[5],
+        "Reward sd Value": parts[6],
+        "Share % per Protocol": parts[7],
+      });
+    }
+  }
+
+  return rows;
+}
+
 async function main() {
   // Validate protocol argument
   const protocol = process.argv[2];
@@ -353,8 +400,11 @@ async function main() {
     const otcFileName = `${protocol}-otc.csv`;
     const otcFilePath = path.join(dirPath, otcFileName);
 
-    // Create rows with current period
-    const rows = data.map((row) => ({
+    // Read existing bounties from the file
+    const existingBounties = readExistingBounties(otcFilePath);
+
+    // Create rows with current period for new bounties
+    const newRows = data.map((row) => ({
       Period: currentPeriod.toString(),
       "Gauge Name": row.gaugeName,
       "Gauge Address": row.gaugeAddress,
@@ -364,6 +414,19 @@ async function main() {
       "Reward sd Value": row.rewardSdValue.toString(),
       "Share % per Protocol": "0", // To be computed
     }));
+
+    // Create a uniqueness key for deduplication
+    const getRowKey = (row: CSVRow) =>
+      `${row.Period}|${row["Gauge Address"].toLowerCase()}|${row["Reward Address"].toLowerCase()}`;
+
+    // Deduplicate: keep existing bounties, only add new ones that don't exist
+    const existingKeys = new Set(existingBounties.map(getRowKey));
+    const uniqueNewRows = newRows.filter(row => !existingKeys.has(getRowKey(row)));
+
+    // Merge existing and unique new bounties
+    const rows = [...existingBounties, ...uniqueNewRows];
+
+    console.log(`${protocol}: Found ${existingBounties.length} existing bounties, adding ${uniqueNewRows.length} new bounties (${newRows.length - uniqueNewRows.length} duplicates skipped)`);
 
     // Calculate percentages - only for WETH-based rewards
     // Exclude sdToken and native token rewards from percentage calculation
