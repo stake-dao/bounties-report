@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
 import { BigNumber } from "ethers";
-import { mainnet } from "../utils/chains";
+import { fraxtal } from "../utils/chains";
 import {
   SDFXS_SPACE,
   WEEK,
@@ -234,7 +234,7 @@ async function main() {
         
         await distributionVerifier(
           SDFXS_SPACE,
-          mainnet,
+          fraxtal,
           SDFXS_UNIVERSAL_MERKLE,
           cumulativeMerkleData,
           previousMerkleData,

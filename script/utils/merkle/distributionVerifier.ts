@@ -68,14 +68,40 @@ export const getAllTokensInfos = async (
   });
 
   // First, check tokenService for known tokens
+  const tokenServiceChainFallbacks = [
+    chainId.toString(),
+    "1",
+    "10",
+    "56",
+    "1101",
+    "1124",
+    "137",
+    "252",
+    "42161",
+    "8453",
+    "43114",
+  ];
+
   for (const addr of normalizedAddresses) {
-    if (!chainCache[addr]) {
-      const tokenInfo = await getTokenByAddress(addr, chainId.toString());
-      if (tokenInfo) {
-        chainCache[addr] = {
-          symbol: tokenInfo.symbol,
-          decimals: tokenInfo.decimals
-        };
+    if (chainCache[addr]) {
+      continue;
+    }
+    for (const fallbackChainId of tokenServiceChainFallbacks) {
+      try {
+        const tokenInfo = await getTokenByAddress(addr, fallbackChainId);
+        if (tokenInfo) {
+          chainCache[addr] = {
+            symbol: tokenInfo.symbol,
+            decimals: tokenInfo.decimals,
+          };
+          break;
+        }
+      } catch (error) {
+        console.warn(
+          `Token service lookup failed for ${addr} on chain ${fallbackChainId}: ${String(
+            error
+          )}`
+        );
       }
     }
   }
