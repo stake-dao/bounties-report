@@ -352,7 +352,14 @@ export const distributionVerifier = async (
 
   proposalInformationLogger(space, activeProposal, log);
   log("\n=== Delegation Information ===");
-  await delegationLogger(space, activeProposal, votes, log, merkleChain.id.toString());
+  try {
+    // Snapshot voting always happens on mainnet, even if token distribution is on another chain
+    const snapshotChainId = "1";
+    await delegationLogger(space, activeProposal, votes, log, snapshotChainId);
+  } catch (error) {
+    log(`⚠️  Warning: Could not fetch delegation data from snapshot.org: ${error instanceof Error ? error.message : String(error)}`);
+    log("Continuing with distribution verification...\n");
+  }
   log(`\nTotal Votes: ${votes.length}`);
   log(`\nHolder Distribution:`);
 
