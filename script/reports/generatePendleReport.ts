@@ -79,7 +79,6 @@ async function getLatestJson(
         latestFile = file as any;
       }
     }
-
     if (latestFile) {
       const fileContent = await axios.get(
         (latestFile as { download_url: string }).download_url
@@ -89,6 +88,39 @@ async function getLatestJson(
   }
 
   throw new Error("Failed to retrieve latest JSON file");
+}
+
+// TEMP: Get second latest file
+async function getSecondLatestJson(
+  repoPath: string,
+  directoryPath: string
+): Promise<LatestRewards> {
+  const url = `https://api.github.com/repos/${repoPath}/contents/${directoryPath}`;
+  const response = await axios.get(url);
+
+  if (response.status === 200) {
+    const files = response.data;
+
+    const filesWithDates = files
+      .map((file: any) => {
+        const dateStr = file.name.split("_").pop()!.replace(".json", "");
+        const fileDate = new Date(dateStr.split("-").reverse().join("-"));
+        return { file, date: fileDate };
+      })
+      .sort((a: { file: any; date: Date }, b: { file: any; date: Date }) =>
+        b.date.getTime() - a.date.getTime()
+      );
+
+    if (filesWithDates.length >= 2) {
+      const secondLatestFile = filesWithDates[1].file;
+      const fileContent = await axios.get(secondLatestFile.download_url);
+      return fileContent.data;
+    }
+
+    throw new Error("Not enough files to retrieve second latest");
+  }
+
+  throw new Error("Failed to retrieve second latest JSON file");
 }
 
 async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
@@ -192,8 +224,8 @@ async function main() {
     const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
       await getTimestampsBlocks(publicClient, 0);
 
-    // Fetch the repartition of rewards from Pendle scripts repo
-    const latestRewards = await getLatestJson(REPO_PATH, DIRECTORY_PATH);
+    // TEMP: Fetch the repartition of rewards from Pendle scripts repo (using second latest)
+    const latestRewards = await getSecondLatestJson(REPO_PATH, DIRECTORY_PATH);
 
     // Get sdPendle transfers to BOTMARKET, excluding OTC transfers
     const sdPendleBalance = await getSdPendleTransfers(
