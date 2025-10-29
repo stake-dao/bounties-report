@@ -113,14 +113,17 @@ async function getAllForwarders(
   // These are addresses that delegated to The Union, who then forwards to us
 const unionDelegatorsList = [
     {
-      address: "0xC6D1ed1F2Db34d138da62B13138313DADD6A5AbC",
-      vp: 12656
+      address: "0x5bfF1A68663ff91b0650327D83D4230Cd00023Ad",
+      vp: 19955
     },
     {
       address: "0x8Ac4c0630C5ed1636537924eC9B037fC652ADee8",
-      vp: 711
+      vp: 214
     }
   ];
+
+  // FETCHING ALL OUR FORWARDERS ON CURRENT EPOCH (FROM VOTIUM FORWARDING)
+  // FOR EACH , CHECK ON SNAPSHOT IF DELEGATED FOR US ON "0x6376782e65746800000000000000000000000000000000000000000000000000" `delegation(address,spaceId)`
 
   // Create a map for easy lookup
   const unionDelegatorsMap = new Map<string, number>();

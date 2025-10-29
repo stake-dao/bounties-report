@@ -7,6 +7,9 @@ temp/
 .claude/
 .cache/
 
+# Envio
+script/indexer/vlcvx-forwarder/generated/
+
 # Files
 .DS_Store
 .env

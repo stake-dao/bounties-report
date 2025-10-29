@@ -1,0 +1,23 @@
+# ABOUTME: Defines entities for forwarding registry intervals and active snapshots
+# ABOUTME: Enables HyperIndex to persist historical and current forwarding relationships
+
+type Interval @entity {
+  id: ID!
+  from: Bytes!
+  to: Bytes!
+  start: BigInt!
+  expiration: BigInt!
+  canceled: Boolean!
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Registration @entity {
+  id: ID!
+  from: Bytes!
+  to: Bytes!
+  start: BigInt!
+  expiration: BigInt!
+  lastUpdatedAt: BigInt!
+}
