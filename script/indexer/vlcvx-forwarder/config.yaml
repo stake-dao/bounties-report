@@ -1,0 +1,31 @@
+# ABOUTME: Envio configuration for vlCVX forwarding registry indexing on Ethereum mainnet
+# ABOUTME: Registers forwarder contract events and handler mappings for HyperIndex generation
+
+name: vlcvx-forwarder-registry
+description: HyperIndex service for Stake DAO vlCVX forwarding registry
+ecosystem: evm
+schema: ./schema.graphql
+output: ./generated
+hasura:
+  enabled: true
+  port: 8090
+  console_port: 9695
+
+contracts:
+  - name: ForwarderRegistry
+    abi_file_path: ./abis/ForwarderRegistry.json
+    handler: ./eventHandlers.ts
+    events:
+      - event: setReg
+        field_selection:
+          transaction_fields: [hash]
+      - event: expReg
+        field_selection:
+          transaction_fields: [hash]
+
+networks:
+  - id: 1
+    start_block: 14872510
+    contracts:
+      - name: ForwarderRegistry
+        address: 0x92e6e43f99809df84ed2d533e1fd8017eb966ee2

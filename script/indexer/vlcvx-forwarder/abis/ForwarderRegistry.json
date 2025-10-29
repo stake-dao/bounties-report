@@ -1,0 +1,25 @@
+{
+  "ABOUTME": "Minimal ABI for the Votium forwarder registry events used by the HyperIndex service",
+  "ABOUTME_DETAILS": "Includes setReg and expReg event definitions only",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "address", "name": "_from", "type": "address" },
+        { "indexed": true, "internalType": "address", "name": "_to", "type": "address" },
+        { "indexed": true, "internalType": "uint256", "name": "_start", "type": "uint256" }
+      ],
+      "name": "setReg",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "address", "name": "_from", "type": "address" },
+        { "indexed": true, "internalType": "uint256", "name": "_end", "type": "uint256" }
+      ],
+      "name": "expReg",
+      "type": "event"
+    }
+  ]
+}
