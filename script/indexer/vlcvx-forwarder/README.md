@@ -41,7 +41,7 @@ This HyperIndex service ingests the Votium forwarder registry and maintains both
 
 ## Query snippets
 
-The generated GraphQL endpoint supports the following patterns (set `$E` to the epoch start you care about – e.g., `Math.floor(Date.now() / 1209600000) * 1209600`):
+The generated GraphQL endpoint supports the following patterns (set `$E` to the epoch start you care about – use `computeCurrentEpochStart()` from `utils/epochUtils.ts`):
 
 - **All historical intervals that forwarded to you**
   ```graphql

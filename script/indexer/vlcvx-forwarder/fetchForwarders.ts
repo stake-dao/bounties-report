@@ -5,6 +5,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { processAllDelegators } from "../../utils/cacheUtils";
 import { DELEGATION_ADDRESS } from "../../utils/constants";
+import { computeCurrentEpochStart } from "../../utils/epochUtils";
 
 type IntervalRecord = {
   from: string;
@@ -24,7 +25,6 @@ type RegistrationRecord = {
 };
 
 const DEFAULT_GRAPHQL_ENDPOINT = "http://localhost:8080/v1/graphql";
-const TWO_WEEK_SECONDS = 14 * 24 * 60 * 60;
 const STAKE_DAO_FORWARDER = "0xae86a3993d13c8d77ab77dbb8ccdb9b7bc18cd09";
 const CVX_SPACE = "cvx.eth";
 
@@ -85,19 +85,6 @@ const SNAPSHOT_QUERY = gql`
   }
 `;
 
-function computeCurrentEpochStart(nowSeconds: number = Math.floor(Date.now() / 1000)): number {
-  return nowSeconds - (nowSeconds % TWO_WEEK_SECONDS);
-}
-
-function toHex(address: string): string {
-  return address.toLowerCase();
-}
-
-function toNumber(value: string | null | undefined): number {
-  if (!value) return 0;
-  return Number(value);
-}
-
 function formatInterval(record: IntervalRecord) {
   return {
     from: record.from,
@@ -145,7 +132,7 @@ async function main() {
     .strict()
     .parseAsync();
 
-  const to = toHex(argv.to);
+  const to = argv.to.toLowerCase();
   const epoch = argv.epoch ?? computeCurrentEpochStart();
   const client = new GraphQLClient(argv.graphql);
 
