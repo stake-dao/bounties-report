@@ -1,0 +1,61 @@
+{
+  "protocol": "fxn",
+  "period": 1761782400,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 57.80432702225279,
+    "sdAssigned": 57.80432702225281,
+    "wethInTotal": 0.4100738958203979,
+    "wethOutTotal": 0.6050495138460977
+  },
+  "dropped": {
+    "tokensNotSwapped": [],
+    "wethNotSwapped": false
+  },
+  "perToken": {
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
+      "mappedWeth": 0.153003397524799,
+      "sd": 21.567474828763032
+    },
+    "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": {
+      "mappedWeth": 0.030969077263416928,
+      "sd": 4.365424592878756
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0.10208687955902469,
+      "sd": 14.390243882521398
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x865377367054516e17014ccded1e7d814edc9ce4": {
+      "mappedWeth": 0.12401454147315728,
+      "sd": 17.481183718089614
+    }
+  },
+  "txs": [
+    {
+      "tx": "0x029d5cdf32c3b5fbb313476ca1123569998663ac08493339781212d9dd570892",
+      "wethIn": 0.4100738958203979,
+      "wethOut": 0.6050495138460977,
+      "sdIn": 57.80432702225279,
+      "nativeIn": 57.06103886784099,
+      "nativeOut": 57.06103886784099,
+      "nativeShareSd": 0,
+      "wethBasis": 0.4100738958203979,
+      "tokenWeth": {
+        "0x865377367054516e17014ccded1e7d814edc9ce4": 0.12401454147315728,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.153003397524799,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0.10208687955902469,
+        "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": 0.030969077263416928
+      },
+      "tokenSd": {
+        "0x865377367054516e17014ccded1e7d814edc9ce4": 17.481183718089614,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 21.567474828763032,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 14.390243882521398,
+        "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": 4.365424592878756
+      }
+    }
+  ]
+}
