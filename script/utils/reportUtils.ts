@@ -263,7 +263,13 @@ export async function getTimestampsBlocks(
     !pastWeek || pastWeek === 0
       ? Number(await publicClient.getBlockNumber())
       : await getClosestBlockTimestamp(chain, timestamp2);
-  return { timestamp1, timestamp2, blockNumber1, blockNumber2 };
+
+  // For Pendle, also return the Thursday epoch for storage consistency
+  const storageTimestamp = protocol?.toLowerCase() === "pendle"
+    ? Math.floor(currentTimestamp / WEEK) * WEEK
+    : timestamp1;
+
+  return { timestamp1, timestamp2, blockNumber1, blockNumber2, storageTimestamp };
 }
 
 export function isValidAddress(address: string): address is `0x${string}` {

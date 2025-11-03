@@ -221,7 +221,7 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
 
 async function main() {
   try {
-    const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
+    const { timestamp1, timestamp2, blockNumber1, blockNumber2, storageTimestamp } =
       await getTimestampsBlocks(publicClient, 0, "ethereum", "pendle");
 
     // TEMP: Fetch the repartition of rewards from Pendle scripts repo (using second latest)
@@ -322,11 +322,13 @@ async function main() {
     ].join("\n");
 
     // Write to file
+    // Use storageTimestamp (Thursday epoch) for directory path to match GitHub bounty JSONs
+    // Use timestamp1 (Tuesday search start) for logging/display purposes
     const projectRoot = path.resolve(__dirname, "..", "..");
     const dirPath = path.join(
       projectRoot,
       "bounties-reports",
-      timestamp1.toString()
+      storageTimestamp.toString()
     );
     fs.mkdirSync(dirPath, { recursive: true });
 
