@@ -207,23 +207,55 @@ export async function getTokenInfo(
 
 /**
  * Retrieves timestamps and block numbers for a specified week.
+ *
+ * For Pendle protocol, uses Tuesday noon as the period boundary to match
+ * the swap script's timing logic. For other protocols, uses standard Thursday epochs.
  */
 export async function getTimestampsBlocks(
   publicClient: PublicClient,
   pastWeek?: number,
-  chain: string = "ethereum"
+  chain: string = "ethereum",
+  protocol?: string
 ) {
   const currentTimestamp = Math.floor(Date.now() / 1000);
   let timestamp1: number, timestamp2: number;
 
-  if (!pastWeek || pastWeek === 0) {
-    console.log("No past week specified, using current week");
-    timestamp2 = currentTimestamp;
-    timestamp1 = Math.floor(currentTimestamp / WEEK) * WEEK;
+  // Special handling for Pendle: use Tuesday noon as period boundary
+  if (protocol?.toLowerCase() === "pendle") {
+    const thursdayEpoch = Math.floor(currentTimestamp / WEEK) * WEEK;
+    // Tuesday is 5 days after Thursday epoch (Thu=0, Fri=1, Sat=2, Sun=3, Mon=4, Tue=5)
+    const thisWeeksTuesdayNoon = thursdayEpoch + (5 * 86400) + (12 * 3600);
+
+    if (!pastWeek || pastWeek === 0) {
+      console.log("No past week specified, using current week (Pendle Tuesday-adjusted)");
+      timestamp2 = currentTimestamp;
+
+      // If we're past Tuesday noon this week, start from this Tuesday
+      // Otherwise, start from last Tuesday
+      if (currentTimestamp >= thisWeeksTuesdayNoon) {
+        timestamp1 = thisWeeksTuesdayNoon;
+      } else {
+        timestamp1 = thisWeeksTuesdayNoon - WEEK;
+      }
+
+      console.log(`Pendle period: From ${new Date(timestamp1 * 1000).toUTCString()} to now`);
+    } else {
+      console.log(`Past week specified: ${pastWeek} (Pendle Tuesday-adjusted)`);
+      // For past weeks, use Tuesday boundaries
+      timestamp2 = thisWeeksTuesdayNoon;
+      timestamp1 = timestamp2 - pastWeek * WEEK;
+    }
   } else {
-    console.log(`Past week specified: ${pastWeek}`);
-    timestamp2 = Math.floor(currentTimestamp / WEEK) * WEEK;
-    timestamp1 = timestamp2 - pastWeek * WEEK;
+    // Standard Thursday-based timing for other protocols
+    if (!pastWeek || pastWeek === 0) {
+      console.log("No past week specified, using current week");
+      timestamp2 = currentTimestamp;
+      timestamp1 = Math.floor(currentTimestamp / WEEK) * WEEK;
+    } else {
+      console.log(`Past week specified: ${pastWeek}`);
+      timestamp2 = Math.floor(currentTimestamp / WEEK) * WEEK;
+      timestamp1 = timestamp2 - pastWeek * WEEK;
+    }
   }
 
   const blockNumber1 = await getClosestBlockTimestamp(chain, timestamp1);

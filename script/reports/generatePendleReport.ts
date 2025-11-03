@@ -222,7 +222,7 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
 async function main() {
   try {
     const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
-      await getTimestampsBlocks(publicClient, 0);
+      await getTimestampsBlocks(publicClient, 0, "ethereum", "pendle");
 
     // TEMP: Fetch the repartition of rewards from Pendle scripts repo (using second latest)
     const latestRewards = await getSecondLatestJson(REPO_PATH, DIRECTORY_PATH);
