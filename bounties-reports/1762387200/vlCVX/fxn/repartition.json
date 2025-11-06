@@ -1,0 +1,41 @@
+{
+  "distribution": {
+    "0x4066745373081B224fB36B1ff82fa991A636610e": {
+      "tokens": {
+        "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8": "33846621254494419133",
+        "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": "169233106272472095986"
+      }
+    },
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "1057443580",
+        "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f": "576534182137451405093"
+      }
+    },
+    "0x938CC8D098aDE035D88A0842EF408076594706D0": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "10636565"
+      }
+    },
+    "0xb3983cDdBa4B127960A4cDD531AB989264509e23": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "82949909"
+      }
+    },
+    "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A": {
+      "tokens": {
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "14220131183121746"
+      }
+    },
+    "0xDbc9e41D5E083884f2Cb172bb3a17aB09a528101": {
+      "tokens": {
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "14191629143122449"
+      }
+    },
+    "0xb82bE987cF6f25d0F040Ca4567e3dacb4b92Aa91": {
+      "tokens": {
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "1116299386605243"
+      }
+    }
+  }
+}
