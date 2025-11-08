@@ -1,0 +1,61 @@
+{
+  "protocol": "fxn",
+  "period": 1762387200,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 61.68045263292186,
+    "sdAssigned": 61.680452632921856,
+    "wethInTotal": 0.44089819779653716,
+    "wethOutTotal": 0.6346911510850399
+  },
+  "dropped": {
+    "tokensNotSwapped": [],
+    "wethNotSwapped": false
+  },
+  "perToken": {
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
+      "mappedWeth": 0.15561633234794603,
+      "sd": 21.77029950284795
+    },
+    "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": {
+      "mappedWeth": 0.02613683736948655,
+      "sd": 3.656472100362164
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0.1171114435162299,
+      "sd": 16.383570812211325
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x865377367054516e17014ccded1e7d814edc9ce4": {
+      "mappedWeth": 0.14203358456287468,
+      "sd": 19.870110217500418
+    }
+  },
+  "txs": [
+    {
+      "tx": "0xc928f8a7bd66f08463ba5881dedaa2c7579522adbf98a302482e5eea9af6bc5a",
+      "wethIn": 0.44089819779653716,
+      "wethOut": 0.6346911510850399,
+      "sdIn": 61.68045263292186,
+      "nativeIn": 61.68045263292186,
+      "nativeOut": 61.68045263292186,
+      "nativeShareSd": 0,
+      "wethBasis": 0.44089819779653716,
+      "tokenWeth": {
+        "0x865377367054516e17014ccded1e7d814edc9ce4": 0.14203358456287468,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.15561633234794603,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0.1171114435162299,
+        "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": 0.02613683736948655
+      },
+      "tokenSd": {
+        "0x865377367054516e17014ccded1e7d814edc9ce4": 19.870110217500418,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 21.77029950284795,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 16.383570812211325,
+        "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": 3.656472100362164
+      }
+    }
+  ]
+}
