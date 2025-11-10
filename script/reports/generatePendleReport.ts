@@ -4,7 +4,7 @@ import path from "path";
 import { createPublicClient, http, formatUnits, pad } from "viem";
 import { mainnet } from "../utils/chains";
 import { getAddress } from "viem";
-import { WEEK } from "../utils/constants";
+import { WEEK, DELEGATION_ADDRESS } from "../utils/constants";
 import {
   parseAbiItem,
   decodeEventLog,
@@ -91,6 +91,7 @@ async function getLatestJson(
 }
 
 // TEMP: Get second latest file
+/*
 async function getSecondLatestJson(
   repoPath: string,
   directoryPath: string
@@ -122,7 +123,7 @@ async function getSecondLatestJson(
 
   throw new Error("Failed to retrieve second latest JSON file");
 }
-
+*/
 async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
   const transferEventSignature = "Transfer(address,address,uint256)";
   const transferHash = keccak256(
@@ -154,6 +155,10 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
 
   let totalAmount = BigInt(0);
   const TARGET_ADDRESS = getAddress("0xe42a462dbF54F281F95776e663D8c942dcf94f17");
+  const VALID_SOURCES = [
+    TARGET_ADDRESS.toLowerCase(),
+    DELEGATION_ADDRESS.toLowerCase()
+  ];
 
   // Group logs by transaction hash
   const txGroups = logs.result.reduce((acc, log) => {
@@ -165,18 +170,18 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
     return acc;
   }, {} as Record<string, typeof logs.result>);
 
-  // Check each transaction to see if it contains transfers from TARGET_ADDRESS
+  // Check each transaction to see if it contains transfers from valid sources
   const validTxHashes = new Set<string>();
-  
+
   // Get all transactions that have sdPENDLE transfers to BOTMARKET
   const allTxHashes = Object.keys(txGroups);
-  
+
   for (const txHash of allTxHashes) {
     // Get the transaction details to inspect all transfers within it
     const txDetails = await publicClient.getTransaction({ hash: txHash as `0x${string}` });
     const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
-    
-    // Check if any log in this transaction is a Transfer from TARGET_ADDRESS
+
+    // Check if any log in this transaction is a Transfer from valid sources
     for (const log of receipt.logs) {
       if (log.topics[0] === transferHash && log.topics.length >= 3) {
         try {
@@ -187,7 +192,7 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
             strict: false,
           });
 
-          if (decodedLog.args.from.toLowerCase() === TARGET_ADDRESS.toLowerCase()) {
+          if (decodedLog.args.from && VALID_SOURCES.includes(decodedLog.args.from.toLowerCase())) {
             validTxHashes.add(txHash);
             break;
           }
@@ -201,7 +206,7 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
 
   // Process each transaction
   for (const [txHash, txLogs] of Object.entries(txGroups)) {
-    // Only sum transfers if this tx has funds coming from TARGET_ADDRESS
+    // Only sum transfers if this tx has funds coming from valid sources
     if (validTxHashes.has(txHash)) {
       for (const log of txLogs) {
         const decodedLog = decodeEventLog({
@@ -224,8 +229,7 @@ async function main() {
     const { timestamp1, timestamp2, blockNumber1, blockNumber2, storageTimestamp } =
       await getTimestampsBlocks(publicClient, 0, "ethereum", "pendle");
 
-    // TEMP: Fetch the repartition of rewards from Pendle scripts repo (using second latest)
-    const latestRewards = await getSecondLatestJson(REPO_PATH, DIRECTORY_PATH);
+    const latestRewards = await getLatestJson(REPO_PATH, DIRECTORY_PATH);
 
     // Get sdPendle transfers to BOTMARKET, excluding OTC transfers
     const sdPendleBalance = await getSdPendleTransfers(
