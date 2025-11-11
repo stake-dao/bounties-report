@@ -155,9 +155,11 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
 
   let totalAmount = BigInt(0);
   const TARGET_ADDRESS = getAddress("0xe42a462dbF54F281F95776e663D8c942dcf94f17");
+  const ALL_MIGHT = getAddress("0x0000000a3Fc396B89e4c11841B39D9dff85a5D05");
   const VALID_SOURCES = [
     TARGET_ADDRESS.toLowerCase(),
-    DELEGATION_ADDRESS.toLowerCase()
+    DELEGATION_ADDRESS.toLowerCase(),
+    ALL_MIGHT.toLowerCase() // Include ALL_MIGHT for VM swapped bounties
   ];
 
   // Group logs by transaction hash
