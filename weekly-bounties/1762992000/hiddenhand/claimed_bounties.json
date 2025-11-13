@@ -1,0 +1,39 @@
+{
+  "balancer": {
+    "0": {
+      "gauge": "0x183d73da7adc5011ec3c46e33bb50271e59ec976",
+      "amount": 72389127.19063845,
+      "rewardToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    },
+    "1": {
+      "gauge": "0xd3ea1345352047bd039bac9d4177c883e06d449d",
+      "amount": 271510602.98985857,
+      "rewardToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    },
+    "2": {
+      "gauge": "0xc13a3315806f097cee00e39c4285f5bf250dd8a4",
+      "amount": 306964307.01406187,
+      "rewardToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    },
+    "3": {
+      "gauge": "0xdbd4dd2d5e0b927022c2be8d493f20e79e60c2e7",
+      "amount": 158848758.92358154,
+      "rewardToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    },
+    "4": {
+      "gauge": "0x7f49d37d0da53a4899bc0ba916f59ec9d4e6d1e2",
+      "amount": 193058628.88185954,
+      "rewardToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    },
+    "5": {
+      "gauge": "0x275df57d2b23d53e20322b4bb71bf1dcb21d0a00",
+      "amount": 8.883416177891053e+21,
+      "rewardToken": "0xc0c293ce456ff0ed870add98a0828dd4d2903dbf"
+    },
+    "6": {
+      "gauge": "0x0312aa8d0ba4a1969fddb382235870bf55f7f242",
+      "amount": 1.1319715747887334e+22,
+      "rewardToken": "0xc0c293ce456ff0ed870add98a0828dd4d2903dbf"
+    }
+  }
+}
