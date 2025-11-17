@@ -127,17 +127,13 @@ jobs:
           TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
           TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
-      - name: Pull latest changes before commit
-        run: |
-          git pull origin main --rebase || true
-
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "chore: Update ${{ inputs.bountyType || github.event.inputs.bountyType || 'weekly' }} bounties"
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          push_options: '--force-with-lease'
+          pull: '--rebase --autostash'
 
       - name: Send error notification to Telegram
         if: failure()
