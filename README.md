@@ -121,6 +121,12 @@ npm run vlcvx:all
 npm run spectra:all
 ```
 
+### Excluding Transactions From Reports
+- Add persistent exclusions per protocol by editing `data/excluded-transactions.json`. Each entry can be a plain hash string or an object with `hash`, optional `note`, and optional `periods/startPeriod/endPeriod` filters (UNIX week start).
+- Pass ad-hoc hashes on the CLI: `pnpm tsx script/reports/generateReport.ts curve --exclude-tx 0xabc... --exclude-tx 0xdef...`
+- Or load them from a file (newline/comma-separated list or JSON): `pnpm tsx script/reports/generateReport.ts curve --exclude-tx-file ./my-txs.txt`.
+- Use `--no-default-exclusions` when you want to ignore the shared `data/excluded-transactions.json` file for a specific run.
+
 ## 🔄 Distribution Process
 
 The distribution process runs weekly through automated workflows:

@@ -1,0 +1,24 @@
+{
+  "curve": [
+    {
+      "hash": "0x2d2c231dd72d57fc9fdb629ae2f1112b1b70002e3c9c87f3a23d3834d5a646ad",
+      "periods": [1762992000],
+      "note": "Manual correction for redundant swap"
+    },
+    {
+      "hash": "0x14e3389f46867c5eae28372c29da32c70de6973f5a8eb44c0e8e91de4b3cf0c2",
+      "periods": [1762992000],
+      "note": "Manual correction for redundant swap"
+    },
+    {
+      "hash": "0xe1d400725306aba67527175ac251a68d181aef8f717087f674411802358b8ea0",
+      "periods": [1762992000],
+      "note": "Manual correction for redundant  swap"
+    },
+    {
+      "hash": "0x809cffc7342abed3740e32717ee15013f31734e2323b1494455ea1879f528cbe",
+      "periods": [1762992000],
+      "note": "Manual correction for redundant swap"
+    }
+  ]
+}

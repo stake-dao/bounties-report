@@ -3,6 +3,8 @@ import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "../utils/chains";
 import dotenv from "dotenv";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 import {
   getTimestampsBlocks,
   fetchSwapInEvents,
@@ -29,8 +31,25 @@ import { WETH_CHAIN_IDS } from "../utils/constants";
 
 dotenv.config();
 
+const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const WEEK = 604800;
 const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+
+interface TxExclusionEntry {
+  hash: string;
+  note?: string;
+  periods?: number[];
+  startPeriod?: number;
+  endPeriod?: number;
+}
+
+type TxExclusionConfig = Record<string, Array<string | TxExclusionEntry>>;
+
+const DEFAULT_TX_EXCLUSION_FILE = path.join(
+  PROJECT_ROOT,
+  "data",
+  "excluded-transactions.json"
+);
 
 interface ClaimedBounties {
   timestamp1: number;
@@ -47,6 +66,163 @@ interface ClaimedBounties {
 const RAW_TOKENS = new Set([
   "0x4DF454443D6e9A888e9B1571B2375e8Ab4118d9d".toLowerCase(),
 ]);
+
+function normalizeTxHash(hash: string): string | null {
+  if (!hash) return null;
+  const trimmed = hash.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.toLowerCase();
+  if (!normalized.startsWith("0x") || normalized.length !== 66) {
+    return null;
+  }
+  return normalized;
+}
+
+function shouldApplyTxExclusion(entry: TxExclusionEntry, period: number): boolean {
+  const normalizedPeriods =
+    entry.periods?.map((value) => Number(value)).filter((value) => Number.isFinite(value)) || [];
+  if (normalizedPeriods.length > 0 && !normalizedPeriods.includes(period)) {
+    return false;
+  }
+
+  const startPeriod =
+    typeof entry.startPeriod === "number" ? entry.startPeriod : undefined;
+  if (typeof startPeriod === "number" && period < startPeriod) {
+    return false;
+  }
+
+  const endPeriod =
+    typeof entry.endPeriod === "number" ? entry.endPeriod : undefined;
+  if (typeof endPeriod === "number" && period > endPeriod) {
+    return false;
+  }
+
+  return true;
+}
+
+function extractTxHashes(
+  entries: Array<string | TxExclusionEntry> | undefined,
+  period: number
+): string[] {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry) =>
+      typeof entry === "string"
+        ? ({ hash: entry } as TxExclusionEntry)
+        : entry
+    )
+    .filter(
+      (entry): entry is TxExclusionEntry =>
+        Boolean(entry && typeof entry.hash === "string")
+    )
+    .filter((entry) => shouldApplyTxExclusion(entry, period))
+    .map((entry) => entry.hash);
+}
+
+function loadDefaultTxExclusions(protocol: string, period: number): string[] {
+  if (!fs.existsSync(DEFAULT_TX_EXCLUSION_FILE)) return [];
+  try {
+    const raw = fs.readFileSync(DEFAULT_TX_EXCLUSION_FILE, "utf8");
+    const parsed = JSON.parse(raw) as TxExclusionConfig;
+    return extractTxHashes(parsed[protocol], period);
+  } catch (error) {
+    console.warn(
+      `[tx-exclusions] Failed to parse ${DEFAULT_TX_EXCLUSION_FILE}`,
+      error
+    );
+    return [];
+  }
+}
+
+function parseTxOverridesFile(
+  filePath: string,
+  protocol: string,
+  period: number
+): string[] {
+  try {
+    const content = fs.readFileSync(filePath, "utf8").trim();
+    if (!content) return [];
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        return extractTxHashes(parsed as Array<string | TxExclusionEntry>, period);
+      }
+      if (typeof parsed === "object" && parsed !== null) {
+        const maybeProtocol = (parsed as Record<string, any>)[protocol];
+        if (Array.isArray(maybeProtocol)) {
+          return extractTxHashes(
+            maybeProtocol as Array<string | TxExclusionEntry>,
+            period
+          );
+        }
+      }
+    } catch {
+      // Not JSON, fall back to plain text parsing.
+    }
+
+    return content
+      .split(/\r?\n/)
+      .map((line) => line.replace(/#.*/, "").trim())
+      .filter(Boolean)
+      .flatMap((line) => line.split(","))
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.length > 0);
+  } catch (error) {
+    console.warn(`[tx-exclusions] Failed to read ${filePath}`, error);
+    return [];
+  }
+}
+
+function parseInlineTxArgs(values?: unknown): string[] {
+  if (!values) return [];
+  const entries = Array.isArray(values) ? values : [values];
+  return entries
+    .flatMap((value) =>
+      value
+        .toString()
+        .split(",")
+        .map((segment) => segment.trim())
+    )
+    .filter((segment) => segment.length > 0);
+}
+
+function buildExcludedTxSet(options: {
+  protocol: string;
+  period: number;
+  inlineTxs: string[];
+  filePaths: string[];
+  useDefaultFile: boolean;
+}): Set<string> {
+  const hashes: string[] = [];
+  if (options.useDefaultFile) {
+    hashes.push(...loadDefaultTxExclusions(options.protocol, options.period));
+  }
+  for (const filePath of options.filePaths) {
+    hashes.push(...parseTxOverridesFile(filePath, options.protocol, options.period));
+  }
+  hashes.push(...options.inlineTxs);
+
+  const normalized: string[] = [];
+  const invalid: string[] = [];
+
+  for (const hash of hashes) {
+    const normalizedHash = normalizeTxHash(hash);
+    if (normalizedHash) {
+      normalized.push(normalizedHash);
+    } else {
+      invalid.push(hash);
+    }
+  }
+
+  if (invalid.length > 0) {
+    console.warn(
+      "[tx-exclusions] Ignoring invalid transaction hashes:",
+      invalid.join(", ")
+    );
+  }
+
+  return new Set(normalized);
+}
 
 /**
  * Reads claimed bounties from JSON files and filters the v2 bounties.
@@ -184,19 +360,69 @@ const publicClient = createPublicClient({
 });
 
 async function main() {
-  // Validate protocol argument
-  const protocol = process.argv[2];
-  if (
-    !protocol ||
-    !["curve", "balancer", "fxn", "frax", "pendle"].includes(protocol)
-  ) {
-    console.error(
-      "Please specify a valid protocol: curve, balancer, fxn, frax, or pendle"
+  const argv = yargs<{
+    protocol: string;
+    excludeTx?: (string | number)[];
+    excludeTxFile?: (string | number)[];
+    noDefaultExclusions?: boolean;
+  }>(hideBin(process.argv))
+    .scriptName("generateReport")
+    .usage("$0 <protocol> [options]")
+    .command(
+      "$0 <protocol>",
+      "Generate a weekly sdToken report",
+      (yargsBuilder) =>
+        yargsBuilder.positional("protocol", {
+          describe: "Protocol to process",
+          type: "string",
+          choices: ["curve", "balancer", "fxn", "frax", "pendle"],
+        })
+    )
+    .option("excludeTx", {
+      alias: ["exclude-tx", "x"],
+      type: "array",
+      string: true,
+      describe:
+        "Transaction hashes to exclude (repeat the flag or provide comma-separated values)",
+    })
+    .option("excludeTxFile", {
+      alias: ["exclude-tx-file", "xf"],
+      type: "array",
+      string: true,
+      describe:
+        "Path to a file with transaction hashes to exclude (newline, comma-separated, or JSON)",
+    })
+    .option("noDefaultExclusions", {
+      type: "boolean",
+      default: false,
+      describe: `Ignore ${DEFAULT_TX_EXCLUSION_FILE} when building the exclusion list`,
+    })
+    .alias("noDefaultExclusions", "no-default-exclusions")
+    .help()
+    .strict()
+    .parseSync();
+
+  const protocol = argv.protocol;
+  const inlineExcludedTxs = parseInlineTxArgs(argv.excludeTx);
+  const excludeTxFilesRaw = (argv.excludeTxFile || []) as (string | number)[];
+  const excludeTxFiles = excludeTxFilesRaw.map((value) =>
+    path.resolve(value.toString())
+  );
+  const excludedTxHashes = buildExcludedTxSet({
+    protocol,
+    period: currentPeriod,
+    inlineTxs: inlineExcludedTxs,
+    filePaths: excludeTxFiles,
+    useDefaultFile: !argv.noDefaultExclusions,
+  });
+
+  if (excludedTxHashes.size > 0) {
+    console.log(
+      `Excluding ${excludedTxHashes.size} transaction(s) for ${protocol} computations`
     );
-    console.error(
-      "Note: For Pendle reports, run generatePendleReport.ts before generateReport.ts pendle"
-    );
-    process.exit(1);
+    if (isDebugEnabled()) {
+      debug("[tx-exclusions] hashes", Array.from(excludedTxHashes));
+    }
   }
 
   // Get block numbers and timestamps (timestamps are not used later)
@@ -486,6 +712,34 @@ async function main() {
     (swap) =>
       !swapOTC.some((otcSwap) => otcSwap.blockNumber === swap.blockNumber)
   );
+
+  if (excludedTxHashes.size > 0) {
+    const beforeManualFilterIn = swapInFiltered.length;
+    const beforeManualFilterOut = swapOutFiltered.length;
+
+    swapInFiltered = swapInFiltered.filter((swap) => {
+      const tx = (swap.transactionHash || "").toLowerCase();
+      return !tx || !excludedTxHashes.has(tx);
+    });
+    swapOutFiltered = swapOutFiltered.filter((swap) => {
+      const tx = (swap.transactionHash || "").toLowerCase();
+      return !tx || !excludedTxHashes.has(tx);
+    });
+
+    const removedIn = beforeManualFilterIn - swapInFiltered.length;
+    const removedOut = beforeManualFilterOut - swapOutFiltered.length;
+    if (removedIn > 0 || removedOut > 0) {
+      console.log(
+        `[tx-exclusions] Removed ${removedIn} swap-in and ${removedOut} swap-out events`
+      );
+    }
+    if (isDebugEnabled()) {
+      debug("[tx-exclusions] manual filter", {
+        removedIn,
+        removedOut,
+      });
+    }
+  }
 
   if (protocol === "pendle") {
     const PENDLE_FEE_RECIPIENT =
@@ -1209,8 +1463,7 @@ async function main() {
       txs: txAttributions,
     };
 
-    const projectRoot2 = path.resolve(__dirname, "..", "..");
-    const dirPath2 = path.join(projectRoot2, "bounties-reports", currentPeriod.toString());
+    const dirPath2 = path.join(PROJECT_ROOT, "bounties-reports", currentPeriod.toString());
     fs.mkdirSync(dirPath2, { recursive: true });
     const jsonPath = path.join(dirPath2, `${protocol}-attribution.json`);
     fs.writeFileSync(jsonPath, JSON.stringify(sidecar, null, 2));
@@ -1223,9 +1476,8 @@ async function main() {
   const rawTokenReport = processRawTokenBounties(rawProtocolBounties, tokenInfos, gaugesInfo);
 
   // Generate CSV reports in the designated directory
-  const projectRoot = path.resolve(__dirname, "..", "..");
   const dirPath = path.join(
-    projectRoot,
+    PROJECT_ROOT,
     "bounties-reports",
     currentPeriod.toString()
   );
