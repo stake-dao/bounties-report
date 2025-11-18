@@ -78,7 +78,7 @@ jobs:
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           file_pattern: bounties-reports/latest/* delegationsAPRs.json
-          pull: '--rebase --autostash'
+          pull_options: '--rebase --autostash'
 
       - name: Send error notification to Telegram
         if: failure()
