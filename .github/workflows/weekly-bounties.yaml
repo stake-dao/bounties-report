@@ -193,12 +193,16 @@ jobs:
           echo "Waiting for triggered workflows to complete..."
           sleep 60  # Give workflows time to start
 
+          # Define wait and interval constants (30 minutes max wait, 30 second intervals)
+          MAX_WAIT_SECONDS=1800
+          CHECK_INTERVAL_SECONDS=30
+
           # Function to check if a workflow is running
           check_workflow_status() {
             local workflow_name="$1"
-            local max_wait=1800  # 30 minutes max wait
+            local max_wait=$MAX_WAIT_SECONDS
             local waited=0
-            local check_interval=30
+            local check_interval=$CHECK_INTERVAL_SECONDS
 
             while [ $waited -lt $max_wait ]; do
               # Get the latest workflow run
