@@ -210,6 +210,11 @@ jobs:
                 return 1
               }
 
+              run_count=$(echo "$latest_run" | jq '.workflow_runs | length')
+              if [ "$run_count" -eq 0 ]; then
+                echo "✗ No workflow runs found for $workflow_name"
+                return 1
+              fi
               status=$(echo "$latest_run" | jq -r '.workflow_runs[0].status')
               conclusion=$(echo "$latest_run" | jq -r '.workflow_runs[0].conclusion')
 
