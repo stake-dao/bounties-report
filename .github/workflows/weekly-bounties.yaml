@@ -202,10 +202,13 @@ jobs:
 
             while [ $waited -lt $max_wait ]; do
               # Get the latest workflow run
-              latest_run=$(curl -s \
+              latest_run=$(curl -f -s \
                 -H "Accept: application/vnd.github.v3+json" \
                 -H "Authorization: token ${{ secrets.GIT_ACCESS_TOKEN }}" \
-                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/${workflow_name}/runs?per_page=1&branch=main")
+                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/${workflow_name}/runs?per_page=1&branch=main") || {
+                echo "Failed to fetch workflow status for $workflow_name"
+                return 1
+              }
 
               status=$(echo "$latest_run" | jq -r '.workflow_runs[0].status')
               conclusion=$(echo "$latest_run" | jq -r '.workflow_runs[0].conclusion')
