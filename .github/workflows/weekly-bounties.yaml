@@ -245,16 +245,16 @@ jobs:
           # Check workflows based on event type and bounty type
           if [ "${{ github.event_name }}" = "schedule" ]; then
             # For scheduled runs, wait for both merkle workflows
-            check_workflow_status "sdtkns-merkles.yaml"
-            check_workflow_status "vlcvx-merkles.yaml"
+            check_workflow_status "sdtkns-merkles.yaml" || exit 1
+            check_workflow_status "vlcvx-merkles.yaml" || exit 1
           else
             # For manual runs, check based on bounty type
             if [[ "${{ inputs.bountyType || github.event.inputs.bountyType }}" == "spectra" ]]; then
-              check_workflow_status "sdtkns-merkles.yaml"
+              check_workflow_status "sdtkns-merkles.yaml" || exit 1
             fi
 
             if [[ "${{ inputs.bountyType || github.event.inputs.bountyType }}" == "votium" ]]; then
-              check_workflow_status "vlcvx-merkles.yaml"
+              check_workflow_status "vlcvx-merkles.yaml" || exit 1
             fi
           fi
 
