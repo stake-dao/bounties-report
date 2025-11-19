@@ -191,7 +191,8 @@ jobs:
            inputs.bountyType == 'votium' || github.event.inputs.bountyType == 'votium')
         run: |
           echo "Waiting for triggered workflows to complete..."
-          sleep 60  # Give workflows time to start
+          WORKFLOW_START_DELAY=60  # Time (in seconds) to wait for triggered workflows to start
+          sleep $WORKFLOW_START_DELAY
 
           # Define wait and interval constants (30 minutes max wait, 30 second intervals)
           MAX_WAIT_SECONDS=1800
