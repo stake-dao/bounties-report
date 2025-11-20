@@ -135,6 +135,129 @@ jobs:
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           pull_options: '--rebase --autostash'
 
+      - name: Trigger all merkle generation workflows (scheduled run)
+        if: github.event_name == 'schedule'
+        run: |
+          echo "Triggering all merkle generation workflows for scheduled run..."
+
+          # Trigger SD tokens merkle generation (Spectra + sdFXS)
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GIT_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/dispatches \
+            -d '{"event_type": "generate-all-sd-merkles"}'
+
+          echo "Triggered SD tokens merkle generation"
+
+          # Trigger vlCVX merkle generation (non-delegators)
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GIT_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/dispatches \
+            -d '{"event_type": "generate-vlcvx-merkles", "client_payload": {"type": "non-delegators"}}'
+
+          echo "Triggered vlCVX merkle generation"
+
+      - name: Trigger merkle generation workflows
+        if: |
+          (inputs.bountyType == 'spectra' || github.event.inputs.bountyType == 'spectra')
+        run: |
+          # Trigger Spectra merkle generation
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GIT_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/dispatches \
+            -d '{"event_type": "generate-spectra-merkle"}'
+
+          echo "Triggered Spectra merkle generation workflow"
+
+      - name: Trigger vlCVX merkle generation workflows
+        if: |
+          (inputs.bountyType == 'votium' || github.event.inputs.bountyType == 'votium')
+        run: |
+          # Trigger vlCVX merkle generation
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GIT_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/dispatches \
+            -d '{"event_type": "generate-vlcvx-merkles", "client_payload": {"type": "non-delegators"}}'
+
+          echo "Triggered vlCVX merkle generation workflow"
+
+      - name: Wait for triggered workflows to complete
+        if: |
+          github.event_name == 'schedule' ||
+          (inputs.bountyType == 'spectra' || github.event.inputs.bountyType == 'spectra' ||
+           inputs.bountyType == 'votium' || github.event.inputs.bountyType == 'votium')
+        run: |
+          echo "Waiting for triggered workflows to complete..."
+          WORKFLOW_START_DELAY=60  # Time (in seconds) to wait for triggered workflows to start
+          sleep $WORKFLOW_START_DELAY
+
+          # Define wait and interval constants (30 minutes max wait, 30 second intervals)
+          MAX_WAIT_SECONDS=1800
+          CHECK_INTERVAL_SECONDS=30
+
+          # Function to check if a workflow is running
+          check_workflow_status() {
+            local workflow_name="$1"
+            local max_wait=$MAX_WAIT_SECONDS
+            local waited=0
+            local check_interval=$CHECK_INTERVAL_SECONDS
+
+            while [ $waited -lt $max_wait ]; do
+              # Get the latest workflow run
+              latest_run=$(curl -f -s \
+                -H "Accept: application/vnd.github.v3+json" \
+                -H "Authorization: token ${{ secrets.GIT_ACCESS_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/workflows/${workflow_name}/runs?per_page=1&branch=main") || {
+                echo "Failed to fetch workflow status for $workflow_name"
+                return 1
+              }
+
+              run_count=$(echo "$latest_run" | jq '.workflow_runs | length')
+              if [ "$run_count" -eq 0 ]; then
+                echo "✗ No workflow runs found for $workflow_name"
+                return 1
+              fi
+              status=$(echo "$latest_run" | jq -r '.workflow_runs[0].status')
+              conclusion=$(echo "$latest_run" | jq -r '.workflow_runs[0].conclusion')
+
+              if [ "$status" = "completed" ]; then
+                if [ "$conclusion" = "success" ]; then
+                  echo "✓ Workflow $workflow_name completed successfully"
+                  return 0
+                else
+                  echo "✗ Workflow $workflow_name failed with conclusion: $conclusion"
+                  return 1
+                fi
+              fi
+
+              echo "Workflow $workflow_name still running... (waited ${waited}s)"
+              sleep $check_interval
+              waited=$((waited + check_interval))
+            done
+
+            echo "✗ Timeout waiting for workflow $workflow_name"
+            return 1
+          }
+
+          # Check workflows based on event type and bounty type
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # For scheduled runs, wait for both merkle workflows
+            check_workflow_status "sdtkns-merkles.yaml" || exit 1
+            check_workflow_status "vlcvx-merkles.yaml" || exit 1
+          else
+            # For manual runs, check based on bounty type
+            if [[ "${{ inputs.bountyType || github.event.inputs.bountyType }}" == "spectra" ]]; then
+              check_workflow_status "sdtkns-merkles.yaml" || exit 1
+            fi
+
+            if [[ "${{ inputs.bountyType || github.event.inputs.bountyType }}" == "votium" ]]; then
+              check_workflow_status "vlcvx-merkles.yaml" || exit 1
+            fi
+          fi
+
       - name: Send error notification to Telegram
         if: failure()
         uses: appleboy/telegram-action@v1.0.1
