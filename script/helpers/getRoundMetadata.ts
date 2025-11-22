@@ -25,6 +25,7 @@ interface Round {
 }
 
 interface ProtocolRoundMetadata {
+    currentRoundId?: number;
     rounds: Round[];
 }
 
@@ -51,6 +52,19 @@ export const getRoundMetadata = async () => {
     // Helper to format date
     const formatDate = (timestamp: number) => moment.unix(timestamp).format("DD-MM-YYYY");
 
+    // Helper to get upcoming Tuesday
+    const getUpcomingTuesday = () => {
+        const today = moment.utc();
+        const dayOfWeek = today.day(); // 0=Sun, 1=Mon, 2=Tue, ...
+        let daysUntilTuesday = 2 - dayOfWeek;
+        if (daysUntilTuesday < 0) {
+            daysUntilTuesday += 7;
+        }
+        return today.add(daysUntilTuesday, 'days').startOf('day');
+    };
+
+    const upcomingTuesdayStr = getUpcomingTuesday().format("DD-MM-YYYY");
+
     // Helper to process protocol
     const processProtocol = async (
         protocolName: keyof RoundMetadata,
@@ -71,6 +85,7 @@ export const getRoundMetadata = async () => {
         const proposalIds = await fetchProposalsIdsBasedOnExactPeriods(spaceId, periodsToCheck, targetPeriod + WEEK);
 
         let foundAny = false;
+        let currentRoundId = 0;
 
         // Iterate through all periods to find ALL active rounds (overlapping)
         for (let i = 0; i < totalSteps; i++) {
@@ -114,15 +129,24 @@ export const getRoundMetadata = async () => {
                     // The distribution starts a week later after the end of the vote.
                     // So Step 1 is: proposalEndPeriod + 1 WEEK + 5 days.
                     const distDate = proposalEndPeriod + (s * WEEK) + (5 * 86400);
+                    const distDateStr = formatDate(distDate);
                     round.distributions.push({
                         step: s,
-                        date: formatDate(distDate)
+                        date: distDateStr
                     });
+
+                    if (distDateStr === upcomingTuesdayStr) {
+                        currentRoundId = round.id;
+                    }
                 }
 
                 console.log(`Updated ${protocolName}: Round ${round.id}, Step ${activeStep}/${totalSteps}`);
                 foundAny = true;
             }
+        }
+
+        if (currentRoundId > 0) {
+            roundMetadata[protocolName]!.currentRoundId = currentRoundId;
         }
 
         if (!foundAny) {
@@ -227,9 +251,14 @@ export const getRoundMetadata = async () => {
 
         // The periods in CSV are timestamps.
         // fetchProposalsIdsBasedOnExactPeriods expects strings.
-        const proposalIdsMap = await fetchProposalsIdsBasedOnExactPeriods(SDPENDLE_SPACE, periods, moment().unix());
+        // Add the NEXT period to the list to check
+        const lastPeriod = parseInt(periods[periods.length - 1]);
+        const nextPeriod = (lastPeriod + WEEK).toString();
+        const allPeriodsToCheck = [...periods, nextPeriod];
 
-        for (const period of periods) {
+        const proposalIdsMap = await fetchProposalsIdsBasedOnExactPeriods(SDPENDLE_SPACE, allPeriodsToCheck, moment().unix());
+
+        for (const period of allPeriodsToCheck) {
             if (proposalIdsMap[period]) {
                 const proposalId = proposalIdsMap[period];
                 const proposal = await getProposal(proposalId);
@@ -246,32 +275,68 @@ export const getRoundMetadata = async () => {
         // 4. Generate Metadata
         // Distributions
         // Step 1 Date = Cycle Start Timestamp + 5 Days (Tuesday)
-        // Cycle Start is Thursday. +5 Days = Following Tuesday.
         const step1Date = moment.unix(cycleStartTimestamp).add(5, 'days');
 
-        const round: Round = {
-            id: 1, // Single active round
-            // proposalStart/End are optional now, we use proposals array
-            proposals: proposals,
+        // Round 1: Current Cycle
+        const round1: Round = {
+            id: 1,
+            proposals: proposals.slice(0, 4), // First 4 proposals
+            distributions: []
+        };
+
+        let currentRoundId = 0;
+        for (let s = 1; s <= 4; s++) {
+            const distDate = step1Date.clone().add(s - 1, 'weeks');
+            const distDateStr = distDate.format("DD-MM-YYYY");
+            round1.distributions.push({
+                step: s,
+                date: distDateStr
+            });
+
+            if (distDateStr === upcomingTuesdayStr) {
+                currentRoundId = round1.id;
+            }
+        }
+
+        // Round 2: Next Cycle
+        // Starts 4 weeks after Round 1
+        const nextCycleStartTimestamp = cycleStartTimestamp + (4 * WEEK);
+        const step1DateNext = moment.unix(nextCycleStartTimestamp).add(5, 'days');
+
+        const round2: Round = {
+            id: 2,
+            proposals: proposals.slice(4), // Remaining proposals (should be 1)
             distributions: []
         };
 
         for (let s = 1; s <= 4; s++) {
-            const distDate = step1Date.clone().add(s - 1, 'weeks');
-            round.distributions.push({
+            const distDate = step1DateNext.clone().add(s - 1, 'weeks');
+            const distDateStr = distDate.format("DD-MM-YYYY");
+            round2.distributions.push({
                 step: s,
-                date: distDate.format("DD-MM-YYYY")
+                date: distDateStr
             });
+            if (distDateStr === upcomingTuesdayStr) {
+                currentRoundId = round2.id;
+            }
         }
 
         if (!roundMetadata["pendle"]) {
             roundMetadata["pendle"] = { rounds: [] };
         }
-        roundMetadata["pendle"]!.rounds = [round];
+        // Only add Round 2 if it has proposals
+        if (round2.proposals && round2.proposals.length > 0) {
+            roundMetadata["pendle"]!.rounds = [round1, round2];
+        } else {
+            roundMetadata["pendle"]!.rounds = [round1];
+        }
 
-        // Calculate current step for logging
+        if (currentRoundId > 0) {
+            roundMetadata["pendle"]!.currentRoundId = currentRoundId;
+        }
+
         const currentStep = (currentPeriodTimestamp - cycleStartTimestamp) / WEEK + 1;
-        console.log(`Updated pendle: Round ${round.id}, Current Step ~${currentStep}/4, Proposals: ${proposals.length}`);
+        console.log(`Updated pendle: Round 1 & 2, Current Step ~${currentStep}/4, Proposals: ${proposals.length}`);
     };
 
     await processPendle();

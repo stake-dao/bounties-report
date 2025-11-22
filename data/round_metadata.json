@@ -43,8 +43,37 @@
                         "date": "02-12-2025"
                     }
                 ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xcd385b324a92ee20653263412fdc2ee4da089dc679f8d4f95f526d54b5109fdb",
+                        "start": "18-09-2025",
+                        "end": "23-09-2025"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "09-12-2025"
+                    },
+                    {
+                        "step": 2,
+                        "date": "16-12-2025"
+                    },
+                    {
+                        "step": 3,
+                        "date": "23-12-2025"
+                    },
+                    {
+                        "step": 4,
+                        "date": "30-12-2025"
+                    }
+                ]
             }
-        ]
+        ],
+        "currentRoundId": 1
     },
     "spectra": {
         "rounds": [
@@ -78,7 +107,8 @@
                     }
                 ]
             }
-        ]
+        ],
+        "currentRoundId": 2
     },
     "general": {
         "rounds": [
@@ -112,6 +142,7 @@
                     }
                 ]
             }
-        ]
+        ],
+        "currentRoundId": 2
     }
 }
