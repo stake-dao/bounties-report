@@ -52,6 +52,9 @@ export const getRoundMetadata = async () => {
     // Helper to format date
     const formatDate = (timestamp: number) => moment.unix(timestamp).format("DD-MM-YYYY");
 
+    // Helper to format date with time (for proposals)
+    const formatDateTime = (timestamp: number) => moment.unix(timestamp).format("DD-MM-YYYY HH:mm");
+
     // Helper to get upcoming Tuesday
     const getUpcomingTuesday = () => {
         const today = moment.utc();
@@ -110,8 +113,8 @@ export const getRoundMetadata = async () => {
                     const maxId = rounds.length > 0 ? Math.max(...rounds.map(r => r.id)) : 0;
                     round = {
                         id: maxId + 1,
-                        proposalStart: formatDate(proposal.start),
-                        proposalEnd: formatDate(proposal.end),
+                        proposalStart: formatDateTime(proposal.start),
+                        proposalEnd: formatDateTime(proposal.end),
                         distributions: []
                     };
                     rounds.push(round);
@@ -264,8 +267,8 @@ export const getRoundMetadata = async () => {
                 const proposal = await getProposal(proposalId);
                 proposals.push({
                     id: proposal.id,
-                    start: formatDate(proposal.start),
-                    end: formatDate(proposal.end)
+                    start: formatDateTime(proposal.start),
+                    end: formatDateTime(proposal.end)
                 });
             } else {
                 console.log(`No proposal found for period ${period}`);
