@@ -19,23 +19,11 @@ import {
   getPendleGaugesInfos,
 } from "../utils/reportUtils";
 
+import { getLatestJson } from "../utils/githubUtils";
+
 const REPO_PATH = "stake-dao/pendle-merkle-script";
 const DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
 const PROTOCOL = "pendle";
-
-interface GaugeInfo {
-  name: string;
-  reward: string;
-}
-
-interface LatestRewards {
-  totalVoterRewards: string;
-  resultsByPeriod: {
-    [period: string]: {
-      [address: string]: GaugeInfo;
-    };
-  };
-}
 
 interface CSVRow {
   Protocol: string;
@@ -59,36 +47,7 @@ const sdPENDLE = getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9");
 const USDT = getAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7");
 const explorerUtils = createBlockchainExplorerUtils();
 
-async function getLatestJson(
-  repoPath: string,
-  directoryPath: string
-): Promise<LatestRewards> {
-  const url = `https://api.github.com/repos/${repoPath}/contents/${directoryPath}`;
-  const response = await axios.get(url);
 
-  if (response.status === 200) {
-    const files = response.data;
-    let latestFile = null;
-    let latestDate = new Date(0);
-
-    for (const file of files) {
-      const dateStr = file.name.split("_").pop()!.replace(".json", "");
-      const fileDate = new Date(dateStr.split("-").reverse().join("-"));
-      if (fileDate > latestDate) {
-        latestDate = fileDate;
-        latestFile = file as any;
-      }
-    }
-    if (latestFile) {
-      const fileContent = await axios.get(
-        (latestFile as { download_url: string }).download_url
-      );
-      return fileContent.data;
-    }
-  }
-
-  throw new Error("Failed to retrieve latest JSON file");
-}
 
 // TEMP: Get second latest file
 /*
