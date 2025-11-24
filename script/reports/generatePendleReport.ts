@@ -39,7 +39,7 @@ interface CSVRow {
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http("https://eth.llamarpc.com"),
 });
 
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
@@ -50,7 +50,6 @@ const explorerUtils = createBlockchainExplorerUtils();
 
 
 // TEMP: Get second latest file
-/*
 async function getSecondLatestJson(
   repoPath: string,
   directoryPath: string
@@ -82,7 +81,7 @@ async function getSecondLatestJson(
 
   throw new Error("Failed to retrieve second latest JSON file");
 }
-*/
+
 async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
   const transferEventSignature = "Transfer(address,address,uint256)";
   const transferHash = keccak256(
@@ -190,7 +189,9 @@ async function main() {
     const { timestamp1, timestamp2, blockNumber1, blockNumber2, storageTimestamp } =
       await getTimestampsBlocks(publicClient, 0, "ethereum", "pendle");
 
-    const latestRewards = await getLatestJson(REPO_PATH, DIRECTORY_PATH);
+    const latestRewards = await getSecondLatestJson(REPO_PATH, DIRECTORY_PATH); // TEMP: Get second latest file
+
+    //await getLatestJson(REPO_PATH, DIRECTORY_PATH);
 
     // Get sdPendle transfers to BOTMARKET, excluding OTC transfers
     const sdPendleBalance = await getSdPendleTransfers(

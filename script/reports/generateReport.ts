@@ -323,7 +323,7 @@ function processRawTokenBounties(
 
     for (const bounty of Object.values(protocolBounties as Record<string, any>)) {
       const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
-      
+
       // Find gauge name and actual gauge address from gaugesInfo array
       let gaugeName = bounty.gauge;
       let gaugeAddress = bounty.gauge;
@@ -356,7 +356,7 @@ function processRawTokenBounties(
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http("https://eth.llamarpc.com"),
 });
 
 async function main() {
@@ -456,30 +456,30 @@ async function main() {
     });
   }
   let aggregatedBounties = aggregateBounties(totalBounties);
-  
+
   // Separate raw token bounties from regular bounties
   const { regular: regularBounties, raw: rawBounties } = separateRawTokenBounties(aggregatedBounties);
-  
+
   // Keep bounties only for the specified protocol
   aggregatedBounties = { [protocol]: regularBounties[protocol] || {} };
   const rawProtocolBounties = { [protocol]: rawBounties[protocol] || {} };
 
   // Collect tokens and fetch their info (including raw tokens)
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
-  
+
   // Convert aggregatedBounties back to array format for collectAllTokens
   const aggregatedBountiesForTokens: Record<string, any[]> = {};
   for (const [p, bounties] of Object.entries(aggregatedBounties)) {
     aggregatedBountiesForTokens[p] = Object.values(bounties || {});
   }
-  
+
   const allTokens = collectAllTokens(aggregatedBountiesForTokens, protocolTokens);
   if (isDebugEnabled()) {
     debug("[tokens] protocol", protocol);
     debug("[tokens] total unique", allTokens.size);
     debug("[tokens] sample", sampleArray(Array.from(allTokens), 10));
   }
-  
+
   // Add raw tokens to the set
   for (const protocolRawBounties of Object.values(rawProtocolBounties)) {
     for (const bounty of Object.values(protocolRawBounties as Record<string, any>)) {
@@ -488,7 +488,7 @@ async function main() {
       }
     }
   }
-  
+
   const tokenInfos = await fetchAllTokenInfos(
     Array.from(allTokens),
     publicClient
@@ -524,7 +524,7 @@ async function main() {
   for (const [p, bounties] of Object.entries(aggregatedBounties)) {
     aggregatedBountiesArray[p] = Object.values(bounties || {});
   }
-  
+
   if (gaugesInfo) {
     aggregatedBountiesArray[protocol] = addGaugeNamesToBounties(
       aggregatedBountiesArray[protocol],
@@ -627,17 +627,17 @@ async function main() {
     gauge: string;
     transactionHash: string;
   }[]> = {};
-  
+
   for (const delEvent of delegationEvents) {
     const tokenLower = delEvent.token.toLowerCase();
     const txLower = (delEvent.transactionHash || "").toLowerCase();
-    
+
     // Track which tokens were delegated in which transactions
     if (!delegatedTokens.has(tokenLower)) {
       delegatedTokens.set(tokenLower, new Set());
     }
     delegatedTokens.get(tokenLower)!.add(txLower);
-    
+
     // Find matching bounties for this token and amount
     for (const bounty of aggregatedBountiesArray[protocol] || []) {
       const bountyToken = (bounty.rewardToken || "").toLowerCase();
@@ -673,7 +673,7 @@ async function main() {
       }
     }
   }
-  
+
   if (isDebugEnabled()) {
     debug("[delegation] matched bounties", Object.keys(delegatedTokensByBounty).length);
     debug("[delegation] delegated tokens", delegatedTokens.size);
@@ -685,7 +685,7 @@ async function main() {
       debug("[delegation] token->tx counts", tokenTxCounts);
     }
     if (Object.keys(delegatedTokensByBounty).length > 0) {
-      debug("[delegation] sample matches", 
+      debug("[delegation] sample matches",
         sampleArray(
           Object.entries(delegatedTokensByBounty).map(([key, events]) => ({
             key,
@@ -769,11 +769,11 @@ async function main() {
       return !feeRecipientTxs.has(txLower);
     });
   }
-  
+
   // Filter out delegated tokens (NOT entire transactions, just the specific tokens that were delegated)
   const beforeDelegationFilterIn = swapInFiltered.length;
   const beforeDelegationFilterOut = swapOutFiltered.length;
-  
+
   swapInFiltered = swapInFiltered.filter((swap) => {
     const tokenLower = swap.token.toLowerCase();
     const txLower = (swap.transactionHash || "").toLowerCase();
@@ -781,7 +781,7 @@ async function main() {
     // Exclude only if this specific token was delegated in this transaction
     return !delegatedTxs || !delegatedTxs.has(txLower);
   });
-  
+
   swapOutFiltered = swapOutFiltered.filter((swap) => {
     const tokenLower = swap.token.toLowerCase();
     const txLower = (swap.transactionHash || "").toLowerCase();
@@ -789,12 +789,12 @@ async function main() {
     // Exclude only if this specific token was delegated in this transaction
     return !delegatedTxs || !delegatedTxs.has(txLower);
   });
-  
+
   // Filter to only include transactions that involve this protocol's sdToken
   // This prevents cross-protocol contamination (e.g., Balancer TX appearing in Curve report)
   const sdTokenAddr = PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase();
   const txHashesWithSdToken = new Set<string>();
-  
+
   // Find all transactions that have the protocol's sdToken
   for (const swap of swapInFiltered) {
     if (swap.token.toLowerCase() === sdTokenAddr) {
@@ -806,18 +806,18 @@ async function main() {
       txHashesWithSdToken.add((swap.transactionHash || "").toLowerCase());
     }
   }
-  
+
   // Only keep swaps from transactions that involve the protocol's sdToken
   const beforeSdFilterIn = swapInFiltered.length;
   const beforeSdFilterOut = swapOutFiltered.length;
-  
+
   swapInFiltered = swapInFiltered.filter(
     (swap) => txHashesWithSdToken.has((swap.transactionHash || "").toLowerCase())
   );
   swapOutFiltered = swapOutFiltered.filter(
     (swap) => txHashesWithSdToken.has((swap.transactionHash || "").toLowerCase())
   );
-  
+
   if (isDebugEnabled()) {
     debug("[swaps] otc blocks count", new Set(swapOTC.map((s) => s.blockNumber)).size);
     debug("[swaps] delegation tokens excluded", {
@@ -833,9 +833,9 @@ async function main() {
       txWithSdToken: txHashesWithSdToken.size,
       beforeFilter: { in: beforeSdFilterIn, out: beforeSdFilterOut },
       afterFilter: { in: swapInFiltered.length, out: swapOutFiltered.length },
-      removed: { 
-        in: beforeSdFilterIn - swapInFiltered.length, 
-        out: beforeSdFilterOut - swapOutFiltered.length 
+      removed: {
+        in: beforeSdFilterIn - swapInFiltered.length,
+        out: beforeSdFilterOut - swapOutFiltered.length
       }
     });
     debug("[swaps] filtered counts", {
@@ -853,7 +853,7 @@ async function main() {
       delegatedBountyIds.add(bountyId);
     }
   }
-  
+
   // Filter delegated bounties from aggregatedBountiesArray
   const filteredBountiesArray: Record<string, any[]> = {};
   for (const [proto, bounties] of Object.entries(aggregatedBountiesArray)) {
@@ -862,7 +862,7 @@ async function main() {
       return !delegatedBountyIds.has(bountyId);
     });
   }
-  
+
   if (isDebugEnabled()) {
     const originalCount = aggregatedBountiesArray[protocol]?.length || 0;
     const filteredCount = filteredBountiesArray[protocol]?.length || 0;
@@ -872,7 +872,6 @@ async function main() {
       removed: originalCount - filteredCount,
     });
   }
-
   const processedReport = processReport(
     1,
     swapInFiltered,
@@ -1005,6 +1004,7 @@ async function main() {
       const sdInTx = inTx
         .filter((e) => e.token.toLowerCase() === sdAddr)
         .reduce((a, b) => a + b.formattedAmount, 0);
+
       if (sdInTx <= 0) continue;
 
       const wethBasis = totalWethInTx > 0 ? totalWethInTx : totalWethOutTx;
@@ -1025,6 +1025,7 @@ async function main() {
       }
       // Attribute remainder via WETH flows if present
       const remSd = sdInTx - nativeShareSd;
+
       if (remSd <= 0) continue;
       if (wethBasis <= 0) {
         // No WETH basis; attribute remaining sd to native as well (pure native mint)
@@ -1044,6 +1045,7 @@ async function main() {
       } catch (e) {
         continue;
       }
+
       const sdPerWeth = remSd / wethBasis;
       const totalMappedWeth = Object.values(tokenToOut).reduce(
         (s, v) => s + Number(v) / 1e18,
@@ -1073,11 +1075,11 @@ async function main() {
         (rowsByToken[tok] ||= []).push(row);
       }
       // Re-target sd onto tokens traced back to WETH outflows
-    for (const [tok, tokenRows] of Object.entries(rowsByToken)) {
-      if (tok === sdAddr) continue;
-      if (!(tok in includedSdByToken)) {
-        continue;
-      }
+      for (const [tok, tokenRows] of Object.entries(rowsByToken)) {
+        if (tok === sdAddr) continue;
+        if (!(tok in includedSdByToken)) {
+          continue;
+        }
         const targetSd = includedSdByToken[tok];
         if (targetSd <= 0) {
           tokenRows.forEach((r) => (r.rewardSdValue = 0));
@@ -1247,7 +1249,7 @@ async function main() {
     debug("[report] processed summary", summary);
   }
 
-      // Emit attribution sidecar JSON (per protocol)
+  // Emit attribution sidecar JSON (per protocol)
   try {
     if (processedReport[protocol]) {
       // Snapshot the post-filter totals so the sidecar echoes exactly what the CSV contains
@@ -1279,7 +1281,7 @@ async function main() {
         includedTokens.add(t);
       }
     }
-    
+
     if (isDebugEnabled()) {
       debug("[sidecar] includedTokens", {
         count: includedTokens.size,
@@ -1322,7 +1324,7 @@ async function main() {
       if (sdInTx <= 0) {
         continue; // Skip transactions with no sdToken for this protocol
       }
-      
+
       if (totalWethInTx > 0 || totalWethOutTx > 0 || sdInTx > 0) {
         wethInTotal += totalWethInTx;
         wethOutTotal += totalWethOutTx;
@@ -1354,10 +1356,10 @@ async function main() {
           tokenSd[nativeAddr] = (tokenSd[nativeAddr] || 0) + nativeShareSd;
           includedSdByToken[nativeAddr] = (includedSdByToken[nativeAddr] || 0) + nativeShareSd;
         }
-        txAttributions.push({ 
+        txAttributions.push({
           tx, wethIn: totalWethInTx, wethOut: totalWethOutTx, sdIn: sdInTx,
           nativeIn: nativeInTx, nativeOut: nativeOutTx, nativeShareSd, wethBasis: 0,
-          tokenWeth, tokenSd 
+          tokenWeth, tokenSd
         });
         continue;
       }
@@ -1405,18 +1407,18 @@ async function main() {
         includedSdByToken[wethAddr] =
           (includedSdByToken[wethAddr] || 0) + residualWeth * sdPerWeth;
       }
-      
-      txAttributions.push({ 
-        tx, 
-        wethIn: totalWethInTx, 
-        wethOut: totalWethOutTx, 
-        sdIn: sdInTx, 
-        nativeIn: nativeInTx2, 
-        nativeOut: nativeOutTx2, 
-        nativeShareSd: nativeShareSd2, 
-        wethBasis, 
-        tokenWeth, 
-        tokenSd 
+
+      txAttributions.push({
+        tx,
+        wethIn: totalWethInTx,
+        wethOut: totalWethOutTx,
+        sdIn: sdInTx,
+        nativeIn: nativeInTx2,
+        nativeOut: nativeOutTx2,
+        nativeShareSd: nativeShareSd2,
+        wethBasis,
+        tokenWeth,
+        tokenSd
       });
     }
 
@@ -1482,13 +1484,13 @@ async function main() {
     currentPeriod.toString()
   );
   fs.mkdirSync(dirPath, { recursive: true });
-  
+
   // Create raw subdirectory for raw token reports
   const rawDirPath = path.join(dirPath, "raw");
   if (Object.keys(rawTokenReport).some(p => rawTokenReport[p] && rawTokenReport[p].length > 0)) {
     fs.mkdirSync(rawDirPath, { recursive: true });
   }
-  
+
   const formattedDate = new Date(currentPeriod * 1000).toLocaleDateString(
     "en-GB"
   );
@@ -1501,7 +1503,7 @@ async function main() {
       console.log(`No data to report for ${protocol}`);
       continue;
     }
-    
+
     // Special handling for Pendle protocol
     if (protocol === "pendle") {
       const fileName = `${protocol}-otc.csv`;
@@ -1580,9 +1582,9 @@ async function main() {
         rewardSdValue: number;
         sharePercentage: number;
       }> = [
-        ...existingRows.filter((row) => !newKeys.has(buildKey(row))),
-        ...newRows,
-      ];
+          ...existingRows.filter((row) => !newKeys.has(buildKey(row))),
+          ...newRows,
+        ];
 
       const totalSdValue = mergedRows.reduce(
         (sum, row) => sum + row.rewardSdValue,
@@ -1669,7 +1671,7 @@ async function main() {
       for (const event of events) {
         const tokenInfo = tokenInfos[event.token.toLowerCase()];
         const amount = Number(event.eventAmount) / Math.pow(10, tokenInfo?.decimals || 18);
-        
+
         // Find gauge name
         let gaugeName = event.gauge;
         let gaugeAddress = event.gauge;

@@ -224,7 +224,7 @@ export async function getTimestampsBlocks(
   if (protocol?.toLowerCase() === "pendle") {
     const thursdayEpoch = Math.floor(currentTimestamp / WEEK) * WEEK;
     // Tuesday is 5 days after Thursday epoch (Thu=0, Fri=1, Sat=2, Sun=3, Mon=4, Tue=5)
-    const thisWeeksTuesdayNoon = thursdayEpoch + (5 * 86400) + (12 * 3600);
+    const thisWeeksTuesdayNoon = thursdayEpoch + (5 * 86400) + (10 * 3600);
 
     if (!pastWeek || pastWeek === 0) {
       console.log("No past week specified, using current week (Pendle Tuesday-adjusted)");
@@ -961,7 +961,7 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
     if (response.status === 200 && response.data.success) {
       const data = response.data.data;
       const gaugeInfos: GaugeInfo[] = [];
-      
+
       Object.entries(data)
         .filter(
           ([_, gauge]: [string, any]) =>
@@ -971,14 +971,14 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
           let gaugeName = gauge.shortName || "";
           const firstIndex = gaugeName.indexOf("(");
           if (firstIndex > -1) gaugeName = gaugeName.slice(0, firstIndex);
-          
+
           // Add the regular gauge
           gaugeInfos.push({
             name: gaugeName,
             address: gauge.gauge.toLowerCase(),
             price: gauge.lpTokenPrice,
           });
-          
+
           // If there's a rootGauge, also add an entry for it that maps to the actual gauge
           if (gauge.rootGauge) {
             gaugeInfos.push({
@@ -989,7 +989,7 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
             });
           }
         });
-        
+
       return gaugeInfos;
     }
     console.error(
@@ -1197,25 +1197,25 @@ export async function fetchDelegationEvents(
       ? a.logIndex - b.logIndex
       : a.blockNumber - b.blockNumber
   );
-  
+
   if (isDebugEnabled()) {
-    debug("[fetchDelegationEvents] params", { 
-      chainId, 
-      blockMin, 
-      blockMax, 
-      tokens: rewardTokens.length, 
-      delegationAddress 
+    debug("[fetchDelegationEvents] params", {
+      chainId,
+      blockMin,
+      blockMax,
+      tokens: rewardTokens.length,
+      delegationAddress
     });
     debug("[fetchDelegationEvents] count", sorted.length);
-    debug("[fetchDelegationEvents] sample", 
-      sampleArray(sorted.map((s) => ({ 
-        block: s.blockNumber, 
-        logIndex: s.logIndex, 
-        token: s.token, 
-        tx: s.transactionHash 
+    debug("[fetchDelegationEvents] sample",
+      sampleArray(sorted.map((s) => ({
+        block: s.blockNumber,
+        logIndex: s.logIndex,
+        token: s.token,
+        tx: s.transactionHash
       })), 5)
     );
   }
-  
+
   return sorted;
 }
