@@ -3,32 +3,50 @@
   "period": 1763596800,
   "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
   "totals": {
-    "sdInTotal": 0,
-    "sdAssigned": 0,
-    "wethInTotal": 0,
-    "wethOutTotal": 0
+    "sdInTotal": 923.5277515788273,
+    "sdAssigned": 923.5277515788271,
+    "wethInTotal": 0.7459477290790877,
+    "wethOutTotal": 0.7445224711693225
   },
   "dropped": {
-    "tokensNotSwapped": [
-      "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef",
-      "0x419905009e4656fdc02418c7df35b1e61ed5f726",
-      "0x085780639cc2cacd35e474e71f4d000e2405d8f6"
-    ],
-    "wethNotSwapped": true
+    "tokensNotSwapped": [],
+    "wethNotSwapped": false
   },
   "perToken": {
     "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.5586112580461872,
+      "sd": 691.5940340577384
     },
     "0x419905009e4656fdc02418c7df35b1e61ed5f726": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.09188051253218427,
+      "sd": 113.75355114696231
     },
     "0x085780639cc2cacd35e474e71f4d000e2405d8f6": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.0954559585007162,
+      "sd": 118.18016637412629
     }
   },
-  "txs": []
+  "txs": [
+    {
+      "tx": "0x6ae95f39a28b84af72524f2f800ac417b70649e77e3b2ad411800743c96ce635",
+      "wethIn": 0.7459477290790877,
+      "wethOut": 0.7445224711693225,
+      "sdIn": 923.5277515788273,
+      "nativeIn": 922.7921835010497,
+      "nativeOut": 922.7921835010499,
+      "nativeShareSd": 1.1368683772161603e-13,
+      "wethBasis": 0.7459477290790877,
+      "tokenWeth": {
+        "0x419905009e4656fdc02418c7df35b1e61ed5f726": 0.09188051253218427,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.5586112580461872,
+        "0x085780639cc2cacd35e474e71f4d000e2405d8f6": 0.0954559585007162
+      },
+      "tokenSd": {
+        "0x808507121b80c02388fad14726482e061b8da827": 1.1368683772161603e-13,
+        "0x419905009e4656fdc02418c7df35b1e61ed5f726": 113.75355114696231,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 691.5940340577384,
+        "0x085780639cc2cacd35e474e71f4d000e2405d8f6": 118.18016637412629
+      }
+    }
+  ]
 }
