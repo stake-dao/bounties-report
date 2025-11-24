@@ -28,15 +28,18 @@
                 "distributions": [
                     {
                         "step": 1,
-                        "date": "11-11-2025"
+                        "date": "11-11-2025",
+                        "distributed": "12:00"
                     },
                     {
                         "step": 2,
-                        "date": "18-11-2025"
+                        "date": "18-11-2025",
+                        "distributed": "09:40"
                     },
                     {
                         "step": 3,
-                        "date": "25-11-2025"
+                        "date": "25-11-2025",
+                        "distributed": ""
                     }
                 ]
             },
@@ -80,7 +83,8 @@
                 "distributions": [
                     {
                         "step": 1,
-                        "date": "02-12-2025"
+                        "date": "02-12-2025",
+                        "distributed": ""
                     }
                 ]
             },
@@ -91,7 +95,8 @@
                 "distributions": [
                     {
                         "step": 1,
-                        "date": "25-11-2025"
+                        "date": "25-11-2025",
+                        "distributed": ""
                     }
                 ]
             }
@@ -107,11 +112,13 @@
                 "distributions": [
                     {
                         "step": 1,
-                        "date": "02-12-2025"
+                        "date": "02-12-2025",
+                        "distributed": ""
                     },
                     {
                         "step": 2,
-                        "date": "09-12-2025"
+                        "date": "09-12-2025",
+                        "distributed": ""
                     }
                 ]
             },
@@ -122,11 +129,13 @@
                 "distributions": [
                     {
                         "step": 1,
-                        "date": "18-11-2025"
+                        "date": "18-11-2025",
+                        "distributed": "09:52"
                     },
                     {
                         "step": 2,
-                        "date": "25-11-2025"
+                        "date": "25-11-2025",
+                        "distributed": ""
                     }
                 ]
             }

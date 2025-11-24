@@ -2,12 +2,16 @@ import * as fs from "fs";
 import * as path from "path";
 import moment from "moment";
 import { fetchProposalsIdsBasedOnExactPeriods, getProposal } from "../utils/snapshot";
-import { WEEK, SDPENDLE_SPACE, SPECTRA_SPACE, SDCRV_SPACE } from "../utils/constants";
+import { WEEK, SDPENDLE_SPACE, SPECTRA_SPACE, SDCRV_SPACE, MERKLE_ADDRESS, SPECTRA_MERKLE_ADDRESS, SD_CRV, SD_PENDLE, ETH_CHAIN_ID, BASE_CHAIN_ID, MERKLE_CREATION_BLOCK_ETH } from "../utils/constants";
 import { getLatestJson } from "../utils/githubUtils";
+import { getClient } from "../utils/getClients";
+import { parseAbiItem } from "viem";
+import pLimit from "p-limit";
 
 interface DistributionStep {
     step: number;
     date: string;
+    distributed?: string;
 }
 
 interface ProposalInfo {
@@ -68,6 +72,78 @@ export const getRoundMetadata = async () => {
 
     const upcomingTuesdayStr = getUpcomingTuesday().format("DD-MM-YYYY");
 
+    // Helper to fetch distribution times
+    const fetchDistributionTimes = async (
+        chainId: number,
+        contractAddress: string,
+        eventAbi: any,
+        args: any = {},
+        lookbackWeeks: number = 4
+    ): Promise<Map<string, string>> => {
+        try {
+            const client = await getClient(chainId);
+            const currentBlock = await client.getBlockNumber();
+
+            // Estimate blocks
+            // Eth: ~12s, Base: ~2s
+            const blockTime = chainId === 8453 ? 2n : 12n;
+            const lookbackBlocks = (BigInt(lookbackWeeks) * 7n * 24n * 3600n) / blockTime;
+            const startBlock = currentBlock - lookbackBlocks;
+
+            // Chunk size
+            const chunkSize = chainId === 8453 ? 2000n : 10000n; // Base RPCs are stricter
+
+            const limit = pLimit(20);
+            const chunkPromises = [];
+
+            for (let i = startBlock; i < currentBlock; i += chunkSize) {
+                const to = (i + chunkSize) > currentBlock ? currentBlock : (i + chunkSize);
+                chunkPromises.push(limit(async () => {
+                    try {
+                        return await client.getLogs({
+                            address: contractAddress as `0x${string}`,
+                            event: eventAbi,
+                            args: args,
+                            fromBlock: i,
+                            toBlock: to
+                        });
+                    } catch (e) {
+                        // console.warn(`Failed to fetch logs for chunk ${i}-${to}:`, e);
+                        return [];
+                    }
+                }));
+            }
+
+            const chunks = await Promise.all(chunkPromises);
+            const logs = chunks.flat();
+
+            const timeMap = new Map<string, string>();
+
+            // Fetch blocks in parallel (batches of 10)
+            const batchSize = 10;
+            for (let i = 0; i < logs.length; i += batchSize) {
+                const batch = logs.slice(i, i + batchSize);
+                await Promise.all(batch.map(async (log) => {
+                    try {
+                        const block = await client.getBlock({ blockNumber: log.blockNumber });
+                        const timestamp = Number(block.timestamp);
+                        const dateStr = moment.unix(timestamp).utc().format("DD-MM-YYYY");
+                        const timeStr = moment.unix(timestamp).utc().format("HH:mm");
+
+                        timeMap.set(dateStr, timeStr);
+                    } catch (e) {
+                        console.error(`Error fetching block ${log.blockNumber}:`, e);
+                    }
+                }));
+            }
+
+            return timeMap;
+        } catch (e) {
+            console.error("Error fetching distribution times:", e);
+            return new Map<string, string>();
+        }
+    };
+
     // Helper to process protocol
     const processProtocol = async (
         protocolName: keyof RoundMetadata,
@@ -82,7 +158,21 @@ export const getRoundMetadata = async () => {
         }
 
         // Reset rounds for this protocol to ensure we only have active ones
+        const oldRounds = roundMetadata[protocolName]?.rounds || [];
         roundMetadata[protocolName] = { rounds: [] };
+
+        // Fetch distribution times for General (SD_CRV)
+        let timeMap = new Map<string, string>();
+        if (protocolName === "general") {
+            const eventAbi = parseAbiItem("event MerkleRootUpdated(address indexed token, bytes32 indexed merkleRoot, uint256 update)");
+            timeMap = await fetchDistributionTimes(
+                parseInt(ETH_CHAIN_ID),
+                MERKLE_ADDRESS,
+                eventAbi,
+                { token: SD_CRV },
+                8 // Look back 8 weeks
+            );
+        }
 
         // Fetch proposals for all periods
         const proposalIds = await fetchProposalsIdsBasedOnExactPeriods(spaceId, periodsToCheck, targetPeriod + WEEK);
@@ -115,9 +205,26 @@ export const getRoundMetadata = async () => {
                         id: maxId + 1,
                         proposalStart: formatDateTime(proposal.start),
                         proposalEnd: formatDateTime(proposal.end),
+                        proposals: [{
+                            id: proposal.id,
+                            start: formatDateTime(proposal.start),
+                            end: formatDateTime(proposal.end)
+                        }],
                         distributions: []
                     };
                     rounds.push(round);
+                } else {
+                    // If round exists, ensure proposal is added if not already there
+                    if (!round.proposals) {
+                        round.proposals = [];
+                    }
+                    if (!round.proposals.some(p => p.id === proposal.id)) {
+                        round.proposals.push({
+                            id: proposal.id,
+                            start: formatDateTime(proposal.start),
+                            end: formatDateTime(proposal.end)
+                        });
+                    }
                 }
 
                 // Re-generate distributions
@@ -133,9 +240,27 @@ export const getRoundMetadata = async () => {
                     // So Step 1 is: proposalEndPeriod + 1 WEEK + 5 days.
                     const distDate = proposalEndPeriod + (s * WEEK) + (5 * 86400);
                     const distDateStr = formatDate(distDate);
+
+                    // Try to get from timeMap, otherwise check old rounds
+                    let time = timeMap.get(distDateStr) || "";
+                    if (!time) {
+                        const oldRound = oldRounds.find(r => r.id === round!.id); // Assuming ID matches or we can match by date?
+                        // Better match by date if IDs change? IDs seem sequential 1, 2.
+                        // But we are rebuilding rounds.
+                        // Let's try to find a distribution in oldRounds with same date.
+                        for (const or of oldRounds) {
+                            const d = or.distributions.find(d => d.date === distDateStr);
+                            if (d && d.distributed) {
+                                time = d.distributed;
+                                break;
+                            }
+                        }
+                    }
+
                     round.distributions.push({
                         step: s,
-                        date: distDateStr
+                        date: distDateStr,
+                        distributed: time
                     });
 
                     if (distDateStr === upcomingTuesdayStr) {
@@ -159,6 +284,18 @@ export const getRoundMetadata = async () => {
 
     const processPendle = async () => {
         const reportsDir = path.join(__dirname, "../../bounties-reports");
+
+        const oldRounds = roundMetadata["pendle"]?.rounds || [];
+
+        // Fetch distribution times for Pendle (using SD_CRV as proxy per user request)
+        const eventAbi = parseAbiItem("event MerkleRootUpdated(address indexed token, bytes32 indexed merkleRoot, uint256 update)");
+        const timeMap = await fetchDistributionTimes(
+            parseInt(ETH_CHAIN_ID),
+            MERKLE_ADDRESS,
+            eventAbi,
+            { token: SD_CRV },
+            8 // 8 weeks
+        );
 
         // Current report timestamp (Thursday of this week)
         // We use the same logic as in getRoundMetadata: currentPeriodTimestamp
@@ -291,9 +428,22 @@ export const getRoundMetadata = async () => {
         for (let s = 1; s <= 4; s++) {
             const distDate = step1Date.clone().add(s - 1, 'weeks');
             const distDateStr = distDate.format("DD-MM-YYYY");
+
+            let time = timeMap.get(distDateStr) || "";
+            if (!time) {
+                for (const or of oldRounds) {
+                    const d = or.distributions.find(d => d.date === distDateStr);
+                    if (d && d.distributed) {
+                        time = d.distributed;
+                        break;
+                    }
+                }
+            }
+
             round1.distributions.push({
                 step: s,
-                date: distDateStr
+                date: distDateStr,
+                distributed: time
             });
 
             if (distDateStr === upcomingTuesdayStr) {
@@ -315,9 +465,22 @@ export const getRoundMetadata = async () => {
         for (let s = 1; s <= 4; s++) {
             const distDate = step1DateNext.clone().add(s - 1, 'weeks');
             const distDateStr = distDate.format("DD-MM-YYYY");
+
+            let time = timeMap.get(distDateStr) || "";
+            if (!time) {
+                for (const or of oldRounds) {
+                    const d = or.distributions.find(d => d.date === distDateStr);
+                    if (d && d.distributed) {
+                        time = d.distributed;
+                        break;
+                    }
+                }
+            }
+
             round2.distributions.push({
                 step: s,
-                date: distDateStr
+                date: distDateStr,
+                distributed: time
             });
             if (distDateStr === upcomingTuesdayStr) {
                 currentRoundId = round2.id;
@@ -351,7 +514,20 @@ export const getRoundMetadata = async () => {
         }
 
         // Reset rounds for Spectra
+        const oldRounds = roundMetadata["spectra"]?.rounds || [];
         roundMetadata["spectra"] = { rounds: [] };
+
+        // Fetch distribution times for Spectra
+        const eventAbi = parseAbiItem("event RootSet(bytes32 indexed newRoot, bytes32 indexed newIpfsHash)");
+        // Start from block 20M on Base (approx recent) to save time, or 0 if unsure. 
+        // Spectra is recent, so 20M is safe (Base is at ~22M+).
+        const timeMap = await fetchDistributionTimes(
+            parseInt(BASE_CHAIN_ID),
+            SPECTRA_MERKLE_ADDRESS,
+            eventAbi,
+            {},
+            8 // 8 weeks
+        );
 
         // Fetch proposals for all periods
         const proposalIds = await fetchProposalsIdsBasedOnExactPeriods(SPECTRA_SPACE, periodsToCheck, targetPeriod + WEEK);
@@ -385,11 +561,25 @@ export const getRoundMetadata = async () => {
                 const proposalEndPeriod = Math.floor(proposal.end / WEEK) * WEEK;
 
                 // Distribution is 1 week after proposal ends + 5 days to get to Tuesday
+                // Distribution is 1 week after proposal ends + 5 days to get to Tuesday
                 const distDate = proposalEndPeriod + WEEK + (5 * 86400);
                 const distDateStr = formatDate(distDate);
+
+                let time = timeMap.get(distDateStr) || "";
+                if (!time) {
+                    for (const or of oldRounds) {
+                        const d = or.distributions.find(d => d.date === distDateStr);
+                        if (d && d.distributed) {
+                            time = d.distributed;
+                            break;
+                        }
+                    }
+                }
+
                 round.distributions.push({
                     step: 1,
-                    date: distDateStr
+                    date: distDateStr,
+                    distributed: time
                 });
 
                 if (distDateStr === upcomingTuesdayStr) {
