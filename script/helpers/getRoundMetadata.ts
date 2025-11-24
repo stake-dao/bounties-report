@@ -342,10 +342,78 @@ export const getRoundMetadata = async () => {
         console.log(`Updated pendle: Round 1 & 2, Current Step ~${currentStep}/4, Proposals: ${proposals.length}`);
     };
 
+    // Spectra-specific processing: one proposal = one distribution
+    const processSpectra = async () => {
+        const weeksToCheck = 2;
+        const periodsToCheck: string[] = [];
+        for (let i = 0; i < weeksToCheck; i++) {
+            periodsToCheck.push((targetPeriod - (i * WEEK)).toString());
+        }
+
+        // Reset rounds for Spectra
+        roundMetadata["spectra"] = { rounds: [] };
+
+        // Fetch proposals for all periods
+        const proposalIds = await fetchProposalsIdsBasedOnExactPeriods(SPECTRA_SPACE, periodsToCheck, targetPeriod + WEEK);
+
+        let foundAny = false;
+        let currentRoundId = 0;
+
+        // Each proposal gets its own round with ONE distribution step
+        for (let i = 0; i < weeksToCheck; i++) {
+            const checkTimestamp = periodsToCheck[i];
+            if (proposalIds[checkTimestamp]) {
+                const proposalId = proposalIds[checkTimestamp];
+
+                const proposal = await getProposal(proposalId);
+
+                const rounds = roundMetadata["spectra"]!.rounds;
+
+                // Create new round entry for this proposal
+                const maxId = rounds.length > 0 ? Math.max(...rounds.map(r => r.id)) : 0;
+                const round: Round = {
+                    id: maxId + 1,
+                    proposalStart: formatDateTime(proposal.start),
+                    proposalEnd: formatDateTime(proposal.end),
+                    distributions: []
+                };
+                rounds.push(round);
+
+                // Calculate distribution date
+                // Proposal ends on Tuesday, distribution happens the FOLLOWING Tuesday
+                // proposalEndPeriod is the Thursday of the week containing the proposal end
+                const proposalEndPeriod = Math.floor(proposal.end / WEEK) * WEEK;
+
+                // Distribution is 1 week after proposal ends + 5 days to get to Tuesday
+                const distDate = proposalEndPeriod + WEEK + (5 * 86400);
+                const distDateStr = formatDate(distDate);
+                round.distributions.push({
+                    step: 1,
+                    date: distDateStr
+                });
+
+                if (distDateStr === upcomingTuesdayStr) {
+                    currentRoundId = round.id;
+                }
+
+                console.log(`Updated spectra: Round ${round.id}, Distribution: ${distDateStr}`);
+                foundAny = true;
+            }
+        }
+
+        if (currentRoundId > 0) {
+            roundMetadata["spectra"]!.currentRoundId = currentRoundId;
+        }
+
+        if (!foundAny) {
+            console.log(`No active round found for spectra`);
+        }
+    };
+
     await processPendle();
 
-    // Spectra: 2 steps
-    await processProtocol("spectra", SPECTRA_SPACE, 2);
+    // Spectra: 1 proposal = 1 distribution (weekly)
+    await processSpectra();
 
     // General: 2 steps (Using SDCRV as proxy)
     await processProtocol("general", SDCRV_SPACE, 2);
