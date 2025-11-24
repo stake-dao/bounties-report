@@ -71,6 +71,9 @@ jobs:
             echo "No sdTkns directory found for period ${CURRENT_PERIOD}"
           fi
 
+      - name: Rebase on latest main before auto-commit
+        run: git pull --rebase --autostash origin main
+
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "chore: Update SDTokens merkle to latest"
@@ -78,7 +81,6 @@ jobs:
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           file_pattern: bounties-reports/latest/* delegationsAPRs.json
-          pull_options: '--rebase --autostash'
 
       - name: Send error notification to Telegram
         if: failure()

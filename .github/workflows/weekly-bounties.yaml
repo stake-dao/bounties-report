@@ -127,13 +127,15 @@ jobs:
           TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
           TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
+      - name: Rebase on latest main before auto-commit
+        run: git pull --rebase --autostash origin main
+
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "chore: Update ${{ inputs.bountyType || github.event.inputs.bountyType || 'weekly' }} bounties"
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          pull_options: '--rebase --autostash'
 
       - name: Trigger all merkle generation workflows (scheduled run)
         if: github.event_name == 'schedule'
