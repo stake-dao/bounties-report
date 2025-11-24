@@ -6,23 +6,23 @@
                 "proposals": [
                     {
                         "id": "0xb99dc20cb2b4dac1d949c7ec80186145b331e019776dee8ed2f5488884e245a0",
-                        "start": "21-08-2025 04:00",
-                        "end": "26-08-2025 16:00"
+                        "start": "21-08-2025 02:00",
+                        "end": "26-08-2025 14:00"
                     },
                     {
                         "id": "0xdea3608712af6379eeb628c6c4c7217f5dfddd1b99d39409a55a8ea7bce1a9b3",
-                        "start": "28-08-2025 04:00",
-                        "end": "02-09-2025 16:00"
+                        "start": "28-08-2025 02:00",
+                        "end": "02-09-2025 14:00"
                     },
                     {
                         "id": "0xa3206fcc9eb34d7383086818feb6f99581381a8f56b3125298a2d473d1c74629",
-                        "start": "04-09-2025 04:00",
-                        "end": "09-09-2025 16:00"
+                        "start": "04-09-2025 02:00",
+                        "end": "09-09-2025 14:00"
                     },
                     {
                         "id": "0x562fdc55f143ff2fee81ec1085b9f138ec9c38c3d02905e37f9925a7636ba16e",
-                        "start": "11-09-2025 04:00",
-                        "end": "16-09-2025 16:00"
+                        "start": "11-09-2025 02:00",
+                        "end": "16-09-2025 14:00"
                     }
                 ],
                 "distributions": [
@@ -45,8 +45,8 @@
                 "proposals": [
                     {
                         "id": "0xcd385b324a92ee20653263412fdc2ee4da089dc679f8d4f95f526d54b5109fdb",
-                        "start": "18-09-2025 04:00",
-                        "end": "23-09-2025 16:00"
+                        "start": "18-09-2025 02:00",
+                        "end": "23-09-2025 14:00"
                     }
                 ],
                 "distributions": [
@@ -75,8 +75,8 @@
         "rounds": [
             {
                 "id": 1,
-                "proposalStart": "20-11-2025 03:00",
-                "proposalEnd": "25-11-2025 16:00",
+                "proposalStart": "20-11-2025 02:00",
+                "proposalEnd": "25-11-2025 15:00",
                 "distributions": [
                     {
                         "step": 1,
@@ -86,8 +86,8 @@
             },
             {
                 "id": 2,
-                "proposalStart": "13-11-2025 03:00",
-                "proposalEnd": "18-11-2025 16:00",
+                "proposalStart": "13-11-2025 02:00",
+                "proposalEnd": "18-11-2025 15:00",
                 "distributions": [
                     {
                         "step": 1,
@@ -102,8 +102,8 @@
         "rounds": [
             {
                 "id": 1,
-                "proposalStart": "20-11-2025 03:00",
-                "proposalEnd": "25-11-2025 16:00",
+                "proposalStart": "20-11-2025 02:00",
+                "proposalEnd": "25-11-2025 15:00",
                 "distributions": [
                     {
                         "step": 1,
@@ -117,8 +117,8 @@
             },
             {
                 "id": 2,
-                "proposalStart": "06-11-2025 03:00",
-                "proposalEnd": "11-11-2025 16:00",
+                "proposalStart": "06-11-2025 02:00",
+                "proposalEnd": "11-11-2025 15:00",
                 "distributions": [
                     {
                         "step": 1,

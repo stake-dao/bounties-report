@@ -50,10 +50,10 @@ export const getRoundMetadata = async () => {
     }
 
     // Helper to format date
-    const formatDate = (timestamp: number) => moment.unix(timestamp).format("DD-MM-YYYY");
+    const formatDate = (timestamp: number) => moment.unix(timestamp).utc().format("DD-MM-YYYY");
 
     // Helper to format date with time (for proposals)
-    const formatDateTime = (timestamp: number) => moment.unix(timestamp).format("DD-MM-YYYY HH:mm");
+    const formatDateTime = (timestamp: number) => moment.unix(timestamp).utc().format("DD-MM-YYYY HH:mm");
 
     // Helper to get upcoming Tuesday
     const getUpcomingTuesday = () => {
