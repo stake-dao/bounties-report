@@ -4,27 +4,14 @@
   "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
   "totals": {
     "sdInTotal": 300682.1191863965,
-    "sdAssigned": 300682.11918639654,
+    "sdAssigned": 300682.1191863966,
     "wethInTotal": 25.685524193946982,
     "wethOutTotal": 25.696855323732148
   },
   "dropped": {
     "tokensNotSwapped": [
-      "0x7159cc276d7d17ab4b3beb19959e1f39368a45ba",
       "0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7",
-      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-      "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f",
-      "0x090185f2135308bad17527004364ebcc2d37e5f6",
-      "0xfa2b947eec368f42195f24f36d2af29f7c24cec2",
-      "0x04acaf8d2865c0714f79da09645c13fd2888977f",
-      "0x01791f726b4103694969820be083196cc7c045ff",
-      "0x09fd37d9aa613789c517e76df1c53aece2b60df4",
       "0x11cdb42b0eb46d95f990bedd4695a6e3fa034978",
-      "0x419905009e4656fdc02418c7df35b1e61ed5f726",
-      "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b",
-      "0x865377367054516e17014ccded1e7d814edc9ce4",
-      "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d",
-      "0xdac17f958d2ee523a2206206994597c13d831ec7",
       "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
       "0x76a9a0062ec6712b99b4f63bd2b4270185759dd5",
       "0x8ee73c484a26e0a5df2ee2a4960b789967dd0415",
@@ -34,68 +21,68 @@
   },
   "perToken": {
     "0x7159cc276d7d17ab4b3beb19959e1f39368a45ba": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.07798184829854675,
+      "sd": 883.4091817402909
     },
     "0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
       "mappedWeth": 0,
       "sd": 0
     },
     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 8.020712527907332,
+      "sd": 88039.80868163245
     },
     "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.5266661197482371,
+      "sd": 5960.663476991307
     },
     "0x090185f2135308bad17527004364ebcc2d37e5f6": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 4.001980424731721,
+      "sd": 43658.591384463885
     },
     "0xfa2b947eec368f42195f24f36d2af29f7c24cec2": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 4.638653488240722,
+      "sd": 50690.6876846414
     },
     "0x04acaf8d2865c0714f79da09645c13fd2888977f": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.6769690885079847,
+      "sd": 10658.645786879137
     },
     "0x01791f726b4103694969820be083196cc7c045ff": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 1.7830037150677485,
+      "sd": 19422.45153820329
     },
     "0x09fd37d9aa613789c517e76df1c53aece2b60df4": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.047123149908427336,
+      "sd": 533.8296566433736
     },
     "0x11cdb42b0eb46d95f990bedd4695a6e3fa034978": {
       "mappedWeth": 0,
       "sd": 0
     },
     "0x419905009e4656fdc02418c7df35b1e61ed5f726": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.5703088417154728,
+      "sd": 8979.316834639854
     },
     "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.14643349410497936,
+      "sd": 1657.2943415023879
     },
     "0x865377367054516e17014ccded1e7d814edc9ce4": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 4.975404550299647,
+      "sd": 55796.52646848481
     },
     "0x59a529070fbb61e6d6c91f952ccb7f35c34cf8aa": {
       "mappedWeth": 0.03624571157099655,
-      "sd": 10117.83593148136
+      "sd": 414.46576943522683
     },
     "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.10334670685523557,
+      "sd": 1169.649836814649
     },
     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.08069452698993292,
+      "sd": 914.13947751255
     },
     "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
       "mappedWeth": 0,
@@ -115,7 +102,7 @@
     },
     "0xd533a949740bb3306d119cc777fa900ba034cd52": {
       "mappedWeth": 0,
-      "sd": 290564.28325491515
+      "sd": 11902.639066811938
     }
   },
   "txs": [
@@ -127,9 +114,13 @@
       "nativeIn": 18912.911741631287,
       "nativeOut": 18912.911741631287,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 2.7607497850082785,
+      "tokenWeth": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 2.7607497850082785
+      },
+      "tokenSd": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 30277.91179462213
+      }
     },
     {
       "tx": "0xa9e521933a38a7fd5e09fd39b2ba7d3840b38468e200860dbe0e5ca097952e6a",
@@ -139,9 +130,13 @@
       "nativeIn": 18985.326625115074,
       "nativeOut": 18985.326625115074,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 2.782633879299556,
+      "tokenWeth": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 2.7826338792995564
+      },
+      "tokenSd": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 30522.858027787646
+      }
     },
     {
       "tx": "0xb050bff0a89922194084882dd87efd4543e52c379092841ff5cdb712024d2ae6",
@@ -151,10 +146,13 @@
       "nativeIn": 17184.119466839034,
       "nativeOut": 17187.68915111694,
       "nativeShareSd": 3.569684277907072,
-      "wethBasis": 0,
-      "tokenWeth": {},
+      "wethBasis": 2.477328863599496,
+      "tokenWeth": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 2.477328863599496
+      },
       "tokenSd": {
-        "0xd533a949740bb3306d119cc777fa900ba034cd52": 3.569684277907072
+        "0xd533a949740bb3306d119cc777fa900ba034cd52": 3.569684277907072,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 27239.03885922266
       }
     },
     {
@@ -165,9 +163,13 @@
       "nativeIn": 16866.714920211652,
       "nativeOut": 16866.714920211652,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 2.3929680006115728,
+      "tokenWeth": {
+        "0x865377367054516e17014ccded1e7d814edc9ce4": 2.3929680006115728
+      },
+      "tokenSd": {
+        "0x865377367054516e17014ccded1e7d814edc9ce4": 26573.87538938357
+      }
     },
     {
       "tx": "0xafe5d95220cd6df1f39f81bff90fb53859587bda85d0868c6bdbe9fd2ba4e7bf",
@@ -177,9 +179,15 @@
       "nativeIn": 18645.925629153237,
       "nativeOut": 18645.925629153237,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 2.582436549688075,
+      "tokenWeth": {
+        "0x865377367054516e17014ccded1e7d814edc9ce4": 2.5824365496880746,
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": 4.440892098500626e-16
+      },
+      "tokenSd": {
+        "0x865377367054516e17014ccded1e7d814edc9ce4": 29222.65107910124,
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": 5.025278947902771e-12
+      }
     },
     {
       "tx": "0x5344ee12c14cebdfe53fc2401263d1309fe2c1d4286d6b06ff05179ccb04dee8",
@@ -189,9 +197,13 @@
       "nativeIn": 15960.136350197781,
       "nativeOut": 15960.136350197781,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 2.2261601824144686,
+      "tokenWeth": {
+        "0xfa2b947eec368f42195f24f36d2af29f7c24cec2": 2.2261601824144686
+      },
+      "tokenSd": {
+        "0xfa2b947eec368f42195f24f36d2af29f7c24cec2": 24513.38278851504
+      }
     },
     {
       "tx": "0x592e95f585e31417cb46809c22156eddca714a546d80674891245e43ac80207e",
@@ -201,9 +213,13 @@
       "nativeIn": 17349.764317573605,
       "nativeOut": 17349.764317573605,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 2.4124933058262537,
+      "tokenWeth": {
+        "0xfa2b947eec368f42195f24f36d2af29f7c24cec2": 2.4124933058262537
+      },
+      "tokenSd": {
+        "0xfa2b947eec368f42195f24f36d2af29f7c24cec2": 26177.304896126363
+      }
     },
     {
       "tx": "0xef60e9df588f10c007a9351887bc3bbfee18178aa61feae969d3e9843694e273",
@@ -213,10 +229,13 @@
       "nativeIn": 15357.526078445544,
       "nativeOut": 15358.085024681455,
       "nativeShareSd": 0.5589462359112076,
-      "wethBasis": 0,
-      "tokenWeth": {},
+      "wethBasis": 2.1190385546853143,
+      "tokenWeth": {
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": 2.1190385546853143
+      },
       "tokenSd": {
-        "0xd533a949740bb3306d119cc777fa900ba034cd52": 0.5589462359112076
+        "0xd533a949740bb3306d119cc777fa900ba034cd52": 0.5589462359112076,
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": 23102.983562368085
       }
     },
     {
@@ -227,10 +246,13 @@
       "nativeIn": 13959.78455519032,
       "nativeOut": 13959.784555190321,
       "nativeShareSd": 1.8189894035458565e-12,
-      "wethBasis": 0,
-      "tokenWeth": {},
+      "wethBasis": 1.8829418700464073,
+      "tokenWeth": {
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": 1.8829418700464073
+      },
       "tokenSd": {
-        "0xd533a949740bb3306d119cc777fa900ba034cd52": 1.8189894035458565e-12
+        "0xd533a949740bb3306d119cc777fa900ba034cd52": 1.8189894035458565e-12,
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": 20555.6078220958
       }
     },
     {
@@ -241,9 +263,13 @@
       "nativeIn": 13111.136204500604,
       "nativeOut": 13111.136204500604,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 1.7830037150677482,
+      "tokenWeth": {
+        "0x01791f726b4103694969820be083196cc7c045ff": 1.7830037150677485
+      },
+      "tokenSd": {
+        "0x01791f726b4103694969820be083196cc7c045ff": 19422.45153820329
+      }
     },
     {
       "tx": "0xa8e1383e1c6f671fe9e61d7e780476f3bac71901c8db50a1db3caf87fc88ef9a",
@@ -253,10 +279,15 @@
       "nativeIn": 9219.898005887044,
       "nativeOut": 21118.40538102053,
       "nativeShareSd": 11898.507375133486,
-      "wethBasis": 0,
-      "tokenWeth": {},
+      "wethBasis": 1.2472779302234573,
+      "tokenWeth": {
+        "0x419905009e4656fdc02418c7df35b1e61ed5f726": 0.5703088417154728,
+        "0x04acaf8d2865c0714f79da09645c13fd2888977f": 0.6769690885079847
+      },
       "tokenSd": {
-        "0xd533a949740bb3306d119cc777fa900ba034cd52": 11898.507375133486
+        "0xd533a949740bb3306d119cc777fa900ba034cd52": 11898.507375133486,
+        "0x419905009e4656fdc02418c7df35b1e61ed5f726": 8979.316834639854,
+        "0x04acaf8d2865c0714f79da09645c13fd2888977f": 10658.645786879137
       }
     },
     {
@@ -267,9 +298,17 @@
       "nativeIn": 5757.960885982026,
       "nativeOut": 5757.9608859820255,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 0.776446320708452,
+      "tokenWeth": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.5266661197482371,
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": 0.14643349410497936,
+        "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": 0.10334670685523557
+      },
+      "tokenSd": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 5960.663476991307,
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": 1657.2943415023879,
+        "0x7fe24f1a024d33506966cb7ca48bab8c65fb632d": 1169.649836814649
+      }
     },
     {
       "tx": "0x2066a99b524aa0c1b3ccdac018f48159a7a9a05c9dbe07450beabb88ca2ab00d",
@@ -279,9 +318,17 @@
       "nativeIn": 1523.2043280896362,
       "nativeOut": 1523.204328089636,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 0.20579952519690703,
+      "tokenWeth": {
+        "0x09fd37d9aa613789c517e76df1c53aece2b60df4": 0.047123149908427336,
+        "0xdac17f958d2ee523a2206206994597c13d831ec7": 0.08069452698993292,
+        "0x7159cc276d7d17ab4b3beb19959e1f39368a45ba": 0.07798184829854675
+      },
+      "tokenSd": {
+        "0x09fd37d9aa613789c517e76df1c53aece2b60df4": 533.8296566433736,
+        "0xdac17f958d2ee523a2206206994597c13d831ec7": 914.13947751255,
+        "0x7159cc276d7d17ab4b3beb19959e1f39368a45ba": 883.4091817402909
+      }
     },
     {
       "tx": "0x37b3e4c33567a1cff05c21d8440820384f8021a2e9755dcd4c964a6eae358fcf",
