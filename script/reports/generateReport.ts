@@ -992,6 +992,8 @@ async function main() {
 
     const includedSdByToken: Record<string, number> = {};
 
+    const botmarketAddrForWeth = BOTMARKET.toLowerCase();
+
     for (const tx of txHashes) {
       const inTx = swapInFiltered.filter((e) => e.transactionHash === tx);
       const outTx = swapOutFiltered.filter((e) => e.transactionHash === tx);
@@ -1033,6 +1035,18 @@ async function main() {
         continue;
       }
 
+      // Special case: WETH bounties come in from BOTMARKET and are already WETH
+      // They should be directly attributed as WETH (mappedWeth = wethIn amount from BOTMARKET)
+      // NOTE: Use raw swapIn data since BOTMARKET transfers are filtered out in swapInFiltered
+      const wethInFromBotmarket = swapIn
+        .filter(
+          (e) =>
+            e.transactionHash === tx &&
+            e.token.toLowerCase() === wethAddr &&
+            e.from.toLowerCase() === botmarketAddrForWeth
+        )
+        .reduce((a, b) => a + Number(b.amount) / 1e18, 0);
+
       let tokenToOut: Record<string, bigint> = {};
       try {
         tokenToOut = await mapTokenSwapsToOutToken(
@@ -1057,8 +1071,14 @@ async function main() {
         const wethAmt = Number(amount) / 1e18;
         includedSdByToken[tokLower] = (includedSdByToken[tokLower] || 0) + wethAmt * sdPerWeth;
       }
-      // Assign any leftover WETH to WETH so it receives the correct sd share
-      const residualWeth = Math.max(0, wethBasis - totalMappedWeth);
+      // WETH bounties: WETH from BOTMARKET is directly attributed as WETH
+      // This handles the special case where WETH is one step shorter (no token->WETH swap)
+      if (wethInFromBotmarket > 0) {
+        includedSdByToken[wethAddr] =
+          (includedSdByToken[wethAddr] || 0) + wethInFromBotmarket * sdPerWeth;
+      }
+      // Assign any remaining leftover WETH (not from BOTMARKET and not mapped) to WETH
+      const residualWeth = Math.max(0, wethBasis - totalMappedWeth - wethInFromBotmarket);
       if (residualWeth > 0) {
         includedSdByToken[wethAddr] =
           (includedSdByToken[wethAddr] || 0) + residualWeth * sdPerWeth;
@@ -1386,6 +1406,20 @@ async function main() {
         tokenSd[nativeAddr] = (tokenSd[nativeAddr] || 0) + remSd2;
         includedSdByToken[nativeAddr] = (includedSdByToken[nativeAddr] || 0) + remSd2;
       }
+
+      // Special case: WETH bounties come in from BOTMARKET and are already WETH
+      // They should be directly attributed as WETH (mappedWeth = wethIn amount from BOTMARKET)
+      // NOTE: Use raw swapIn data since BOTMARKET transfers are filtered out in swapInFiltered
+      const botmarketAddrSidecar = BOTMARKET.toLowerCase();
+      const wethInFromBotmarketSidecar = swapIn
+        .filter(
+          (e) =>
+            e.transactionHash === tx &&
+            e.token.toLowerCase() === wethAddr &&
+            e.from.toLowerCase() === botmarketAddrSidecar
+        )
+        .reduce((a, b) => a + Number(b.amount) / 1e18, 0);
+
       const sdPerWeth = wethBasis > 0 ? remSd2 / wethBasis : 0;
       const totalMappedWeth = Object.values(tokenToOut).reduce(
         (s, v) => s + Number(v) / 1e18,
@@ -1399,7 +1433,17 @@ async function main() {
         tokenMappedWeth[tokLower] = (tokenMappedWeth[tokLower] || 0) + wethAmt;
         includedSdByToken[tokLower] = (includedSdByToken[tokLower] || 0) + wethAmt * sdPerWeth;
       }
-      const residualWeth = Math.max(0, wethBasis - totalMappedWeth);
+      // WETH bounties: WETH from BOTMARKET is directly attributed as WETH
+      // This handles the special case where WETH is one step shorter (no token->WETH swap)
+      if (wethInFromBotmarketSidecar > 0) {
+        tokenWeth[wethAddr] = (tokenWeth[wethAddr] || 0) + wethInFromBotmarketSidecar;
+        tokenSd[wethAddr] = (tokenSd[wethAddr] || 0) + wethInFromBotmarketSidecar * sdPerWeth;
+        tokenMappedWeth[wethAddr] = (tokenMappedWeth[wethAddr] || 0) + wethInFromBotmarketSidecar;
+        includedSdByToken[wethAddr] =
+          (includedSdByToken[wethAddr] || 0) + wethInFromBotmarketSidecar * sdPerWeth;
+      }
+      // Assign any remaining leftover WETH (not from BOTMARKET and not mapped) to WETH
+      const residualWeth = Math.max(0, wethBasis - totalMappedWeth - wethInFromBotmarketSidecar);
       if (residualWeth > 0) {
         tokenWeth[wethAddr] = (tokenWeth[wethAddr] || 0) + residualWeth;
         tokenSd[wethAddr] = (tokenSd[wethAddr] || 0) + residualWeth * sdPerWeth;
