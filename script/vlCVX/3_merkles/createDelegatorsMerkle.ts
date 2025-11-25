@@ -254,9 +254,35 @@ async function getProtocolShares(
 	// Skip this part if no txHashes
 	if (txHashes.length > 0) {
 		for (const txHash of txHashes) {
-			const receipt = await publicClient.getTransactionReceipt({
-				hash: txHash,
-			});
+			let receipt;
+			let retries = 0;
+			const maxRetries = 10;
+
+			while (retries < maxRetries) {
+				try {
+					receipt = await publicClient.getTransactionReceipt({
+						hash: txHash as `0x${string}`,
+					});
+					break;
+				} catch (error: any) {
+					if (retries === maxRetries - 1) throw error;
+
+					// Check if it's a receipt not found error
+					if (error.name === 'TransactionReceiptNotFoundError' ||
+						(error.message && error.message.includes('could not be found'))) {
+						console.warn(`Receipt not found for ${txHash}, retrying (${retries + 1}/${maxRetries})...`);
+						await new Promise(resolve => setTimeout(resolve, 2000 * (retries + 1)));
+						retries++;
+					} else {
+						throw error;
+					}
+				}
+			}
+
+			if (!receipt) {
+				throw new Error(`Failed to fetch receipt for ${txHash}`);
+			}
+
 			const isVotium = receipt.logs.some((log) => {
 				if (
 					!log.topics ||
@@ -440,7 +466,7 @@ async function processForwarders() {
 	// Create a public viem client for mainnet (using an RPC URL from .env if provided)
 	const publicClient = createPublicClient({
 		chain: mainnet,
-		transport: http(process.env.RPC_URL || "https://rpc.flashbots.net"),
+		transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
 	});
 
 	// Fetch the current block number

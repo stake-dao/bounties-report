@@ -154,7 +154,7 @@ async function fetchOTCWithdrawals(
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
 });
 
 interface CSVRow {
@@ -320,7 +320,7 @@ async function main() {
     swapIn.filter(
       (swap) =>
         swap.token.toLowerCase() ===
-          PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
+        PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
         otcSwapBlocks.has(swap.blockNumber)
     ),
     tokenInfos
@@ -329,7 +329,7 @@ async function main() {
     swapOut.filter(
       (swap) =>
         swap.token.toLowerCase() ===
-          PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
+        PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
         otcSwapBlocks.has(swap.blockNumber)
     ),
     tokenInfos
@@ -343,7 +343,7 @@ async function main() {
     swapIn.filter(
       (swap) =>
         swap.token.toLowerCase() !==
-          PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
+        PROTOCOLS_TOKENS[protocol].sdToken.toLowerCase() &&
         swap.from.toLowerCase() !== OTC_REGISTRY.toLowerCase() &&
         otcSwapBlocks.has(swap.blockNumber)
     ),
@@ -433,7 +433,7 @@ async function main() {
     const tokenConfig = PROTOCOLS_TOKENS[protocol];
     const sdTokenAddress = tokenConfig.sdToken.toLowerCase();
     const nativeAddress = tokenConfig.native.toLowerCase();
-    
+
     const totalRewardSdValue = rows
       .filter(row => {
         const rewardAddr = row["Reward Address"].toLowerCase();
@@ -444,7 +444,7 @@ async function main() {
     for (const row of rows) {
       const rewardAddr = row["Reward Address"].toLowerCase();
       const isExcluded = rewardAddr === sdTokenAddress || rewardAddr === nativeAddress;
-      
+
       if (isExcluded || totalRewardSdValue === 0) {
         row["Share % per Protocol"] = "0.00";
       } else {

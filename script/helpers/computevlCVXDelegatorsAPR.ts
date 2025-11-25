@@ -52,12 +52,12 @@ type CvxCSVType = Record<
 
 const publicClient = createPublicClient({
 	chain: mainnet,
-	transport: http("https://rpc.flashbots.net"),
+	transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
 });
 
 // Chain configurations
 const CHAIN_CONFIGS: Record<number, { chain: any; name: string; rpcUrl: string }> = {
-	1: { chain: mainnet, name: "ethereum", rpcUrl: "https://ethereum-rpc.publicnode.com" },
+	1: { chain: mainnet, name: "ethereum", rpcUrl: process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://ethereum-rpc.publicnode.com" },
 	8453: { chain: base, name: "base", rpcUrl: "https://base.publicnode.com" },
 	42161: { chain: arbitrum, name: "arbitrum", rpcUrl: "https://arbitrum-one.publicnode.com" },
 };

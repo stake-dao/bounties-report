@@ -25,7 +25,7 @@ import { getBlockNumberByTimestamp } from "../utils/chainUtils";
 // Set up the public client for blockchain interactions
 const client = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
 });
 
 /**
@@ -50,19 +50,19 @@ function setupLogFile(proposalTitle: string): string {
     fs.mkdirSync(tempDir, { recursive: true });
   }
   const currentDate = new Date().toISOString().split("T")[0];
-  
+
   // Remove "Gauge vote" prefix and format the title
   let formattedTitle = proposalTitle.trim();
   if (formattedTitle.startsWith("Gauge vote")) {
     formattedTitle = formattedTitle.substring("Gauge vote".length).trim();
   }
-  
+
   // Replace forward slashes with underscores to avoid file path issues
   formattedTitle = formattedTitle.replace(/\//g, "_");
-  
+
   // Replace spaces with hyphens and remove any multiple consecutive spaces
   formattedTitle = formattedTitle.replace(/\s+/g, "-");
-  
+
   const logPath = path.join(
     tempDir,
     `${currentDate}_${formattedTitle}.log`
@@ -201,35 +201,35 @@ async function main() {
     if (spaceId === "cvx.eth") {
       log("\n=== All Voters Forwarder Analysis ===");
       const blockNumber = await getBlockNumberByTimestamp(proposal.end, "after", 1);
-      
+
       // Get delegator data
       const delegatorData = await fetchDelegatorData(spaceId, proposal, "1");
       const delegatorSet = new Set(
         delegatorData?.delegators.map(d => d.toLowerCase()) || []
       );
-      
+
       log(`Fetching forwarder data for ${voters.length} unique voters...`);
       try {
         const forwardedAddresses = await getForwardedDelegators(
           voters,
           blockNumber
         );
-        
+
         // Categorize voters
         let delegatorForwarderCount = 0;
         let delegatorNonForwarderCount = 0;
         let nonDelegatorForwarderCount = 0;
         let nonDelegatorNonForwarderCount = 0;
-        
+
         const voterForwarderMap: Record<string, { isForwarder: boolean; isDelegator: boolean }> = {};
-        
+
         voters.forEach((voter, index) => {
-          const isForwarder = forwardedAddresses[index] && 
+          const isForwarder = forwardedAddresses[index] &&
             forwardedAddresses[index].toLowerCase() === VOTIUM_FORWARDER.toLowerCase();
           const isDelegator = delegatorSet.has(voter.toLowerCase());
-          
+
           voterForwarderMap[voter] = { isForwarder, isDelegator };
-          
+
           if (isDelegator) {
             if (isForwarder) {
               delegatorForwarderCount++;
@@ -244,26 +244,26 @@ async function main() {
             }
           }
         });
-        
+
         // Count delegators who actually voted
         const delegatorsWhoVoted = voters.filter(v => delegatorSet.has(v.toLowerCase())).length;
         const nonDelegatorCount = voters.length - delegatorsWhoVoted;
-        
+
         log(`\nVoter Categories:`);
         log(`Total Unique Voters: ${voters.length}`);
         log(`\nDelegators to Stake DAO who voted (${delegatorsWhoVoted} out of ${delegatorSet.size} total delegators):`);
         log(`  - Using Votium Forwarder: ${delegatorForwarderCount} (${delegatorsWhoVoted > 0 ? ((delegatorForwarderCount / delegatorsWhoVoted) * 100).toFixed(2) : '0.00'}% of voting delegators)`);
         log(`  - NOT using Votium Forwarder: ${delegatorNonForwarderCount} (${delegatorsWhoVoted > 0 ? ((delegatorNonForwarderCount / delegatorsWhoVoted) * 100).toFixed(2) : '0.00'}% of voting delegators)`);
-        
+
         log(`\nNon-Delegators (${nonDelegatorCount} total):`);
         log(`  - Using Votium Forwarder: ${nonDelegatorForwarderCount} (${nonDelegatorCount > 0 ? ((nonDelegatorForwarderCount / nonDelegatorCount) * 100).toFixed(2) : '0.00'}% of non-delegators)`);
         log(`  - NOT using Votium Forwarder: ${nonDelegatorNonForwarderCount} (${nonDelegatorCount > 0 ? ((nonDelegatorNonForwarderCount / nonDelegatorCount) * 100).toFixed(2) : '0.00'}% of non-delegators)`);
-        
+
         const totalForwarders = delegatorForwarderCount + nonDelegatorForwarderCount;
         log(`\nOverall Forwarder Usage:`);
         log(`  - Total using Votium Forwarder: ${totalForwarders} (${((totalForwarders / voters.length) * 100).toFixed(2)}% of all voters)`);
         log(`  - Total NOT using Votium Forwarder: ${voters.length - totalForwarders} (${(((voters.length - totalForwarders) / voters.length) * 100).toFixed(2)}% of all voters)`);
-        
+
         // Show top voters with forwarder status and delegator label
         log("\nTop 30 Voters by Voting Power:");
         const topVoters = votes
@@ -279,7 +279,7 @@ async function main() {
               isDelegator: info?.isDelegator || false
             };
           });
-        
+
         topVoters.forEach((item, index) => {
           const labels = [];
           if (item.isDelegator) labels.push("DELEGATOR");
@@ -390,8 +390,7 @@ async function main() {
         // Print summary of vote distribution
         log("\n--- Vote Distribution Summary ---");
         log(
-          `Total Effective VP for ${
-            info.shortName
+          `Total Effective VP for ${info.shortName
           }: ${totalEffectiveVpForGauge.toFixed(2)}`
         );
         Object.entries(voterEffectiveVps)

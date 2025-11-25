@@ -356,7 +356,7 @@ function processRawTokenBounties(
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://eth.llamarpc.com"),
+  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://eth.llamarpc.com"),
 });
 
 async function main() {

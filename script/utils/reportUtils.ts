@@ -853,7 +853,31 @@ export async function mapTokenSwapsToOutToken(
   outToken: string,
   targetTo: string // consider only transfers from/to this address
 ): Promise<Record<string, bigint>> {
-  const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+  let receipt;
+  let retries = 0;
+  const maxRetries = 10;
+
+  while (retries < maxRetries) {
+    try {
+      receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+      break;
+    } catch (error: any) {
+      if (retries === maxRetries - 1) throw error;
+
+      if (error.name === 'TransactionReceiptNotFoundError' ||
+        (error.message && error.message.includes('could not be found'))) {
+        console.warn(`Receipt not found for ${txHash}, retrying (${retries + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 2000 * (retries + 1)));
+        retries++;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  if (!receipt) {
+    throw new Error(`Failed to fetch receipt for ${txHash}`);
+  }
   const TRANSFER_TOPIC =
     "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 

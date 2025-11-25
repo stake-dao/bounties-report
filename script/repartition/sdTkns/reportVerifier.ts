@@ -16,7 +16,7 @@ const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
 
 const ethereumClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
 });
 
 const bscClient = createPublicClient({
@@ -148,7 +148,7 @@ async function main() {
   let message = `<a href="${reportUrl}"><b>[Distribution] Report checker for ${protocol.toUpperCase()}</b></a>\n\n`;
 
   const data = await processProtocol(protocol);
-  
+
   message += `<b>${protocol.toUpperCase()}:</b>\n`;
   const total = Object.values(data.sdTokenRepartition).reduce(
     (a, b) => a + b,

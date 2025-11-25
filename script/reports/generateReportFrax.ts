@@ -136,7 +136,7 @@ function processRawTokenBounties(
 
     for (const bounty of Object.values(protocolBounties as Record<string, any>)) {
       const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
-      
+
       // Find gauge name and actual gauge address from gaugesInfo array
       let gaugeName = bounty.gauge;
       let gaugeAddress = bounty.gauge;
@@ -169,7 +169,7 @@ function processRawTokenBounties(
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
 });
 
 // TODO: Fetch swaps on mainnet to not rely on usd values (can be wrong in case of price changes)
@@ -190,25 +190,25 @@ async function main() {
 
   const totalBounties = await fetchBountiesData(currentPeriod);
   let aggregatedBounties = aggregateBounties(totalBounties);
-  
+
   // Separate raw token bounties from regular bounties
   const { regular: regularBounties, raw: rawBounties } = separateRawTokenBounties(aggregatedBounties);
-  
+
   // Keep bounties only for frax protocol
   aggregatedBounties = { [protocol]: regularBounties[protocol] };
   const rawProtocolBounties = { [protocol]: rawBounties[protocol] };
 
   // Collect tokens and fetch their info (including raw tokens)
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };
-  
+
   // Convert aggregatedBounties back to array format for collectAllTokens
   const aggregatedBountiesForTokens: Record<string, any[]> = {};
   for (const [p, bounties] of Object.entries(aggregatedBounties)) {
     aggregatedBountiesForTokens[p] = Object.values(bounties || {});
   }
-  
+
   const allTokens = collectAllTokens(aggregatedBountiesForTokens, protocolTokens);
-  
+
   // Add raw tokens to the set
   for (const protocolRawBounties of Object.values(rawProtocolBounties)) {
     for (const bounty of Object.values(protocolRawBounties as Record<string, any>)) {
@@ -217,7 +217,7 @@ async function main() {
       }
     }
   }
-  
+
   const tokenInfos = await fetchAllTokenInfos(
     Array.from(allTokens),
     publicClient
@@ -225,13 +225,13 @@ async function main() {
 
   // Fetch gauge infos
   const gaugesInfo = await getGaugesInfos("frax");
-  
+
   // Convert aggregatedBounties to array format
   const aggregatedBountiesArray: Record<string, any[]> = {};
   for (const [p, bounties] of Object.entries(aggregatedBounties)) {
     aggregatedBountiesArray[p] = Object.values(bounties || {});
   }
-  
+
   if (gaugesInfo) {
     aggregatedBountiesArray[protocol] = addGaugeNamesToBounties(
       aggregatedBountiesArray[protocol],
@@ -242,13 +242,13 @@ async function main() {
   // Fetch token prices for the period
   console.log("Fetching token prices...");
   const tokenPrices: Record<string, number> = {};
-  
+
   // Get unique token addresses
   const uniqueTokens = new Set<string>();
   for (const bounty of aggregatedBountiesArray[protocol] || []) {
     uniqueTokens.add(bounty.rewardToken.toLowerCase());
   }
-  
+
   // Fetch prices for all tokens
   const { getHistoricalTokenPrice } = await import("../utils/utils");
   for (const tokenAddress of uniqueTokens) {
@@ -265,23 +265,23 @@ async function main() {
       tokenPrices[tokenAddress] = 0;
     }
   }
-  
+
   // Calculate total bounty value in USD
   let totalBountyValueUSD = 0;
   const bountyValues: Map<any, number> = new Map();
-  
+
   for (const bounty of aggregatedBountiesArray[protocol] || []) {
     const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
     const amount = Number(bounty.amount) / Math.pow(10, tokenInfo?.decimals || 18);
     const price = tokenPrices[bounty.rewardToken.toLowerCase()] || 0;
     const usdValue = amount * price;
-    
+
     bountyValues.set(bounty, usdValue);
     totalBountyValueUSD += usdValue;
-    
+
     console.log(`Bounty ${bounty.bountyId}: ${amount.toFixed(4)} ${tokenInfo?.symbol} = $${usdValue.toFixed(2)}`);
   }
-  
+
   console.log(`Total bounty value: $${totalBountyValueUSD.toFixed(2)}`);
 
   // Generate CSV reports
@@ -292,13 +292,13 @@ async function main() {
     currentPeriod.toString()
   );
   fs.mkdirSync(dirPath, { recursive: true });
-  
+
   // Create raw subdirectory for raw token reports
   const rawDirPath = path.join(dirPath, "raw");
   if (Object.keys(rawProtocolBounties).some(p => rawProtocolBounties[p] && Object.keys(rawProtocolBounties[p]).length > 0)) {
     fs.mkdirSync(rawDirPath, { recursive: true });
   }
-  
+
   const formattedDate = new Date(currentPeriod * 1000).toLocaleDateString(
     "en-GB"
   );
@@ -309,10 +309,10 @@ async function main() {
   for (const bounty of aggregatedBountiesArray[protocol] || []) {
     const tokenInfo = tokenInfos[bounty.rewardToken.toLowerCase()];
     const rewardAmount = Number(bounty.amount) / Math.pow(10, tokenInfo?.decimals || 18);
-    
+
     // Get USD value for this bounty
     const usdValue = bountyValues.get(bounty) || 0;
-    
+
     // Calculate sdFXS value proportionally based on USD value
     const shareOfTotal = totalBountyValueUSD > 0 ? usdValue / totalBountyValueUSD : 0;
     const sdFxsValue = totalSdFxsAmount * shareOfTotal;
@@ -353,7 +353,7 @@ async function main() {
   console.log(`\nReport generated for ${protocol}: ${fileName}`);
   console.log(`Total sdFXS distributed: ${totalSdFxsAmount}`);
   console.log(`Total bounty value: $${totalBountyValueUSD.toFixed(2)}`);
-  
+
   // Log top bounties by USD value
   console.log("\nTop bounties by USD value:");
   csvRows

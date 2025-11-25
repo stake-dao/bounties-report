@@ -59,7 +59,7 @@ type CvxCSVType = Record<
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
 });
 
 async function getTokenPrices(
@@ -73,7 +73,7 @@ async function getTokenPrices(
   }));
 
   const prices = await getHistoricalTokenPrices(tokenIdentifiers, currentPeriodTimestamp);
-  
+
   return tokens.map(token => {
     const key = `${LLAMA_NETWORK_MAPPING[Number(chain)]}:${token.toLowerCase()}`;
     return {
@@ -225,13 +225,13 @@ async function computeAPR(): Promise<APRResult> {
 
   // Calculate annualized APRs
   // Because we do a weekly distribution, multiply by 52
-  const {data: sdSpectraWorking} = await axios.get(
+  const { data: sdSpectraWorking } = await axios.get(
     "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdspectra-working-supply.json"
   )
 
-  const annualizedAPR = ((totalSdSpectraDistributed * 52) / ( sdSpectraWorking.total_vp)) * 100;
-  const wethAPR = ((wethRewardValueUSD * 52) / ( sdSpectraWorking.total_vp)) * 100;
-  const otherAPR = ((otherRewardValueUSD * 52) / ( sdSpectraWorking.total_vp)) * 100;
+  const annualizedAPR = ((totalSdSpectraDistributed * 52) / (sdSpectraWorking.total_vp)) * 100;
+  const wethAPR = ((wethRewardValueUSD * 52) / (sdSpectraWorking.total_vp)) * 100;
+  const otherAPR = ((otherRewardValueUSD * 52) / (sdSpectraWorking.total_vp)) * 100;
 
   console.log("\n=== APR Calculations ===");
   console.log("Weekly Reward:", totalRewardUSD);

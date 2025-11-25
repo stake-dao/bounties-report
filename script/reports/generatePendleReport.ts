@@ -39,7 +39,7 @@ interface CSVRow {
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://eth.llamarpc.com"),
+  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://eth.llamarpc.com"),
 });
 
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
@@ -139,7 +139,31 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
   for (const txHash of allTxHashes) {
     // Get the transaction details to inspect all transfers within it
     const txDetails = await publicClient.getTransaction({ hash: txHash as `0x${string}` });
-    const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+    let receipt;
+    let retries = 0;
+    const maxRetries = 10;
+
+    while (retries < maxRetries) {
+      try {
+        receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+        break;
+      } catch (error: any) {
+        if (retries === maxRetries - 1) throw error;
+
+        if (error.name === 'TransactionReceiptNotFoundError' ||
+          (error.message && error.message.includes('could not be found'))) {
+          console.warn(`Receipt not found for ${txHash}, retrying (${retries + 1}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * (retries + 1)));
+          retries++;
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    if (!receipt) {
+      throw new Error(`Failed to fetch receipt for ${txHash}`);
+    }
 
     // Check if any log in this transaction is a Transfer from valid sources
     for (const log of receipt.logs) {
