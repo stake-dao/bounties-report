@@ -2,14 +2,11 @@ import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
 import {
-  createPublicClient,
-  http,
   keccak256,
   encodePacked,
   parseAbi,
   decodeEventLog,
 } from "viem";
-import { mainnet } from "../utils/chains";
 import {
   getTimestampsBlocks,
   fetchSwapInEvents,
@@ -22,6 +19,7 @@ import {
   addGaugeNamesToBounties,
   fetchAllTokenInfos,
 } from "../utils/reportUtils";
+import { getClient } from "../utils/getClients";
 import { ALL_MIGHT, OTC_REGISTRY } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
@@ -152,11 +150,6 @@ async function fetchOTCWithdrawals(
   return result;
 }
 
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
-});
-
 interface CSVRow {
   Period: string;
   "Gauge Name": string;
@@ -216,6 +209,8 @@ async function main() {
     );
     process.exit(1);
   }
+
+  const publicClient = await getClient(1);
 
   // Get block numbers
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(

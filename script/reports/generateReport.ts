@@ -1,7 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http } from "viem";
-import { mainnet } from "../utils/chains";
 import dotenv from "dotenv";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -23,6 +21,7 @@ import {
   fetchDelegationEvents,
   BOTMARKET,
 } from "../utils/reportUtils";
+import { getClient } from "../utils/getClients";
 import { ALL_MIGHT } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT, DELEGATION_RECIPIENT } from "../utils/constants";
 import processReport from "./processReport";
@@ -354,11 +353,6 @@ function processRawTokenBounties(
   return result;
 }
 
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://eth.llamarpc.com"),
-});
-
 async function main() {
   const argv = yargs<{
     protocol: string;
@@ -424,6 +418,9 @@ async function main() {
       debug("[tx-exclusions] hashes", Array.from(excludedTxHashes));
     }
   }
+
+  // Create client using centralized getClient
+  const publicClient = await getClient(1);
 
   // Get block numbers and timestamps (timestamps are not used later)
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(

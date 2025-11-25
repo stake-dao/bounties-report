@@ -1,7 +1,7 @@
-import { createPublicClient, http, getAddress, encodePacked, keccak256, pad } from "viem";
-import { fraxtal } from "../utils/chains";
+import { getAddress, encodePacked, keccak256, pad } from "viem";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { FRAXTAL_SD_FXS, SD_FXS, SDFXS_UNIVERSAL_MERKLE } from "../utils/constants";
+import { getClient } from "../utils/getClients";
 
 export interface SdFXSTransferResult {
   amount: bigint;
@@ -15,11 +15,8 @@ export interface SdFXSTransferResult {
  * @returns Total sdFXS amount transferred and transaction details
  */
 export async function getSdFXSTransfersOnFraxtal(weekTimestamp: number): Promise<SdFXSTransferResult> {
-  // Create Fraxtal client
-  const fraxtalClient = createPublicClient({
-    chain: fraxtal,
-    transport: http("https://rpc.frax.com"),
-  });
+  // Create Fraxtal client using getClient for automatic RPC selection
+  const fraxtalClient = await getClient(252);
 
   // Get block numbers for the week
   const startBlock = await getClosestBlockTimestamp("fraxtal", weekTimestamp);

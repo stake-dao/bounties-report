@@ -1,8 +1,7 @@
 import axios from "axios";
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http, formatUnits, pad } from "viem";
-import { mainnet } from "../utils/chains";
+import { formatUnits, pad } from "viem";
 import { getAddress } from "viem";
 import { WEEK, DELEGATION_ADDRESS } from "../utils/constants";
 import {
@@ -18,7 +17,7 @@ import {
   OTC_REGISTRY,
   getPendleGaugesInfos,
 } from "../utils/reportUtils";
-
+import { getClient } from "../utils/getClients";
 import { getLatestJson } from "../utils/githubUtils";
 
 const REPO_PATH = "stake-dao/pendle-merkle-script";
@@ -36,11 +35,6 @@ interface CSVRow {
   "Reward sd Value": number;
   "Share % per Protocol": number;
 }
-
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://eth.llamarpc.com"),
-});
 
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
 const sdPENDLE = getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9");
@@ -210,6 +204,7 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
 
 async function main() {
   try {
+    const publicClient = await getClient(1);
     const { timestamp1, timestamp2, blockNumber1, blockNumber2, storageTimestamp } =
       await getTimestampsBlocks(publicClient, 0, "ethereum", "pendle");
 

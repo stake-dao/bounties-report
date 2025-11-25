@@ -1,7 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { createPublicClient, formatUnits, http } from "viem";
-import { mainnet } from "../utils/chains";
+import { formatUnits } from "viem";
 import {
   getTimestampsBlocks,
   fetchSwapInEvents,
@@ -11,6 +10,7 @@ import {
   getTokenInfo,
   getGaugesInfos,
 } from "../utils/reportUtils";
+import { getClient } from "../utils/getClients";
 import dotenv from "dotenv";
 import {
   ALL_MIGHT,
@@ -85,12 +85,8 @@ interface ProtocolData {
   [protocol: string]: BlockData[];
 }
 
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http("https://bsc-dataseed.bnbchain.org"),
-});
-
 async function fetchAllTokenInfos(
+  publicClient: any,
   allTokens: string[]
 ): Promise<Record<string, TokenInfo>> {
   const tokenInfos: Record<string, TokenInfo> = {};
@@ -238,13 +234,14 @@ async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties
 }
 
 async function main() {
+  const publicClient = await getClient(56);
   const { timestamp1, timestamp2, blockNumber1, blockNumber2 } =
     await getTimestampsBlocks(publicClient, 0);
 
   const totalBounties = await fetchBountiesData(currentPeriod);
   let aggregatedBounties = aggregateBounties(totalBounties);
   const allTokens = collectAllTokens(aggregatedBounties, PROTOCOLS_TOKENS);
-  const tokenInfos = await fetchAllTokenInfos(Array.from(allTokens));
+  const tokenInfos = await fetchAllTokenInfos(publicClient, Array.from(allTokens));
 
   const curveGaugesInfos = await getGaugesInfos("curve");
   const balancerGaugesInfos = await getGaugesInfos("balancer");

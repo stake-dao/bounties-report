@@ -38,25 +38,29 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: mainnet,
     endpoints: [
       {
-        url: "https://eth-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        url: "https://stake-erpc.contact-69d.workers.dev/1",
         priority: 1,
+      },
+      {
+        url: "https://eth-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        priority: 2,
         requiresApiKey: true,
       },
       {
         url: `https://mainnet.gateway.tenderly.co`,
-        priority: 2,
-      },
-      {
-        url: "https://eth-mainnet.public.blastapi.io",
         priority: 3,
       },
       {
-        url: "https://ethereum-rpc.publicnode.com",
+        url: "https://eth-mainnet.public.blastapi.io",
         priority: 4,
       },
       {
-        url: "https://rpc.ankr.com/eth",
+        url: "https://ethereum-rpc.publicnode.com",
         priority: 5,
+      },
+      {
+        url: "https://rpc.ankr.com/eth",
+        priority: 6,
       },
     ],
   },
@@ -65,24 +69,28 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: bsc,
     endpoints: [
       {
-        url: "https://bsc-dataseed1.binance.org",
+        url: "https://stake-erpc.contact-69d.workers.dev/56",
         priority: 1,
       },
       {
-        url: "https://bsc-dataseed2.binance.org",
+        url: "https://bsc-dataseed1.binance.org",
         priority: 2,
       },
       {
-        url: "https://bsc-dataseed3.binance.org",
+        url: "https://bsc-dataseed2.binance.org",
         priority: 3,
       },
       {
-        url: "https://bsc-dataseed4.binance.org",
+        url: "https://bsc-dataseed3.binance.org",
         priority: 4,
       },
       {
-        url: "https://rpc.ankr.com/bsc",
+        url: "https://bsc-dataseed4.binance.org",
         priority: 5,
+      },
+      {
+        url: "https://rpc.ankr.com/bsc",
+        priority: 6,
       },
     ],
   },
@@ -91,35 +99,43 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: optimism,
     endpoints: [
       {
-        url: "https://opt-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        url: "https://stake-erpc.contact-69d.workers.dev/10",
         priority: 1,
+      },
+      {
+        url: "https://opt-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        priority: 2,
         requiresApiKey: true,
       },
       {
         url: "https://mainnet.optimism.io",
-        priority: 2,
-      },
-      {
-        url: "https://optimism.llamarpc.com",
         priority: 3,
       },
       {
-        url: "https://rpc.ankr.com/optimism",
+        url: "https://optimism.llamarpc.com",
         priority: 4,
+      },
+      {
+        url: "https://rpc.ankr.com/optimism",
+        priority: 5,
       },
     ],
   },
   // Fraxtal
-  1124: {
+  252: {
     chain: fraxtal,
     endpoints: [
       {
-        url: "https://rpc.frax.com",
+        url: "https://stake-erpc.contact-69d.workers.dev/252",
         priority: 1,
       },
       {
-        url: "https://fraxtal.drpc.org",
+        url: "https://rpc.frax.com",
         priority: 2,
+      },
+      {
+        url: "https://fraxtal.drpc.org",
+        priority: 3,
       },
     ],
   },
@@ -128,25 +144,29 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: base,
     endpoints: [
       {
-        url: "https://base-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        url: "https://stake-erpc.contact-69d.workers.dev/8453",
         priority: 1,
+      },
+      {
+        url: "https://base-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        priority: 2,
         requiresApiKey: true,
       },
       {
         url: "https://base.llamarpc.com",
-        priority: 2,
-      },
-      {
-        url: "https://rpc.ankr.com/base",
         priority: 3,
       },
       {
-        url: "https://mainnet.base.org",
+        url: "https://rpc.ankr.com/base",
         priority: 4,
       },
       {
-        url: "https://developer-access-mainnet.base.org",
+        url: "https://mainnet.base.org",
         priority: 5,
+      },
+      {
+        url: "https://developer-access-mainnet.base.org",
+        priority: 6,
       },
     ],
   },
@@ -155,16 +175,20 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: polygon,
     endpoints: [
       {
-        url: "https://polygon-rpc.com",
+        url: "https://stake-erpc.contact-69d.workers.dev/137",
         priority: 1,
       },
       {
-        url: "https://rpc-mainnet.matic.network",
+        url: "https://polygon-rpc.com",
         priority: 2,
       },
       {
-        url: "https://rpc.ankr.com/polygon",
+        url: "https://rpc-mainnet.matic.network",
         priority: 3,
+      },
+      {
+        url: "https://rpc.ankr.com/polygon",
+        priority: 4,
       },
     ],
   },
@@ -173,8 +197,12 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: sonic,
     endpoints: [
       {
-        url: "https://rpc.soniclabs.com",
+        url: "https://stake-erpc.contact-69d.workers.dev/146",
         priority: 1,
+      },
+      {
+        url: "https://rpc.soniclabs.com",
+        priority: 2,
       },
     ],
   },
@@ -183,21 +211,25 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: arbitrum,
     endpoints: [
       {
-        url: "https://arb-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        url: "https://stake-erpc.contact-69d.workers.dev/42161",
         priority: 1,
+      },
+      {
+        url: "https://arb-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+        priority: 2,
         requiresApiKey: true,
       },
       {
         url: "https://arb1.arbitrum.io/rpc",
-        priority: 1,
+        priority: 3,
       },
       {
         url: "https://arbitrum.llamarpc.com",
-        priority: 2,
+        priority: 4,
       },
       {
         url: "https://rpc.ankr.com/arbitrum",
-        priority: 3,
+        priority: 5,
       },
     ],
   },
@@ -226,4 +258,18 @@ export function getAvailableEndpoints(chainId: number): RpcEndpoint[] {
       url: injectApiKey(endpoint.url, apiKeys),
     }))
     .sort((a, b) => a.priority - b.priority);
+}
+
+// Get the primary (highest priority) RPC URL for a chain
+export function getPrimaryRpcUrl(chainId: number): string {
+  const endpoints = getAvailableEndpoints(chainId);
+  if (endpoints.length === 0) {
+    throw new Error(`No available RPC endpoints for chain ${chainId}`);
+  }
+  return endpoints[0].url;
+}
+
+// Get the chain configuration for a chain ID
+export function getChainConfig(chainId: number): ChainRpcConfig | undefined {
+  return RPC_CONFIGS[chainId];
 }

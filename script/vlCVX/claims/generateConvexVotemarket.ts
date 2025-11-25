@@ -3,16 +3,10 @@ import fs from "fs";
 import path from "path";
 import { VOTEMARKET_CONVEX_LOCKER_CONFIGS } from "../../utils/constants";
 import { getTimestampsBlocks } from "../../utils/reportUtils";
-import { createPublicClient, http } from "viem";
-import { mainnet } from "../../utils/chains";
+import { getClient } from "../../utils/getClients";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
 
 const WEEK = 604800;
-
-const ethereumClient = createPublicClient({
-  chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
-});
 
 function customReplacer(key: string, value: any) {
   if (typeof value === "bigint") {
@@ -35,6 +29,9 @@ function customReplacer(key: string, value: any) {
 
 async function generateConvexVotemarketBounties(pastWeek: number = 0) {
   try {
+    // Create client using centralized getClient
+    const ethereumClient = await getClient(1);
+
     const currentDate = new Date();
     const currentTimestamp = Math.floor(currentDate.getTime() / 1000);
     const adjustedTimestamp = currentTimestamp - pastWeek * WEEK;

@@ -1,6 +1,4 @@
 import { getClient, CVX_SPACE, VOTIUM_FORWARDER, VOTIUM_FORWARDER_REGISTRY } from "../../utils/constants";
-import { createPublicClient, http } from "viem";
-import { mainnet } from "../../utils/chains";
 import { getProposal, getVoters, fetchLastProposalsIdsCurrentPeriod } from "../../utils/snapshot";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getBlockNumberByTimestamp } from "../../utils/chainUtils";

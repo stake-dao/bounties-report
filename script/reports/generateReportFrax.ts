@@ -1,7 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { createPublicClient, http, formatUnits } from "viem";
-import { mainnet } from "../utils/chains";
+import { formatUnits } from "viem";
 import dotenv from "dotenv";
 import {
   getTimestampsBlocks,
@@ -13,6 +12,7 @@ import {
   addGaugeNamesToBounties,
   getGaugesInfos,
 } from "../utils/reportUtils";
+import { getClient } from "../utils/getClients";
 import { getSdFXSTransfersOnFraxtal } from "./fraxtalFetcher";
 
 dotenv.config();
@@ -167,14 +167,10 @@ function processRawTokenBounties(
   return result;
 }
 
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
-});
-
 // TODO: Fetch swaps on mainnet to not rely on usd values (can be wrong in case of price changes)
 async function main() {
   const protocol = "frax";
+  const publicClient = await getClient(1);
 
   // Get block numbers and timestamps
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
