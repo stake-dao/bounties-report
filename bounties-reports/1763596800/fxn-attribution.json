@@ -4,44 +4,38 @@
   "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
   "totals": {
     "sdInTotal": 73.91670491257035,
-    "sdAssigned": 73.91670491257035,
+    "sdAssigned": 73.91670491257034,
     "wethInTotal": 0.5381975979530781,
     "wethOutTotal": 0.8947936983426406
   },
   "dropped": {
-    "tokensNotSwapped": [
-      "0x7159cc276d7d17ab4b3beb19959e1f39368a45ba",
-      "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef",
-      "0xdbdb4d16eda451d0503b854cf79d55697f90c8df",
-      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-      "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8"
-    ],
+    "tokensNotSwapped": [],
     "wethNotSwapped": false
   },
   "perToken": {
     "0x7159cc276d7d17ab4b3beb19959e1f39368a45ba": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.027747098075286473,
+      "sd": 3.8108197963193247
     },
     "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.027722667481997643,
+      "sd": 3.807464469276176
     },
     "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.008918015348699227,
+      "sd": 1.2248109457245189
     },
     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
       "mappedWeth": 0,
-      "sd": 73.91670491257035
+      "sd": 0
     },
     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.38026673942077965,
+      "sd": 52.226290999317335
     },
     "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.09354307762631507,
+      "sd": 12.84731870193299
     }
   },
   "txs": [
@@ -53,9 +47,21 @@
       "nativeIn": 73.75930885008627,
       "nativeOut": 73.75930885008627,
       "nativeShareSd": 0,
-      "wethBasis": 0,
-      "tokenWeth": {},
-      "tokenSd": {}
+      "wethBasis": 0.5381975979530781,
+      "tokenWeth": {
+        "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": 0.008918015348699227,
+        "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8": 0.09354307762631507,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.027722667481997643,
+        "0x7159cc276d7d17ab4b3beb19959e1f39368a45ba": 0.027747098075286473,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0.38026673942077965
+      },
+      "tokenSd": {
+        "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": 1.2248109457245189,
+        "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8": 12.84731870193299,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 3.807464469276176,
+        "0x7159cc276d7d17ab4b3beb19959e1f39368a45ba": 3.8108197963193247,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 52.226290999317335
+      }
     }
   ]
 }
