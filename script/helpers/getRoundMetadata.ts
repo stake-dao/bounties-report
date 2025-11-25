@@ -81,19 +81,25 @@ export const getRoundMetadata = async () => {
         lookbackWeeks: number = 4
     ): Promise<Map<string, string>> => {
         try {
+            console.log(`[fetchDistributionTimes] Getting client for chain ${chainId}...`);
             const client = await getClient(chainId);
+            console.log(`[fetchDistributionTimes] Getting current block...`);
             const currentBlock = await client.getBlockNumber();
+            console.log(`[fetchDistributionTimes] Current block: ${currentBlock}`);
 
             // Estimate blocks
             // Eth: ~12s, Base: ~2s
             const blockTime = chainId === 8453 ? 2n : 12n;
             const lookbackBlocks = (BigInt(lookbackWeeks) * 7n * 24n * 3600n) / blockTime;
             const startBlock = currentBlock - lookbackBlocks;
+            console.log(`[fetchDistributionTimes] Fetching logs from block ${startBlock} to ${currentBlock}`);
 
-            // Chunk size
-            const chunkSize = chainId === 8453 ? 2000n : 10000n; // Base RPCs are stricter
+            // Chunk size - Base needs larger chunks due to fast block times
+            // Base: 8 weeks = ~2.4M blocks. With 50k chunk size = ~48 requests (manageable)
+            // Eth: 8 weeks = ~403k blocks. With 10k chunk size = ~40 requests
+            const chunkSize = chainId === 8453 ? 50000n : 10000n;
 
-            const limit = pLimit(20);
+            const limit = pLimit(10); // Reduced concurrency to avoid overwhelming RPCs
             const chunkPromises = [];
 
             for (let i = startBlock; i < currentBlock; i += chunkSize) {
@@ -114,8 +120,10 @@ export const getRoundMetadata = async () => {
                 }));
             }
 
+            console.log(`[fetchDistributionTimes] Waiting for ${chunkPromises.length} chunk promises...`);
             const chunks = await Promise.all(chunkPromises);
             const logs = chunks.flat();
+            console.log(`[fetchDistributionTimes] Found ${logs.length} logs`);
 
             const timeMap = new Map<string, string>();
 
@@ -195,16 +203,14 @@ export const getRoundMetadata = async () => {
                 }
 
                 const rounds = roundMetadata[protocolName]!.rounds;
-                // Check if round already exists
-                let round = rounds.find(r => r.proposalStart === formatDate(proposal.start));
+                // Check if round already exists (by matching any proposal start date)
+                let round = rounds.find(r => r.proposals?.some(p => p.start === formatDateTime(proposal.start)));
 
                 if (!round) {
                     // Create new round entry
                     const maxId = rounds.length > 0 ? Math.max(...rounds.map(r => r.id)) : 0;
                     round = {
                         id: maxId + 1,
-                        proposalStart: formatDateTime(proposal.start),
-                        proposalEnd: formatDateTime(proposal.end),
                         proposals: [{
                             id: proposal.id,
                             start: formatDateTime(proposal.start),
@@ -507,6 +513,7 @@ export const getRoundMetadata = async () => {
 
     // Spectra-specific processing: one proposal = one distribution
     const processSpectra = async () => {
+        console.log("[DEBUG] Starting processSpectra...");
         const weeksToCheck = 2;
         const periodsToCheck: string[] = [];
         for (let i = 0; i < weeksToCheck; i++) {
@@ -517,9 +524,10 @@ export const getRoundMetadata = async () => {
         const oldRounds = roundMetadata["spectra"]?.rounds || [];
         roundMetadata["spectra"] = { rounds: [] };
 
+        console.log("[DEBUG] Fetching distribution times for Spectra on Base chain...");
         // Fetch distribution times for Spectra
         const eventAbi = parseAbiItem("event RootSet(bytes32 indexed newRoot, bytes32 indexed newIpfsHash)");
-        // Start from block 20M on Base (approx recent) to save time, or 0 if unsure. 
+        // Start from block 20M on Base (approx recent) to save time, or 0 if unsure.
         // Spectra is recent, so 20M is safe (Base is at ~22M+).
         const timeMap = await fetchDistributionTimes(
             parseInt(BASE_CHAIN_ID),
@@ -528,9 +536,12 @@ export const getRoundMetadata = async () => {
             {},
             8 // 8 weeks
         );
+        console.log("[DEBUG] Fetched distribution times for Spectra, found", timeMap.size, "entries");
 
         // Fetch proposals for all periods
+        console.log("[DEBUG] Fetching proposals for Spectra...");
         const proposalIds = await fetchProposalsIdsBasedOnExactPeriods(SPECTRA_SPACE, periodsToCheck, targetPeriod + WEEK);
+        console.log("[DEBUG] Found proposal IDs:", Object.keys(proposalIds).length);
 
         let foundAny = false;
         let currentRoundId = 0;
@@ -549,8 +560,11 @@ export const getRoundMetadata = async () => {
                 const maxId = rounds.length > 0 ? Math.max(...rounds.map(r => r.id)) : 0;
                 const round: Round = {
                     id: maxId + 1,
-                    proposalStart: formatDateTime(proposal.start),
-                    proposalEnd: formatDateTime(proposal.end),
+                    proposals: [{
+                        id: proposal.id,
+                        start: formatDateTime(proposal.start),
+                        end: formatDateTime(proposal.end)
+                    }],
                     distributions: []
                 };
                 rounds.push(round);
@@ -600,13 +614,19 @@ export const getRoundMetadata = async () => {
         }
     };
 
+    console.log("[DEBUG] Starting processPendle...");
     await processPendle();
+    console.log("[DEBUG] Completed processPendle");
 
     // Spectra: 1 proposal = 1 distribution (weekly)
+    console.log("[DEBUG] Starting processSpectra...");
     await processSpectra();
+    console.log("[DEBUG] Completed processSpectra");
 
     // General: 2 steps (Using SDCRV as proxy)
+    console.log("[DEBUG] Starting processProtocol for general...");
     await processProtocol("general", SDCRV_SPACE, 2);
+    console.log("[DEBUG] Completed processProtocol for general");
 
     fs.writeFileSync(roundMetadataPath, JSON.stringify(roundMetadata, null, 4));
     console.log("Round metadata updated.");
