@@ -6,6 +6,7 @@ import {
   encodePacked,
   parseAbi,
   decodeEventLog,
+  PublicClient,
 } from "viem";
 import {
   getTimestampsBlocks,
@@ -43,6 +44,7 @@ interface Bounty {
  * Fetch OTC withdrawals by decoding event logs from the explorer.
  */
 async function fetchOTCWithdrawals(
+  publicClient: PublicClient,
   fromBlock: number,
   toBlock: number
 ): Promise<Record<string, Bounty[]>> {
@@ -219,6 +221,7 @@ async function main() {
   );
 
   let aggregatedBounties = await fetchOTCWithdrawals(
+    publicClient,
     blockNumber1,
     blockNumber2
   );
@@ -264,11 +267,11 @@ async function main() {
     if (protocol === "curve") {
       const gaugeInfo = gaugesInfo?.find(
         (gauge) =>
-          gauge.rootGauge?.toLowerCase() === bounty.gauge.toLowerCase() ||
           gauge.address.toLowerCase() === bounty.gauge.toLowerCase()
       );
       if (gaugeInfo) {
-        bounty.gauge = gaugeInfo.address;
+        // If this gauge entry was created for a rootGauge, use the actualGauge address
+        bounty.gauge = gaugeInfo.actualGauge || gaugeInfo.address;
         bounty.gaugeName = gaugeInfo.name;
       }
     }
