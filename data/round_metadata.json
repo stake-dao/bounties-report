@@ -148,6 +148,28 @@
                 "id": 1,
                 "proposals": [
                     {
+                        "id": "0x79ed027c75c1f116f38d2d5b3b8d457751264e79379e6d1f48d67244c0b84da3",
+                        "start": "06-11-2025 02:00",
+                        "end": "11-11-2025 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "18-11-2025",
+                        "distributed": "09:40"
+                    },
+                    {
+                        "step": 2,
+                        "date": "25-11-2025",
+                        "distributed": "10:21"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
                         "id": "0x2adca9661ae81cd64796995de0428b7b9f90515a2f4d1648bbd667e62fddee98",
                         "start": "20-11-2025 02:00",
                         "end": "25-11-2025 15:00"
@@ -165,24 +187,8 @@
                         "distributed": ""
                     }
                 ]
-            },
-            {
-                "id": 2,
-                "proposals": [],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "16-12-2025",
-                        "distributed": ""
-                    },
-                    {
-                        "step": 2,
-                        "date": "23-12-2025",
-                        "distributed": ""
-                    }
-                ]
             }
         ],
-        "currentRoundId": 1
+        "currentRoundId": 2
     }
 }

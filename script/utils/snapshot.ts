@@ -256,10 +256,21 @@ export const getProposal = async (idProposal: string): Promise<Proposal> => {
 };
 
 export const getLastClosedProposal = async (space: string): Promise<Proposal> => {
-  const QUERY_PROPOSAL = gql`
-    query Proposal {
+  const proposals = await getLastClosedProposals(space, 1);
+  return proposals[0];
+};
+
+/**
+ * Fetch the last N closed "Gauge vote" proposals for a space
+ * @param space - Space ID
+ * @param count - Number of proposals to fetch
+ * @returns Array of proposals (newest first)
+ */
+export const getLastClosedProposals = async (space: string, count: number): Promise<Proposal[]> => {
+  const QUERY_PROPOSALS = gql`
+    query Proposals {
       proposals(
-        first: 1
+        first: ${count}
         skip: 0
         orderBy: "created",
         orderDirection: desc,
@@ -301,8 +312,8 @@ export const getLastClosedProposal = async (space: string): Promise<Proposal> =>
     }
   `;
 
-  const result = await request(SNAPSHOT_ENDPOINT, QUERY_PROPOSAL);
-  return result.proposals[0];
+  const result = await request(SNAPSHOT_ENDPOINT, QUERY_PROPOSALS);
+  return result.proposals;
 };
 
 /**

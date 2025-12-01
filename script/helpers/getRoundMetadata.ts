@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import moment from "moment";
 import axios from "axios";
-import { fetchProposalsIdsBasedOnExactPeriods, getProposal, getLastClosedProposal } from "../utils/snapshot";
+import { fetchProposalsIdsBasedOnExactPeriods, getProposal, getLastClosedProposals } from "../utils/snapshot";
 import { WEEK, SDPENDLE_SPACE, SPECTRA_SPACE, SDCRV_SPACE, MERKLE_ADDRESS, SPECTRA_MERKLE_ADDRESS, SD_CRV, SD_PENDLE, ETH_CHAIN_ID, BASE_CHAIN_ID, MERKLE_CREATION_BLOCK_ETH } from "../utils/constants";
 import { getLatestJson } from "../utils/githubUtils";
 import { getClient } from "../utils/getClients";
@@ -160,81 +160,21 @@ export const getRoundMetadata = async () => {
         spaceId: string,
         totalSteps: number
     ) => {
-        const ROUNDS_TO_SHOW = 2; // Show current round + next round
-
-        // Generate periods to check for CURRENT round + NEXT round
-        // Each round has `totalSteps` distributions over `totalSteps` weeks
-        // We need to find proposals for 2 rounds, so we check periods spanning both rounds
-        // 
-        // For general with totalSteps=2:
-        // - Round 1 (current): proposal from ~2 weeks ago, distributions this week + next week
-        // - Round 2 (next): proposal from this week, distributions in 2 weeks + 3 weeks
-        //
-        // fetchProposalsIdsBasedOnExactPeriods does: reportPeriod = periodTimestamp - WEEK
-        // So to find the proposal for Round 1: pass currentPeriodTimestamp (reportPeriod = currentPeriod - WEEK)
-        // To find the proposal for Round 2: pass currentPeriodTimestamp + (totalSteps * WEEK)
-        
-        const periodsToCheck: string[] = [];
-        // We need to check 2 periods: one for current round, one for next round
-        // 
-        // For General (bi-weekly proposals, 2 distributions per round):
-        // - Proposals happen every 2 weeks on Thursday
-        // - Each proposal results in 2 distributions (Step 1 and Step 2) on following Tuesdays
-        //
-        // To correctly find which proposals to show:
-        // 1. Get the upcoming Tuesday
-        // 2. Calculate which proposal cycle that Tuesday belongs to
-        // 3. Use that to find Round 1 and Round 2 proposal weeks
-        //
-        // fetchProposalsIdsBasedOnExactPeriods calculates: reportPeriod = periodTimestamp - WEEK
-        // So to match a proposal created in week X, we pass periodTimestamp = X + WEEK
+        console.log(`[DEBUG] Starting processProtocol for ${protocolName}...`);
         
         const upcomingTuesdayTs = getUpcomingTuesday().unix();
         
-        // Dynamically fetch the most recent closed proposal to use as anchor
-        // This avoids hardcoding a specific epoch date
-        const latestProposal = await getLastClosedProposal(spaceId);
+        // Fetch the last 2 closed proposals
+        // Round 1: second-to-last proposal (already distributed last week)
+        // Round 2: latest proposal (upcoming distributions)
+        const proposals = await getLastClosedProposals(spaceId, 2);
         
-        if (!latestProposal) {
+        if (proposals.length === 0) {
             console.log(`No closed proposals found for ${protocolName}`);
             return;
         }
         
-        // The proposal's created timestamp gives us the Thursday of the proposal week
-        // We normalize it to the Thursday (start of the week in proposal terms)
-        const latestProposalPeriod = Math.floor(latestProposal.created / WEEK) * WEEK;
-        const CYCLE_LENGTH = totalSteps * WEEK; // Bi-weekly = 2 weeks for general
-        
-        // Calculate the first distribution date for the latest proposal
-        // Proposal ends, then distributions start the following Tuesday
-        // proposalEndPeriod (Thursday) + 1 WEEK + 5 days = First Tuesday
-        const proposalEndPeriod = Math.floor(latestProposal.end / WEEK) * WEEK;
-        const firstDistOfLatest = proposalEndPeriod + WEEK + (5 * 86400);
-        const lastDistOfLatest = firstDistOfLatest + ((totalSteps - 1) * WEEK);
-        
-        // Determine which round the upcoming Tuesday belongs to
-        // If upcoming Tuesday <= last distribution of latest proposal, it's Round 1
-        // Otherwise, we need Round 2 (next proposal's round)
-        let round1ProposalPeriod: number;
-        let round2ProposalPeriod: number;
-        
-        if (upcomingTuesdayTs <= lastDistOfLatest) {
-            // Upcoming Tuesday is within the latest proposal's distribution period
-            round1ProposalPeriod = latestProposalPeriod;
-            round2ProposalPeriod = latestProposalPeriod + CYCLE_LENGTH;
-        } else {
-            // Upcoming Tuesday is past the latest proposal's distributions
-            // Round 1 should be the NEXT proposal (which may not exist yet)
-            round1ProposalPeriod = latestProposalPeriod + CYCLE_LENGTH;
-            round2ProposalPeriod = round1ProposalPeriod + CYCLE_LENGTH;
-        }
-        
-        // Convert to periodTimestamp for fetchProposalsIdsBasedOnExactPeriods
-        // reportPeriod = periodTimestamp - WEEK, so periodTimestamp = proposalPeriod + WEEK
-        periodsToCheck.push((round1ProposalPeriod + WEEK).toString());
-        periodsToCheck.push((round2ProposalPeriod + WEEK).toString());
-
-        // Reset rounds for this protocol to ensure we only have active ones
+        // Reset rounds for this protocol
         const oldRounds = roundMetadata[protocolName]?.rounds || [];
         roundMetadata[protocolName] = { rounds: [] };
 
@@ -251,150 +191,79 @@ export const getRoundMetadata = async () => {
             );
         }
 
-        // Fetch proposals for all periods
-        const maxPeriod = currentPeriodTimestamp + (ROUNDS_TO_SHOW * totalSteps * WEEK);
-        const proposalIds = await fetchProposalsIdsBasedOnExactPeriods(spaceId, periodsToCheck, maxPeriod);
-
-        let foundAny = false;
         let currentRoundId = 0;
-        const seenProposalIds = new Set<string>(); // Track which proposals we've already processed
+        const rounds = roundMetadata[protocolName]!.rounds;
+        
+        // Process proposals in reverse order (oldest first = Round 1)
+        // proposals[0] = newest (Round 2 - upcoming)
+        // proposals[1] = second newest (Round 1 - already distributed)
+        const orderedProposals = [...proposals].reverse();
+        
+        for (let i = 0; i < orderedProposals.length; i++) {
+            const proposal = orderedProposals[i];
+            const roundId = i + 1;
+            
+            // Create round entry
+            const round: Round = {
+                id: roundId,
+                proposals: [{
+                    id: proposal.id,
+                    start: formatDateTime(proposal.start),
+                    end: formatDateTime(proposal.end)
+                }],
+                distributions: []
+            };
 
-        // Iterate through periods to create rounds
-        for (let roundIdx = 0; roundIdx < ROUNDS_TO_SHOW; roundIdx++) {
-            const checkTimestamp = periodsToCheck[roundIdx];
-            const proposalId = proposalIds[checkTimestamp];
+            // Generate distributions for this round
+            // Proposal End is usually around the start of the distribution cycle
+            // proposalEndPeriod is the Thursday of the week containing the proposal end
+            const proposalEndPeriod = Math.floor(proposal.end / WEEK) * WEEK;
 
-            // Skip if this is a duplicate proposal (same proposal returned for multiple periods)
-            if (proposalId && seenProposalIds.has(proposalId)) {
-                // This means the next round's proposal doesn't exist yet
-                // Project the next round based on when it should happen
-                const rounds = roundMetadata[protocolName]!.rounds;
-                const lastRound = rounds[rounds.length - 1];
-                
-                if (lastRound && lastRound.distributions.length > 0) {
-                    // Calculate next round's distributions based on last round
-                    const lastDistDate = lastRound.distributions[lastRound.distributions.length - 1].date;
-                    const [lastDay, lastMonth, lastYear] = lastDistDate.split('-').map(Number);
-                    const lastDistTs = moment.utc({ year: lastYear, month: lastMonth - 1, day: lastDay }).unix();
-                    
-                    // Next round starts 1 week after the last distribution of current round
-                    const nextRoundFirstDist = lastDistTs + WEEK;
-                    
-                    const nextRound: Round = {
-                        id: lastRound.id + 1,
-                        proposals: [], // No proposal yet
-                        distributions: []
-                    };
-                    
-                    for (let s = 1; s <= totalSteps; s++) {
-                        const distDate = nextRoundFirstDist + ((s - 1) * WEEK);
-                        const distDateStr = formatDate(distDate);
-                        
-                        let time = timeMap.get(distDateStr) || "";
-                        if (!time) {
-                            for (const or of oldRounds) {
-                                const d = or.distributions.find(d => d.date === distDateStr);
-                                if (d && d.distributed) {
-                                    time = d.distributed;
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        nextRound.distributions.push({
-                            step: s,
-                            date: distDateStr,
-                            distributed: time
-                        });
-                        
-                        if (distDateStr === upcomingTuesdayStr) {
-                            currentRoundId = nextRound.id;
+            for (let s = 1; s <= totalSteps; s++) {
+                // Distributions on Tuesdays.
+                // proposalEndPeriod is Thursday. Tuesday is +5 days.
+                // Step 1 is: proposalEndPeriod + 1 WEEK + 5 days.
+                const distDate = proposalEndPeriod + (s * WEEK) + (5 * 86400);
+                const distDateStr = formatDate(distDate);
+
+                // Try to get from timeMap, otherwise check old rounds
+                let time = timeMap.get(distDateStr) || "";
+                if (!time) {
+                    for (const or of oldRounds) {
+                        const d = or.distributions.find(d => d.date === distDateStr);
+                        if (d && d.distributed) {
+                            time = d.distributed;
+                            break;
                         }
                     }
-                    
-                    rounds.push(nextRound);
-                    console.log(`Updated ${protocolName}: Round ${nextRound.id} (projected), distributions: ${nextRound.distributions.map(d => d.date).join(', ')}`);
                 }
-                continue;
+
+                round.distributions.push({
+                    step: s,
+                    date: distDateStr,
+                    distributed: time
+                });
+
+                // Check if this distribution is the upcoming Tuesday
+                if (distDateStr === upcomingTuesdayStr) {
+                    currentRoundId = roundId;
+                }
             }
 
-            if (proposalId) {
-                seenProposalIds.add(proposalId);
-                const proposal = await getProposal(proposalId);
-
-                // Update or add round info
-                if (!roundMetadata[protocolName]) {
-                    roundMetadata[protocolName] = { rounds: [] };
-                }
-
-                const rounds = roundMetadata[protocolName]!.rounds;
-                
-                // Check if round already exists (by matching proposal ID to avoid duplicates)
-                let round = rounds.find(r => r.proposals?.some(p => p.id === proposal.id));
-
-                if (!round) {
-                    // Create new round entry
-                    const maxId = rounds.length > 0 ? Math.max(...rounds.map(r => r.id)) : 0;
-                    round = {
-                        id: maxId + 1,
-                        proposals: [{
-                            id: proposal.id,
-                            start: formatDateTime(proposal.start),
-                            end: formatDateTime(proposal.end)
-                        }],
-                        distributions: []
-                    };
-                    rounds.push(round);
-                }
-
-                // Generate distributions for this round
-                // Proposal End is usually around the start of the distribution cycle
-                // proposalEndPeriod is the Thursday of the week containing the proposal end
-                const proposalEndPeriod = Math.floor(proposal.end / WEEK) * WEEK;
-
-                round.distributions = [];
-                for (let s = 1; s <= totalSteps; s++) {
-                    // Distributions on Tuesdays.
-                    // proposalEndPeriod is Thursday. Tuesday is +5 days.
-                    // Step 1 is: proposalEndPeriod + 1 WEEK + 5 days.
-                    const distDate = proposalEndPeriod + (s * WEEK) + (5 * 86400);
-                    const distDateStr = formatDate(distDate);
-
-                    // Try to get from timeMap, otherwise check old rounds
-                    let time = timeMap.get(distDateStr) || "";
-                    if (!time) {
-                        for (const or of oldRounds) {
-                            const d = or.distributions.find(d => d.date === distDateStr);
-                            if (d && d.distributed) {
-                                time = d.distributed;
-                                break;
-                            }
-                        }
-                    }
-
-                    round.distributions.push({
-                        step: s,
-                        date: distDateStr,
-                        distributed: time
-                    });
-
-                    if (distDateStr === upcomingTuesdayStr) {
-                        currentRoundId = round.id;
-                    }
-                }
-
-                console.log(`Updated ${protocolName}: Round ${round.id}, distributions: ${round.distributions.map(d => d.date).join(', ')}`);
-                foundAny = true;
-            }
+            rounds.push(round);
+            console.log(`Updated ${protocolName}: Round ${roundId}, distributions: ${round.distributions.map(d => d.date).join(', ')}`);
         }
 
+        // Set currentRoundId - if upcoming Tuesday matches a distribution, use that round
+        // Otherwise default to the latest round (Round 2)
         if (currentRoundId > 0) {
             roundMetadata[protocolName]!.currentRoundId = currentRoundId;
+        } else if (rounds.length > 0) {
+            // Default to the latest round if no match found
+            roundMetadata[protocolName]!.currentRoundId = rounds[rounds.length - 1].id;
         }
-
-        if (!foundAny) {
-            console.log(`No active round found for ${protocolName}`);
-        }
+        
+        console.log(`[DEBUG] Completed processProtocol for ${protocolName}`);
     };
 
     // Pendle processing: Monthly cycle (4 weeks) with weekly distributions
