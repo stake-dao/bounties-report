@@ -5,20 +5,19 @@ import { formatUnits, pad } from "viem";
 import { getAddress } from "viem";
 import { WEEK, DELEGATION_ADDRESS } from "../utils/constants";
 import {
-  parseAbiItem,
   decodeEventLog,
   parseAbi,
   keccak256,
   encodePacked,
+  PublicClient,
 } from "viem";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import {
   getTimestampsBlocks,
-  OTC_REGISTRY,
   getPendleGaugesInfos,
 } from "../utils/reportUtils";
 import { getClient } from "../utils/getClients";
-import { getLatestJson } from "../utils/githubUtils";
+import { LatestRewards } from "../utils/githubUtils";
 
 const REPO_PATH = "stake-dao/pendle-merkle-script";
 const DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
@@ -40,6 +39,13 @@ const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
 const sdPENDLE = getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9");
 const USDT = getAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7");
 const explorerUtils = createBlockchainExplorerUtils();
+
+// Type for decoded Transfer event
+type TransferEventArgs = {
+  from: `0x${string}`;
+  to: `0x${string}`;
+  value: bigint;
+};
 
 
 
@@ -76,7 +82,7 @@ async function getSecondLatestJson(
   throw new Error("Failed to retrieve second latest JSON file");
 }
 
-async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
+async function getSdPendleTransfers(publicClient: PublicClient, fromBlock: number, toBlock: number) {
   const transferEventSignature = "Transfer(address,address,uint256)";
   const transferHash = keccak256(
     encodePacked(["string"], [transferEventSignature])
@@ -131,8 +137,6 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
   const allTxHashes = Object.keys(txGroups);
 
   for (const txHash of allTxHashes) {
-    // Get the transaction details to inspect all transfers within it
-    const txDetails = await publicClient.getTransaction({ hash: txHash as `0x${string}` });
     let receipt;
     let retries = 0;
     const maxRetries = 10;
@@ -168,13 +172,13 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
             data: log.data,
             topics: log.topics,
             strict: false,
-          });
+          }) as { args: TransferEventArgs };
 
           if (decodedLog.args.from && VALID_SOURCES.includes(decodedLog.args.from.toLowerCase())) {
             validTxHashes.add(txHash);
             break;
           }
-        } catch (error) {
+        } catch {
           // Skip logs that don't match Transfer event signature
           continue;
         }
@@ -183,16 +187,17 @@ async function getSdPendleTransfers(fromBlock: number, toBlock: number) {
   }
 
   // Process each transaction
-  for (const [txHash, txLogs] of Object.entries(txGroups)) {
+  for (const txHash of Object.keys(txGroups)) {
     // Only sum transfers if this tx has funds coming from valid sources
     if (validTxHashes.has(txHash)) {
+      const txLogs = txGroups[txHash];
       for (const log of txLogs) {
         const decodedLog = decodeEventLog({
           abi: transferAbi,
           data: log.data,
-          topics: log.topics,
+          topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
           strict: true,
-        });
+        }) as { args: TransferEventArgs };
 
         totalAmount += decodedLog.args.value;
       }
@@ -214,6 +219,7 @@ async function main() {
 
     // Get sdPendle transfers to BOTMARKET, excluding OTC transfers
     const sdPendleBalance = await getSdPendleTransfers(
+      publicClient,
       Number(blockNumber1),
       Number(blockNumber2)
     );
