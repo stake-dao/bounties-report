@@ -204,7 +204,8 @@ async function fetchDelegatorsForAddress(
 
   console.log("Start block", fetchStartBlock);
 
-  const chunkSize = 100_000;
+  // Reduced chunk size to minimize impact of API failures
+  const chunkSize = 50_000;
 
   for (
     let currentBlock = fetchStartBlock;
@@ -272,31 +273,75 @@ async function fetchLogs(
   startBlock: number,
   endBlock: number,
   paddedDelegationAddress: string,
-  chainId: number
+  chainId: number,
+  maxRetries: number = 3
 ) {
-  const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
-    getAddress(DELEGATE_REGISTRY),
-    startBlock,
-    endBlock,
-    {
-      "0": setDelegateHash,
-      "3": paddedDelegationAddress,
-    },
-    chainId
-  );
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
-    getAddress(DELEGATE_REGISTRY),
-    startBlock,
-    endBlock,
-    {
-      "0": clearDelegateHash,
-      "3": paddedDelegationAddress,
-    },
-    chainId
-  );
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+        getAddress(DELEGATE_REGISTRY),
+        startBlock,
+        endBlock,
+        {
+          "0": setDelegateHash,
+          "3": paddedDelegationAddress,
+        },
+        chainId
+      );
 
-  return [...setDelegateLogs.result, ...clearDelegateLogs.result];
+      const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+        getAddress(DELEGATE_REGISTRY),
+        startBlock,
+        endBlock,
+        {
+          "0": clearDelegateHash,
+          "3": paddedDelegationAddress,
+        },
+        chainId
+      );
+
+      // Validate responses - if both are undefined/null, likely an API failure
+      if (!setDelegateLogs?.result && !clearDelegateLogs?.result) {
+        throw new Error("Both API calls returned no result object");
+      }
+
+      const results = [
+        ...(setDelegateLogs?.result || []),
+        ...(clearDelegateLogs?.result || []),
+      ];
+
+      // Log chunk info for monitoring
+      console.log(
+        `  Chunk ${startBlock}-${endBlock}: ${results.length} logs found`
+      );
+
+      return results;
+    } catch (error) {
+      console.warn(
+        `fetchLogs attempt ${attempt + 1}/${maxRetries} failed for blocks ${startBlock}-${endBlock}:`,
+        error
+      );
+
+      if (attempt < maxRetries - 1) {
+        const backoffMs = 5000 * Math.pow(2, attempt);
+        console.log(`  Retrying in ${backoffMs / 1000}s...`);
+        await delay(backoffMs);
+      } else {
+        console.error(
+          `fetchLogs: All ${maxRetries} retries failed for blocks ${startBlock}-${endBlock}`
+        );
+        // Return empty array but log the gap for manual review
+        console.error(
+          `  WARNING: Potential gap in data between blocks ${startBlock}-${endBlock}`
+        );
+        return [];
+      }
+    }
+  }
+
+  return [];
 }
 
 function parseDelegatorData(log: any): DelegatorData {
