@@ -17,7 +17,7 @@ import {
   getPendleGaugesInfos,
 } from "../utils/reportUtils";
 import { getClient } from "../utils/getClients";
-import { LatestRewards } from "../utils/githubUtils";
+import { getLatestJson, LatestRewards } from "../utils/githubUtils";
 
 const REPO_PATH = "stake-dao/pendle-merkle-script";
 const DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
@@ -213,9 +213,7 @@ async function main() {
     const { timestamp1, timestamp2, blockNumber1, blockNumber2, storageTimestamp } =
       await getTimestampsBlocks(publicClient, 0, "ethereum", "pendle");
 
-    const latestRewards = await getSecondLatestJson(REPO_PATH, DIRECTORY_PATH); // TEMP: Get second latest file
-
-    //await getLatestJson(REPO_PATH, DIRECTORY_PATH);
+    const latestRewards = await getLatestJson(REPO_PATH, DIRECTORY_PATH);
 
     // Get sdPendle transfers to BOTMARKET, excluding OTC transfers
     const sdPendleBalance = await getSdPendleTransfers(
