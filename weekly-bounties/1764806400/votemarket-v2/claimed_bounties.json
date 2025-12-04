@@ -525,5 +525,14 @@
       "isWrapped": true
     }
   },
-  "pendle": {}
+  "pendle": {
+    "0": {
+      "chainId": 42161,
+      "bountyId": "52",
+      "gauge": "0x0e3735d5Ee96d21426Ee40e7Dcb623513e0b6876",
+      "amount": "289020505208618695569",
+      "rewardToken": "0x085780639CC2cACd35E474e71f4d000e2405d8f6",
+      "isWrapped": true
+    }
+  }
 }

@@ -76,7 +76,7 @@ dependencies:
     version: 2.41.2(typescript@5.9.3)(zod@4.1.13)
   wagmi:
     specifier: ^2.12.8
-    version: 2.19.5(@tanstack/react-query@5.90.11)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(viem@2.41.2)(ws@8.18.3)(zod@4.1.13)
+    version: 2.19.5(@tanstack/react-query@5.90.12)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(viem@2.41.2)(ws@8.18.3)(zod@4.1.13)
   web3:
     specifier: ^1.7.3
     version: 1.10.4
@@ -2462,16 +2462,16 @@ packages:
       defer-to-connect: 2.0.1
     dev: false
 
-  /@tanstack/query-core@5.90.11:
-    resolution: {integrity: sha512-f9z/nXhCgWDF4lHqgIE30jxLe4sYv15QodfdPDKYAk7nAEjNcndy4dHz3ezhdUaR23BpWa4I2EH4/DZ0//Uf8A==}
+  /@tanstack/query-core@5.90.12:
+    resolution: {integrity: sha512-T1/8t5DhV/SisWjDnaiU2drl6ySvsHj1bHBCWNXd+/T+Hh1cf6JodyEYMd5sgwm+b/mETT4EV3H+zCVczCU5hg==}
     dev: false
 
-  /@tanstack/react-query@5.90.11(react@18.3.1):
-    resolution: {integrity: sha512-3uyzz01D1fkTLXuxF3JfoJoHQMU2fxsfJwE+6N5hHy0dVNoZOvwKP8Z2k7k1KDeD54N20apcJnG75TBAStIrBA==}
+  /@tanstack/react-query@5.90.12(react@18.3.1):
+    resolution: {integrity: sha512-graRZspg7EoEaw0a8faiUASCyJrqjKPdqJ9EwuDRUF9mEYJ1YPczI9H+/agJ0mOJkPCJDk0lsz5QTrLZ/jQ2rg==}
     peerDependencies:
       react: ^18 || ^19
     dependencies:
-      '@tanstack/query-core': 5.90.11
+      '@tanstack/query-core': 5.90.12
       react: 18.3.1
     dev: false
 
@@ -2598,7 +2598,7 @@ packages:
       '@types/yargs-parser': 21.0.3
     dev: true
 
-  /@wagmi/connectors@6.2.0(@tanstack/react-query@5.90.11)(@wagmi/core@2.22.1)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)(wagmi@2.19.5)(ws@8.18.3)(zod@4.1.13):
+  /@wagmi/connectors@6.2.0(@tanstack/react-query@5.90.12)(@wagmi/core@2.22.1)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)(wagmi@2.19.5)(ws@8.18.3)(zod@4.1.13):
     resolution: {integrity: sha512-2NfkbqhNWdjfibb4abRMrn7u6rPjEGolMfApXss6HCDVt9AW2oVC6k8Q5FouzpJezElxLJSagWz9FW1zaRlanA==}
     peerDependencies:
       '@wagmi/core': 2.22.1
@@ -2617,7 +2617,7 @@ packages:
       '@wagmi/core': 2.22.1(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)
       '@walletconnect/ethereum-provider': 2.21.1(react@18.3.1)(typescript@5.9.3)(zod@4.1.13)
       cbw-sdk: /@coinbase/wallet-sdk@3.9.3
-      porto: 0.2.35(@tanstack/react-query@5.90.11)(@wagmi/core@2.22.1)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)(wagmi@2.19.5)
+      porto: 0.2.35(@tanstack/react-query@5.90.12)(@wagmi/core@2.22.1)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)(wagmi@2.19.5)
       typescript: 5.9.3
       viem: 2.41.2(typescript@5.9.3)(zod@4.1.13)
     transitivePeerDependencies:
@@ -6406,7 +6406,7 @@ packages:
     engines: {node: '>=12.0.0'}
     dev: false
 
-  /porto@0.2.35(@tanstack/react-query@5.90.11)(@wagmi/core@2.22.1)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)(wagmi@2.19.5):
+  /porto@0.2.35(@tanstack/react-query@5.90.12)(@wagmi/core@2.22.1)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)(wagmi@2.19.5):
     resolution: {integrity: sha512-gu9FfjjvvYBgQXUHWTp6n3wkTxVtEcqFotM7i3GEZeoQbvLGbssAicCz6hFZ8+xggrJWwi/RLmbwNra50SMmUQ==}
     hasBin: true
     peerDependencies:
@@ -6438,7 +6438,7 @@ packages:
       wagmi:
         optional: true
     dependencies:
-      '@tanstack/react-query': 5.90.11(react@18.3.1)
+      '@tanstack/react-query': 5.90.12(react@18.3.1)
       '@wagmi/core': 2.22.1(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)
       hono: 4.10.7
       idb-keyval: 6.2.2
@@ -6447,7 +6447,7 @@ packages:
       react: 18.3.1
       typescript: 5.9.3
       viem: 2.41.2(typescript@5.9.3)(zod@4.1.13)
-      wagmi: 2.19.5(@tanstack/react-query@5.90.11)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(viem@2.41.2)(ws@8.18.3)(zod@4.1.13)
+      wagmi: 2.19.5(@tanstack/react-query@5.90.12)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(viem@2.41.2)(ws@8.18.3)(zod@4.1.13)
       zod: 4.1.13
       zustand: 5.0.9(react@18.3.1)(use-sync-external-store@1.4.0)
     transitivePeerDependencies:
@@ -7716,7 +7716,7 @@ packages:
       - zod
     dev: false
 
-  /wagmi@2.19.5(@tanstack/react-query@5.90.11)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(viem@2.41.2)(ws@8.18.3)(zod@4.1.13):
+  /wagmi@2.19.5(@tanstack/react-query@5.90.12)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(viem@2.41.2)(ws@8.18.3)(zod@4.1.13):
     resolution: {integrity: sha512-RQUfKMv6U+EcSNNGiPbdkDtJwtuFxZWLmvDiQmjjBgkuPulUwDJsKhi7gjynzJdsx2yDqhHCXkKsbbfbIsHfcQ==}
     peerDependencies:
       '@tanstack/react-query': '>=5.0.0'
@@ -7727,8 +7727,8 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@tanstack/react-query': 5.90.11(react@18.3.1)
-      '@wagmi/connectors': 6.2.0(@tanstack/react-query@5.90.11)(@wagmi/core@2.22.1)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)(wagmi@2.19.5)(ws@8.18.3)(zod@4.1.13)
+      '@tanstack/react-query': 5.90.12(react@18.3.1)
+      '@wagmi/connectors': 6.2.0(@tanstack/react-query@5.90.12)(@wagmi/core@2.22.1)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)(wagmi@2.19.5)(ws@8.18.3)(zod@4.1.13)
       '@wagmi/core': 2.22.1(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.41.2)
       react: 18.3.1
       typescript: 5.9.3
