@@ -6,6 +6,7 @@ import { getClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./cons
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
+import { verifyDelegators, fetchDelegatorsWithFallback } from "./delegationAPIUtils";
 
 // VOTIUM
 export const getForwardedDelegators = async (
@@ -145,16 +146,50 @@ export const delegationLogger = async (
 export const fetchDelegatorData = async (
   space: string,
   proposal: any,
-  chainId: string = "1"
+  chainId: string = "1",
+  options: { verify?: boolean; useFallback?: boolean } = {}
 ): Promise<DelegatorDataAugmented | null> => {
-  const delegators = await processAllDelegators(
-    space,
-    proposal.created,
-    DELEGATION_ADDRESS
-  );
+  const { verify = false, useFallback = false } = options;
+  
+  let delegators: string[];
+  
+  if (useFallback) {
+    // Use parquet with API fallback
+    delegators = await fetchDelegatorsWithFallback(
+      space,
+      proposal.created,
+      DELEGATION_ADDRESS
+    );
+  } else {
+    // Use parquet only (default behavior)
+    delegators = await processAllDelegators(
+      space,
+      proposal.created,
+      DELEGATION_ADDRESS
+    );
+  }
 
   if (delegators.length === 0) return null;
 
+  // Optional verification against REST API
+  if (verify) {
+    try {
+      const verification = await verifyDelegators(
+        space,
+        proposal.created,
+        DELEGATION_ADDRESS
+      );
+      if (!verification.isValid) {
+        console.warn(
+          `[${space}] Delegator verification failed! ` +
+          `Match rate: ${verification.matchRate.toFixed(2)}%, ` +
+          `Parquet: ${verification.parquetCount}, API: ${verification.apiCount}`
+        );
+      }
+    } catch (error) {
+      console.warn(`[${space}] Verification skipped due to error:`, error);
+    }
+  }
 
   const votingPowers = await getVotingPower(proposal, delegators, chainId);
   const totalVotingPower = Object.values(votingPowers).reduce(

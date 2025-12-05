@@ -132,6 +132,21 @@ export interface DelegatorData {
   blockNumber: number;
 }
 
+// REST API types for delegation events verification
+export interface DelegationEventAPI {
+  id: string;
+  space: string;           // e.g., "cvx.eth"
+  delegator: string;       // delegator address
+  delegate: string;        // delegate address
+  event: "Set" | "Clear";
+  timestamp: string;       // Unix timestamp as string
+  block: string;           // Block number as string
+}
+
+export interface DelegationAPIResponse {
+  DelegationEvent: DelegationEventAPI[];
+}
+
 export type PlatformConfig = {
   platform: string;
   toAddress: `0x${string}`;
