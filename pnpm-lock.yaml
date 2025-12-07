@@ -995,7 +995,7 @@ packages:
   /@libp2p/interface@2.11.0:
     resolution: {integrity: sha512-0MUFKoXWHTQW3oWIgSHApmYMUKWO/Y02+7Hpyp+n3z+geD4Xo2Rku2gYWmxcq+Pyjkz6Q9YjDWz3Yb2SoV2E8Q==}
     dependencies:
-      '@multiformats/dns': 1.0.10
+      '@multiformats/dns': 1.0.11
       '@multiformats/multiaddr': 12.5.1
       it-pushable: 3.2.3
       it-stream-types: 2.0.2
@@ -1270,8 +1270,8 @@ packages:
       - supports-color
     dev: false
 
-  /@multiformats/dns@1.0.10:
-    resolution: {integrity: sha512-6X200ceQLns0b/CU0S/So16tGjB5eIXHJ1xvJMPoWaKFHWSgfpW2EhkWJrqap4U3+c37zcowVR0ToPXeYEL7Vw==}
+  /@multiformats/dns@1.0.11:
+    resolution: {integrity: sha512-KnT4gX71zas8br5OO2mArwBgRqTx78FvK193VL8/bP8T1ydDuWUilevZlPug9Azufos+ioHd8pHAVY3v7U41tQ==}
     dependencies:
       buffer: 6.0.3
       dns-packet: 5.6.1
@@ -1286,7 +1286,7 @@ packages:
     dependencies:
       '@chainsafe/is-ip': 2.1.0
       '@chainsafe/netmask': 2.0.0
-      '@multiformats/dns': 1.0.10
+      '@multiformats/dns': 1.0.11
       abort-error: 1.0.1
       multiformats: 13.4.1
       uint8-varint: 2.0.4
