@@ -9,38 +9,46 @@ import { join } from "path";
 const { parse } = require("csv-parse/sync");
 
 /**
- * Read VoteMarket gauges from pendle-otc.csv for a given week
+ * Read VoteMarket gauges from pendle-votemarket.csv and pendle-otc.csv for a given week
  * 
  * @param week - The week timestamp
  * @returns Set of VM gauge addresses (lowercase)
  */
 export const getVMGaugesFromCSV = (week: number): Set<string> => {
-  const csvPath = join(process.cwd(), "bounties-reports", week.toString(), "pendle-otc.csv");
+  const csvPaths = [
+    join(process.cwd(), "bounties-reports", week.toString(), "pendle-votemarket.csv"),
+    join(process.cwd(), "bounties-reports", week.toString(), "pendle-otc.csv"),
+  ];
   
-  if (!existsSync(csvPath)) {
-    console.warn(`pendle-otc.csv not found for week ${week} at ${csvPath}`);
-    return new Set();
-  }
-  
-  const csvContent = readFileSync(csvPath, "utf-8");
-  
-  // Parse CSV with semicolon delimiter (as seen in the sample)
-  const records = parse(csvContent, {
-    columns: true,
-    skip_empty_lines: true,
-    delimiter: ";",
-  });
-  
-  // Extract unique gauge addresses from the CSV
   const vmGauges = new Set<string>();
-  for (const row of records) {
-    const gaugeAddress = row["Gauge Address"] || row["gauge address"];
-    if (gaugeAddress) {
-      vmGauges.add(gaugeAddress.toLowerCase());
+  
+  for (const csvPath of csvPaths) {
+    if (!existsSync(csvPath)) continue;
+    
+    const csvContent = readFileSync(csvPath, "utf-8");
+    
+    // Parse CSV with semicolon delimiter (as seen in the sample)
+    const records = parse(csvContent, {
+      columns: true,
+      skip_empty_lines: true,
+      delimiter: ";",
+    });
+    
+    // Extract unique gauge addresses from the CSV
+    for (const row of records) {
+      const gaugeAddress = row["Gauge Address"] || row["gauge address"];
+      if (gaugeAddress) {
+        vmGauges.add(gaugeAddress.toLowerCase());
+      }
     }
   }
   
-  console.log(`Found ${vmGauges.size} VM gauges from pendle-otc.csv for week ${week}`);
+  if (vmGauges.size === 0) {
+    console.warn(`No external CSV (votemarket/otc) found for week ${week}`);
+  } else {
+    console.log(`Found ${vmGauges.size} VM gauges from external CSVs for week ${week}`);
+  }
+  
   return vmGauges;
 };
 
@@ -194,28 +202,42 @@ async function main() {
     
     const proposal = await getProposal(proposalId);
     
-    // Get pendle rewards from CSV
-    const pendleOtcPath = join(process.cwd(), "bounties-reports", week.toString(), "pendle-otc.csv");
-    if (!existsSync(pendleOtcPath)) {
-      console.error(`pendle-otc.csv not found for week ${week}`);
+    // Get pendle rewards from external CSVs (votemarket and otc)
+    const vmCsvPath = join(process.cwd(), "bounties-reports", week.toString(), "pendle-votemarket.csv");
+    const otcCsvPath = join(process.cwd(), "bounties-reports", week.toString(), "pendle-otc.csv");
+    
+    if (!existsSync(vmCsvPath) && !existsSync(otcCsvPath)) {
+      console.error(`No external CSV (votemarket/otc) found for week ${week}`);
       process.exit(1);
     }
     
-    const csvContent = readFileSync(pendleOtcPath, "utf-8");
-    const records = parse(csvContent, {
-      columns: true,
-      skip_empty_lines: true,
-      delimiter: ";",
-    });
-    
-    // Build rewards map
-    const pendleRewards: Record<string, number> = {};
-    for (const row of records) {
-      const gaugeAddress = row["Gauge Address"]?.toLowerCase();
-      const rewardAmount = parseFloat(row["Reward sd Value"] || "0");
-      if (gaugeAddress) {
-        pendleRewards[gaugeAddress] = (pendleRewards[gaugeAddress] || 0) + rewardAmount;
+    // Helper to read rewards from a CSV file
+    const readRewardsFromCsv = (csvPath: string): Record<string, number> => {
+      if (!existsSync(csvPath)) return {};
+      const csvContent = readFileSync(csvPath, "utf-8");
+      const records = parse(csvContent, {
+        columns: true,
+        skip_empty_lines: true,
+        delimiter: ";",
+      });
+      const rewards: Record<string, number> = {};
+      for (const row of records) {
+        const gaugeAddress = row["Gauge Address"]?.toLowerCase();
+        const rewardAmount = parseFloat(row["Reward sd Value"] || "0");
+        if (gaugeAddress) {
+          rewards[gaugeAddress] = (rewards[gaugeAddress] || 0) + rewardAmount;
+        }
       }
+      return rewards;
+    };
+    
+    // Read and merge rewards from both files
+    const vmRewards = readRewardsFromCsv(vmCsvPath);
+    const otcRewards = readRewardsFromCsv(otcCsvPath);
+    
+    const pendleRewards: Record<string, number> = { ...vmRewards };
+    for (const [gauge, amount] of Object.entries(otcRewards)) {
+      pendleRewards[gauge] = (pendleRewards[gauge] || 0) + amount;
     }
     
     // Extract choices and get only VM gauges

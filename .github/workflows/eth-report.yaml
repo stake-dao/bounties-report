@@ -97,7 +97,7 @@ jobs:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
 
       - name: Run generatePendleReport script
-        if: env.ACTION_TYPE == 'normal' && env.PROTOCOL == 'pendle'
+        if: env.ACTION_TYPE == 'normal' && (env.PROTOCOL == 'all' || env.PROTOCOL == 'pendle')
         run: |
           pnpm tsx script/reports/generatePendleReport.ts
           pnpm tsx script/reports/generateReport.ts pendle

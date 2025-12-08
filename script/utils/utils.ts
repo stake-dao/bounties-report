@@ -214,7 +214,7 @@ export const extractCSV = async (
  *  - "gauge address": used as the sub-key,
  *  - "reward sd value": the reward amount (as a string to be parsed to a number).
  *
- * @param filePath - The full path to the pendle-otc.csv file.
+ * @param filePath - The full path to the pendle external CSV file (votemarket or otc).
  * @returns A promise that resolves to a PendleCSVType object grouping rewards by timestamp.
  */
 export const extractOTCCSV = async (

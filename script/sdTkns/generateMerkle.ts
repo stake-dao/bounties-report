@@ -84,7 +84,14 @@ async function computeSdPendleOTCOnlyAPR(
   const { DELEGATION_ADDRESS, SPACE_TO_CHAIN_ID, WEEK } = await import("../utils/constants");
 
   try {
+    const vmFilePath = path.join(__dirname, "..", "..", "bounties-reports", currentPeriodTimestamp.toString(), "pendle-votemarket.csv");
     const otcFilePath = path.join(__dirname, "..", "..", "bounties-reports", currentPeriodTimestamp.toString(), "pendle-otc.csv");
+    
+    // Ensure at least one external CSV exists
+    if (!fs.existsSync(vmFilePath) && !fs.existsSync(otcFilePath)) {
+      console.log("No external CSV files found for external-only APR calculation");
+      return;
+    }
     
     // Get proposal
     const filter = "*Gauge vote.*$";
@@ -103,21 +110,34 @@ async function computeSdPendleOTCOnlyAPR(
     const proposal = await getProposal(proposalId);
     const allAddressesPerChoice = extractProposalChoices(proposal);
     
-    // Get pendle rewards from OTC CSV
-    const parse = require("csv-parse/sync").parse;
-    const csvContent = fs.readFileSync(otcFilePath, "utf-8");
-    const records = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
-    
-    const pendleRewards: Record<string, number> = {};
-    let totalOTCRewards = 0;
-    for (const row of records) {
-      const gaugeAddress = row["Gauge Address"]?.toLowerCase();
-      const rewardAmount = parseFloat(row["Reward sd Value"] || "0");
-      if (gaugeAddress) {
-        pendleRewards[gaugeAddress] = (pendleRewards[gaugeAddress] || 0) + rewardAmount;
-        totalOTCRewards += rewardAmount;
+    // Helper to read and parse pendle CSV files
+    const readPendleCsv = (filePath: string): Record<string, number> => {
+      if (!fs.existsSync(filePath)) return {};
+      const parse = require("csv-parse/sync").parse;
+      const csvContent = fs.readFileSync(filePath, "utf-8");
+      const records = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+      
+      const rewards: Record<string, number> = {};
+      for (const row of records) {
+        const gaugeAddress = row["Gauge Address"]?.toLowerCase();
+        const rewardAmount = parseFloat(row["Reward sd Value"] || "0");
+        if (gaugeAddress) {
+          rewards[gaugeAddress] = (rewards[gaugeAddress] || 0) + rewardAmount;
+        }
       }
+      return rewards;
+    };
+
+    // Read both VoteMarket and OTC files
+    const vmRewards = readPendleCsv(vmFilePath);
+    const otcRewards = readPendleCsv(otcFilePath);
+
+    // Merge rewards from both sources
+    const pendleRewards: Record<string, number> = { ...vmRewards };
+    for (const [gauge, amount] of Object.entries(otcRewards)) {
+      pendleRewards[gauge] = (pendleRewards[gauge] || 0) + amount;
     }
+    const totalExternalRewards = Object.values(pendleRewards).reduce((a, b) => a + b, 0);
     
     const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, pendleRewards);
     
@@ -180,7 +200,7 @@ async function computeSdPendleOTCOnlyAPR(
     // Calculate OTC APR using VM-specific VP
     const otcAPR = computeSdPendleDelegatorsAPR([vmVPData]);
     
-    console.log(`Total OTC Rewards: ${totalOTCRewards.toFixed(2)} sdPENDLE`);
+    console.log(`Total External Rewards: ${totalExternalRewards.toFixed(2)} sdPENDLE`);
     console.log(`Delegation Rewards: ${delegationRewards.toFixed(2)} sdPENDLE`);
     console.log(`Full Delegation VP: ${delegationVote.vp.toFixed(2)}`);
     console.log(`VM Delegation VP: ${vmVPData.vp.toFixed(2)}`);
@@ -290,7 +310,15 @@ const main = async () => {
         }
       }
 
-      // Process OTC report
+      // Process VoteMarket and OTC reports
+      const vmCsvPath = path.join(
+        __dirname,
+        "..",
+        "..",
+        "bounties-reports",
+        currentPeriodTimestamp.toString(),
+        "pendle-votemarket.csv"
+      );
       const otcCsvPath = path.join(
         __dirname,
         "..",
@@ -300,29 +328,49 @@ const main = async () => {
         "pendle-otc.csv"
       );
 
-      if (fs.existsSync(otcCsvPath)) {
-        const otcCsvResult: Record<string, Record<string, number>> = await extractOTCCSV(otcCsvPath);
-        const otcTimestamps = Object.keys(otcCsvResult);
-        let proposalsPeriodsOTC: Record<string, string> = {};
+      // Helper to process external CSV files
+      const processPendleExternalCsv = async (csvPath: string): Promise<Record<string, Record<string, number>> | null> => {
+        if (!fs.existsSync(csvPath)) return null;
+        return await extractOTCCSV(csvPath);
+      };
 
-        // Fetch OTC proposals
-        proposalsPeriodsOTC = await fetchProposalsIdsBasedOnExactPeriods(
+      const vmCsvResult = await processPendleExternalCsv(vmCsvPath);
+      const otcCsvResult = await processPendleExternalCsv(otcCsvPath);
+
+      // Merge results from both sources
+      const mergedExternalResult: Record<string, Record<string, number>> = {};
+      for (const result of [vmCsvResult, otcCsvResult]) {
+        if (!result) continue;
+        for (const [timestamp, rewards] of Object.entries(result)) {
+          if (!mergedExternalResult[timestamp]) mergedExternalResult[timestamp] = {};
+          for (const [address, amount] of Object.entries(rewards)) {
+            mergedExternalResult[timestamp][address] = (mergedExternalResult[timestamp][address] || 0) + amount;
+          }
+        }
+      }
+
+      if (Object.keys(mergedExternalResult).length > 0) {
+        const externalTimestamps = Object.keys(mergedExternalResult);
+        let proposalsPeriodsExternal: Record<string, string> = {};
+
+        // Fetch proposals for external CSV periods
+        proposalsPeriodsExternal = await fetchProposalsIdsBasedOnExactPeriods(
           space,
-          otcTimestamps,
+          externalTimestamps,
           currentPeriodTimestamp
         );
 
-        // Merge OTC rewards into pendleRewards and add to total
-        for (const timestamp of otcTimestamps) {
-          const proposalId = proposalsPeriodsOTC[timestamp];
+        // Merge external rewards into pendleRewards and add to total
+        for (const timestamp of externalTimestamps) {
+          const proposalId = proposalsPeriodsExternal[timestamp];
           if (!pendleRewards[proposalId]) {
             pendleRewards[proposalId] = {};
           }
-          const rewards = otcCsvResult[timestamp];
+          const rewards = mergedExternalResult[timestamp];
           for (const address in rewards) {
             pendleRewards[proposalId][address] =
               (pendleRewards[proposalId][address] || 0) + rewards[address];
-            totalSDToken += rewards[address]; // Add OTC rewards to total
+            totalSDToken += rewards[address]; // Add external rewards to total
           }
         }
       }
@@ -383,13 +431,21 @@ const main = async () => {
   }
 
   // =====================================================
-  // Adjust sdPendle APR if ONLY OTC exists (no regular)
+  // Adjust sdPendle APR if ONLY external (VM/OTC) exists (no regular)
   // =====================================================
-  // When only OTC bounties exist, we need to use VM-specific delegation VP
+  // When only external bounties exist, we need to use VM-specific delegation VP
   // instead of full delegation VP
   const sdPendleSpace = SDPENDLE_SPACE;
   if (proposalIdPerSpace[sdPendleSpace]) {
     const regularCsvExists = await extractCSV(currentPeriodTimestamp, sdPendleSpace);
+    const vmCsvPath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "bounties-reports",
+      currentPeriodTimestamp.toString(),
+      "pendle-votemarket.csv"
+    );
     const otcCsvPath = path.join(
       __dirname,
       "..",
@@ -398,11 +454,13 @@ const main = async () => {
       currentPeriodTimestamp.toString(),
       "pendle-otc.csv"
     );
+    const vmCsvExists = fs.existsSync(vmCsvPath);
     const otcCsvExists = fs.existsSync(otcCsvPath);
+    const externalCsvExists = vmCsvExists || otcCsvExists;
     
-    // If ONLY OTC exists (no regular), recalculate APR with VM-specific VP
-    if (!regularCsvExists && otcCsvExists) {
-      console.log("\n=== Adjusting sdPendle APR for OTC-only scenario ===");
+    // If ONLY external (VM/OTC) exists (no regular), recalculate APR with VM-specific VP
+    if (!regularCsvExists && externalCsvExists) {
+      console.log("\n=== Adjusting sdPendle APR for external-only scenario ===");
       
       await computeSdPendleOTCOnlyAPR(
         currentPeriodTimestamp,

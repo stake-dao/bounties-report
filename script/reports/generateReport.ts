@@ -1547,7 +1547,7 @@ async function main() {
 
     // Special handling for Pendle protocol
     if (protocol === "pendle") {
-      const fileName = `${protocol}-otc.csv`;
+      const fileName = `${protocol}-votemarket.csv`;
       const filePath = path.join(dirPath, fileName);
       const header =
         "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol";
