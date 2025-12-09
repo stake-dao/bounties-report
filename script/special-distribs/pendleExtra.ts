@@ -4,6 +4,7 @@ import { getAddress } from "viem";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { UniversalMerkle } from "../interfaces/UniversalMerkle";
+import { getTokenPrices, TokenIdentifier } from "../utils/priceUtils";
 import { generateMerkleTree } from "../vlCVX/utils";
 
 const argv = yargs(hideBin(process.argv))
@@ -502,6 +503,14 @@ async function main() {
     const uniqueTokens = [...new Set(newCampaigns.map(c => c.token))];
     await Promise.all(uniqueTokens.map(token => fetchTokenInfo(token)));
 
+    // Fetch current USD prices for all tokens
+    const tokenIdentifiers: TokenIdentifier[] = uniqueTokens.map(token => ({
+      chainId: 1,
+      address: token.toLowerCase()
+    }));
+    const tokenPrices = await getTokenPrices(tokenIdentifiers);
+    console.log(`Fetched USD prices for ${Object.keys(tokenPrices).length} tokens`);
+
     // ============================================================
     // STEP 1: Log total fetched rewards from Pendle (before distribution)
     // ============================================================
@@ -606,14 +615,33 @@ async function main() {
       campaignId: string;
       token: string;
       tokenSymbol: string;
+      tokenPriceUsd: number;
       pool: string;
       period: { from: number; to: number };
       totalAmount: string;
+      totalAmountUsd: number;
       feeAmount: string;
+      feeAmountUsd: number;
       distributedAmount: string;
+      distributedAmountUsd: number;
       recipientCount: number;
-      recipients: { [address: string]: string };
+      recipients: { [address: string]: { amount: string; amountUsd: number } };
     }
+
+    interface TokenSummary {
+      symbol: string;
+      priceUsd: number;
+      totalAmount: string;
+      totalAmountUsd: number;
+      distributedAmount: string;
+      distributedAmountUsd: number;
+    }
+
+    interface BreakdownSummary {
+      totalDistributedUsd: number;
+      byToken: { [tokenAddress: string]: TokenSummary };
+    }
+
     const campaignBreakdowns: CampaignBreakdown[] = [];
 
     // Track total delegation amounts per token
@@ -675,20 +703,35 @@ async function main() {
       console.log(`Recipients: ${rewards.size}`);
 
       // Record breakdown for this campaign
-      const breakdownRecipients: { [address: string]: string } = {};
+      const priceKey = `ethereum:${rewardTokenAddress.toLowerCase()}`;
+      const tokenPriceUsd = tokenPrices[priceKey] || 0;
+
+      const toUsd = (amountWei: bigint): number => {
+        const amountInUnits = Number(amountWei) / Math.pow(10, tokenInfo.decimals);
+        return Math.round(amountInUnits * tokenPriceUsd * 100) / 100; // 2 decimal places
+      };
+
+      const breakdownRecipients: { [address: string]: { amount: string; amountUsd: number } } = {};
       rewards.forEach((amount, address) => {
-        breakdownRecipients[address] = amount.toString();
+        breakdownRecipients[address] = {
+          amount: amount.toString(),
+          amountUsd: toUsd(amount)
+        };
       });
 
       campaignBreakdowns.push({
         campaignId: campaign.campaignId,
         token: rewardTokenAddress,
         tokenSymbol: tokenInfo.symbol,
+        tokenPriceUsd,
         pool: campaign.extInfo.assetId,
         period: { from: campaign.fromTimestamp, to: campaign.toTimestamp },
         totalAmount: totalReward.toString(),
+        totalAmountUsd: toUsd(totalReward),
         feeAmount: totalFees.toString(),
+        feeAmountUsd: toUsd(totalFees),
         distributedAmount: totalDistributed.toString(),
+        distributedAmountUsd: toUsd(totalDistributed),
         recipientCount: rewards.size,
         recipients: breakdownRecipients,
       });
@@ -759,6 +802,40 @@ async function main() {
     const timestamp = Math.floor(Date.now() / 1000);
     const breakdownPath = path.join(outputDir, `breakdown_${timestamp}.json`);
 
+    // Build USD summary
+    const summary: BreakdownSummary = {
+      totalDistributedUsd: 0,
+      byToken: {}
+    };
+
+    for (const breakdown of campaignBreakdowns) {
+      summary.totalDistributedUsd += breakdown.distributedAmountUsd;
+      
+      if (!summary.byToken[breakdown.token]) {
+        summary.byToken[breakdown.token] = {
+          symbol: breakdown.tokenSymbol,
+          priceUsd: breakdown.tokenPriceUsd,
+          totalAmount: "0",
+          totalAmountUsd: 0,
+          distributedAmount: "0",
+          distributedAmountUsd: 0
+        };
+      }
+      
+      const tokenSummary = summary.byToken[breakdown.token];
+      tokenSummary.totalAmount = (BigInt(tokenSummary.totalAmount) + BigInt(breakdown.totalAmount)).toString();
+      tokenSummary.totalAmountUsd += breakdown.totalAmountUsd;
+      tokenSummary.distributedAmount = (BigInt(tokenSummary.distributedAmount) + BigInt(breakdown.distributedAmount)).toString();
+      tokenSummary.distributedAmountUsd += breakdown.distributedAmountUsd;
+    }
+
+    // Round summary values
+    summary.totalDistributedUsd = Math.round(summary.totalDistributedUsd * 100) / 100;
+    Object.values(summary.byToken).forEach(token => {
+      token.totalAmountUsd = Math.round(token.totalAmountUsd * 100) / 100;
+      token.distributedAmountUsd = Math.round(token.distributedAmountUsd * 100) / 100;
+    });
+
     fs.writeFileSync(
       breakdownPath,
       JSON.stringify(
@@ -768,6 +845,7 @@ async function main() {
           feePercentage: FEE_PERCENTAGE,
           campaignsProcessed: campaignBreakdowns.length,
           campaigns: campaignBreakdowns,
+          summary,
         },
         null,
         2
@@ -775,6 +853,12 @@ async function main() {
     );
 
     console.log(`Breakdown saved to: breakdown_${timestamp}.json`);
+
+    console.log(`\nUSD Summary:`);
+    console.log(`  Total distributed: $${summary.totalDistributedUsd.toLocaleString()}`);
+    for (const [token, data] of Object.entries(summary.byToken)) {
+      console.log(`  ${data.symbol}: $${data.distributedAmountUsd.toLocaleString()} @ $${data.priceUsd}/token`);
+    }
 
     console.log(`\nFiles saved to: ${outputDir}`);
     console.log(`New merkle root: ${merkleData.merkleRoot}`);

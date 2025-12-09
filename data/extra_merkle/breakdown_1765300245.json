@@ -1,0 +1,877 @@
+{
+  "timestamp": 1765300245,
+  "date": "2025-12-09T17:10:45.846Z",
+  "feePercentage": 0,
+  "campaignsProcessed": 13,
+  "campaigns": [
+    {
+      "campaignId": "2025-08-29-sgho-1-0xd4f6592de90024e541187527d7f1de83f6cb6a52-0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "tokenSymbol": "stkGHO",
+      "tokenPriceUsd": 0.999948733716533,
+      "pool": "1-0xd4f6592de90024e541187527d7f1de83f6cb6a52",
+      "period": {
+        "from": 1754410620,
+        "to": 1755636180
+      },
+      "totalAmount": "2603858153395018078832",
+      "totalAmountUsd": 2603.72,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "2603858153395018078820",
+      "distributedAmountUsd": 2603.72,
+      "recipientCount": 24,
+      "recipients": {
+        "0xd6ffc26607A60A0c5383533fd53F7C47c26D62D4": {
+          "amount": "49799790814104296171",
+          "amountUsd": 49.8
+        },
+        "0x75F256ECa494266771cbcb28E4EDA9d5fbCA430A": {
+          "amount": "317088889019018469230",
+          "amountUsd": 317.07
+        },
+        "0x343f5EA4cD99f508Bc72cF17D8E1388d5d889668": {
+          "amount": "23279586655959055630",
+          "amountUsd": 23.28
+        },
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "136511397932553743969",
+          "amountUsd": 136.5
+        },
+        "0x063608D16D09E48e46329D6bF833cD31Dc341030": {
+          "amount": "54395326547093416086",
+          "amountUsd": 54.39
+        },
+        "0x06573Db40707710D991b2519CA9B5C1a6c5C1Efa": {
+          "amount": "90356027720144241229",
+          "amountUsd": 90.35
+        },
+        "0x1247F0cb8F7B0e2eDfa9750df07417D17b5127d6": {
+          "amount": "148115719890197061768",
+          "amountUsd": 148.11
+        },
+        "0x8cc8B8BAe27312AB93030381aC28a8c68b5A15Bc": {
+          "amount": "11583264716169818149",
+          "amountUsd": 11.58
+        },
+        "0x6623215826F8be557DAe02f03dd1187c72F590ba": {
+          "amount": "99026243870393284345",
+          "amountUsd": 99.02
+        },
+        "0x244e97Be1311e1312ad5bb4ebceb4E47912021D9": {
+          "amount": "41133138128574903902",
+          "amountUsd": 41.13
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "330278157663099200552",
+          "amountUsd": 330.26
+        },
+        "0xFFCb6b2c766B06B78547ea147CFc2c974bDA2C4E": {
+          "amount": "6215014635375240773",
+          "amountUsd": 6.21
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "186181942000738181920",
+          "amountUsd": 186.17
+        },
+        "0xd22234192cf66368d36155327cC3b33b5Ad09425": {
+          "amount": "22237729035412218179",
+          "amountUsd": 22.24
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "95164256538673503447",
+          "amountUsd": 95.16
+        },
+        "0xcC3e470BdE93f9E6DdafC0f6489376D352a74eE4": {
+          "amount": "67903461542020921574",
+          "amountUsd": 67.9
+        },
+        "0x85542DbaECd0379BE7aD07Cd616d909ccd7a215F": {
+          "amount": "10446512363794150200",
+          "amountUsd": 10.45
+        },
+        "0xfd8a63085804DCB95417fe33f9E49253522c68DD": {
+          "amount": "337095165598179644076",
+          "amountUsd": 337.08
+        },
+        "0xC4a70Fc48985926773Fdb25162a46311443f4DBf": {
+          "amount": "276902442394407521358",
+          "amountUsd": 276.89
+        },
+        "0x926eB5E50cb34E9836e7d93C645768CFB1e2B1Ce": {
+          "amount": "166882724063026226465",
+          "amountUsd": 166.87
+        },
+        "0x0BDa59997765a113BeA8cA9Cba319B35fB287Fc8": {
+          "amount": "122957207854805581605",
+          "amountUsd": 122.95
+        },
+        "0x7D7BaAD8978d4d25974b403B8C6789128b9001af": {
+          "amount": "792624135135435569",
+          "amountUsd": 0.79
+        },
+        "0x0dDAc437952c920e1D1Ac5C50E84260C81D9D6dc": {
+          "amount": "2403334272450944493",
+          "amountUsd": 2.4
+        },
+        "0x7c5C5a0240231077432E3f3b7880De8865269a40": {
+          "amount": "7108196003691018130",
+          "amountUsd": 7.11
+        }
+      }
+    },
+    {
+      "campaignId": "2025-09-11-sgho-fluid-1-0xd4f6592de90024e541187527d7f1de83f6cb6a52-0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "tokenSymbol": "stkGHO",
+      "tokenPriceUsd": 0.999948733716533,
+      "pool": "1-0xd4f6592de90024e541187527d7f1de83f6cb6a52",
+      "period": {
+        "from": 1755636240,
+        "to": 1756808580
+      },
+      "totalAmount": "1435099463842059301618",
+      "totalAmountUsd": 1435.03,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "1435099463842059301605",
+      "distributedAmountUsd": 1435.03,
+      "recipientCount": 23,
+      "recipients": {
+        "0xd6ffc26607A60A0c5383533fd53F7C47c26D62D4": {
+          "amount": "35512369367756822357",
+          "amountUsd": 35.51
+        },
+        "0x75F256ECa494266771cbcb28E4EDA9d5fbCA430A": {
+          "amount": "74834694138901650503",
+          "amountUsd": 74.83
+        },
+        "0x343f5EA4cD99f508Bc72cF17D8E1388d5d889668": {
+          "amount": "12415826566389550613",
+          "amountUsd": 12.42
+        },
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "70133875166178382172",
+          "amountUsd": 70.13
+        },
+        "0x063608D16D09E48e46329D6bF833cD31Dc341030": {
+          "amount": "37401397122143742548",
+          "amountUsd": 37.4
+        },
+        "0x06573Db40707710D991b2519CA9B5C1a6c5C1Efa": {
+          "amount": "63885709199841643776",
+          "amountUsd": 63.88
+        },
+        "0x1247F0cb8F7B0e2eDfa9750df07417D17b5127d6": {
+          "amount": "80020732061649188271",
+          "amountUsd": 80.02
+        },
+        "0x8cc8B8BAe27312AB93030381aC28a8c68b5A15Bc": {
+          "amount": "6222864902089219701",
+          "amountUsd": 6.22
+        },
+        "0x6623215826F8be557DAe02f03dd1187c72F590ba": {
+          "amount": "81180806735567862542",
+          "amountUsd": 81.18
+        },
+        "0x244e97Be1311e1312ad5bb4ebceb4E47912021D9": {
+          "amount": "23015006319211932447",
+          "amountUsd": 23.01
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "86674799812110991125",
+          "amountUsd": 86.67
+        },
+        "0xFFCb6b2c766B06B78547ea147CFc2c974bDA2C4E": {
+          "amount": "3154423224638774835",
+          "amountUsd": 3.15
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "94501108319568441121",
+          "amountUsd": 94.5
+        },
+        "0xd22234192cf66368d36155327cC3b33b5Ad09425": {
+          "amount": "11031458310483608531",
+          "amountUsd": 11.03
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "48981671292737561112",
+          "amountUsd": 48.98
+        },
+        "0xcC3e470BdE93f9E6DdafC0f6489376D352a74eE4": {
+          "amount": "35137824362580552689",
+          "amountUsd": 35.14
+        },
+        "0x85542DbaECd0379BE7aD07Cd616d909ccd7a215F": {
+          "amount": "8563955049894038077",
+          "amountUsd": 8.56
+        },
+        "0xfd8a63085804DCB95417fe33f9E49253522c68DD": {
+          "amount": "301924604181646280465",
+          "amountUsd": 301.91
+        },
+        "0xC4a70Fc48985926773Fdb25162a46311443f4DBf": {
+          "amount": "149624374181055268175",
+          "amountUsd": 149.62
+        },
+        "0x926eB5E50cb34E9836e7d93C645768CFB1e2B1Ce": {
+          "amount": "106917960759639107493",
+          "amountUsd": 106.91
+        },
+        "0x0BDa59997765a113BeA8cA9Cba319B35fB287Fc8": {
+          "amount": "97906010425717456335",
+          "amountUsd": 97.9
+        },
+        "0x0dDAc437952c920e1D1Ac5C50E84260C81D9D6dc": {
+          "amount": "1388769954542011935",
+          "amountUsd": 1.39
+        },
+        "0x7c5C5a0240231077432E3f3b7880De8865269a40": {
+          "amount": "4669222387715214782",
+          "amountUsd": 4.67
+        }
+      }
+    },
+    {
+      "campaignId": "2025-09-11-sgho-fluid-1-0xc64d59eb11c869012c686349d24e1d7c91c86ee2-0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "tokenSymbol": "FLUID",
+      "tokenPriceUsd": 3.4308318531665765,
+      "pool": "1-0xc64d59eb11c869012c686349d24e1d7c91c86ee2",
+      "period": {
+        "from": 1752598620,
+        "to": 1757347200
+      },
+      "totalAmount": "93896953668919912287",
+      "totalAmountUsd": 322.14,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "93896953668919912283",
+      "distributedAmountUsd": 322.14,
+      "recipientCount": 9,
+      "recipients": {
+        "0xDd55f40A78fE22B66aEC6F797023973D44BeAada": {
+          "amount": "7067049837077776325",
+          "amountUsd": 24.25
+        },
+        "0x11d67Fa925877813B744aBC0917900c2b1D6Eb81": {
+          "amount": "1396308953062647228",
+          "amountUsd": 4.79
+        },
+        "0x71F12a5b0E60d2Ff8A87FD34E7dcff3c10c914b0": {
+          "amount": "29441908997260047301",
+          "amountUsd": 101.01
+        },
+        "0xbba2379F5cc9A2f248C5Cf18aD72379AE2478F42": {
+          "amount": "4332084539230808258",
+          "amountUsd": 14.86
+        },
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "10367406510189516909",
+          "amountUsd": 35.57
+        },
+        "0x7C6Accd51cbbdd53354De581841803b4f79d48e7": {
+          "amount": "2328847413621210054",
+          "amountUsd": 7.99
+        },
+        "0x0BDa59997765a113BeA8cA9Cba319B35fB287Fc8": {
+          "amount": "20359896460924915294",
+          "amountUsd": 69.85
+        },
+        "0x494f3579E12a045ff1404241D25aE740DDb0Ca91": {
+          "amount": "15503329532910324812",
+          "amountUsd": 53.19
+        },
+        "0x6A1DDf4b96Db63F0F4b21911c7077B35d878F0f5": {
+          "amount": "3100121424642666102",
+          "amountUsd": 10.64
+        }
+      }
+    },
+    {
+      "campaignId": "2025-09-11-sgho-fluid-1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b-0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "tokenSymbol": "FLUID",
+      "tokenPriceUsd": 3.4308318531665765,
+      "pool": "1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b",
+      "period": {
+        "from": 1752598620,
+        "to": 1757347200
+      },
+      "totalAmount": "237412730855018056253",
+      "totalAmountUsd": 814.52,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "237412730855018056246",
+      "distributedAmountUsd": 814.52,
+      "recipientCount": 14,
+      "recipients": {
+        "0x634C51a4542a0aBE6AC70E168d39f889576e482a": {
+          "amount": "52037774563955345354",
+          "amountUsd": 178.53
+        },
+        "0x494f3579E12a045ff1404241D25aE740DDb0Ca91": {
+          "amount": "35540184770797451956",
+          "amountUsd": 121.93
+        },
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "19774262020219341938",
+          "amountUsd": 67.84
+        },
+        "0xfd8a63085804DCB95417fe33f9E49253522c68DD": {
+          "amount": "4156724951292079679",
+          "amountUsd": 14.26
+        },
+        "0x0BDa59997765a113BeA8cA9Cba319B35fB287Fc8": {
+          "amount": "31722793974215982240",
+          "amountUsd": 108.84
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "23841095318610544881",
+          "amountUsd": 81.79
+        },
+        "0xe4F077BF767a57Ae9aAD77B0aB54CbdE0BEde65A": {
+          "amount": "400493397632768684",
+          "amountUsd": 1.37
+        },
+        "0xAE0f77C239f72da36d4dA20a4bBdaAe4Ca48e03F": {
+          "amount": "16463691461279186870",
+          "amountUsd": 56.48
+        },
+        "0x5e777b59D6536dC61b4Fda906C980e4b09099c98": {
+          "amount": "5120516123203843820",
+          "amountUsd": 17.57
+        },
+        "0x75F256ECa494266771cbcb28E4EDA9d5fbCA430A": {
+          "amount": "19388613016187168180",
+          "amountUsd": 66.52
+        },
+        "0xF0ea0b3aaF06Ce5B09D484990D5D45A00Fe9F0B4": {
+          "amount": "624067662757379307",
+          "amountUsd": 2.14
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "19691883320064552531",
+          "amountUsd": 67.56
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "8081502488899316567",
+          "amountUsd": 27.73
+        },
+        "0x0b0C93344d2Aa35036263c666337F5a686cc9fbe": {
+          "amount": "569127785903094239",
+          "amountUsd": 1.95
+        }
+      }
+    },
+    {
+      "campaignId": "2025-09-26-sGHO-FLUID-1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3-0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "tokenSymbol": "stkGHO",
+      "tokenPriceUsd": 0.999948733716533,
+      "pool": "1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3",
+      "period": {
+        "from": 1756808640,
+        "to": 1757413440
+      },
+      "totalAmount": "444865974411473417227",
+      "totalAmountUsd": 444.84,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "444865974411473417225",
+      "distributedAmountUsd": 444.84,
+      "recipientCount": 4,
+      "recipients": {
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "232424661426822692989",
+          "amountUsd": 232.41
+        },
+        "0xcC3e470BdE93f9E6DdafC0f6489376D352a74eE4": {
+          "amount": "115705614422932064376",
+          "amountUsd": 115.7
+        },
+        "0x0dDAc437952c920e1D1Ac5C50E84260C81D9D6dc": {
+          "amount": "4091744622584463125",
+          "amountUsd": 4.09
+        },
+        "0x063608D16D09E48e46329D6bF833cD31Dc341030": {
+          "amount": "92643953939134196735",
+          "amountUsd": 92.64
+        }
+      }
+    },
+    {
+      "campaignId": "2025-09-26-sGHO-FLUID-1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b-0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "tokenSymbol": "FLUID",
+      "tokenPriceUsd": 3.4308318531665765,
+      "pool": "1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b",
+      "period": {
+        "from": 1757347260,
+        "to": 1758556800
+      },
+      "totalAmount": "71963400706366354185",
+      "totalAmountUsd": 246.89,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "71963400706366354180",
+      "distributedAmountUsd": 246.89,
+      "recipientCount": 10,
+      "recipients": {
+        "0x634C51a4542a0aBE6AC70E168d39f889576e482a": {
+          "amount": "11550878789141487550",
+          "amountUsd": 39.63
+        },
+        "0x494f3579E12a045ff1404241D25aE740DDb0Ca91": {
+          "amount": "7940836517891948435",
+          "amountUsd": 27.24
+        },
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "4731613262757368624",
+          "amountUsd": 16.23
+        },
+        "0x0BDa59997765a113BeA8cA9Cba319B35fB287Fc8": {
+          "amount": "8198364809829033257",
+          "amountUsd": 28.13
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "8133579629516288945",
+          "amountUsd": 27.9
+        },
+        "0xAE0f77C239f72da36d4dA20a4bBdaAe4Ca48e03F": {
+          "amount": "5025524677646116725",
+          "amountUsd": 17.24
+        },
+        "0x75F256ECa494266771cbcb28E4EDA9d5fbCA430A": {
+          "amount": "9728278569765048444",
+          "amountUsd": 33.38
+        },
+        "0xF0ea0b3aaF06Ce5B09D484990D5D45A00Fe9F0B4": {
+          "amount": "793916399506853173",
+          "amountUsd": 2.72
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "10163048014558972425",
+          "amountUsd": 34.87
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "5697360035753236602",
+          "amountUsd": 19.55
+        }
+      }
+    },
+    {
+      "campaignId": "2025-10-24-adjust-sGHO-FLUID-1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3-0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "tokenSymbol": "stkGHO",
+      "tokenPriceUsd": 0.999948733716533,
+      "pool": "1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3",
+      "period": {
+        "from": 1758025440,
+        "to": 1759242480
+      },
+      "totalAmount": "363027008128360789556",
+      "totalAmountUsd": 363.01,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "363027008128360789554",
+      "distributedAmountUsd": 363.01,
+      "recipientCount": 4,
+      "recipients": {
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "189667077965786849613",
+          "amountUsd": 189.66
+        },
+        "0xcC3e470BdE93f9E6DdafC0f6489376D352a74eE4": {
+          "amount": "94420039840492277104",
+          "amountUsd": 94.42
+        },
+        "0x0dDAc437952c920e1D1Ac5C50E84260C81D9D6dc": {
+          "amount": "3339014206081382300",
+          "amountUsd": 3.34
+        },
+        "0x063608D16D09E48e46329D6bF833cD31Dc341030": {
+          "amount": "75600876116000280537",
+          "amountUsd": 75.6
+        }
+      }
+    },
+    {
+      "campaignId": "2025-10-24-adjust-sGHO-FLUID-1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b-0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "tokenSymbol": "FLUID",
+      "tokenPriceUsd": 3.4308318531665765,
+      "pool": "1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b",
+      "period": {
+        "from": 1758556801,
+        "to": 1759737600
+      },
+      "totalAmount": "83692838604493920844",
+      "totalAmountUsd": 287.14,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "83692838604493920837",
+      "distributedAmountUsd": 287.14,
+      "recipientCount": 14,
+      "recipients": {
+        "0x634C51a4542a0aBE6AC70E168d39f889576e482a": {
+          "amount": "11348614315504292138",
+          "amountUsd": 38.94
+        },
+        "0x494f3579E12a045ff1404241D25aE740DDb0Ca91": {
+          "amount": "7801786567853488138",
+          "amountUsd": 26.77
+        },
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "4648759197407287741",
+          "amountUsd": 15.95
+        },
+        "0x0BDa59997765a113BeA8cA9Cba319B35fB287Fc8": {
+          "amount": "6066798848156548158",
+          "amountUsd": 20.81
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "7991154604322807479",
+          "amountUsd": 27.42
+        },
+        "0xAE0f77C239f72da36d4dA20a4bBdaAe4Ca48e03F": {
+          "amount": "4937524004950080442",
+          "amountUsd": 16.94
+        },
+        "0x75F256ECa494266771cbcb28E4EDA9d5fbCA430A": {
+          "amount": "9557929180750657895",
+          "amountUsd": 32.79
+        },
+        "0xF0ea0b3aaF06Ce5B09D484990D5D45A00Fe9F0B4": {
+          "amount": "1016573077194205800",
+          "amountUsd": 3.49
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "9985085489391906977",
+          "amountUsd": 34.26
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "5597595026545753547",
+          "amountUsd": 19.2
+        },
+        "0x6385c28424c7B4E35c5657d259D8edCd1fEfb744": {
+          "amount": "7438033082685068683",
+          "amountUsd": 25.52
+        },
+        "0x977B9F0e8022A2E51C4aA7afE434C475c1E0dc07": {
+          "amount": "602116274617848562",
+          "amountUsd": 2.07
+        },
+        "0x9C28E63c0310045FFE3d57f1Cb9DFAe284dD2a31": {
+          "amount": "5532481007333426920",
+          "amountUsd": 18.98
+        },
+        "0xB457BCD0F3EC75a550b03F1AF7EA8134E380FddD": {
+          "amount": "1168387927780548357",
+          "amountUsd": 4.01
+        }
+      }
+    },
+    {
+      "campaignId": "2025-10-25-sUSDe-FLUID-lp-wrapper-1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b-0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "tokenSymbol": "FLUID",
+      "tokenPriceUsd": 3.4308318531665765,
+      "pool": "1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b",
+      "period": {
+        "from": 1759737660,
+        "to": 1760716800
+      },
+      "totalAmount": "82263266941678935154",
+      "totalAmountUsd": 282.23,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "82263266941678935148",
+      "distributedAmountUsd": 282.23,
+      "recipientCount": 12,
+      "recipients": {
+        "0x634C51a4542a0aBE6AC70E168d39f889576e482a": {
+          "amount": "11978948591428511014",
+          "amountUsd": 41.1
+        },
+        "0x494f3579E12a045ff1404241D25aE740DDb0Ca91": {
+          "amount": "8235119955564505661",
+          "amountUsd": 28.25
+        },
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "4906964488483263892",
+          "amountUsd": 16.83
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "9179711762686305144",
+          "amountUsd": 31.49
+        },
+        "0xAE0f77C239f72da36d4dA20a4bBdaAe4Ca48e03F": {
+          "amount": "5211768113701463197",
+          "amountUsd": 17.88
+        },
+        "0x75F256ECa494266771cbcb28E4EDA9d5fbCA430A": {
+          "amount": "4768601657527456439",
+          "amountUsd": 16.36
+        },
+        "0xF0ea0b3aaF06Ce5B09D484990D5D45A00Fe9F0B4": {
+          "amount": "1073036433576124639",
+          "amountUsd": 3.68
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "10539685501077791109",
+          "amountUsd": 36.16
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "5908501354832401174",
+          "amountUsd": 20.27
+        },
+        "0x6385c28424c7B4E35c5657d259D8edCd1fEfb744": {
+          "amount": "9631628722681890547",
+          "amountUsd": 33.04
+        },
+        "0x9C28E63c0310045FFE3d57f1Cb9DFAe284dD2a31": {
+          "amount": "8890693780506489429",
+          "amountUsd": 30.5
+        },
+        "0xB457BCD0F3EC75a550b03F1AF7EA8134E380FddD": {
+          "amount": "1938606579612732903",
+          "amountUsd": 6.65
+        }
+      }
+    },
+    {
+      "campaignId": "2025-11-07-sUSDe-sGHO-FLUID-1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3-0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "tokenSymbol": "stkGHO",
+      "tokenPriceUsd": 0.999948733716533,
+      "pool": "1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3",
+      "period": {
+        "from": 1760417040,
+        "to": 1761671220
+      },
+      "totalAmount": "291488801765240799426",
+      "totalAmountUsd": 291.47,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "291488801765240799424",
+      "distributedAmountUsd": 291.47,
+      "recipientCount": 5,
+      "recipients": {
+        "0xcC3e470BdE93f9E6DdafC0f6489376D352a74eE4": {
+          "amount": "67400123845956078671",
+          "amountUsd": 67.4
+        },
+        "0x0dDAc437952c920e1D1Ac5C50E84260C81D9D6dc": {
+          "amount": "2383497945917817969",
+          "amountUsd": 2.38
+        },
+        "0x063608D16D09E48e46329D6bF833cD31Dc341030": {
+          "amount": "53966387026411526483",
+          "amountUsd": 53.96
+        },
+        "0x33b36812B44463F020042BFbB7a2D8aa40B3a426": {
+          "amount": "96761139807973164324",
+          "amountUsd": 96.76
+        },
+        "0xbb5286a6d73B6cae296AB40Fe220708607479171": {
+          "amount": "70977653138982211977",
+          "amountUsd": 70.97
+        }
+      }
+    },
+    {
+      "campaignId": "2025-11-07-sUSDe-sGHO-FLUID-1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b-0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "tokenSymbol": "FLUID",
+      "tokenPriceUsd": 3.4308318531665765,
+      "pool": "1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b",
+      "period": {
+        "from": 1760716860,
+        "to": 1762358400
+      },
+      "totalAmount": "40960185708865254455",
+      "totalAmountUsd": 140.53,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "40960185708865254449",
+      "distributedAmountUsd": 140.53,
+      "recipientCount": 13,
+      "recipients": {
+        "0x634C51a4542a0aBE6AC70E168d39f889576e482a": {
+          "amount": "5948102368434154448",
+          "amountUsd": 20.41
+        },
+        "0x494f3579E12a045ff1404241D25aE740DDb0Ca91": {
+          "amount": "4089118184135328565",
+          "amountUsd": 14.03
+        },
+        "0xd0A8A6dd88BD9405128f178347eCD60FaA631164": {
+          "amount": "1491522339640970474",
+          "amountUsd": 5.12
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "4991079248682262741",
+          "amountUsd": 17.12
+        },
+        "0xAE0f77C239f72da36d4dA20a4bBdaAe4Ca48e03F": {
+          "amount": "2587884072147976210",
+          "amountUsd": 8.88
+        },
+        "0xF0ea0b3aaF06Ce5B09D484990D5D45A00Fe9F0B4": {
+          "amount": "532812250028126805",
+          "amountUsd": 1.83
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "5233441634132257192",
+          "amountUsd": 17.96
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "2933844371593883500",
+          "amountUsd": 10.07
+        },
+        "0x6385c28424c7B4E35c5657d259D8edCd1fEfb744": {
+          "amount": "4782549418256636695",
+          "amountUsd": 16.41
+        },
+        "0x9C28E63c0310045FFE3d57f1Cb9DFAe284dD2a31": {
+          "amount": "4414640928561418350",
+          "amountUsd": 15.15
+        },
+        "0xB457BCD0F3EC75a550b03F1AF7EA8134E380FddD": {
+          "amount": "1520821124998727363",
+          "amountUsd": 5.22
+        },
+        "0x1fD3F134470Ac97625bDfb41A8e03F23E47c93FB": {
+          "amount": "2399249593478933160",
+          "amountUsd": 8.23
+        },
+        "0x0cF3145BbC62fFEF9e6429756dDc97E5f38E2E3e": {
+          "amount": "35120174774578946",
+          "amountUsd": 0.12
+        }
+      }
+    },
+    {
+      "campaignId": "2025-11-24-sdeUSD-compensation-sGHO-FLUID-sUSDe-1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3-0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "tokenSymbol": "stkGHO",
+      "tokenPriceUsd": 0.999948733716533,
+      "pool": "1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3",
+      "period": {
+        "from": 1761671267,
+        "to": 1762884551
+      },
+      "totalAmount": "267229337519762588069",
+      "totalAmountUsd": 267.22,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "267229337519762588066",
+      "distributedAmountUsd": 267.22,
+      "recipientCount": 5,
+      "recipients": {
+        "0xcC3e470BdE93f9E6DdafC0f6489376D352a74eE4": {
+          "amount": "53134249689058889557",
+          "amountUsd": 53.13
+        },
+        "0x0dDAc437952c920e1D1Ac5C50E84260C81D9D6dc": {
+          "amount": "1879008045759768765",
+          "amountUsd": 1.88
+        },
+        "0x063608D16D09E48e46329D6bF833cD31Dc341030": {
+          "amount": "42543890418233741692",
+          "amountUsd": 42.54
+        },
+        "0x33b36812B44463F020042BFbB7a2D8aa40B3a426": {
+          "amount": "73717033139324997350",
+          "amountUsd": 73.71
+        },
+        "0xbb5286a6d73B6cae296AB40Fe220708607479171": {
+          "amount": "95955156227385190702",
+          "amountUsd": 95.95
+        }
+      }
+    },
+    {
+      "campaignId": "2025-11-24-sdeUSD-compensation-sGHO-FLUID-sUSDe-1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b-0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "tokenSymbol": "FLUID",
+      "tokenPriceUsd": 3.4308318531665765,
+      "pool": "1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b",
+      "period": {
+        "from": 1762394387,
+        "to": 1763555207
+      },
+      "totalAmount": "110658897800461435117",
+      "totalAmountUsd": 379.65,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "110658897800461435113",
+      "distributedAmountUsd": 379.65,
+      "recipientCount": 10,
+      "recipients": {
+        "0x634C51a4542a0aBE6AC70E168d39f889576e482a": {
+          "amount": "18314894629186806293",
+          "amountUsd": 62.84
+        },
+        "0x494f3579E12a045ff1404241D25aE740DDb0Ca91": {
+          "amount": "12590867478369507115",
+          "amountUsd": 43.2
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "15368109837961746555",
+          "amountUsd": 52.73
+        },
+        "0xF0ea0b3aaF06Ce5B09D484990D5D45A00Fe9F0B4": {
+          "amount": "1640590496255024732",
+          "amountUsd": 5.63
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "16114371633177543531",
+          "amountUsd": 55.29
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "9033645891726650280",
+          "amountUsd": 30.99
+        },
+        "0x6385c28424c7B4E35c5657d259D8edCd1fEfb744": {
+          "amount": "14726022389777336153",
+          "amountUsd": 50.52
+        },
+        "0x9C28E63c0310045FFE3d57f1Cb9DFAe284dD2a31": {
+          "amount": "13593189629919333728",
+          "amountUsd": 46.64
+        },
+        "0x1fD3F134470Ac97625bDfb41A8e03F23E47c93FB": {
+          "amount": "9064079745633497806",
+          "amountUsd": 31.1
+        },
+        "0x0cF3145BbC62fFEF9e6429756dDc97E5f38E2E3e": {
+          "amount": "213126068453988920",
+          "amountUsd": 0.73
+        }
+      }
+    }
+  ],
+  "summary": {
+    "totalDistributedUsd": 7878.39,
+    "byToken": {
+      "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d": {
+        "symbol": "stkGHO",
+        "priceUsd": 0.999948733716533,
+        "totalAmount": "5405568739061914974728",
+        "totalAmountUsd": 5405.29,
+        "distributedAmount": "5405568739061914974694",
+        "distributedAmountUsd": 5405.29
+      },
+      "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb": {
+        "symbol": "FLUID",
+        "priceUsd": 3.4308318531665765,
+        "totalAmount": "720848274285803868295",
+        "totalAmountUsd": 2473.1,
+        "distributedAmount": "720848274285803868256",
+        "distributedAmountUsd": 2473.1
+      }
+    }
+  }
+}
