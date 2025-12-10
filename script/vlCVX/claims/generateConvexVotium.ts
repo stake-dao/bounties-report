@@ -475,11 +475,10 @@ async function aggregateBribesByToken(
   bribesType: "curve" | "fxn"
 ) {
   for (const bribe of gaugeBribes) {
-    // Convert token symbol to address if needed
-    const tokenKey = (await getTokenAddress(bribe.token));
+    // Convert token symbol to address if needed - fallback to symbol if address not found
+    const tokenKey = (await getTokenAddress(bribe.token)) || bribe.token;
 
-
-    console.log("key", tokenKey, "(for symbol", bribe.token)
+    console.log("key", tokenKey, "(for symbol", bribe.token, ")")
 
     if (!matchingBribesAggregated[tokenKey]) {
       matchingBribesAggregated[tokenKey] = {
@@ -867,7 +866,7 @@ async function processGaugeVotes(
           };
 
           // Also track for per-address token allocations (for claimed bounties)
-          const tokenAddress = await getTokenAddress(bribe.token);
+          const tokenAddress = (await getTokenAddress(bribe.token)) || bribe.token;
 
           // Check if the bribe amount looks like it's already in wei
           const brideAmountNum = Number(bribe.amount);

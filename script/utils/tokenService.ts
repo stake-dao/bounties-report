@@ -167,6 +167,10 @@ class TokenService {
   async getTokenByAddress(address: string, chainId: string = "1"): Promise<TokenInfo | undefined> {
     await this.ensureInitialized();
     
+    if (!address) {
+      return undefined;
+    }
+    
     // First check if this address matches any override
     const lowerAddress = address.toLowerCase();
     for (const [symbol, addresses] of Object.entries(this.TOKEN_OVERRIDES)) {
