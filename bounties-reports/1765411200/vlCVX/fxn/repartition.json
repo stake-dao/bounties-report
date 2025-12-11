@@ -1,0 +1,63 @@
+{
+  "distribution": {
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "tokens": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "52349753069467339457506",
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "459369873",
+        "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f": "697107102358105323109"
+      }
+    },
+    "0xDbc9e41D5E083884f2Cb172bb3a17aB09a528101": {
+      "tokens": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "8021450738950804617782",
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "6901523642269018"
+      }
+    },
+    "0x0661f7963fA984bDFE53F86FCe7b3172D63BEC13": {
+      "tokens": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "735804500479521746464"
+      }
+    },
+    "0x938CC8D098aDE035D88A0842EF408076594706D0": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "10891655"
+      }
+    },
+    "0xb3983cDdBa4B127960A4cDD531AB989264509e23": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "58475685"
+      }
+    },
+    "0xb89C066fbD5E88522bd3dDE7A0A5516EF2b44D13": {
+      "tokens": {
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "10103453607849698",
+        "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f": "29424650170795314251"
+      }
+    },
+    "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A": {
+      "tokens": {
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "12369245659688775"
+      }
+    },
+    "0x0208a8E743f0748fD8600171636b0BCD6Fa01776": {
+      "tokens": {
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "553273419881993"
+      }
+    },
+    "0x4066745373081B224fB36B1ff82fa991A636610e": {
+      "tokens": {
+        "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8": "28666497049868255969"
+      }
+    },
+    "0x7cfc917d0D16916752Ee65AC73A24ED3f774eA7C": {
+      "tokens": {
+        "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f": "376749895668876966929"
+      }
+    },
+    "0x7Ac50c162A4a073E6371857A73DB3eE1De8183d7": {
+      "tokens": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "6183332644469475478"
+      }
+    }
+  }
+}
