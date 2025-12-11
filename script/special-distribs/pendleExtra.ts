@@ -1,12 +1,24 @@
 import fs from "fs";
 import path from "path";
 import { getAddress } from "viem";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 import { UniversalMerkle } from "../interfaces/UniversalMerkle";
+import { getTokenPrices, TokenIdentifier } from "../utils/priceUtils";
 import { generateMerkleTree } from "../vlCVX/utils";
+
+const argv = yargs(hideBin(process.argv))
+  .option("fee", {
+    type: "number",
+    description: "Fee percentage (0 to 1, e.g., 0.15 for 15%)",
+    default: 0.15,
+  })
+  .parseSync();
+
+const FEE_PERCENTAGE = argv.fee;
 
 const PENDLE_MERKLE_DISTRIBUTIONS_API = "https://api.github.com/repos/pendle-finance/merkle-distributions/contents/external-rewards/1";
 const GITHUB_HOLDERS_DATA_URL = "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/strategies/pendle/holders/index.json";
-const FEE_PERCENTAGE = 0.15; // 15% fee
 const DELEGATION_ADDRESS = "0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC";
 const FEE_RECIPIENT = "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063";
 
@@ -100,29 +112,31 @@ function formatTokenAmount(amount: bigint, decimals: number): string {
   return `${wholePart.toString()}.${fractionalStr}`;
 }
 
+interface GaugeData {
+  gauge_id: string;
+  token: {
+    address: string;
+    symbol: string;
+  };
+  user_histories: {
+    [address: string]: {
+      events: Array<{
+        type: string;
+        amount: string;
+        balance_after: string;
+        block: number;
+        timestamp: number;
+        datetime: string;
+      }>;
+    };
+  };
+}
+
 interface HoldersData {
   metadata: {
     total_gauges: number;
   };
-  gauges: Array<{
-    gauge_id: string;
-    token: {
-      address: string;
-      symbol: string;
-    };
-    user_histories: {
-      [address: string]: {
-        events: Array<{
-          type: string;
-          amount: string;
-          balance_after: string;
-          block: number;
-          timestamp: number;
-          datetime: string;
-        }>;
-      };
-    };
-  }>;
+  gauges: { [gaugeAddress: string]: GaugeData };
 }
 
 interface PeriodHolder {
@@ -287,10 +301,14 @@ function getHoldersForPeriod(
   fromTimestamp: number,
   toTimestamp: number
 ): PeriodHolder[] {
-  // Find the gauge for this token
-  const gauge = holdersData.gauges.find(g =>
-    g.token.address.toLowerCase() === tokenAddress.toLowerCase()
-  );
+  // Find the gauge for this token by iterating over the gauges object
+  let gauge: GaugeData | undefined;
+  for (const gaugeData of Object.values(holdersData.gauges)) {
+    if (gaugeData.token.address.toLowerCase() === tokenAddress.toLowerCase()) {
+      gauge = gaugeData;
+      break;
+    }
+  }
 
   if (!gauge) {
     return [];
@@ -453,7 +471,8 @@ async function main() {
     // Check multiple folders and aggregate all campaigns
     const foundInFolders: string[] = [];
 
-    for (const folder of validFolders.slice(0, 10)) { // Check up to 10 latest folders
+    console.log(`Scanning ${validFolders.length} distribution folders...`);
+    for (const folder of validFolders) { // Check ALL folders
       const campaigns = await fetchCampaignData(folder.name);
 
       if (campaigns.length > 0) {
@@ -480,6 +499,39 @@ async function main() {
       return;
     }
 
+    // Pre-fetch all token info to speed up processing
+    const uniqueTokens = [...new Set(newCampaigns.map(c => c.token))];
+    await Promise.all(uniqueTokens.map(token => fetchTokenInfo(token)));
+
+    // Fetch current USD prices for all tokens
+    const tokenIdentifiers: TokenIdentifier[] = uniqueTokens.map(token => ({
+      chainId: 1,
+      address: token.toLowerCase()
+    }));
+    const tokenPrices = await getTokenPrices(tokenIdentifiers);
+    console.log(`Fetched USD prices for ${Object.keys(tokenPrices).length} tokens`);
+
+    // ============================================================
+    // STEP 1: Log total fetched rewards from Pendle (before distribution)
+    // ============================================================
+    console.log(`\n${'='.repeat(60)}`);
+    console.log("TOTAL REWARDS FETCHED FROM PENDLE (before distribution)");
+    console.log(`${'='.repeat(60)}`);
+    
+    const fetchedTotals: { [token: string]: bigint } = {};
+    for (const campaign of newCampaigns) {
+      const rewardToken = getAddress(campaign.token);
+      if (!fetchedTotals[rewardToken]) {
+        fetchedTotals[rewardToken] = BigInt(0);
+      }
+      fetchedTotals[rewardToken] += BigInt(campaign.amount);
+    }
+    
+    for (const [token, total] of Object.entries(fetchedTotals)) {
+      const tokenInfo = await fetchTokenInfo(token);
+      console.log(`  ${tokenInfo.symbol}: ${formatTokenAmount(total, tokenInfo.decimals)}`);
+    }
+
     console.log(`\nProcessing ${newCampaigns.length} NEW campaigns:`);
 
     // Show new campaigns with their delegation amounts
@@ -488,18 +540,114 @@ async function main() {
       console.log(`- ${campaign.campaignId}: ${formatTokenAmount(BigInt(campaign.amount), tokenInfo.decimals)} ${tokenInfo.symbol}`);
     }
 
-    // Pre-fetch all token info to speed up processing
-    const uniqueTokens = [...new Set(newCampaigns.map(c => c.token))];
-    await Promise.all(uniqueTokens.map(token => fetchTokenInfo(token)));
+    // ============================================================
+    // STEP 2: Check for missing holders data BEFORE processing
+    // ============================================================
+    const holdersTokens = new Set(
+      Object.values(holdersData.gauges).map((g: GaugeData) => g.token.address.toLowerCase())
+    );
+    
+    const campaignsWithHolders: typeof newCampaigns = [];
+    const campaignsWithoutHolders: typeof newCampaigns = [];
+    
+    for (const campaign of newCampaigns) {
+      const assetIdParts = campaign.extInfo.assetId.split('-');
+      if (assetIdParts.length !== 2) {
+        campaignsWithoutHolders.push(campaign);
+        continue;
+      }
+      const poolAddress = assetIdParts[1].toLowerCase();
+      if (holdersTokens.has(poolAddress)) {
+        campaignsWithHolders.push(campaign);
+      } else {
+        campaignsWithoutHolders.push(campaign);
+      }
+    }
+
+    // Log campaigns that cannot be distributed
+    if (campaignsWithoutHolders.length > 0) {
+      console.log(`\n${'='.repeat(60)}`);
+      console.log("ERROR: CAMPAIGNS CANNOT BE DISTRIBUTED (missing holders data)");
+      console.log(`${'='.repeat(60)}`);
+      
+      const missingTotals: { [token: string]: bigint } = {};
+      const missingPools = new Set<string>();
+      
+      for (const campaign of campaignsWithoutHolders) {
+        const tokenInfo = await fetchTokenInfo(campaign.token);
+        const rewardToken = getAddress(campaign.token);
+        const poolAddress = campaign.extInfo.assetId.split('-')[1] || 'unknown';
+        
+        if (!missingTotals[rewardToken]) {
+          missingTotals[rewardToken] = BigInt(0);
+        }
+        missingTotals[rewardToken] += BigInt(campaign.amount);
+        missingPools.add(poolAddress);
+        
+        console.log(`  - ${campaign.campaignId}`);
+        console.log(`    Pool: ${poolAddress} (NOT IN HOLDERS DATA)`);
+        console.log(`    Amount: ${formatTokenAmount(BigInt(campaign.amount), tokenInfo.decimals)} ${tokenInfo.symbol}`);
+      }
+      
+      console.log(`\nMissing pools that need to be added to holders API:`);
+      for (const pool of missingPools) {
+        console.log(`  - ${pool}`);
+      }
+      
+      console.log(`\nTotal amounts that CANNOT be distributed:`);
+      for (const [token, total] of Object.entries(missingTotals)) {
+        const tokenInfo = await fetchTokenInfo(token);
+        console.log(`  ${tokenInfo.symbol}: ${formatTokenAmount(total, tokenInfo.decimals)}`);
+      }
+      
+      console.log(`\n${'='.repeat(60)}`);
+      console.log("ABORTING: Fix missing holders data before running again.");
+      console.log(`${'='.repeat(60)}`);
+      process.exit(1);
+    }
 
     // Process each campaign
     const allDistributions: UniversalMerkle = { ...existingDistributions };
     const feeAccumulator: { [token: string]: bigint } = {};
 
+    // Track per-campaign breakdown for output
+    interface CampaignBreakdown {
+      campaignId: string;
+      token: string;
+      tokenSymbol: string;
+      tokenPriceUsd: number;
+      pool: string;
+      period: { from: number; to: number };
+      totalAmount: string;
+      totalAmountUsd: number;
+      feeAmount: string;
+      feeAmountUsd: number;
+      distributedAmount: string;
+      distributedAmountUsd: number;
+      recipientCount: number;
+      recipients: { [address: string]: { amount: string; amountUsd: number } };
+    }
+
+    interface TokenSummary {
+      symbol: string;
+      priceUsd: number;
+      totalAmount: string;
+      totalAmountUsd: number;
+      distributedAmount: string;
+      distributedAmountUsd: number;
+    }
+
+    interface BreakdownSummary {
+      totalDistributedUsd: number;
+      byToken: { [tokenAddress: string]: TokenSummary };
+    }
+
+    const campaignBreakdowns: CampaignBreakdown[] = [];
+
     // Track total delegation amounts per token
     const totalDelegationAmounts: { [token: string]: bigint } = {};
 
-    for (const campaign of newCampaigns) {
+    for (const campaign of campaignsWithHolders) {
       const tokenInfo = await fetchTokenInfo(campaign.token);
 
       // Extract the token address from assetId (format: "1-0x8e1c2be682b0d3d8f8ee32024455a34cc724cf08")
@@ -519,6 +667,7 @@ async function main() {
       );
 
       if (periodHolders.length === 0) {
+        console.warn(`Warning: No holders found for campaign ${campaign.campaignId} despite pool existing`);
         continue;
       }
 
@@ -549,9 +698,43 @@ async function main() {
       console.log(`Token: ${tokenInfo.symbol}`);
       console.log(`Pool: ${campaign.extInfo.assetId}`);
       console.log(`Delegation amount: ${formatTokenAmount(totalReward, tokenInfo.decimals)} ${tokenInfo.symbol}`);
-      console.log(`Fee (15%): ${formatTokenAmount(totalFees, tokenInfo.decimals)} ${tokenInfo.symbol}`);
+      console.log(`Fee (${FEE_PERCENTAGE * 100}%): ${formatTokenAmount(totalFees, tokenInfo.decimals)} ${tokenInfo.symbol}`);
       console.log(`Distributed: ${formatTokenAmount(totalDistributed, tokenInfo.decimals)} ${tokenInfo.symbol}`);
       console.log(`Recipients: ${rewards.size}`);
+
+      // Record breakdown for this campaign
+      const priceKey = `ethereum:${rewardTokenAddress.toLowerCase()}`;
+      const tokenPriceUsd = tokenPrices[priceKey] || 0;
+
+      const toUsd = (amountWei: bigint): number => {
+        const amountInUnits = Number(amountWei) / Math.pow(10, tokenInfo.decimals);
+        return Math.round(amountInUnits * tokenPriceUsd * 100) / 100; // 2 decimal places
+      };
+
+      const breakdownRecipients: { [address: string]: { amount: string; amountUsd: number } } = {};
+      rewards.forEach((amount, address) => {
+        breakdownRecipients[address] = {
+          amount: amount.toString(),
+          amountUsd: toUsd(amount)
+        };
+      });
+
+      campaignBreakdowns.push({
+        campaignId: campaign.campaignId,
+        token: rewardTokenAddress,
+        tokenSymbol: tokenInfo.symbol,
+        tokenPriceUsd,
+        pool: campaign.extInfo.assetId,
+        period: { from: campaign.fromTimestamp, to: campaign.toTimestamp },
+        totalAmount: totalReward.toString(),
+        totalAmountUsd: toUsd(totalReward),
+        feeAmount: totalFees.toString(),
+        feeAmountUsd: toUsd(totalFees),
+        distributedAmount: totalDistributed.toString(),
+        distributedAmountUsd: toUsd(totalDistributed),
+        recipientCount: rewards.size,
+        recipients: breakdownRecipients,
+      });
 
       // Add to distribution
       rewards.forEach((amount, address) => {
@@ -601,9 +784,9 @@ async function main() {
       JSON.stringify(merkleData, null, 2)
     );
 
-    // Update processed campaigns
+    // Update processed campaigns (only campaigns that were successfully processed)
     const updatedProcessedCampaigns = Array.from(processedCampaigns);
-    newCampaigns.forEach(campaign => {
+    campaignsWithHolders.forEach(campaign => {
       updatedProcessedCampaigns.push(campaign.campaignId);
     });
 
@@ -615,10 +798,72 @@ async function main() {
       }, null, 2)
     );
 
+    // Write breakdown file for THIS run only (timestamped)
+    const timestamp = Math.floor(Date.now() / 1000);
+    const breakdownPath = path.join(outputDir, `breakdown_${timestamp}.json`);
+
+    // Build USD summary
+    const summary: BreakdownSummary = {
+      totalDistributedUsd: 0,
+      byToken: {}
+    };
+
+    for (const breakdown of campaignBreakdowns) {
+      summary.totalDistributedUsd += breakdown.distributedAmountUsd;
+      
+      if (!summary.byToken[breakdown.token]) {
+        summary.byToken[breakdown.token] = {
+          symbol: breakdown.tokenSymbol,
+          priceUsd: breakdown.tokenPriceUsd,
+          totalAmount: "0",
+          totalAmountUsd: 0,
+          distributedAmount: "0",
+          distributedAmountUsd: 0
+        };
+      }
+      
+      const tokenSummary = summary.byToken[breakdown.token];
+      tokenSummary.totalAmount = (BigInt(tokenSummary.totalAmount) + BigInt(breakdown.totalAmount)).toString();
+      tokenSummary.totalAmountUsd += breakdown.totalAmountUsd;
+      tokenSummary.distributedAmount = (BigInt(tokenSummary.distributedAmount) + BigInt(breakdown.distributedAmount)).toString();
+      tokenSummary.distributedAmountUsd += breakdown.distributedAmountUsd;
+    }
+
+    // Round summary values
+    summary.totalDistributedUsd = Math.round(summary.totalDistributedUsd * 100) / 100;
+    Object.values(summary.byToken).forEach(token => {
+      token.totalAmountUsd = Math.round(token.totalAmountUsd * 100) / 100;
+      token.distributedAmountUsd = Math.round(token.distributedAmountUsd * 100) / 100;
+    });
+
+    fs.writeFileSync(
+      breakdownPath,
+      JSON.stringify(
+        {
+          timestamp,
+          date: new Date().toISOString(),
+          feePercentage: FEE_PERCENTAGE,
+          campaignsProcessed: campaignBreakdowns.length,
+          campaigns: campaignBreakdowns,
+          summary,
+        },
+        null,
+        2
+      )
+    );
+
+    console.log(`Breakdown saved to: breakdown_${timestamp}.json`);
+
+    console.log(`\nUSD Summary:`);
+    console.log(`  Total distributed: $${summary.totalDistributedUsd.toLocaleString()}`);
+    for (const [token, data] of Object.entries(summary.byToken)) {
+      console.log(`  ${data.symbol}: $${data.distributedAmountUsd.toLocaleString()} @ $${data.priceUsd}/token`);
+    }
+
     console.log(`\nFiles saved to: ${outputDir}`);
     console.log(`New merkle root: ${merkleData.merkleRoot}`);
     console.log(`Total recipients: ${Object.keys(allDistributions).length}`);
-    console.log(`Updated processed campaigns list with ${newCampaigns.length} new campaigns`);
+    console.log(`Updated processed campaigns list with ${campaignsWithHolders.length} new campaigns`);
 
     // Show total delegation amounts summary
     if (Object.keys(totalDelegationAmounts).length > 0) {
@@ -633,7 +878,7 @@ async function main() {
           const feeAmount = feeAccumulator[token] || BigInt(0);
           console.log(`\n${tokenInfo.symbol}:`);
           console.log(`  Total delegation: ${formatTokenAmount(total, tokenInfo.decimals)}`);
-          console.log(`  Total fees (15%): ${formatTokenAmount(feeAmount, tokenInfo.decimals)}`);
+          console.log(`  Total fees (${FEE_PERCENTAGE * 100}%): ${formatTokenAmount(feeAmount, tokenInfo.decimals)}`);
           console.log(`  Total distributed: ${formatTokenAmount(total - feeAmount, tokenInfo.decimals)}`);
         }
       }

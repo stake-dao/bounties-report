@@ -21,6 +21,7 @@
     "spectra-repartition": "pnpm tsx script/spectra/2_repartition.ts",
     "spectra-merkle": "pnpm tsx script/spectra/3_merkles.ts",
     "pendle-extra": "pnpm tsx script/special-distribs/pendleExtra.ts",
+    "pendle-extra:no-fee": "pnpm tsx script/special-distribs/pendleExtra.ts --fee 0",
     "sdpendle-apr": "pnpm tsx script/sdTkns/computeSdPendleAPR.ts",
     "yb-distribution": "pnpm tsx script/special-distribs/yb.ts",
     "report2": "pnpm tsx script/report2/run.ts",
