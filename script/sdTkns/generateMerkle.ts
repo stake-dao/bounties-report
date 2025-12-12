@@ -216,11 +216,12 @@ async function computeSdPendleOTCOnlyAPR(
 const main = async () => {
   const now = moment.utc().unix();
   const filter: string = "*Gauge vote.*$";
+  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
   const [
     { data: lastMerkles },
     proposalIdPerSpace,
-    { data: delegationAPRs },
+    { data: delegationAPRsFromGithub },
     { data: sdFXSWorkingData },
     { data: sdCakeWorkingData },
   ] = await Promise.all([
@@ -239,15 +240,31 @@ const main = async () => {
     ),
   ]);
 
+  // Check if local delegationsAPRs.json exists for current period (e.g., written by Spectra)
+  // If so, use it to preserve APRs from other scripts that ran before
+  const localDelegationAPRsPath = `./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`;
+  let delegationAPRs: Record<string, number>;
+  if (fs.existsSync(localDelegationAPRsPath)) {
+    delegationAPRs = JSON.parse(fs.readFileSync(localDelegationAPRsPath, "utf-8"));
+    console.log("Loaded existing delegationsAPRs.json from current period");
+  } else {
+    delegationAPRs = { ...delegationAPRsFromGithub };
+    console.log("Using delegationsAPRs.json from GitHub");
+  }
+
+  // Clone to preserve values, then mark spaces we'll process as -1
   const delegationAPRsClone = { ...delegationAPRs };
   for (const key of Object.keys(delegationAPRs)) {
-    delegationAPRs[key] = -1;
+    // Only reset APRs for spaces that this script processes (SPACES array)
+    // This preserves APRs from other scripts (like Spectra)
+    if (SPACES.includes(key)) {
+      delegationAPRs[key] = -1;
+    }
   }
 
   const newMerkles: Merkle[] = [];
   const toFreeze: Record<string, string[]> = {};
   const toSet: Record<string, string[]> = {};
-  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
   // Loop through each space (except Pendle, handled separately)
   for (const space of Object.keys(proposalIdPerSpace)) {
