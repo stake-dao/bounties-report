@@ -11,6 +11,7 @@ import {
   SDBAL_SPACE,
   SDPENDLE_SPACE,
   SPECTRA_SPACE,
+  VLAURA_SPACE,
   getClient,
 } from "./constants";
 import fs from "fs";
@@ -155,7 +156,7 @@ export const extractCSV = async (
           row["reward sd value"]
         );
       }
-    } else if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
+    } else if (space === CVX_SPACE || space === CVX_FXN_SPACE || space === VLAURA_SPACE) {
       const cvxResponse = response as CvxCSVType;
       const rewardAddress = row["reward address"].toLowerCase();
       const rewardAmount = BigInt(row["reward amount"]);
