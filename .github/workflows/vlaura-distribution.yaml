@@ -1,0 +1,53 @@
+name: vlAURA Distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'Step to run'
+        required: true
+        type: choice
+        options:
+          - claims
+          - report
+          - repartition
+          - merkle
+          - all
+
+jobs:
+  distribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - run: pnpm install
+      
+      - name: Run ${{ inputs.step }}
+        env:
+          MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "${{ inputs.step }}" = "all" ]; then
+            make -f automation/vlAURA/repartition.mk run-all
+          else
+            make -f automation/vlAURA/repartition.mk run-${{ inputs.step }}
+          fi
+          
+      - name: Commit results
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bounties-reports/ weekly-bounties/
+          git diff --staged --quiet || git commit -m "vlAURA distribution: ${{ inputs.step }}"
+          git push

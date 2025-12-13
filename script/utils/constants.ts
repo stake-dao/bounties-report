@@ -63,6 +63,10 @@ export const VLCVX_DELEGATORS_MERKLE =
   "0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380";
 export const VLCVX_NON_DELEGATORS_MERKLE =
   "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
+
+// vlAURA
+export const VLAURA_SPACE = "gauges.aurafinance.eth";
+export const VLAURA_LOCKER = "0xaF52695E1bB01A16D33D7194C28C42b10e0Dbec2";
 export const SPECTRA_SAFE_MODULE =
   "0xDF9848EB9C1027AEA967270A74Dd3dd35Cb9Ab5D" as `0x${string}`;
 export const SDFXS_UNIVERSAL_MERKLE =
@@ -136,6 +140,7 @@ export const LABELS_TO_SPACE: Record<string, string> = {
   cvx: CVX_SPACE,
   cvx_fxn: CVX_FXN_SPACE,
   spectra: SPECTRA_SPACE,
+  vlaura: VLAURA_SPACE,
 };
 
 export const SPACE_TO_NETWORK: Record<string, string> = {
@@ -147,6 +152,7 @@ export const SPACE_TO_NETWORK: Record<string, string> = {
   [SDFXN_SPACE]: ETHEREUM,
   [SDCAKE_SPACE]: BSC,
   [SPECTRA_SPACE]: BASE,
+  [VLAURA_SPACE]: ETHEREUM,
 };
 
 export const SPACE_TO_CHAIN_ID: Record<string, string> = {
@@ -159,6 +165,7 @@ export const SPACE_TO_CHAIN_ID: Record<string, string> = {
   [SDCAKE_SPACE]: BSC_CHAIN_ID,
   [CVX_SPACE]: ETH_CHAIN_ID,
   [SPECTRA_SPACE]: BASE_CHAIN_ID,
+  [VLAURA_SPACE]: ETH_CHAIN_ID,
 };
 
 export const NETWORK_TO_STASH: Record<string, string> = {
