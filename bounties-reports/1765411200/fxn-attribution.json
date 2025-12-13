@@ -1,0 +1,63 @@
+{
+  "protocol": "fxn",
+  "period": 1765411200,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 72.72489148154945,
+    "sdAssigned": 72.72489148154945,
+    "wethInTotal": 0.36924220483511716,
+    "wethOutTotal": 0.6770337543022802
+  },
+  "dropped": {
+    "tokensNotSwapped": [],
+    "wethNotSwapped": false
+  },
+  "perToken": {
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
+      "mappedWeth": 0.1451901643911041,
+      "sd": 15.56754207266414
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "mappedWeth": 0.30902408153467303,
+      "sd": 33.134099757601575
+    },
+    "0x04acaf8d2865c0714f79da09645c13fd2888977f": {
+      "mappedWeth": 0.1380486100947005,
+      "sd": 14.80181219392388
+    },
+    "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8": {
+      "mappedWeth": 0.0124611191904365,
+      "sd": 1.3361028832989497
+    },
+    "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": {
+      "mappedWeth": 0.07354231115887606,
+      "sd": 7.88533457406091
+    }
+  },
+  "txs": [
+    {
+      "tx": "0x603fa3116066721da73aabf35d218e4566aac811a8e55c32b5cce5e76aaa490a",
+      "wethIn": 0.36924220483511716,
+      "wethOut": 0.6770337543022802,
+      "sdIn": 72.72489148154945,
+      "nativeIn": 72.41446805834346,
+      "nativeOut": 72.41446805834346,
+      "nativeShareSd": 0,
+      "wethBasis": 0.36924220483511716,
+      "tokenWeth": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": 0.07354231115887606,
+        "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8": 0.0124611191904365,
+        "0x04acaf8d2865c0714f79da09645c13fd2888977f": 0.1380486100947005,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.1451901643911041,
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": 0.30902408153467303
+      },
+      "tokenSd": {
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": 14.484683842465627,
+        "0x9cf12ccd6020b6888e4d4c4e4c7aca33c1eb91f8": 2.454306493126431,
+        "0x04acaf8d2865c0714f79da09645c13fd2888977f": 27.189660490731104,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 28.596240655226293,
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": 60.86450167534369
+      }
+    }
+  ]
+}
