@@ -10,7 +10,9 @@
   },
   "dropped": {
     "tokensNotSwapped": [
-      "0xaf88d065e77c8cc2239327c5edb3a432268e5831"
+      "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "0xc0c293ce456ff0ed870add98a0828dd4d2903dbf"
     ],
     "wethNotSwapped": false
   },
@@ -24,6 +26,14 @@
       "sd": 318.62136267197275
     },
     "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0xc0c293ce456ff0ed870add98a0828dd4d2903dbf": {
       "mappedWeth": 0,
       "sd": 0
     }
