@@ -246,10 +246,8 @@ const main = async () => {
   let delegationAPRs: Record<string, number>;
   if (fs.existsSync(localDelegationAPRsPath)) {
     delegationAPRs = JSON.parse(fs.readFileSync(localDelegationAPRsPath, "utf-8"));
-    console.log("Loaded existing delegationsAPRs.json from current period");
   } else {
     delegationAPRs = { ...delegationAPRsFromGithub };
-    console.log("Using delegationsAPRs.json from GitHub");
   }
 
   // Clone to preserve values, then mark spaces we'll process as -1
