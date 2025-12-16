@@ -34,17 +34,17 @@
                     {
                         "step": 1,
                         "date": "02-12-2025",
-                        "distributed": "09:36"
+                        "distributed": "09:48"
                     },
                     {
                         "step": 2,
                         "date": "09-12-2025",
-                        "distributed": "09:09"
+                        "distributed": "09:28"
                     },
                     {
                         "step": 3,
                         "date": "16-12-2025",
-                        "distributed": ""
+                        "distributed": "09:19"
                     },
                     {
                         "step": 4,
@@ -109,23 +109,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x74998ac42943bdae46b271d5275fc678d11d4766e2661161f2581b56cbfc93b1",
-                        "start": "27-11-2025 02:00",
-                        "end": "02-12-2025 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "09-12-2025",
-                        "distributed": "11:14"
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0x257f5c916d99b4c06b61072f534b085b71e5f3c42433409856999b2b3efe68ae",
                         "start": "04-12-2025 02:00",
                         "end": "09-12-2025 15:00"
@@ -135,6 +118,23 @@
                     {
                         "step": 1,
                         "date": "16-12-2025",
+                        "distributed": "11:22"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x4f61519d14c705dfb7e2300d8c824d141fc63da948f61c7cf7de3f572119d777",
+                        "start": "11-12-2025 02:00",
+                        "end": "16-12-2025 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "23-12-2025",
                         "distributed": ""
                     }
                 ]
@@ -179,7 +179,7 @@
                     {
                         "step": 1,
                         "date": "16-12-2025",
-                        "distributed": ""
+                        "distributed": "09:13"
                     },
                     {
                         "step": 2,
@@ -189,6 +189,6 @@
                 ]
             }
         ],
-        "currentRoundId": 1
+        "currentRoundId": 2
     }
 }
