@@ -43,6 +43,15 @@ jobs:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY}}
         continue-on-error: true  # Don't fail the whole workflow if SDPENDLE APR fails
 
+      - name: Publish delegation APRs to latest
+        run: |
+          echo "Publishing delegation APRs to latest..."
+          npx ts-node script/utils/apr/publishDelegationAPRs.ts \
+            --from-staging \
+            --write-latest \
+            --exclude sdspectra.eth
+        continue-on-error: true  # Don't fail if no staged APRs
+
       - name: Copy SDTokens merkle
         run: |
           # Calculate current period
@@ -52,7 +61,7 @@ jobs:
 
           # Copy legacy merkle files (for backward compatibility)
           cp "bounties-reports/${CURRENT_PERIOD}/merkle.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/merkle.json"
-          cp "bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/latest/delegationsAPRs.json"
+          # Note: delegationsAPRs.json is now handled by the publisher step above
 
           # Create sdTkns directory in latest if it doesn't exist
           mkdir -p "${GITHUB_WORKSPACE}/bounties-reports/latest/sdTkns"
@@ -80,7 +89,7 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          file_pattern: bounties-reports/latest/* delegationsAPRs.json
+          file_pattern: bounties-reports/latest/*
 
       - name: Send error notification to Telegram
         if: failure()

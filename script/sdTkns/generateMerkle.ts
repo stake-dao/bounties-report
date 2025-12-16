@@ -41,6 +41,7 @@ import { BigNumber } from "ethers";
 import { ethers } from "ethers";
 import { bsc, mainnet } from "../utils/chains";
 import { Merkle } from "../utils/types";
+import { stageAPR, publishDelegationAPRs } from "../utils/apr/publishDelegationAPRs";
 
 dotenv.config();
 
@@ -221,7 +222,6 @@ const main = async () => {
   const [
     { data: lastMerkles },
     proposalIdPerSpace,
-    { data: delegationAPRsFromGithub },
     { data: sdFXSWorkingData },
     { data: sdCakeWorkingData },
   ] = await Promise.all([
@@ -230,9 +230,6 @@ const main = async () => {
     ),
     fetchLastProposalsIds(SPACES, now, filter),
     axios.get(
-      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json"
-    ),
-    axios.get(
       "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdfxs-working-supply.json"
     ),
     axios.get(
@@ -240,25 +237,8 @@ const main = async () => {
     ),
   ]);
 
-  // Check if local delegationsAPRs.json exists for current period (e.g., written by Spectra)
-  // If so, use it to preserve APRs from other scripts that ran before
-  const localDelegationAPRsPath = `./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`;
-  let delegationAPRs: Record<string, number>;
-  if (fs.existsSync(localDelegationAPRsPath)) {
-    delegationAPRs = JSON.parse(fs.readFileSync(localDelegationAPRsPath, "utf-8"));
-  } else {
-    delegationAPRs = { ...delegationAPRsFromGithub };
-  }
-
-  // Clone to preserve values, then mark spaces we'll process as -1
-  const delegationAPRsClone = { ...delegationAPRs };
-  for (const key of Object.keys(delegationAPRs)) {
-    // Only reset APRs for spaces that this script processes (SPACES array)
-    // This preserves APRs from other scripts (like Spectra)
-    if (SPACES.includes(key)) {
-      delegationAPRs[key] = -1;
-    }
-  }
+  // Track computed APRs for logging purposes
+  const delegationAPRs: Record<string, number> = {};
 
   const newMerkles: Merkle[] = [];
   const toFreeze: Record<string, string[]> = {};
@@ -650,16 +630,23 @@ const main = async () => {
     JSON.stringify(newMerkles)
   );
 
-  for (const key of Object.keys(delegationAPRs)) {
-    if (delegationAPRs[key] === -1) {
-      delegationAPRs[key] = delegationAPRsClone[key] || 0;
+  // Stage all computed APRs for later publishing
+  for (const [space, apr] of Object.entries(delegationAPRs)) {
+    if (apr > 0) {
+      await stageAPR({
+        space,
+        apr,
+        periodTimestamp: currentPeriodTimestamp,
+      });
     }
   }
-  fs.writeFileSync(
-    `./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`,
-    JSON.stringify(delegationAPRs)
-  );
-  fs.writeFileSync(`delegationsAPRs.json`, JSON.stringify(delegationAPRs)); // TODO : Remove , adapt the logger to fetch from current period
+
+  // Publish staged APRs to period directory (not to latest - workflow handles that)
+  await publishDelegationAPRs({
+    fromStaging: true,
+    periodTimestamp: currentPeriodTimestamp,
+    writeToLatest: false,
+  });
 
   // Add delegation APRS in logData
   logData["DelegationsAPRsDetails"] = delegationAPRs;
@@ -684,6 +671,8 @@ const main = async () => {
     __dirname,
     "..",
     "..",
+    "bounties-reports",
+    currentPeriodTimestamp.toString(),
     "delegationsAPRs.json"
   );
 

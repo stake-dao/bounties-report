@@ -17,7 +17,7 @@ import { getAddress } from "viem";
 import {  getSpectraDelegationAPR, getSpectraReport } from "./utils";
 import { Distribution } from "../interfaces/Distribution";
 import { PROTOCOLS_TOKENS } from "../utils/reportUtils";
-import axios from "axios";
+import { stageAPR } from "../utils/apr/publishDelegationAPRs";
 
 dotenv.config();
 
@@ -286,12 +286,12 @@ const main = async () => {
     JSON.stringify({ distribution: convertToJsonFormat(distribution) }, null, 2)
   );
 
-  // Save APR
-  const { data: delegationAPRs } = await axios.get(
-    `https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json`
-  );
-  delegationAPRs[SPECTRA_SPACE] = delegationAPR;
-  fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+  // Stage APR for later publishing (publisher will merge with existing APRs)
+  await stageAPR({
+    space: SPECTRA_SPACE,
+    apr: delegationAPR,
+    periodTimestamp: currentPeriodTimestamp,
+  });
 
   // End
   console.log("Spectra repartition generation completed successfully.");

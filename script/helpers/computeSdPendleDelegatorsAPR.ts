@@ -4,8 +4,9 @@ import {
   SPACE_TO_CHAIN_ID
 } from "../utils/constants";
 import { ChoiceBribe } from "../utils/utils";
-import { readFileSync, existsSync, writeFileSync } from "fs";
-import { join } from "path";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { stageAPR } from "../utils/apr/publishDelegationAPRs";
 const { parse } = require("csv-parse/sync");
 
 /**
@@ -351,38 +352,16 @@ async function main() {
     // Calculate final APR
     const finalAPR = computeSdPendleDelegatorsAPR([vmVPData]);
     
-    console.log(`\n=== Results ===`);
+    console.log("\n=== Results ===");
     console.log(`Final SDPENDLE Delegators APR: ${finalAPR.toFixed(4)}%`);
     
-    // Save results to delegationsAPRs.json (following Spectra pattern)
-    const outputDir = join(process.cwd(), "bounties-reports", week.toString());
-    const outputPath = join(outputDir, "delegationsAPRs.json");
-
-    // Read existing delegationsAPRs from latest (like Spectra does)
-    let delegationsAPRs: Record<string, number> = {};
-    try {
-      const axios = require('axios');
-      const { data } = await axios.get(
-        "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json"
-      );
-      delegationsAPRs = data;
-      console.log("Read existing APRs from latest");
-    } catch (error) {
-      console.warn("Could not read from latest, starting with empty APRs");
-    }
-
-    // Update with SDPENDLE APR
-    delegationsAPRs["sdpendle.eth"] = finalAPR;
-
-    // Write to current week directory
-    writeFileSync(outputPath, JSON.stringify(delegationsAPRs, null, 2));
-    console.log(`\nSaved to: ${outputPath}`);
-    console.log(`Updated sdpendle.eth APR: ${finalAPR.toFixed(4)}%`);
-
-    // Also write to root level for immediate availability (like Spectra)
-    const rootPath = join(process.cwd(), "delegationsAPRs.json");
-    writeFileSync(rootPath, JSON.stringify(delegationsAPRs, null, 2));
-    console.log(`Also saved to root: ${rootPath}`);
+    // Stage APR for later publishing (publisher will merge with existing APRs)
+    await stageAPR({
+      space: "sdpendle.eth",
+      apr: finalAPR,
+      periodTimestamp: week,
+    });
+    console.log(`Staged sdpendle.eth APR: ${finalAPR.toFixed(4)}%`);
     
   } catch (error) {
     console.error("Error during APR calculation:", error);

@@ -21,6 +21,19 @@ jobs:
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git pull origin main --rebase
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20.5.1"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.3
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
       - name: Determine which merkles to copy
         id: determine
         run: |
@@ -65,10 +78,23 @@ jobs:
             fi
           fi
 
-          # Copy delegationsAPRs.json if it exists
-          if [ -f "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" ]; then
-            cp "${GITHUB_WORKSPACE}/bounties-reports/${CURRENT_PERIOD}/delegationsAPRs.json" "${GITHUB_WORKSPACE}/bounties-reports/delegationsAPRs.json"
-          fi
+      - name: Publish Spectra APR to latest
+        if: ${{ steps.determine.outputs.COPY_SPECTRA == 'true' }}
+        run: |
+          echo "Publishing Spectra APR to latest..."
+          npx ts-node script/utils/apr/publishDelegationAPRs.ts \
+            --space sdspectra.eth \
+            --write-latest
+        continue-on-error: true
+
+      - name: Publish sdFXS APR to latest
+        if: ${{ steps.determine.outputs.COPY_SDFXS == 'true' }}
+        run: |
+          echo "Publishing sdFXS APR to latest..."
+          npx ts-node script/utils/apr/publishDelegationAPRs.ts \
+            --space sdfxs.eth \
+            --write-latest
+        continue-on-error: true
 
       - name: Rebase on latest main before auto-commit
         run: git pull --rebase --autostash origin main
