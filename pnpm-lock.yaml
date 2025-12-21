@@ -46,7 +46,7 @@ dependencies:
     version: 4.3.0(graphql@16.12.0)
   hyparquet:
     specifier: ^1.5.0
-    version: 1.23.2
+    version: 1.23.3
   keccak256:
     specifier: ^1.0.6
     version: 1.0.6
@@ -5203,8 +5203,8 @@ packages:
       ms: 2.1.3
     dev: false
 
-  /hyparquet@1.23.2:
-    resolution: {integrity: sha512-Ldb/J+86/rzLDoTAIEgfceu0bmb6cZQqOmAFPMipZfhqiqgVRQooISZ2ZTNlX6CQViIhBOhNvB+lnYaMCVhuQg==}
+  /hyparquet@1.23.3:
+    resolution: {integrity: sha512-6ppbspbAH8ZgMT/8cUs3YQQF5I6q85oNI1ToTJX9nq5YMgZDM+BoU6Lc7QyS5Ve13xx1Vw+aacZ/Qh1N/Pxeyg==}
     dev: false
 
   /iconv-lite@0.4.24:
