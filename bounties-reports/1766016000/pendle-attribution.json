@@ -9,9 +9,16 @@
     "wethOutTotal": 0
   },
   "dropped": {
-    "tokensNotSwapped": [],
+    "tokensNotSwapped": [
+      "0x085780639cc2cacd35e474e71f4d000e2405d8f6"
+    ],
     "wethNotSwapped": true
   },
-  "perToken": {},
+  "perToken": {
+    "0x085780639cc2cacd35e474e71f4d000e2405d8f6": {
+      "mappedWeth": 0,
+      "sd": 0
+    }
+  },
   "txs": []
 }
