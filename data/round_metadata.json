@@ -5,58 +5,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x9a72bc0ebef0ffe9f97d6825dd2ebc9593301de594033abd3b8e0d5bf3810c45",
-                        "start": "25-09-2025 02:00",
-                        "end": "30-09-2025 14:00"
-                    },
-                    {
-                        "id": "0x8bd3d2f331282eed4356c73ba9067535d3ee67ba077ff11adbc8ac731d77851e",
-                        "start": "02-10-2025 02:00",
-                        "end": "07-10-2025 14:00"
-                    },
-                    {
-                        "id": "0xc6bda6211e109cc4f9c37f8a245f31446fb0c1fed020e17aa15e0bf3a1248911",
-                        "start": "09-10-2025 02:00",
-                        "end": "14-10-2025 14:00"
-                    },
-                    {
-                        "id": "0xee2a17cad8683b2aef004e4515d5014a8db96e52768f438f8534091aa3ad6517",
-                        "start": "16-10-2025 02:00",
-                        "end": "21-10-2025 14:00"
-                    },
-                    {
-                        "id": "0xfccff4e8734dab2edceb4ec7c7fa4d75d2439d744bedfe0d149f9519c1b26a7a",
-                        "start": "23-10-2025 02:00",
-                        "end": "28-10-2025 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "02-12-2025",
-                        "distributed": "09:48"
-                    },
-                    {
-                        "step": 2,
-                        "date": "09-12-2025",
-                        "distributed": "09:28"
-                    },
-                    {
-                        "step": 3,
-                        "date": "16-12-2025",
-                        "distributed": "09:19"
-                    },
-                    {
-                        "step": 4,
-                        "date": "23-12-2025",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0x3f515448e062267ae8d06f35869534fbd3842a3d0f1fa9440c75f329e9d06d27",
                         "start": "30-10-2025 02:00",
                         "end": "04-11-2025 15:00"
@@ -80,22 +28,69 @@
                 "distributions": [
                     {
                         "step": 1,
+                        "date": "23-12-2025",
+                        "distributed": "09:23"
+                    },
+                    {
+                        "step": 2,
                         "date": "30-12-2025",
                         "distributed": ""
                     },
                     {
-                        "step": 2,
+                        "step": 3,
                         "date": "06-01-2026",
                         "distributed": ""
                     },
                     {
-                        "step": 3,
+                        "step": 4,
                         "date": "13-01-2026",
+                        "distributed": ""
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xb7b7f937fc29055a43b8f86b2acf8a668bc779198fc02727d9d83058096a2be6",
+                        "start": "27-11-2025 02:00",
+                        "end": "02-12-2025 16:00"
+                    },
+                    {
+                        "id": "0x0069167596677265223b9eb4b1d00eb0e007b4fb148c768f7415e79426e93e00",
+                        "start": "04-12-2025 02:00",
+                        "end": "09-12-2025 15:00"
+                    },
+                    {
+                        "id": "0x1e5baa1cf0d9ddb0e228cd3ea12bbb5b200874d298189f78491eaab007428eac",
+                        "start": "11-12-2025 02:00",
+                        "end": "16-12-2025 15:00"
+                    },
+                    {
+                        "id": "0x03dd4f45d713e80e3116733dc871e19dc8b48be35a365ce8bc3c88185bcb1520",
+                        "start": "18-12-2025 02:00",
+                        "end": "23-12-2025 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "20-01-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "27-01-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 3,
+                        "date": "03-02-2026",
                         "distributed": ""
                     },
                     {
                         "step": 4,
-                        "date": "20-01-2026",
+                        "date": "10-02-2026",
                         "distributed": ""
                     }
                 ]
@@ -107,23 +102,6 @@
         "rounds": [
             {
                 "id": 1,
-                "proposals": [
-                    {
-                        "id": "0x257f5c916d99b4c06b61072f534b085b71e5f3c42433409856999b2b3efe68ae",
-                        "start": "04-12-2025 02:00",
-                        "end": "09-12-2025 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "16-12-2025",
-                        "distributed": "11:22"
-                    }
-                ]
-            },
-            {
-                "id": 2,
                 "proposals": [
                     {
                         "id": "0x4f61519d14c705dfb7e2300d8c824d141fc63da948f61c7cf7de3f572119d777",
@@ -138,6 +116,23 @@
                         "distributed": ""
                     }
                 ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xbe673acfbd5f8e88b53c028d8b005c00a92db2d4d8c65fe9cc0faa4296f5ef74",
+                        "start": "18-12-2025 02:00",
+                        "end": "23-12-2025 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "30-12-2025",
+                        "distributed": ""
+                    }
+                ]
             }
         ],
         "currentRoundId": 1
@@ -146,28 +141,6 @@
         "rounds": [
             {
                 "id": 1,
-                "proposals": [
-                    {
-                        "id": "0x2adca9661ae81cd64796995de0428b7b9f90515a2f4d1648bbd667e62fddee98",
-                        "start": "20-11-2025 02:00",
-                        "end": "25-11-2025 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "02-12-2025",
-                        "distributed": "09:36"
-                    },
-                    {
-                        "step": 2,
-                        "date": "09-12-2025",
-                        "distributed": "09:28"
-                    }
-                ]
-            },
-            {
-                "id": 2,
                 "proposals": [
                     {
                         "id": "0xb4d324cce6b5bd76db7f2bc434fcf14e419986c36e4b1cbdc74265d9e90e31f7",
@@ -179,16 +152,38 @@
                     {
                         "step": 1,
                         "date": "16-12-2025",
-                        "distributed": "09:13"
+                        "distributed": "09:19"
                     },
                     {
                         "step": 2,
                         "date": "23-12-2025",
+                        "distributed": "09:12"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x4918244f309137096668c624412073b4584adbed24ea25c460d182be4a850935",
+                        "start": "18-12-2025 02:00",
+                        "end": "23-12-2025 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "30-12-2025",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "06-01-2026",
                         "distributed": ""
                     }
                 ]
             }
         ],
-        "currentRoundId": 2
+        "currentRoundId": 1
     }
 }
