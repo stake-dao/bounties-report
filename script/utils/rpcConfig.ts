@@ -126,12 +126,12 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: fraxtal,
     endpoints: [
       {
-        url: "https://stake-erpc.contact-69d.workers.dev/252",
-        priority: 1,
+        url: "https://fraxtal-rpc.publicnode.com",
+        priority: 2,
       },
       {
         url: "https://rpc.frax.com",
-        priority: 2,
+        priority: 1,
       },
       {
         url: "https://fraxtal.drpc.org",
