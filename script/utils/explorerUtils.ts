@@ -163,6 +163,24 @@ class BlockchainExplorerUtils {
     const blockNumber = parseInt(response.result);
     return isNaN(blockNumber) ? 0 : blockNumber;
   }
+
+  /**
+   * Get logs by topics only (no address filter).
+   * Used to discover token transfers between specific addresses.
+   */
+  async getLogsByTopics(
+    fromBlock: number,
+    toBlock: number,
+    topics: { [key: string]: string },
+    chain_id: number
+  ) {
+    let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&apikey=${this.apiKey}`;
+    for (const [key, value] of Object.entries(topics)) {
+      url += `&topic${key}_${Number.parseInt(key) + 1}_opr=and&topic${key}=${value}`;
+    }
+
+    return this.makeRequest(url);
+  }
 }
 
 export const createBlockchainExplorerUtils = () =>

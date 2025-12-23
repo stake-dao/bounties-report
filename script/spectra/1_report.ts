@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
-import { getSpectraDistribution, SpectraClaimed } from "./utils";
+import { getSpectraDistribution, type SpectraClaimed } from "./utils";
 import {
   ALL_MIGHT,
   escapeCSV,
@@ -11,9 +11,12 @@ import {
   getTimestampsBlocks,
   processSwaps,
   PROTOCOLS_TOKENS,
+  SPECTRA_RECEIVER,
 } from "../utils/reportUtils";
 import { getClient, WETH_CHAIN_IDS } from "../utils/constants";
 import processReport from "../reports/processReport";
+import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
+import { encodePacked, keccak256, pad, decodeAbiParameters } from "viem";
 
 dotenv.config();
 
@@ -38,7 +41,7 @@ function writeReportToCSV(rows: SpectraClaimed[]) {
     ),
   ].join("\n");
 
-  const fileName = `spectra.csv`;
+  const fileName = "spectra.csv";
   fs.writeFileSync(path.join(dirPath, fileName), csvContent);
   console.log(`Report generated for Spectra: ${fileName}`);
 }
@@ -179,6 +182,31 @@ async function main() {
   allTokens.add(protocolTokens.spectra.native);
   // Add WETH for the chain to capture WETH swap events
   allTokens.add(WETH_CHAIN_IDS[8453]);
+
+  // Fetch tokens received by ALL_MIGHT from SPECTRA_RECEIVER
+  // These are bounty tokens that may not be in Claimed events (e.g., SDEX)
+  console.log("Fetching tokens received from SPECTRA_RECEIVER...");
+  const explorerUtils = createBlockchainExplorerUtils();
+  const transferSig = "Transfer(address,address,uint256)";
+  const transferHash = keccak256(encodePacked(["string"], [transferSig]));
+  const paddedFrom = pad(SPECTRA_RECEIVER as `0x${string}`, { size: 32 }).toLowerCase();
+  const paddedTo = pad(ALL_MIGHT as `0x${string}`, { size: 32 }).toLowerCase();
+
+  const transferLogs = await explorerUtils.getLogsByTopics(
+    blockNumber1,
+    blockNumber2,
+    { "0": transferHash, "1": paddedFrom, "2": paddedTo },
+    8453
+  );
+
+  // Extract unique token addresses from these transfers
+  for (const log of transferLogs.result || []) {
+    const tokenAddress = log.address;
+    if (tokenAddress && !allTokens.has(tokenAddress.toLowerCase())) {
+      console.log(`Adding token from SPECTRA_RECEIVER transfer: ${tokenAddress}`);
+      allTokens.add(tokenAddress);
+    }
+  }
 
   const tokenInfos = await fetchAllTokenInfos(
     Array.from(allTokens),
