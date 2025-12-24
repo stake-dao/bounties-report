@@ -1015,14 +1015,14 @@ packages:
       weald: 1.1.1
     dev: false
 
-  /@lit-labs/ssr-dom-shim@1.4.0:
-    resolution: {integrity: sha512-ficsEARKnmmW5njugNYKipTm4SFnbik7CXtoencDZzmzo/dQ+2Q0bgkzJuoJP20Aj0F+izzJjOqsnkd6F/o1bw==}
+  /@lit-labs/ssr-dom-shim@1.5.0:
+    resolution: {integrity: sha512-HLomZXMmrCFHSRKESF5vklAKsDY7/fsT/ZhqCu3V0UoW/Qbv8wxmO4W9bx4KnCCF2Zak4yuk+AGraK/bPmI4kA==}
     dev: false
 
-  /@lit/reactive-element@2.1.1:
-    resolution: {integrity: sha512-N+dm5PAYdQ8e6UlywyyrgI2t++wFGXfHx+dSJ1oBrg6FAxUj40jId++EaRm80MKX5JnlH1sBsyZ5h0bcZKemCg==}
+  /@lit/reactive-element@2.1.2:
+    resolution: {integrity: sha512-pbCDiVMnne1lYUIaYNN5wrwQXDtHaYtg7YEFPeW+hws6U47WeFvISGUWekPGKWOP1ygrs0ef0o1VJMk1exos5A==}
     dependencies:
-      '@lit-labs/ssr-dom-shim': 1.4.0
+      '@lit-labs/ssr-dom-shim': 1.5.0
     dev: false
 
   /@metamask/eth-json-rpc-provider@1.0.1:
@@ -5571,16 +5571,16 @@ packages:
     resolution: {integrity: sha512-8t6Q3TclQ4uZynJY9IGr2+SsIGwK9JHcO6ootkHCGA0CrQCRy+VkouYNO2xicET6b9al7QKzpebNow+gkpCL8g==}
     dev: false
 
-  /lit-element@4.2.1:
-    resolution: {integrity: sha512-WGAWRGzirAgyphK2urmYOV72tlvnxw7YfyLDgQ+OZnM9vQQBQnumQ7jUJe6unEzwGU3ahFOjuz1iz1jjrpCPuw==}
+  /lit-element@4.2.2:
+    resolution: {integrity: sha512-aFKhNToWxoyhkNDmWZwEva2SlQia+jfG0fjIWV//YeTaWrVnOxD89dPKfigCUspXFmjzOEUQpOkejH5Ly6sG0w==}
     dependencies:
-      '@lit-labs/ssr-dom-shim': 1.4.0
-      '@lit/reactive-element': 2.1.1
-      lit-html: 3.3.1
+      '@lit-labs/ssr-dom-shim': 1.5.0
+      '@lit/reactive-element': 2.1.2
+      lit-html: 3.3.2
     dev: false
 
-  /lit-html@3.3.1:
-    resolution: {integrity: sha512-S9hbyDu/vs1qNrithiNyeyv64c9yqiW9l+DBgI18fL+MTvOtWoFR0FWiyq1TxaYef5wNlpEmzlXoBlZEO+WjoA==}
+  /lit-html@3.3.2:
+    resolution: {integrity: sha512-Qy9hU88zcmaxBXcc10ZpdK7cOLXvXpRoBxERdtqV9QOrfpMZZ6pSYP91LhpPtap3sFMUiL7Tw2RImbe0Al2/kw==}
     dependencies:
       '@types/trusted-types': 2.0.7
     dev: false
@@ -5588,9 +5588,9 @@ packages:
   /lit@3.3.0:
     resolution: {integrity: sha512-DGVsqsOIHBww2DqnuZzW7QsuCdahp50ojuDaBPC7jUDRpYoH0z7kHBBYZewRzer75FwtrkmkKk7iOAwSaWdBmw==}
     dependencies:
-      '@lit/reactive-element': 2.1.1
-      lit-element: 4.2.1
-      lit-html: 3.3.1
+      '@lit/reactive-element': 2.1.2
+      lit-element: 4.2.2
+      lit-html: 3.3.2
     dev: false
 
   /locate-path@5.0.0:
