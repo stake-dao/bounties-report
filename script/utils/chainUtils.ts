@@ -38,7 +38,6 @@ export const getBlockNumberByTimestamp = async (
       const chainName = CHAINS_IDS_TO_SHORTS[chain_id];
       const url = `https://coins.llama.fi/block/${chainName}/${timestamp}`;
       const response = await fetch(url, { 
-        timeout: 10000,
         signal: AbortSignal.timeout(10000)
       });
       

@@ -7,7 +7,8 @@ import {
   DELEGATION_ADDRESS,
 } from "../../utils/constants";
 import {
-  associateGaugesPerId,
+  associateAuraGaugesPerId,
+  fetchAuraGaugeChoices,
   fetchLastProposalsIds,
   getProposal,
   getVoters,
@@ -25,7 +26,7 @@ import {
   computeNonDelegatorsDistribution,
   Distribution,
 } from "./nonDelegators";
-import { getGaugesInfos } from "../../utils/reportUtils";
+
 import { getClient } from "../../utils/getClients";
 
 dotenv.config();
@@ -61,10 +62,6 @@ const main = async () => {
     return;
   }
 
-  // Fetch Balancer gauges
-  console.log("Fetching Balancer gauges...");
-  const gauges = await getGaugesInfos("balancer");
-
   // Extract CSV report
   console.log("Extracting CSV report...");
   const csvResult = (await extractCSV(
@@ -93,14 +90,18 @@ const main = async () => {
   });
   const snapshotBlockTimestamp = block.timestamp;
 
-  // Map gauges - need to adapt for Balancer format
-  const gaugesWithShortName = gauges.map((gauge: any) => ({
-    ...gauge,
-    shortName: gauge.name,
-    gauge: gauge.address,
-  }));
+  // Fetch Aura gauge choices mapping (from aura-contracts repo)
+  console.log("Fetching Aura gauge choices mapping...");
+  const auraGaugeChoices = await fetchAuraGaugeChoices();
+  console.log(`Loaded ${Object.keys(auraGaugeChoices).length} Aura gauge choice mappings`);
 
-  const gaugeMapping = associateGaugesPerId(proposal, gaugesWithShortName);
+  // Extract gauge addresses from the CSV data
+  const gaugeAddresses = Object.keys(csvResult);
+  console.log(`Found ${gaugeAddresses.length} gauges in CSV data`);
+
+  // Map gauges using the official Aura gauge_choices.json
+  const gaugeMapping = associateAuraGaugesPerId(proposal, gaugeAddresses, auraGaugeChoices);
+  console.log(`Successfully mapped ${Object.keys(gaugeMapping).length} gauges to proposal choices`);
   const votes = await getVoters(proposalId);
 
   // Process StakeDAO delegators

@@ -520,6 +520,78 @@ export const associateGaugesPerId = (
 };
 
 /**
+ * Fetch Aura gauge choices mapping from the official Aura contracts repository.
+ * This mapping provides the exact Snapshot choice labels for each gauge address.
+ * @returns Record of lowercase gauge addresses to their Snapshot choice labels
+ */
+export const fetchAuraGaugeChoices = async (): Promise<Record<string, string>> => {
+  const AURA_GAUGE_CHOICES_URL = 
+    "https://raw.githubusercontent.com/aurafinance/aura-contracts/main/tasks/snapshot/gauge_choices.json";
+  
+  try {
+    const response = await axios.get(AURA_GAUGE_CHOICES_URL);
+    if (response.status === 200 && Array.isArray(response.data)) {
+      const mapping: Record<string, string> = {};
+      for (const item of response.data) {
+        if (item.address && item.label) {
+          mapping[item.address.toLowerCase()] = item.label;
+        }
+      }
+      return mapping;
+    }
+    console.error("Failed to fetch Aura gauge choices: Invalid response format");
+    return {};
+  } catch (error) {
+    console.error("Error fetching Aura gauge choices:", error);
+    return {};
+  }
+};
+
+/**
+ * Associate Aura/Balancer gauges with choice IDs using the official Aura gauge_choices.json mapping.
+ * This is specifically designed for vlAURA distributions where Snapshot choice names
+ * differ significantly from Balancer API pool names.
+ * @param proposal - Proposal object with choices array
+ * @param gaugeAddresses - Array of gauge addresses to map
+ * @param auraGaugeChoices - Mapping from gauge addresses to Snapshot choice labels (from fetchAuraGaugeChoices)
+ * @returns Record of gauge addresses to their choice IDs and labels
+ */
+export const associateAuraGaugesPerId = (
+  proposal: any,
+  gaugeAddresses: string[],
+  auraGaugeChoices: Record<string, string>
+): { [key: string]: { shortName: string; choiceId: number } } => {
+  const result: { [key: string]: { shortName: string; choiceId: number } } = {};
+  
+  // Build a map of choice labels to choice IDs (1-indexed)
+  const choiceToId: Record<string, number> = {};
+  for (let i = 0; i < proposal.choices.length; i++) {
+    choiceToId[proposal.choices[i].toLowerCase()] = i + 1;
+  }
+
+  for (const gaugeAddress of gaugeAddresses) {
+    const normalizedAddress = gaugeAddress.toLowerCase();
+    const snapshotLabel = auraGaugeChoices[normalizedAddress];
+    
+    if (snapshotLabel) {
+      const choiceId = choiceToId[snapshotLabel.toLowerCase()];
+      if (choiceId) {
+        result[normalizedAddress] = {
+          shortName: snapshotLabel,
+          choiceId: choiceId
+        };
+      } else {
+        console.warn(`Warning: Gauge ${gaugeAddress} has label "${snapshotLabel}" but no matching choice in proposal`);
+      }
+    } else {
+      console.warn(`Warning: No Aura gauge choice mapping found for gauge: ${gaugeAddress}`);
+    }
+  }
+
+  return result;
+};
+
+/**
 
  * All endpoints here : https://raw.githubusercontent.com/snapshot-labs/snapshot.js/master/src/delegationSubgraphs.json
  */

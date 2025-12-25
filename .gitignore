@@ -6,6 +6,7 @@ venv/
 temp/
 .claude/
 .cache/
+.tmp/
 
 # Envio
 script/indexer/vlcvx-forwarder/generated/
