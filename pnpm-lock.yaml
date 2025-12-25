@@ -1262,7 +1262,7 @@ packages:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
       '@types/debug': 4.1.12
-      debug: 4.4.3
+      debug: 4.3.4
       pony-cause: 2.1.11
       semver: 7.7.3
       uuid: 9.0.1
@@ -5148,8 +5148,8 @@ packages:
       minimalistic-crypto-utils: 1.0.1
     dev: false
 
-  /hono@4.11.1:
-    resolution: {integrity: sha512-KsFcH0xxHes0J4zaQgWbYwmz3UPOOskdqZmItstUG93+Wk1ePBLkLGwbP9zlmh1BFUiL8Qp+Xfu9P7feJWpGNg==}
+  /hono@4.11.2:
+    resolution: {integrity: sha512-o+avdUAD1v94oHkjGBhiMhBV4WBHxhbu0+CUVH78hhphKy/OKQLxtKjkmmNcrMlbYAhAbsM/9F+l3KnYxyD3Lg==}
     engines: {node: '>=16.9.0'}
     dev: false
 
@@ -6409,7 +6409,7 @@ packages:
     dependencies:
       '@tanstack/react-query': 5.90.12(react@18.3.1)
       '@wagmi/core': 2.22.1(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(viem@2.43.3)
-      hono: 4.11.1
+      hono: 4.11.2
       idb-keyval: 6.2.2
       mipd: 0.0.7(typescript@5.9.3)
       ox: 0.9.17(typescript@5.9.3)(zod@4.2.1)
