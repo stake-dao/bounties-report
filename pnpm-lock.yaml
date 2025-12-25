@@ -1262,7 +1262,11 @@ packages:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
       '@types/debug': 4.1.12
+<<<<<<< Updated upstream
       debug: 4.3.4
+=======
+      debug: 4.4.3
+>>>>>>> Stashed changes
       pony-cause: 2.1.11
       semver: 7.7.3
       uuid: 9.0.1
