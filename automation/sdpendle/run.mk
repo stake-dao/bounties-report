@@ -1,6 +1,10 @@
+include automation/setup/dotenv.mk
+include automation/setup/node.mk
+
 # SDPENDLE Delegators APR Automation
 
-.PHONY: help
+.PHONY: all setup install-deps run-apr run-apr-week commit-and-push clean help
+
 help:
 	@echo "SDPENDLE Delegators APR automation"
 	@echo ""
@@ -10,23 +14,32 @@ help:
 	@echo "  make commit-and-push - Commit and push changes (like Spectra)"
 	@echo ""
 
+# Define the default target
+.DEFAULT_GOAL := all
+
+all: setup install-deps run-apr
+
+setup: setup-node
+
+install-deps:
+	@echo "Installing dependencies..."
+	@$(PNPM) install
+	@$(PNPM) add -D tsx
+
 # Get current week timestamp
 CURRENT_WEEK := $(shell node -e "console.log(Math.floor(Date.now() / 1000 / 604800) * 604800)")
 
 # Allow override with WEEK environment variable
 WEEK ?= $(CURRENT_WEEK)
 
-.PHONY: run-apr
-run-apr:
+run-apr: setup install-deps
 	@echo "Computing SDPENDLE delegators APR for current week..."
-	@npx ts-node script/helpers/computeSdPendleDelegatorsAPR.ts
+	@$(PNPM) tsx script/helpers/computeSdPendleDelegatorsAPR.ts
 
-.PHONY: run-apr-week
-run-apr-week:
+run-apr-week: setup install-deps
 	@echo "Computing SDPENDLE delegators APR for week $(WEEK)..."
-	@npx ts-node script/helpers/computeSdPendleDelegatorsAPR.ts $(WEEK)
+	@$(PNPM) tsx script/helpers/computeSdPendleDelegatorsAPR.ts $(WEEK)
 
-.PHONY: commit-and-push
 commit-and-push:
 	@echo "Committing and pushing SDPENDLE APR changes..."
 	@git config --global user.name 'GitHub Action'
@@ -36,3 +49,8 @@ commit-and-push:
 	@git commit -m "chore: Update SDPENDLE delegators APR" || true
 	@git pull --rebase origin main || true
 	@git push || true
+
+clean:
+	@echo "Cleaning up local files..."
+	@rm -rf node_modules
+	@$(MAKE) -f automation/setup/node.mk clean-node
