@@ -110,6 +110,7 @@ jobs:
         if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'claims')
         run: make -f automation/vlAURA/repartition.mk run-claims
         env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
@@ -117,6 +118,7 @@ jobs:
         if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'report')
         run: make -f automation/vlAURA/repartition.mk run-report
         env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
@@ -124,6 +126,7 @@ jobs:
         if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'repartition')
         run: make -f automation/vlAURA/repartition.mk run-repartition
         env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
@@ -131,6 +134,7 @@ jobs:
         if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'merkle')
         run: make -f automation/vlAURA/repartition.mk run-merkle
         env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
