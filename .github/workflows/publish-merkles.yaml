@@ -8,15 +8,10 @@ on:
         required: true
         type: choice
         options:
-          - vlcvx-delegators
-          - vlcvx-non-delegators
-          - vlaura
           - sdtkns
           - sdtkns-universal
   repository_dispatch:
     types: 
-      - copy-vlcvx-merkle
-      - copy-vlaura-merkle
       - copy-sdtkns-merkle
       - copy-spectra-merkle
       - copy-sdfxs-merkle
@@ -60,18 +55,6 @@ jobs:
             echo "type=${{ inputs.type }}" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             case "${{ github.event.action }}" in
-              "copy-vlcvx-merkle")
-                # Check client_payload for delegators/non-delegators
-                VLCVX_TYPE="${{ github.event.client_payload.type }}"
-                if [ "$VLCVX_TYPE" = "delegators" ]; then
-                  echo "type=vlcvx-delegators" >> $GITHUB_OUTPUT
-                else
-                  echo "type=vlcvx-non-delegators" >> $GITHUB_OUTPUT
-                fi
-                ;;
-              "copy-vlaura-merkle")
-                echo "type=vlaura" >> $GITHUB_OUTPUT
-                ;;
               "copy-sdtkns-merkle")
                 echo "type=sdtkns" >> $GITHUB_OUTPUT
                 ;;
@@ -95,67 +78,6 @@ jobs:
           CURRENT_TIMESTAMP=$(date +%s)
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
           echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
-
-      # ===== vlCVX Non-Delegators =====
-      - name: Copy vlCVX non-delegators merkle
-        if: steps.determine-type.outputs.type == 'vlcvx-non-delegators'
-        run: |
-          PERIOD=${{ steps.period.outputs.current }}
-          
-          # Copy main merkle file
-          cp "bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle.json" "bounties-reports/latest/vlCVX/vlcvx_merkle.json"
-          
-          # Find and copy chain-specific merkle files
-          for file in bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle_*.json; do
-            if [ -f "$file" ]; then
-              CHAIN_ID=$(echo "$file" | sed 's/.*_\([0-9]*\)\.json/\1/')
-              cp "$file" "bounties-reports/latest/vlCVX/vlcvx_merkle_${CHAIN_ID}.json"
-            fi
-          done
-
-      # ===== vlAURA =====
-      - name: Copy vlAURA merkle
-        if: steps.determine-type.outputs.type == 'vlaura'
-        run: |
-          PERIOD=${{ steps.period.outputs.current }}
-          mkdir -p "bounties-reports/latest/vlAURA"
-          
-          # Copy main merkle file
-          if [ -f "bounties-reports/${PERIOD}/vlAURA/vlaura_merkle.json" ]; then
-            cp "bounties-reports/${PERIOD}/vlAURA/vlaura_merkle.json" "bounties-reports/latest/vlAURA/vlaura_merkle.json"
-          fi
-          
-          # Find and copy chain-specific merkle files
-          for file in bounties-reports/${PERIOD}/vlAURA/vlaura_merkle_*.json; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              cp "$file" "bounties-reports/latest/vlAURA/${filename}"
-              echo "Copied ${filename} to latest/vlAURA/"
-            fi
-          done
-
-      # ===== vlCVX Delegators =====
-      - name: Copy vlCVX delegators merkle
-        if: steps.determine-type.outputs.type == 'vlcvx-delegators'
-        run: |
-          PERIOD=${{ steps.period.outputs.current }}
-          cp "bounties-reports/${PERIOD}/vlCVX/merkle_data_delegators.json" "bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
-
-      - name: Compute vlCVX delegation APR
-        if: steps.determine-type.outputs.type == 'vlcvx-delegators'
-        run: |
-          PERIOD=${{ steps.period.outputs.current }}
-          
-          # Run APR computation
-          pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
-          
-          # Copy APRs.json to latest
-          if [ -f "bounties-reports/${PERIOD}/vlCVX/APRs.json" ]; then
-            cp "bounties-reports/${PERIOD}/vlCVX/APRs.json" "bounties-reports/latest/vlCVX/APRs.json"
-          fi
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       # ===== sdTokens =====
       - name: Compute SDPENDLE Delegators APR
@@ -245,15 +167,6 @@ jobs:
         run: |
           TYPE="${{ steps.determine-type.outputs.type }}"
           case "$TYPE" in
-            "vlcvx-delegators")
-              echo "message=chore: Update vlCVX delegators merkle to latest" >> $GITHUB_OUTPUT
-              ;;
-            "vlcvx-non-delegators")
-              echo "message=chore: Update vlCVX merkle to latest" >> $GITHUB_OUTPUT
-              ;;
-            "vlaura")
-              echo "message=chore: Update vlAURA merkle to latest" >> $GITHUB_OUTPUT
-              ;;
             "sdtkns")
               echo "message=chore: Update SDTokens merkle to latest" >> $GITHUB_OUTPUT
               ;;

@@ -150,15 +150,6 @@ async function processChain(chainId: string, reportsDir: string) {
   fs.writeFileSync(merkleFile, JSON.stringify(newMerkleData, null, 2));
   console.log(`Chain ${chainId}: Saved merkle to ${merkleFile}`);
 
-  // Also save to latest directory
-  const latestDir = path.join("bounties-reports", "latest", "vlAURA");
-  if (!fs.existsSync(latestDir)) {
-    fs.mkdirSync(latestDir, { recursive: true });
-  }
-  const latestMerkleFile = path.join(latestDir, merkleFileName);
-  fs.writeFileSync(latestMerkleFile, JSON.stringify(newMerkleData, null, 2));
-  console.log(`Chain ${chainId}: Saved merkle to ${latestMerkleFile}`);
-
   // Log summary of totals per token
   const totals: Record<string, bigint> = {};
   for (const [, claim] of Object.entries(newMerkleData.claims)) {

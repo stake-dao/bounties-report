@@ -15,18 +15,22 @@ on:
         required: true
         type: choice
         options:
-          - claims
-          - report
+          - claims+report
           - repartition
-          - merkle
-          - merkle-delegators (vlCVX only)
-          - merkle-non-delegators (vlCVX only)
+          - vlAURA-merkle (thursday)
+          - vlCVX-delegators-merkle (thursday)
+          - vlCVX-voters-merkle (thursday)
+          - vlAURA-publish (friday)
+          - vlCVX-delegators-publish (friday)
+          - vlCVX-voters-publish (friday)
   repository_dispatch:
     types: 
       - vlcvx-repartition
       - generate-vlcvx-merkles
       - vlaura-repartition
       - generate-vlaura-merkles
+      - publish-vlcvx-merkle
+      - publish-vlaura-merkle
 
 jobs:
   distribution:
@@ -85,9 +89,9 @@ jobs:
                 echo "token=vlCVX" >> $GITHUB_OUTPUT
                 TYPE="${{ github.event.client_payload.type }}"
                 if [ "$TYPE" = "delegators" ]; then
-                  echo "step=merkle-delegators" >> $GITHUB_OUTPUT
+                  echo "step=vlCVX-delegators-merkle" >> $GITHUB_OUTPUT
                 else
-                  echo "step=merkle-non-delegators" >> $GITHUB_OUTPUT
+                  echo "step=vlCVX-voters-merkle" >> $GITHUB_OUTPUT
                 fi
                 ;;
               "vlaura-repartition")
@@ -96,7 +100,20 @@ jobs:
                 ;;
               "generate-vlaura-merkles")
                 echo "token=vlAURA" >> $GITHUB_OUTPUT
-                echo "step=merkle" >> $GITHUB_OUTPUT
+                echo "step=vlAURA-merkle" >> $GITHUB_OUTPUT
+                ;;
+              "publish-vlcvx-merkle")
+                echo "token=vlCVX" >> $GITHUB_OUTPUT
+                TYPE="${{ github.event.client_payload.type }}"
+                if [ "$TYPE" = "delegators" ]; then
+                  echo "step=vlCVX-delegators-publish" >> $GITHUB_OUTPUT
+                else
+                  echo "step=vlCVX-voters-publish" >> $GITHUB_OUTPUT
+                fi
+                ;;
+              "publish-vlaura-merkle")
+                echo "token=vlAURA" >> $GITHUB_OUTPUT
+                echo "step=vlAURA-publish" >> $GITHUB_OUTPUT
                 ;;
               *)
                 echo "token=vlCVX" >> $GITHUB_OUTPUT
@@ -106,17 +123,11 @@ jobs:
           fi
 
       # ===== vlAURA Steps =====
-      - name: "[vlAURA] Run claims"
-        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'claims')
-        run: make -f automation/vlAURA/repartition.mk run-claims
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-
-      - name: "[vlAURA] Run report"
-        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'report')
-        run: make -f automation/vlAURA/repartition.mk run-report
+      - name: "[vlAURA] Run claims+report"
+        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'claims+report')
+        run: |
+          make -f automation/vlAURA/repartition.mk run-claims
+          make -f automation/vlAURA/repartition.mk run-report
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
@@ -130,8 +141,8 @@ jobs:
           MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
-      - name: "[vlAURA] Run merkle"
-        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'merkle')
+      - name: "[vlAURA] Run vlAURA-merkle"
+        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'vlAURA-merkle')
         run: make -f automation/vlAURA/repartition.mk run-merkle
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -139,15 +150,17 @@ jobs:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       # ===== vlCVX Steps =====
-      - name: "[vlCVX] Run claims"
-        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'claims')
-        run: make -f automation/vlCVX/repartition.mk run-claims
+      - name: "[vlCVX] Run claims+report"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'claims+report')
+        run: |
+          make -f automation/vlCVX/repartition.mk run-claims
+          make -f automation/vlCVX/repartition.mk validate-reports
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
-      - name: "[vlCVX] Run report and validation"
-        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'report' || steps.determine.outputs.step == 'repartition')
+      - name: "[vlCVX] Run report validation (before repartition)"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'repartition')
         run: make -f automation/vlCVX/repartition.mk validate-reports
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -161,21 +174,98 @@ jobs:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
 
-      - name: "[vlCVX] Run merkle (delegators)"
-        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'merkle-delegators' || steps.determine.outputs.step == 'merkle')
+      - name: "[vlCVX] Run vlCVX-delegators-merkle"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'vlCVX-delegators-merkle')
         run: make -f automation/vlCVX/merkles.mk run-merkles TYPE=delegators
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
 
-      - name: "[vlCVX] Run merkle (non-delegators)"
-        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'merkle-non-delegators' || steps.determine.outputs.step == 'merkle')
+      - name: "[vlCVX] Run vlCVX-voters-merkle"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'vlCVX-voters-merkle')
         run: make -f automation/vlCVX/merkles.mk run-merkles TYPE=non-delegators
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+
+      # ===== Publish Steps =====
+      - name: Calculate current period
+        id: period
+        if: contains(steps.determine.outputs.step, 'publish')
+        run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+          echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
+
+      - name: "[vlAURA] Publish to latest"
+        if: steps.determine.outputs.step == 'vlAURA-publish'
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/vlAURA"
+          
+          # Copy main merkle file
+          if [ -f "bounties-reports/${PERIOD}/vlAURA/vlaura_merkle.json" ]; then
+            cp "bounties-reports/${PERIOD}/vlAURA/vlaura_merkle.json" "bounties-reports/latest/vlAURA/vlaura_merkle.json"
+            echo "Copied vlaura_merkle.json to latest/vlAURA/"
+          fi
+          
+          # Copy chain-specific merkle files
+          for file in bounties-reports/${PERIOD}/vlAURA/vlaura_merkle_*.json; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              cp "$file" "bounties-reports/latest/vlAURA/${filename}"
+              echo "Copied ${filename} to latest/vlAURA/"
+            fi
+          done
+
+      - name: "[vlCVX] Publish delegators to latest"
+        if: steps.determine.outputs.step == 'vlCVX-delegators-publish'
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/vlCVX"
+          
+          # Copy delegators merkle
+          cp "bounties-reports/${PERIOD}/vlCVX/merkle_data_delegators.json" "bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
+          echo "Copied merkle_data_delegators.json to latest/vlCVX/vlcvx_merkle_delegators.json"
+
+      - name: "[vlCVX] Compute delegation APR"
+        if: steps.determine.outputs.step == 'vlCVX-delegators-publish'
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          
+          # Run APR computation
+          pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
+          
+          # Copy APRs.json to latest
+          if [ -f "bounties-reports/${PERIOD}/vlCVX/APRs.json" ]; then
+            cp "bounties-reports/${PERIOD}/vlCVX/APRs.json" "bounties-reports/latest/vlCVX/APRs.json"
+            echo "Copied APRs.json to latest/vlCVX/"
+          fi
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: "[vlCVX] Publish voters to latest"
+        if: steps.determine.outputs.step == 'vlCVX-voters-publish'
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/vlCVX"
+          
+          # Copy main merkle file
+          cp "bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle.json" "bounties-reports/latest/vlCVX/vlcvx_merkle.json"
+          echo "Copied vlcvx_merkle.json to latest/vlCVX/"
+          
+          # Copy chain-specific merkle files
+          for file in bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle_*.json; do
+            if [ -f "$file" ]; then
+              CHAIN_ID=$(echo "$file" | sed 's/.*_\([0-9]*\)\.json/\1/')
+              cp "$file" "bounties-reports/latest/vlCVX/vlcvx_merkle_${CHAIN_ID}.json"
+              echo "Copied vlcvx_merkle_${CHAIN_ID}.json to latest/vlCVX/"
+            fi
+          done
 
       # ===== Commit =====
       - name: Rebase on latest main before auto-commit
@@ -194,7 +284,7 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          file_pattern: bounties-reports/ weekly-bounties/
+          file_pattern: bounties-reports/ weekly-bounties/ bounties-reports/latest/
 
       # ===== Cleanup =====
       - name: Clean up vlCVX
