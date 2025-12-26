@@ -1,4 +1,4 @@
-name: "Voting Token Distribution"
+name: "vlTokens Distribution"
 
 on:
   workflow_dispatch:
