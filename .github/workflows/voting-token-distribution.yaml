@@ -1,0 +1,216 @@
+name: "Voting Token Distribution"
+
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        description: 'Token to process'
+        required: true
+        type: choice
+        options:
+          - vlCVX
+          - vlAURA
+      step:
+        description: 'Step to run'
+        required: true
+        type: choice
+        options:
+          - claims
+          - report
+          - repartition
+          - merkle
+          - merkle-delegators (vlCVX only)
+          - merkle-non-delegators (vlCVX only)
+  repository_dispatch:
+    types: 
+      - vlcvx-repartition
+      - generate-vlcvx-merkles
+      - vlaura-repartition
+      - generate-vlaura-merkles
+
+jobs:
+  distribution:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git and pull latest changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull origin main --rebase
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.5.1"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Determine token and step
+        id: determine
+        run: |
+          # Priority: workflow_dispatch > repository_dispatch mapping
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "token=${{ inputs.token }}" >> $GITHUB_OUTPUT
+            # Strip suffixes like " (vlCVX only)" from step names
+            STEP="${{ inputs.step }}"
+            STEP="${STEP%% (*}"
+            echo "step=${STEP}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            case "${{ github.event.action }}" in
+              "vlcvx-repartition")
+                echo "token=vlCVX" >> $GITHUB_OUTPUT
+                echo "step=repartition" >> $GITHUB_OUTPUT
+                ;;
+              "generate-vlcvx-merkles")
+                echo "token=vlCVX" >> $GITHUB_OUTPUT
+                TYPE="${{ github.event.client_payload.type }}"
+                if [ "$TYPE" = "delegators" ]; then
+                  echo "step=merkle-delegators" >> $GITHUB_OUTPUT
+                else
+                  echo "step=merkle-non-delegators" >> $GITHUB_OUTPUT
+                fi
+                ;;
+              "vlaura-repartition")
+                echo "token=vlAURA" >> $GITHUB_OUTPUT
+                echo "step=repartition" >> $GITHUB_OUTPUT
+                ;;
+              "generate-vlaura-merkles")
+                echo "token=vlAURA" >> $GITHUB_OUTPUT
+                echo "step=merkle" >> $GITHUB_OUTPUT
+                ;;
+              *)
+                echo "token=vlCVX" >> $GITHUB_OUTPUT
+                echo "step=repartition" >> $GITHUB_OUTPUT
+                ;;
+            esac
+          fi
+
+      # ===== vlAURA Steps =====
+      - name: "[vlAURA] Run claims"
+        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'claims')
+        run: make -f automation/vlAURA/repartition.mk run-claims
+        env:
+          MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: "[vlAURA] Run report"
+        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'report')
+        run: make -f automation/vlAURA/repartition.mk run-report
+        env:
+          MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: "[vlAURA] Run repartition"
+        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'repartition')
+        run: make -f automation/vlAURA/repartition.mk run-repartition
+        env:
+          MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: "[vlAURA] Run merkle"
+        if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'merkle')
+        run: make -f automation/vlAURA/repartition.mk run-merkle
+        env:
+          MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      # ===== vlCVX Steps =====
+      - name: "[vlCVX] Run claims"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'claims')
+        run: make -f automation/vlCVX/repartition.mk run-claims
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: "[vlCVX] Run report and validation"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'report' || steps.determine.outputs.step == 'repartition')
+        run: make -f automation/vlCVX/repartition.mk validate-reports
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: "[vlCVX] Run repartition"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'repartition')
+        run: make -f automation/vlCVX/repartition.mk run-repartition
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+
+      - name: "[vlCVX] Run merkle (delegators)"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'merkle-delegators' || steps.determine.outputs.step == 'merkle')
+        run: make -f automation/vlCVX/merkles.mk run-merkles TYPE=delegators
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+
+      - name: "[vlCVX] Run merkle (non-delegators)"
+        if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'merkle-non-delegators' || steps.determine.outputs.step == 'merkle')
+        run: make -f automation/vlCVX/merkles.mk run-merkles TYPE=non-delegators
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+
+      # ===== Commit =====
+      - name: Rebase on latest main before auto-commit
+        run: git pull --rebase --autostash origin main
+
+      - name: Determine commit message
+        id: commit-msg
+        run: |
+          TOKEN="${{ steps.determine.outputs.token }}"
+          STEP="${{ steps.determine.outputs.step }}"
+          echo "message=chore: ${TOKEN} ${STEP}" >> $GITHUB_OUTPUT
+
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: ${{ steps.commit-msg.outputs.message }}
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          file_pattern: bounties-reports/ weekly-bounties/
+
+      # ===== Cleanup =====
+      - name: Clean up vlCVX
+        if: always() && steps.determine.outputs.token == 'vlCVX'
+        run: |
+          make -f automation/vlCVX/repartition.mk clean || true
+          make -f automation/vlCVX/merkles.mk clean || true
+
+      - name: Send error notification to Telegram
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: -1002354704686
+          token: ${{ secrets.TG_API_KEY_BOT_ERROR }}
+          format: html
+          message: |
+            <b>Workflow failed</b>
+            <b>Workflow:</b> ${{ github.workflow }}
+            <b>Token:</b> ${{ steps.determine.outputs.token }}
+            <b>Step:</b> ${{ steps.determine.outputs.step }}
+            <b>Trigger:</b> ${{ github.event_name }}
+            <b>Status:</b> ${{ job.status }}
+            <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View workflow logs</a>

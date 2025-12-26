@@ -2,7 +2,8 @@ name: "[sdTokens] Generate - Weekly Reports"
 
 on:
   schedule:
-    - cron: '0 10 * * 1'  # Monday at 10:00 UTC
+    - cron: '0 10 * * 1'  # Monday at 10:00 UTC - normal reports
+    - cron: '0 20 * * 1'  # Monday at 20:00 UTC - OTC reports
   workflow_dispatch:
     inputs:
       action_type:
@@ -59,7 +60,15 @@ jobs:
       - name: Set default values for scheduled runs
         if: github.event_name == 'schedule'
         run: |
-          echo "ACTION_TYPE=normal" >> $GITHUB_ENV
+          # Determine action type based on schedule time
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" -ge "15" ]; then
+            # 20:00 UTC schedule -> OTC reports
+            echo "ACTION_TYPE=otc" >> $GITHUB_ENV
+          else
+            # 10:00 UTC schedule -> normal reports
+            echo "ACTION_TYPE=normal" >> $GITHUB_ENV
+          fi
           echo "PROTOCOL=all" >> $GITHUB_ENV
 
       - name: Set manual input values

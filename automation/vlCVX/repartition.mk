@@ -1,7 +1,7 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-weekly clean
+.PHONY: all setup install-deps run-claims run-weekly clean
 
 # Define the default target
 .DEFAULT_GOAL := all
@@ -14,6 +14,10 @@ install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
 	@$(PNPM) add -D tsx
+
+run-claims: setup install-deps
+	@echo "Generating vlCVX Votemarket V2 claims..."
+	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarketV2.ts
 
 run-report: setup install-deps
 	@echo "Running report generation..."
