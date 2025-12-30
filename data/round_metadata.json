@@ -28,22 +28,22 @@
                 "distributions": [
                     {
                         "step": 1,
-                        "date": "23-12-2025",
-                        "distributed": "09:23"
+                        "date": "30-12-2025",
+                        "distributed": "09:38"
                     },
                     {
                         "step": 2,
-                        "date": "30-12-2025",
-                        "distributed": ""
-                    },
-                    {
-                        "step": 3,
                         "date": "06-01-2026",
                         "distributed": ""
                     },
                     {
-                        "step": 4,
+                        "step": 3,
                         "date": "13-01-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 4,
+                        "date": "20-01-2026",
                         "distributed": ""
                     }
                 ]
@@ -75,22 +75,22 @@
                 "distributions": [
                     {
                         "step": 1,
-                        "date": "20-01-2026",
-                        "distributed": ""
-                    },
-                    {
-                        "step": 2,
                         "date": "27-01-2026",
                         "distributed": ""
                     },
                     {
-                        "step": 3,
+                        "step": 2,
                         "date": "03-02-2026",
                         "distributed": ""
                     },
                     {
-                        "step": 4,
+                        "step": 3,
                         "date": "10-02-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 4,
+                        "date": "17-02-2026",
                         "distributed": ""
                     }
                 ]
@@ -104,23 +104,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x4f61519d14c705dfb7e2300d8c824d141fc63da948f61c7cf7de3f572119d777",
-                        "start": "11-12-2025 02:00",
-                        "end": "16-12-2025 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "23-12-2025",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0xbe673acfbd5f8e88b53c028d8b005c00a92db2d4d8c65fe9cc0faa4296f5ef74",
                         "start": "18-12-2025 02:00",
                         "end": "23-12-2025 15:00"
@@ -130,6 +113,23 @@
                     {
                         "step": 1,
                         "date": "30-12-2025",
+                        "distributed": "12:51"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x1a2bbd978f1aafe9500d32ae5e0465b05587d30a420138c55454c01055a15d3f",
+                        "start": "25-12-2025 02:00",
+                        "end": "30-12-2025 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "06-01-2026",
                         "distributed": ""
                     }
                 ]
@@ -174,7 +174,7 @@
                     {
                         "step": 1,
                         "date": "30-12-2025",
-                        "distributed": ""
+                        "distributed": "09:38"
                     },
                     {
                         "step": 2,
@@ -184,6 +184,6 @@
                 ]
             }
         ],
-        "currentRoundId": 1
+        "currentRoundId": 2
     }
 }
