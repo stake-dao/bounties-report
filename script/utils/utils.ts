@@ -763,11 +763,18 @@ export const getDelegationVotingPower = async (
   network: string
 ): Promise<Record<string, number>> => {
   try {
+    // Filter out the "delegation" strategy to get only raw VP
+    // The delegation strategy would incorrectly attribute VP from users who
+    // delegated to a delegator (but not to DELEGATION_ADDRESS) to that delegator
+    const strategiesWithoutDelegation = proposal.strategies.filter(
+      (s: { name: string }) => s.name !== "delegation"
+    );
+
     const { data } = await axios.post("https://score.snapshot.org/api/scores", {
       params: {
         network,
         snapshot: parseInt(proposal.snapshot),
-        strategies: proposal.strategies,
+        strategies: strategiesWithoutDelegation,
         space: proposal.space.id,
         addresses: delegatorAddresses,
       },
