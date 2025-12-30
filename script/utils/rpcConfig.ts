@@ -8,6 +8,7 @@ import {
   polygon,
   arbitrum,
   sonic,
+  katana,
 } from "../utils/chains";
 
 export interface RpcEndpoint {
@@ -230,6 +231,20 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
       {
         url: "https://rpc.ankr.com/arbitrum",
         priority: 5,
+      },
+    ],
+  },
+  // Katana
+  747474: {
+    chain: katana,
+    endpoints: [
+      {
+        url: "https://rpc.katana.network",
+        priority: 1,
+      },
+      {
+        url: "https://katana.drpc.org",
+        priority: 2,
       },
     ],
   },

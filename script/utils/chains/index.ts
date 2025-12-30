@@ -19,6 +19,7 @@ import {
   hemi as viemHemi,
 } from "viem/chains";
 import { hyperliquid } from "./hyperliquid";
+import { katana } from "./katana";
 
 // Custom mainnet chain with Stake eRPC as primary
 // For programmatic access, use getPrimaryRpcUrl(1) from rpcConfig.ts
@@ -43,6 +44,7 @@ export const hemi = viemHemi;
 
 // Export custom chains
 export { hyperliquid };
+export { katana };
 
 // Chain ID to Chain mapping for convenience
 export const CHAINS_BY_ID: Record<number, Chain> = {
@@ -56,6 +58,7 @@ export const CHAINS_BY_ID: Record<number, Chain> = {
   8453: base,
   42161: arbitrum,
   43111: hemi,
+  747474: katana,
 };
 
 // Helper to get chain by ID
@@ -75,4 +78,5 @@ export const chains = {
   sonic,
   hemi,
   hyperliquid,
+  katana,
 };
