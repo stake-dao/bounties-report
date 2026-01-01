@@ -1,0 +1,12 @@
+{
+  "balancer": {
+    "0": {
+      "chainId": 42161,
+      "bountyId": "27",
+      "gauge": "0x9fdD52eFEb601E4Bc78b89C6490505B8aC637E9f",
+      "amount": "9599999999999729568",
+      "rewardToken": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "isWrapped": true
+    }
+  }
+}
