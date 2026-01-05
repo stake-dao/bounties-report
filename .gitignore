@@ -1,6 +1,7 @@
 # Directories
 node_modules/
 tmp/
+.tmp/
 venv/
 .nodeenv/
 temp/
