@@ -6,10 +6,10 @@ import MerkleTree from "merkletreejs";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 
 // Constants
-const SDZERO_GAUGE = "0x930b866491549F6F5716CEA94723187e45e22ee5";
+const SDZERO_GAUGE = "0xC6973841dC130597dF3Cb8bE2F57440d856FD7C4";
 const LINEA_TOKEN = "0x1789e0043623282D5DCc7F213d703C6D8BAfBB04";
 const LINEA_CHAIN_ID = 59144;
-const DEC_1_TIMESTAMP = 1764633600; // Dec 1, 2025 00:00:00 UTC
+const DEC_1_TIMESTAMP = 1764547200; // Dec 1, 2025 00:00:00 UTC
 const LINEA_AMOUNT = 1263130000000000000000000n; // 1,263,130 * 1e18
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -72,9 +72,9 @@ async function main() {
     balances.set(to, prevTo + amount);
   }
   
-  // Filter out zero/negative balances and zero address
+  // Filter out zero/negative balances, zero address, and the gauge contract itself
   const holders = Array.from(balances.entries())
-    .filter(([addr, bal]) => bal > 0n && addr !== ZERO_ADDRESS)
+    .filter(([addr, bal]) => bal > 0n && addr !== ZERO_ADDRESS && addr !== getAddress(SDZERO_GAUGE))
     .map(([address, balance]) => ({ address, balance }));
   
   console.log(`Found ${holders.length} holders with positive balance`);

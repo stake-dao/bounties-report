@@ -1,8 +1,8 @@
 {
-  "timestamp": 1767113387,
-  "snapshotBlock": 26237043,
-  "merkleRoot": "0x614e771a3395d26400b900b425a30db37e4adc8feca1ef4a1833c0b97469eb36",
+  "timestamp": 1767631975,
+  "snapshotBlock": 26201233,
+  "merkleRoot": "0x8cdcd29d7491cda24301acd535b97c7a11e04c3f48c8391eb5cbbc8bd188ceae",
   "token": "0x1789e0043623282D5DCc7F213d703C6D8BAfBB04",
-  "totalAmount": "1263129999999999999999995",
-  "totalRecipients": 13
+  "totalAmount": "1263129999999999999999968",
+  "totalRecipients": 62
 }
