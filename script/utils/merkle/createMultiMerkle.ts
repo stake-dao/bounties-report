@@ -159,10 +159,13 @@ export const createMultiMerkle = async (
       };
     }
 
-    // Compute only thoses with voting power > 0.00000002% of delegation voting power
+    // Compute only those with voting power > 0.00000002% of delegation voting power
+    // Use a small epsilon for floating-point comparison to ensure deterministic results
+    const vpThreshold = delegationVote.vp * 0.00000002;
+    const epsilon = 1e-9; // Small tolerance for floating-point comparison
     const filteredDelegatorsVotingPower = Object.fromEntries(
       Object.entries(delegatorsVotingPower).filter(
-        ([_, vp]) => vp > delegationVote.vp * 0.00000002
+        ([_, vp]) => vp > vpThreshold - epsilon
       )
     );
     const amountOfDelegators =

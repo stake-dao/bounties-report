@@ -107,12 +107,13 @@ export const delegationLogger = async (
           (delegatorData.votingPowers[b] || 0) -
           (delegatorData.votingPowers[a] || 0)
       );
-    // Only thoses whose above > 0.00000002% of the total VP (below likely no rewards)
-    // Filter out delegators with less than 1  voting power
+    // Only those whose VP is above > 0.00000002% of the total VP (below likely no rewards)
+    // Use a small epsilon for floating-point comparison to ensure deterministic results
+    const vpThreshold = delegatorData.totalVotingPower * 0.00000002;
+    const epsilon = 1e-9;
     const filteredDelegators = sortedDelegators.filter(
       (delegator) =>
-        delegatorData.votingPowers[delegator] >
-        delegatorData.totalVotingPower * 0.00000002
+        delegatorData.votingPowers[delegator] > vpThreshold - epsilon
     );
 
     log(`Total Delegators: ${sortedDelegators.length}`);
