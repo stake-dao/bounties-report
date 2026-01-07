@@ -25,7 +25,8 @@
     "sdpendle-apr": "pnpm tsx script/sdTkns/computeSdPendleAPR.ts",
     "yb-distribution": "pnpm tsx script/special-distribs/yb.ts",
     "report2": "pnpm tsx script/report2/run.ts",
-    "report2:all": "pnpm tsx script/report2/run.ts all"
+    "report2:all": "pnpm tsx script/report2/run.ts all",
+    "check-forwarder": "pnpm tsx script/helpers/checkForwarderRewards.ts"
   },
   "author": "",
   "license": "ISC",

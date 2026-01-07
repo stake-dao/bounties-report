@@ -167,7 +167,7 @@ export const computeSdPendleDelegatorsAPR = (aprs: Array<{ vp: number; amount: n
 
 /**
  * Main function to compute SDPENDLE delegators APR
- * Can be run directly: npx ts-node script/helpers/computeSdPendleDelegatorsAPR.ts [week_timestamp]
+ * Can be run directly: pnpm tsx script/helpers/computeSdPendleDelegatorsAPR.ts [week_timestamp]
  */
 async function main() {
   const args = process.argv.slice(2);
