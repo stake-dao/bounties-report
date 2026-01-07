@@ -1,4 +1,8 @@
-import { getVotingPower } from "../../utils/snapshot";
+import {
+  getDelegatorsWithBalances,
+  formatVlAuraBalance,
+  type AggregatedDelegator,
+} from "../../utils/vlAuraUtils";
 
 export type DelegationDistribution = Record<
   string,
@@ -14,10 +18,15 @@ export type DelegationSummary = {
 /**
  * Compute delegation distribution for vlAURA.
  * Unlike vlCVX, there is no forwarder/non-forwarder split.
- * All delegators receive native tokens proportionally.
+ * All delegators receive native tokens proportionally based on vlAURA balance.
+ *
+ * @param snapshotBlocks - Map of chainId to block number for balance queries
+ * @param stakeDaoDelegators - List of delegator addresses (from GraphQL)
+ * @param tokens - Token amounts to distribute
+ * @param delegationVoter - The delegation address that voted
  */
 export const computeStakeDaoDelegation = async (
-  proposal: any,
+  snapshotBlocks: Record<number, bigint>,
   stakeDaoDelegators: string[],
   tokens: Record<string, bigint>,
   delegationVoter: string
@@ -27,18 +36,31 @@ export const computeStakeDaoDelegation = async (
   // Store the delegation voter's token totals
   delegationDistribution[delegationVoter] = { tokens: { ...tokens } };
 
-  // Get voting power for each delegator
-  const vps = await getVotingPower(proposal, stakeDaoDelegators);
-  const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
+  // Get vlAURA balances for all delegators at snapshot blocks
+  const delegatorsWithBalances = await getDelegatorsWithBalances(snapshotBlocks);
 
-  // Compute each delegator's share
-  stakeDaoDelegators.forEach((delegator) => {
-    const delegatorVp = vps[delegator] || 0;
-    if (delegatorVp > 0) {
-      const share = (delegatorVp / totalVp).toString();
-      delegationDistribution[delegator] = { share };
+  // Filter to only include delegators in our list and compute total
+  const delegatorSet = new Set(stakeDaoDelegators.map((d) => d.toLowerCase()));
+  const filteredDelegators: AggregatedDelegator[] = delegatorsWithBalances.filter(
+    (d) => delegatorSet.has(d.address.toLowerCase())
+  );
+
+  const totalVlAura = filteredDelegators.reduce(
+    (acc, d) => acc + d.totalBalance,
+    BigInt(0)
+  );
+
+  console.log(`Total vlAURA delegated: ${formatVlAuraBalance(totalVlAura)}`);
+  console.log(`Delegators with balance: ${filteredDelegators.length}`);
+
+  // Compute each delegator's share based on vlAURA balance
+  for (const delegator of filteredDelegators) {
+    if (delegator.totalBalance > BigInt(0)) {
+      // Calculate share as a decimal string (balance / total)
+      const share = Number(delegator.totalBalance) / Number(totalVlAura);
+      delegationDistribution[delegator.address] = { share: share.toString() };
     }
-  });
+  }
 
   return delegationDistribution;
 };
