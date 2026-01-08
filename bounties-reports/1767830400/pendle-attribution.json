@@ -1,0 +1,17 @@
+{
+  "protocol": "pendle",
+  "period": 1767830400,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 0,
+    "sdAssigned": 0,
+    "wethInTotal": 0,
+    "wethOutTotal": 0
+  },
+  "dropped": {
+    "tokensNotSwapped": [],
+    "wethNotSwapped": true
+  },
+  "perToken": {},
+  "txs": []
+}
