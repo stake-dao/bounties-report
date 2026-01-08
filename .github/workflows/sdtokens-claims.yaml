@@ -34,6 +34,9 @@ on:
           - warden
           - hiddenhand
           - spectra
+          - convex
+          - convex-v2
+          - votium
         default: "votemarket"
       protocol:
         description: "Protocol to process (for reports/OTC)"
@@ -58,6 +61,9 @@ on:
       - update-warden-claims
       - update-hiddenhand-claims
       - update-spectra-claims
+      - update-convex-claims
+      - update-convex-v2-claims
+      - update-votium-claims
 jobs:
   process-bounties:
     runs-on: ubuntu-latest
@@ -91,6 +97,9 @@ jobs:
               "update-warden-claims") BOUNTY_TYPE="warden" ;;
               "update-hiddenhand-claims") BOUNTY_TYPE="hiddenhand" ;;
               "update-spectra-claims") BOUNTY_TYPE="spectra" ;;
+              "update-convex-claims") BOUNTY_TYPE="convex" ;;
+              "update-convex-v2-claims") BOUNTY_TYPE="convex-v2" ;;
+              "update-votium-claims") BOUNTY_TYPE="votium" ;;
             esac
             PAST_WEEK="${{ github.event.client_payload.pastWeek }}"
             PROTOCOL=""
@@ -132,9 +141,22 @@ jobs:
 
       # ===== Claims Processing =====
       - name: Run generate bounties script (claims)
-        if: steps.params.outputs.actionType == 'claims'
+        if: steps.params.outputs.actionType == 'claims' && steps.params.outputs.bountyType != 'votium'
         run: |
           make -f automation/weekly-bounties.mk run-${{ steps.params.outputs.bountyType }} PAST_WEEK=${{ steps.params.outputs.pastWeek }}
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
+
+      - name: Run votium claims
+        if: steps.params.outputs.actionType == 'claims' && steps.params.outputs.bountyType == 'votium'
+        run: |
+          pnpm tsx script/vlCVX/claims/generateConvexVotium.ts ${{ steps.params.outputs.pastWeek }}
+          # Run indexer after votium processing
+          make -f automation/indexer.mk get-delegators
+          make -f automation/indexer.mk commit-and-push
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN}}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
