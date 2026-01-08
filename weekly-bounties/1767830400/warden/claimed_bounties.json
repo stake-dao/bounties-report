@@ -1,0 +1,17 @@
+{
+  "balancer": {},
+  "curve": {},
+  "fxn": {
+    "0": {
+      "amount": "1322220116183395693200",
+      "rewardToken": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "gauge": "",
+      "questID": "95",
+      "period": "1766620800",
+      "distributor": "0x8964c76B6f0253A77129D58cBA5D184d414d7C9a"
+    }
+  },
+  "scbtc": {},
+  "sceth": {},
+  "scusd": {}
+}
