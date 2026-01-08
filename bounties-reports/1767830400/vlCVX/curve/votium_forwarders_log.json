@@ -1,0 +1,547 @@
+{
+  "timestamp": 1767830400,
+  "message": "Votium forwarders rewards are no longer distributed through merkle trees",
+  "forwardersData": {
+    "curveVotes": {
+      "0x649f69ccd077da03dfb11f4b1daab4b625f5e9a3": {
+        "0": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x95f00391cb5eebcd190eb58728b4ce23dbfa6ac1",
+          "choiceId": 135,
+          "weight": 50
+        },
+        "1": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xafcd73e242c6d880edfa87b8146825639bda3881",
+          "choiceId": 543,
+          "weight": 50
+        }
+      },
+      "0xdbc9e41d5e083884f2cb172bb3a17ab09a528101": {
+        "0": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x8f5e52be9b7bde850ba13e40284f63f14677058f",
+          "choiceId": 334,
+          "weight": 100
+        }
+      },
+      "0x6cd1b82490eb7aa18bec4305c6c2e691194c6898": {
+        "0": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xe9c898ba654dec2ba440392028d2e7a194e6dc3e",
+          "choiceId": 574,
+          "weight": 100
+        }
+      },
+      "0x5bff1a68663ff91b0650327d83d4230cd00023ad": {
+        "0": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x740ba8aa0052e07b925908b380248cb03f3de5cb",
+          "choiceId": 64,
+          "weight": 12695,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x7970489a543fb237abab63d62524d8a5ce165b86",
+          "choiceId": 93,
+          "weight": 2029,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x415f30505368fa1db82feea02eb778be04e75907",
+          "choiceId": 117,
+          "weight": 27586,
+          "viaUnion": true
+        },
+        "3": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xc2075702490f0426e84e00d8b328119027813ac5",
+          "choiceId": 122,
+          "weight": 8892,
+          "viaUnion": true
+        },
+        "4": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x06b30d5f2341c2fb3f6b48b109685997022bd272",
+          "choiceId": 124,
+          "weight": 28465,
+          "viaUnion": true
+        },
+        "5": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x4e6bb6b7447b7b2aa268c16ab87f4bb48bf57939",
+          "choiceId": 134,
+          "weight": 42432,
+          "viaUnion": true
+        },
+        "6": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x95f00391cb5eebcd190eb58728b4ce23dbfa6ac1",
+          "choiceId": 135,
+          "weight": 34440,
+          "viaUnion": true
+        },
+        "7": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x724476f141ed2de4da22ebdf435905def1118317",
+          "choiceId": 188,
+          "weight": 3306,
+          "viaUnion": true
+        },
+        "8": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xb251c0885c7c1975d773b57e67c138fbceaa6db4",
+          "choiceId": 209,
+          "weight": 15532,
+          "viaUnion": true
+        },
+        "9": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xb53c23d2cc6219adf78ea22bfd38bffc50ec54cb",
+          "choiceId": 213,
+          "weight": 44074,
+          "viaUnion": true
+        },
+        "10": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x9755e37a291a37d8a0ab0828699a59b445477514",
+          "choiceId": 312,
+          "weight": 2538,
+          "viaUnion": true
+        },
+        "11": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x8f5e52be9b7bde850ba13e40284f63f14677058f",
+          "choiceId": 334,
+          "weight": 132887,
+          "viaUnion": true
+        },
+        "12": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x19f9266f349158b54a6d95dce79297df670f7f14",
+          "choiceId": 343,
+          "weight": 26540,
+          "viaUnion": true
+        },
+        "13": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x52618c40ddba3cbbb69f3aaa4cb26ae649844b17",
+          "choiceId": 354,
+          "weight": 13287,
+          "viaUnion": true
+        },
+        "14": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xaf01d68714e7ea67f43f08b5947e367126b889b1",
+          "choiceId": 372,
+          "weight": 43875,
+          "viaUnion": true
+        },
+        "15": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x5c0b03914f68f2717d779a0211fd98c2cc45a4dd",
+          "choiceId": 373,
+          "weight": 24806,
+          "viaUnion": true
+        },
+        "16": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x09f62a6777032329c0d49f1fd4fbe9b3468cda56",
+          "choiceId": 374,
+          "weight": 18631,
+          "viaUnion": true
+        },
+        "17": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xcb25249bfa8cdb6012a75070e5c2885151368bef",
+          "choiceId": 384,
+          "weight": 3209,
+          "viaUnion": true
+        },
+        "18": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xf84657ca6db485ea38c63ca96dc396c2b3c6fdcc",
+          "choiceId": 385,
+          "weight": 12781,
+          "viaUnion": true
+        },
+        "19": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x22804b0f6be741a9fa1bbaecdd6c8d4116e96944",
+          "choiceId": 419,
+          "weight": 63320,
+          "viaUnion": true
+        },
+        "20": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x29e9975561fad3a7988ca96361ab5c5317cb32af",
+          "choiceId": 433,
+          "weight": 42722,
+          "viaUnion": true
+        },
+        "21": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x9a356132605ad599aba34651aa2a606730bacaaa",
+          "choiceId": 436,
+          "weight": 13287,
+          "viaUnion": true
+        },
+        "22": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xf3c43e7d722963b9569d1e39873df9e2dfe8c087",
+          "choiceId": 478,
+          "weight": 165281,
+          "viaUnion": true
+        },
+        "23": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x81d837437fd18736ffd3b5c9a5a2aa835c7637e7",
+          "choiceId": 479,
+          "weight": 167373,
+          "viaUnion": true
+        }
+      },
+      "0x8ac4c0630c5ed1636537924ec9b037fc652adee8": {
+        "0": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x740ba8aa0052e07b925908b380248cb03f3de5cb",
+          "choiceId": 64,
+          "weight": 12695,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x7970489a543fb237abab63d62524d8a5ce165b86",
+          "choiceId": 93,
+          "weight": 2029,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x415f30505368fa1db82feea02eb778be04e75907",
+          "choiceId": 117,
+          "weight": 27586,
+          "viaUnion": true
+        },
+        "3": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xc2075702490f0426e84e00d8b328119027813ac5",
+          "choiceId": 122,
+          "weight": 8892,
+          "viaUnion": true
+        },
+        "4": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x06b30d5f2341c2fb3f6b48b109685997022bd272",
+          "choiceId": 124,
+          "weight": 28465,
+          "viaUnion": true
+        },
+        "5": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x4e6bb6b7447b7b2aa268c16ab87f4bb48bf57939",
+          "choiceId": 134,
+          "weight": 42432,
+          "viaUnion": true
+        },
+        "6": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x95f00391cb5eebcd190eb58728b4ce23dbfa6ac1",
+          "choiceId": 135,
+          "weight": 34440,
+          "viaUnion": true
+        },
+        "7": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x724476f141ed2de4da22ebdf435905def1118317",
+          "choiceId": 188,
+          "weight": 3306,
+          "viaUnion": true
+        },
+        "8": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xb251c0885c7c1975d773b57e67c138fbceaa6db4",
+          "choiceId": 209,
+          "weight": 15532,
+          "viaUnion": true
+        },
+        "9": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xb53c23d2cc6219adf78ea22bfd38bffc50ec54cb",
+          "choiceId": 213,
+          "weight": 44074,
+          "viaUnion": true
+        },
+        "10": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x9755e37a291a37d8a0ab0828699a59b445477514",
+          "choiceId": 312,
+          "weight": 2538,
+          "viaUnion": true
+        },
+        "11": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x8f5e52be9b7bde850ba13e40284f63f14677058f",
+          "choiceId": 334,
+          "weight": 132887,
+          "viaUnion": true
+        },
+        "12": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x19f9266f349158b54a6d95dce79297df670f7f14",
+          "choiceId": 343,
+          "weight": 26540,
+          "viaUnion": true
+        },
+        "13": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x52618c40ddba3cbbb69f3aaa4cb26ae649844b17",
+          "choiceId": 354,
+          "weight": 13287,
+          "viaUnion": true
+        },
+        "14": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xaf01d68714e7ea67f43f08b5947e367126b889b1",
+          "choiceId": 372,
+          "weight": 43875,
+          "viaUnion": true
+        },
+        "15": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x5c0b03914f68f2717d779a0211fd98c2cc45a4dd",
+          "choiceId": 373,
+          "weight": 24806,
+          "viaUnion": true
+        },
+        "16": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x09f62a6777032329c0d49f1fd4fbe9b3468cda56",
+          "choiceId": 374,
+          "weight": 18631,
+          "viaUnion": true
+        },
+        "17": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xcb25249bfa8cdb6012a75070e5c2885151368bef",
+          "choiceId": 384,
+          "weight": 3209,
+          "viaUnion": true
+        },
+        "18": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xf84657ca6db485ea38c63ca96dc396c2b3c6fdcc",
+          "choiceId": 385,
+          "weight": 12781,
+          "viaUnion": true
+        },
+        "19": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x22804b0f6be741a9fa1bbaecdd6c8d4116e96944",
+          "choiceId": 419,
+          "weight": 63320,
+          "viaUnion": true
+        },
+        "20": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x29e9975561fad3a7988ca96361ab5c5317cb32af",
+          "choiceId": 433,
+          "weight": 42722,
+          "viaUnion": true
+        },
+        "21": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x9a356132605ad599aba34651aa2a606730bacaaa",
+          "choiceId": 436,
+          "weight": 13287,
+          "viaUnion": true
+        },
+        "22": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0xf3c43e7d722963b9569d1e39873df9e2dfe8c087",
+          "choiceId": 478,
+          "weight": 165281,
+          "viaUnion": true
+        },
+        "23": {
+          "proposalId": "0x174499145e9a70b4ed896113ff5c8277fa3c3216c7163a25b92a6dfc5865a18a",
+          "gauge": "0x81d837437fd18736ffd3b5c9a5a2aa835c7637e7",
+          "choiceId": 479,
+          "weight": 167373,
+          "viaUnion": true
+        }
+      }
+    },
+    "fxnVotes": {
+      "0x5bff1a68663ff91b0650327d83d4230cd00023ad": {
+        "0": {
+          "proposalId": "0x9b1170e9d417c8ad64ca2318d23aaad82956d43b417f309d9c220fd5e68a3925",
+          "gauge": "0xb5152D159fce50a7576eBa7FAb61C2B98F0Ed692",
+          "choiceId": 7,
+          "weight": 172041,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0x9b1170e9d417c8ad64ca2318d23aaad82956d43b417f309d9c220fd5e68a3925",
+          "gauge": "0xA5250C540914E012E22e623275E290c4dC993D11",
+          "choiceId": 8,
+          "weight": 397194,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0x9b1170e9d417c8ad64ca2318d23aaad82956d43b417f309d9c220fd5e68a3925",
+          "gauge": "0xfEFafB9446d84A9e58a3A2f2DDDd7219E8c94FbB",
+          "choiceId": 9,
+          "weight": 430765,
+          "viaUnion": true
+        }
+      },
+      "0x8ac4c0630c5ed1636537924ec9b037fc652adee8": {
+        "0": {
+          "proposalId": "0x9b1170e9d417c8ad64ca2318d23aaad82956d43b417f309d9c220fd5e68a3925",
+          "gauge": "0xb5152D159fce50a7576eBa7FAb61C2B98F0Ed692",
+          "choiceId": 7,
+          "weight": 172041,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0x9b1170e9d417c8ad64ca2318d23aaad82956d43b417f309d9c220fd5e68a3925",
+          "gauge": "0xA5250C540914E012E22e623275E290c4dC993D11",
+          "choiceId": 8,
+          "weight": 397194,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0x9b1170e9d417c8ad64ca2318d23aaad82956d43b417f309d9c220fd5e68a3925",
+          "gauge": "0xfEFafB9446d84A9e58a3A2f2DDDd7219E8c94FbB",
+          "choiceId": 9,
+          "weight": 430765,
+          "viaUnion": true
+        }
+      }
+    },
+    "tokenAllocations": {
+      "0x649f69ccd077da03dfb11f4b1daab4b625f5e9a3": {
+        "0x01791F726B4103694969820be083196cC7c045fF": {
+          "amount": "7469.298532",
+          "amountWei": "7469298532029219995648",
+          "usd": 3375.4079256693044
+        },
+        "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": {
+          "amount": "244.991624",
+          "amountWei": "244991623801504989184",
+          "usd": 1961.418712593558
+        }
+      },
+      "0xdbc9e41d5e083884f2cb172bb3a17ab09a528101": {
+        "0x865377367054516e17014CcdED1e7d814EDC9ce4": {
+          "amount": "2575.304540",
+          "amountWei": "2575304539883131025920",
+          "usd": 2571.8972929092342
+        }
+      },
+      "0x5bff1a68663ff91b0650327d83d4230cd00023ad": {
+        "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": {
+          "amount": "4.728883",
+          "amountWei": "4728882674322087936",
+          "usd": 37.85973913373374
+        },
+        "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": {
+          "amount": "4.765194",
+          "amountWei": "4765194499960134656",
+          "usd": 10.16479944895522
+        },
+        "0xD533a949740bb3306d119CC777fa900bA034cd52": {
+          "amount": "29.775345",
+          "amountWei": "29775344683095625728",
+          "usd": 12.944449737952747
+        },
+        "0x01791F726B4103694969820be083196cC7c045fF": {
+          "amount": "144.669462",
+          "amountWei": "144669461575755661312",
+          "usd": 65.3767479116212
+        },
+        "0x04ACaF8D2865c0714F79da09645C13FD2888977f": {
+          "amount": "50.515221",
+          "amountWei": "50515221364408737792",
+          "usd": 32.8358145394153
+        },
+        "0x865377367054516e17014CcdED1e7d814EDC9ce4": {
+          "amount": "61.847495",
+          "amountWei": "61847495115571240960",
+          "usd": 61.76566802005219
+        },
+        "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": {
+          "amount": "217.619582",
+          "amountWei": "217619582384347480064",
+          "usd": 66.50822000908875
+        },
+        "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": {
+          "amount": "0.056513",
+          "amountWei": "56512815415301280",
+          "usd": 1.5686144935860684
+        }
+      },
+      "0x8ac4c0630c5ed1636537924ec9b037fc652adee8": {
+        "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": {
+          "amount": "0.050713",
+          "amountWei": "50713149200916480",
+          "usd": 0.4060127373900788
+        },
+        "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": {
+          "amount": "0.051103",
+          "amountWei": "51102561913879552",
+          "usd": 0.10900862350671095
+        },
+        "0xD533a949740bb3306d119CC777fa900bA034cd52": {
+          "amount": "0.319315",
+          "amountWei": "319314646062764032",
+          "usd": 0.1388179525894206
+        },
+        "0x01791F726B4103694969820be083196cC7c045fF": {
+          "amount": "1.551454",
+          "amountWei": "1551454010384285696",
+          "usd": 0.7011086972230987
+        },
+        "0x04ACaF8D2865c0714F79da09645C13FD2888977f": {
+          "amount": "0.541732",
+          "amountWei": "541731765070577664",
+          "usd": 0.3521355204928527
+        },
+        "0x865377367054516e17014CcdED1e7d814EDC9ce4": {
+          "amount": "0.663261",
+          "amountWei": "663260533937972736",
+          "usd": 0.6623830095861273
+        },
+        "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": {
+          "amount": "2.333781",
+          "amountWei": "2333780537722404864",
+          "usd": 0.7132427502853917
+        },
+        "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": {
+          "amount": "0.000606",
+          "amountWei": "606050739106720",
+          "usd": 0.01682202463680374
+        }
+      }
+    }
+  },
+  "totalRewardsSkipped": {
+    "0x01791F726B4103694969820be083196cC7c045fF": "7615519447615359942656",
+    "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": "249771219625027993600",
+    "0x865377367054516e17014CcdED1e7d814EDC9ce4": "2637815295532640239616",
+    "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": "4816297061874014208",
+    "0xD533a949740bb3306d119CC777fa900bA034cd52": "30094659329158389760",
+    "0x04ACaF8D2865c0714F79da09645C13FD2888977f": "51056953129479315456",
+    "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": "219953362922069884928",
+    "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": "57118866154408000"
+  },
+  "addressesSkipped": [
+    "0x649f69ccd077da03dfb11f4b1daab4b625f5e9a3",
+    "0xdbc9e41d5e083884f2cb172bb3a17ab09a528101",
+    "0x5bff1a68663ff91b0650327d83d4230cd00023ad",
+    "0x8ac4c0630c5ed1636537924ec9b037fc652adee8"
+  ]
+}
