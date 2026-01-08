@@ -1,4 +1,4 @@
-name: "sdTokens: Generate Claims"
+name: "sdTokens: Claims & Reports"
 
 on:
   schedule:
