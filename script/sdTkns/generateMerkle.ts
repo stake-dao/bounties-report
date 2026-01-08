@@ -659,7 +659,6 @@ const main = async () => {
     `./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`,
     JSON.stringify(delegationAPRs)
   );
-  fs.writeFileSync(`delegationsAPRs.json`, JSON.stringify(delegationAPRs)); // TODO : Remove , adapt the logger to fetch from current period
 
   // Add delegation APRS in logData
   logData["DelegationsAPRsDetails"] = delegationAPRs;

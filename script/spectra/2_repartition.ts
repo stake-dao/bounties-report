@@ -17,7 +17,7 @@ import { getAddress } from "viem";
 import {  getSpectraDelegationAPR, getSpectraReport } from "./utils";
 import { Distribution } from "../interfaces/Distribution";
 import { PROTOCOLS_TOKENS } from "../utils/reportUtils";
-import axios from "axios";
+
 
 dotenv.config();
 
@@ -286,12 +286,14 @@ const main = async () => {
     JSON.stringify({ distribution: convertToJsonFormat(distribution) }, null, 2)
   );
 
-  // Save APR
-  const { data: delegationAPRs } = await axios.get(
-    `https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json`
-  );
+  // Save APR - write only Spectra, don't copy other protocols
+  const localPath = `./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`;
+  let delegationAPRs: Record<string, number> = {};
+  if (fs.existsSync(localPath)) {
+    delegationAPRs = JSON.parse(fs.readFileSync(localPath, "utf-8"));
+  }
   delegationAPRs[SPECTRA_SPACE] = delegationAPR;
-  fs.writeFileSync(`./bounties-reports/${currentPeriodTimestamp}/delegationsAPRs.json`, JSON.stringify(delegationAPRs));
+  fs.writeFileSync(localPath, JSON.stringify(delegationAPRs));
 
   // End
   console.log("Spectra repartition generation completed successfully.");

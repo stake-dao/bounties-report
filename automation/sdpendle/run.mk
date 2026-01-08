@@ -45,7 +45,6 @@ commit-and-push:
 	@git config --global user.name 'GitHub Action'
 	@git config --global user.email 'action@github.com'
 	@git add bounties-reports/$(CURRENT_WEEK)/delegationsAPRs.json
-	@git add delegationsAPRs.json || true
 	@git commit -m "chore: Update SDPENDLE delegators APR" || true
 	@git pull --rebase origin main || true
 	@git push || true

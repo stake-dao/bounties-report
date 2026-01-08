@@ -354,9 +354,18 @@ jobs:
             fi
           fi
           
-          # Copy delegationsAPRs.json
+          # Merge period APRs with existing latest (preserves uncomputed protocols)
           if [ -f "bounties-reports/${PERIOD}/delegationsAPRs.json" ]; then
-            cp "bounties-reports/${PERIOD}/delegationsAPRs.json" "bounties-reports/delegationsAPRs.json"
+            if [ -f "bounties-reports/latest/delegationsAPRs.json" ]; then
+              # Merge: latest values first, period values override
+              jq -s '.[0] * .[1]' \
+                bounties-reports/latest/delegationsAPRs.json \
+                bounties-reports/${PERIOD}/delegationsAPRs.json \
+                > bounties-reports/latest/delegationsAPRs.json.tmp
+              mv bounties-reports/latest/delegationsAPRs.json.tmp bounties-reports/latest/delegationsAPRs.json
+            else
+              cp "bounties-reports/${PERIOD}/delegationsAPRs.json" "bounties-reports/latest/delegationsAPRs.json"
+            fi
           fi
 
       - name: Determine commit message
