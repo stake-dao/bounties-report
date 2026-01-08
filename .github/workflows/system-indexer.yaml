@@ -1,4 +1,4 @@
-name: "[System] Index - Delegator Logs"
+name: "System: Index Delegators"
 
 on:
   workflow_dispatch:

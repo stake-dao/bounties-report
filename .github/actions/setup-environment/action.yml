@@ -1,0 +1,57 @@
+name: 'Setup Environment'
+description: 'Configure git, Node.js, pnpm, and optionally Python'
+inputs:
+  node-version:
+    description: 'Node.js version'
+    default: '20.5.1'
+  pnpm-version:
+    description: 'pnpm version'
+    default: '9.12.3'
+  python:
+    description: 'Install Python'
+    default: 'false'
+  python-version:
+    description: 'Python version'
+    default: '3.10.13'
+  install-deps:
+    description: 'Run pnpm install'
+    default: 'true'
+  frozen-lockfile:
+    description: 'Use frozen lockfile'
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure git
+      shell: bash
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        git pull origin main --rebase
+
+    - name: Setup Python
+      if: inputs.python == 'true'
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Install dependencies
+      if: inputs.install-deps == 'true'
+      shell: bash
+      run: |
+        if [ "${{ inputs.frozen-lockfile }}" == "true" ]; then
+          pnpm install --frozen-lockfile
+        else
+          pnpm install --no-frozen-lockfile
+        fi

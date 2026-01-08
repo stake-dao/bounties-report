@@ -1,4 +1,4 @@
-name: "vlTokens Distribution"
+name: "vlTokens: Distribution"
 
 on:
   workflow_dispatch:
@@ -16,6 +16,9 @@ on:
         type: choice
         options:
           - claims+report
+          - convex-claims
+          - convex-v2-claims
+          - votium-claims
           - repartition
           - vlAURA-merkle (thursday)
           - vlCVX-delegators-merkle (thursday)
@@ -31,6 +34,9 @@ on:
       - generate-vlaura-merkles
       - publish-vlcvx-merkle
       - publish-vlaura-merkle
+      - update-convex-claims
+      - update-convex-v2-claims
+      - update-votium-claims
 
 jobs:
   distribution:
@@ -75,10 +81,11 @@ jobs:
           # Priority: workflow_dispatch > repository_dispatch mapping
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "token=${{ inputs.token }}" >> $GITHUB_OUTPUT
-            # Strip suffixes like " (vlCVX only)" from step names
+            # Strip suffixes like " (thursday)" from step names
             STEP="${{ inputs.step }}"
             STEP="${STEP%% (*}"
             echo "step=${STEP}" >> $GITHUB_OUTPUT
+            echo "pastWeek=0" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             case "${{ github.event.action }}" in
               "vlcvx-repartition")
@@ -115,11 +122,24 @@ jobs:
                 echo "token=vlAURA" >> $GITHUB_OUTPUT
                 echo "step=vlAURA-publish" >> $GITHUB_OUTPUT
                 ;;
+              "update-convex-claims")
+                echo "token=vlCVX" >> $GITHUB_OUTPUT
+                echo "step=convex-claims" >> $GITHUB_OUTPUT
+                ;;
+              "update-convex-v2-claims")
+                echo "token=vlCVX" >> $GITHUB_OUTPUT
+                echo "step=convex-v2-claims" >> $GITHUB_OUTPUT
+                ;;
+              "update-votium-claims")
+                echo "token=vlCVX" >> $GITHUB_OUTPUT
+                echo "step=votium-claims" >> $GITHUB_OUTPUT
+                ;;
               *)
                 echo "token=vlCVX" >> $GITHUB_OUTPUT
                 echo "step=repartition" >> $GITHUB_OUTPUT
                 ;;
             esac
+            echo "pastWeek=${{ github.event.client_payload.pastWeek || '0' }}" >> $GITHUB_OUTPUT
           fi
 
       # ===== vlAURA Steps =====
@@ -158,6 +178,37 @@ jobs:
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: "[vlCVX] Run convex claims"
+        if: steps.determine.outputs.token == 'vlCVX' && steps.determine.outputs.step == 'convex-claims'
+        run: make -f automation/weekly-bounties.mk run-convex PAST_WEEK=${{ steps.determine.outputs.pastWeek }}
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
+
+      - name: "[vlCVX] Run convex-v2 claims"
+        if: steps.determine.outputs.token == 'vlCVX' && steps.determine.outputs.step == 'convex-v2-claims'
+        run: make -f automation/weekly-bounties.mk run-convex-v2 PAST_WEEK=${{ steps.determine.outputs.pastWeek }}
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
+
+      - name: "[vlCVX] Run votium claims"
+        if: steps.determine.outputs.token == 'vlCVX' && steps.determine.outputs.step == 'votium-claims'
+        run: |
+          pnpm tsx script/vlCVX/claims/generateConvexVotium.ts ${{ steps.determine.outputs.pastWeek }}
+          # Run indexer after votium processing
+          make -f automation/indexer.mk get-delegators
+          make -f automation/indexer.mk commit-and-push
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
       - name: "[vlCVX] Run report validation (before repartition)"
         if: steps.determine.outputs.token == 'vlCVX' && (steps.determine.outputs.step == 'repartition')
