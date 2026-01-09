@@ -206,13 +206,13 @@ jobs:
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlAURA"
-          
+
           # Copy main merkle file
           if [ -f "bounties-reports/${PERIOD}/vlAURA/vlaura_merkle.json" ]; then
             cp "bounties-reports/${PERIOD}/vlAURA/vlaura_merkle.json" "bounties-reports/latest/vlAURA/vlaura_merkle.json"
             echo "Copied vlaura_merkle.json to latest/vlAURA/"
           fi
-          
+
           # Copy chain-specific merkle files
           for file in bounties-reports/${PERIOD}/vlAURA/vlaura_merkle_*.json; do
             if [ -f "$file" ]; then
@@ -221,6 +221,23 @@ jobs:
               echo "Copied ${filename} to latest/vlAURA/"
             fi
           done
+
+      - name: "[vlAURA] Compute delegation APR"
+        if: steps.determine.outputs.step == 'vlAURA-publish'
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+
+          # Run APR computation
+          pnpm tsx script/helpers/computevlAURADelegatorsAPR.ts
+
+          # Copy APRs.json to latest
+          if [ -f "bounties-reports/${PERIOD}/vlAURA/APRs.json" ]; then
+            cp "bounties-reports/${PERIOD}/vlAURA/APRs.json" "bounties-reports/latest/vlAURA/APRs.json"
+            echo "Copied APRs.json to latest/vlAURA/"
+          fi
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: "[vlCVX] Publish delegators to latest"
         if: steps.determine.outputs.step == 'vlCVX-delegators-publish'
