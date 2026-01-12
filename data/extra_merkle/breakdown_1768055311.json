@@ -1,0 +1,129 @@
+{
+  "timestamp": 1768055311,
+  "date": "2026-01-10T14:28:31.369Z",
+  "feePercentage": 0,
+  "campaignsProcessed": 2,
+  "campaigns": [
+    {
+      "campaignId": "2025-12-29-sGHO-FLUID-sUSDe-wlp-1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3-0x1a88df1cfe15af22b3c4c783d4e6f7f9e0c1885d",
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "tokenSymbol": "stkGHO",
+      "tokenPriceUsd": 0.9991871779970259,
+      "pool": "1-0x6d60ee6217a2a76859861962a6fb8a28f9dac2a3",
+      "period": {
+        "from": 1764106235,
+        "to": 1765942499
+      },
+      "totalAmount": "380929000000000000000",
+      "totalAmountUsd": 380.62,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "380928999999999999997",
+      "distributedAmountUsd": 380.62,
+      "recipientCount": 6,
+      "recipients": {
+        "0xcC3e470BdE93f9E6DdafC0f6489376D352a74eE4": {
+          "amount": "78977305028330042271",
+          "amountUsd": 78.91
+        },
+        "0x0dDAc437952c920e1D1Ac5C50E84260C81D9D6dc": {
+          "amount": "2792906504732541473",
+          "amountUsd": 2.79
+        },
+        "0x063608D16D09E48e46329D6bF833cD31Dc341030": {
+          "amount": "63236082758585879839",
+          "amountUsd": 63.18
+        },
+        "0x33b36812B44463F020042BFbB7a2D8aa40B3a426": {
+          "amount": "93124013416027032986",
+          "amountUsd": 93.05
+        },
+        "0xbb5286a6d73B6cae296AB40Fe220708607479171": {
+          "amount": "142625137021022818106",
+          "amountUsd": 142.51
+        },
+        "0xaA30936791B749A2B7e0E82a987b265f7d74cb79": {
+          "amount": "173555271301685322",
+          "amountUsd": 0.17
+        }
+      }
+    },
+    {
+      "campaignId": "2025-12-29-sGHO-FLUID-sUSDe-wlp-1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b-0x6f40d4a6237c257fff2db00fa0510deeecd303eb",
+      "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
+      "tokenSymbol": "FLUID",
+      "tokenPriceUsd": 3.025896984219074,
+      "pool": "1-0x1821ec9c2d2c13f6b89d21301b93bd8d6667712b",
+      "period": {
+        "from": 1764660827,
+        "to": 1766379563
+      },
+      "totalAmount": "121434856392381932531",
+      "totalAmountUsd": 367.45,
+      "feeAmount": "0",
+      "feeAmountUsd": 0,
+      "distributedAmount": "121434856392381932528",
+      "distributedAmountUsd": 367.45,
+      "recipientCount": 9,
+      "recipients": {
+        "0x634C51a4542a0aBE6AC70E168d39f889576e482a": {
+          "amount": "22294740600233942463",
+          "amountUsd": 67.46
+        },
+        "0x494f3579E12a045ff1404241D25aE740DDb0Ca91": {
+          "amount": "15566918137029151207",
+          "amountUsd": 47.1
+        },
+        "0x5Aea0510A4BFd2E6eba3D932624efb412a5dDBE4": {
+          "amount": "18651340483329552557",
+          "amountUsd": 56.44
+        },
+        "0xF0ea0b3aaF06Ce5B09D484990D5D45A00Fe9F0B4": {
+          "amount": "2236777390582980378",
+          "amountUsd": 6.77
+        },
+        "0xf884974F3D70d58bA20D07a10a48ffd443635d0A": {
+          "amount": "19745048928742100224",
+          "amountUsd": 59.75
+        },
+        "0x8067ef6f93b92099C652Da70b5A7f414011Be5bb": {
+          "amount": "9914222454647144188",
+          "amountUsd": 30
+        },
+        "0x6385c28424c7B4E35c5657d259D8edCd1fEfb744": {
+          "amount": "5026579876158485462",
+          "amountUsd": 15.21
+        },
+        "0x9C28E63c0310045FFE3d57f1Cb9DFAe284dD2a31": {
+          "amount": "16748391578790166396",
+          "amountUsd": 50.68
+        },
+        "0x1fD3F134470Ac97625bDfb41A8e03F23E47c93FB": {
+          "amount": "11250836942868409653",
+          "amountUsd": 34.04
+        }
+      }
+    }
+  ],
+  "summary": {
+    "totalDistributedUsd": 748.07,
+    "byToken": {
+      "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d": {
+        "symbol": "stkGHO",
+        "priceUsd": 0.9991871779970259,
+        "totalAmount": "380929000000000000000",
+        "totalAmountUsd": 380.62,
+        "distributedAmount": "380928999999999999997",
+        "distributedAmountUsd": 380.62
+      },
+      "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb": {
+        "symbol": "FLUID",
+        "priceUsd": 3.025896984219074,
+        "totalAmount": "121434856392381932531",
+        "totalAmountUsd": 367.45,
+        "distributedAmount": "121434856392381932528",
+        "distributedAmountUsd": 367.45
+      }
+    }
+  }
+}

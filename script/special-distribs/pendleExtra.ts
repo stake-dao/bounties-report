@@ -13,9 +13,23 @@ const argv = yargs(hideBin(process.argv))
     description: "Fee percentage (0 to 1, e.g., 0.15 for 15%)",
     default: 0.15,
   })
+  .option("extra", {
+    type: "array",
+    description: "Extra amounts to add per token (format: token:amount, e.g., 0x1a88...d:56390000000000000000)",
+    default: [],
+  })
   .parseSync();
 
 const FEE_PERCENTAGE = argv.fee;
+
+// Parse extra amounts into a map
+const EXTRA_AMOUNTS: { [token: string]: bigint } = {};
+for (const extra of argv.extra as string[]) {
+  const [token, amount] = extra.split(':');
+  if (token && amount) {
+    EXTRA_AMOUNTS[getAddress(token)] = BigInt(amount);
+  }
+}
 
 const PENDLE_MERKLE_DISTRIBUTIONS_API = "https://api.github.com/repos/pendle-finance/merkle-distributions/contents/external-rewards/1";
 const GITHUB_HOLDERS_DATA_URL = "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/strategies/pendle/holders/index.json";
@@ -672,8 +686,16 @@ async function main() {
       }
 
       // Calculate rewards with fee
-      const totalReward = BigInt(campaign.amount);
       const rewardTokenAddress = getAddress(campaign.token);
+      let totalReward = BigInt(campaign.amount);
+
+      // Add any extra amount specified via CLI
+      const extraAmount = EXTRA_AMOUNTS[rewardTokenAddress] || BigInt(0);
+      if (extraAmount > BigInt(0)) {
+        console.log(`  Adding extra amount: ${formatTokenAmount(extraAmount, (await fetchTokenInfo(campaign.token)).decimals)} ${(await fetchTokenInfo(campaign.token)).symbol}`);
+        totalReward += extraAmount;
+      }
+
       const { rewards, totalFees } = calculateRewards(periodHolders, totalReward);
 
       // Track total delegation amounts
