@@ -1,0 +1,72 @@
+{
+  "protocol": "fxn",
+  "period": 1767830400,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 118.59641963187359,
+    "sdAssigned": 118.59641963187357,
+    "wethInTotal": 0.9934341618162208,
+    "wethOutTotal": 0.992428656412208
+  },
+  "dropped": {
+    "tokensNotSwapped": [],
+    "wethNotSwapped": false
+  },
+  "perToken": {
+    "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": {
+      "mappedWeth": 0.08974554708380748,
+      "sd": 10.713448250603218
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0.05891167107348272,
+      "sd": 7.03703123962681
+    },
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
+      "mappedWeth": 0.42007907174555087,
+      "sd": 50.147283542710795
+    },
+    "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f": {
+      "mappedWeth": 0.4246978719133797,
+      "sd": 50.698656598932764
+    }
+  },
+  "txs": [
+    {
+      "tx": "0x69ca4bf891b31a5b9ac2f3814870e6c5264c7f18fc26862f14b1ce3d94f2182a",
+      "wethIn": 0.9345224907427381,
+      "wethOut": 0.9335048951583192,
+      "sdIn": 111.55938839224677,
+      "nativeIn": 111.55938839224677,
+      "nativeOut": 111.55938839224677,
+      "nativeShareSd": 0,
+      "wethBasis": 0.9345224907427381,
+      "tokenWeth": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.42007907174555087,
+        "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": 0.08974554708380748,
+        "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f": 0.4246978719133797
+      },
+      "tokenSd": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 50.147283542710795,
+        "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": 10.713448250603218,
+        "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f": 50.698656598932764
+      }
+    },
+    {
+      "tx": "0xf2daddb584e1539761cbbb3a3699c2c4b6aa8b9131f53a1f3b9997ec30004589",
+      "wethIn": 0.05891167107348272,
+      "wethOut": 0.05892376125388871,
+      "sdIn": 7.037031239626811,
+      "nativeIn": 7.03703123962681,
+      "nativeOut": 7.037031239626811,
+      "nativeShareSd": 8.881784197001252e-16,
+      "wethBasis": 0.05891167107348272,
+      "tokenWeth": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0.05891167107348272
+      },
+      "tokenSd": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": 8.881784197001252e-16,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 7.03703123962681
+      }
+    }
+  ]
+}
