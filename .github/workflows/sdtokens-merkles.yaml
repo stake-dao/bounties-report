@@ -12,6 +12,7 @@ on:
           - all
           - spectra
           - sdfxs
+          - sdtkns
       publish:
         description: 'Publish merkles to latest after generation'
         required: false
@@ -268,17 +269,22 @@ jobs:
             esac
           else
             # workflow_dispatch - publish based on what was generated
-            echo "type=sdtkns-universal" >> $GITHUB_OUTPUT
             case "${{ inputs.token }}" in
+              "sdtkns")
+                echo "type=sdtkns" >> $GITHUB_OUTPUT
+                ;;
               "spectra")
+                echo "type=sdtkns-universal" >> $GITHUB_OUTPUT
                 echo "copy_spectra=true" >> $GITHUB_OUTPUT
                 echo "copy_sdfxs=false" >> $GITHUB_OUTPUT
                 ;;
               "sdfxs")
+                echo "type=sdtkns-universal" >> $GITHUB_OUTPUT
                 echo "copy_spectra=false" >> $GITHUB_OUTPUT
                 echo "copy_sdfxs=true" >> $GITHUB_OUTPUT
                 ;;
               *)
+                echo "type=sdtkns-universal" >> $GITHUB_OUTPUT
                 echo "copy_spectra=true" >> $GITHUB_OUTPUT
                 echo "copy_sdfxs=true" >> $GITHUB_OUTPUT
                 ;;
