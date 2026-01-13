@@ -6,6 +6,45 @@ import { saveToCache, loadFromCache, getFallbackDistributors } from "./wardenCac
 
 const BOTMARKET = getAddress("0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF");
 
+// Quest Board ABI for fetching quest data on-chain (fallback when API doesn't have ended quests)
+const QUEST_BOARD_ABI = parseAbi([
+  "function quests(uint256 questID) view returns (address creator, address rewardToken, address gauge, uint48 duration, uint48 periodStart, uint48 totalRewardAmount, uint256 minRPV, uint256 maxRPV, uint256 minObjective, uint256 maxObjective, uint8 closeScenario, uint8 status)"
+]);
+
+/**
+ * Fetches gauge address from Quest Board contract on-chain
+ * Used as fallback when the quest is not in the active quests API response
+ */
+const fetchGaugeOnChain = async (
+  boardAddress: string,
+  questID: string
+): Promise<string | null> => {
+  try {
+    const client = createPublicClient({
+      chain: mainnet,
+      transport: http(),
+    });
+
+    const result = await client.readContract({
+      address: boardAddress as `0x${string}`,
+      abi: QUEST_BOARD_ABI,
+      functionName: "quests",
+      args: [BigInt(questID)],
+    });
+
+    // result[2] is the gauge address
+    const gauge = result[2] as string;
+    if (gauge && gauge !== "0x0000000000000000000000000000000000000000") {
+      console.log(`Found gauge on-chain for quest ${questID}: ${gauge}`);
+      return getAddress(gauge);
+    }
+    return null;
+  } catch (error) {
+    console.error(`Failed to fetch gauge on-chain for quest ${questID}:`, error);
+    return null;
+  }
+};
+
 interface WardenBounty {
   amount: string;
   rewardToken: string;
@@ -248,27 +287,39 @@ export const fetchWardenClaimedBounties = async (
   
   // Step 4: Match questIds with gauge information
   const protocolBounties: {[protocol: string]: {[index: string]: WardenBounty}} = {};
-  
+
   for (const [protocol, bounties] of Object.entries(allClaimedBounties)) {
     if (!protocolBounties[protocol]) {
       protocolBounties[protocol] = {};
     }
-    
+
     const quests = questsByProtocol[protocol] || [];
+    const distributors = distributorsByProtocol[protocol] || [];
+    // Get board address for on-chain fallback (use first mainnet distributor's board)
+    const mainnetDistributor = distributors.find(d => d.chainId === 1);
+    const boardAddress = mainnetDistributor?.board;
+
     let index = 0;
-    
+
     for (const bounty of bounties) {
-      // Find matching quest
+      // Find matching quest from API
       const matchingQuest = quests.find(q => q.questID.toString() === bounty.questID);
-      
+
       if (matchingQuest) {
         bounty.gauge = matchingQuest.gauge;
+      } else if (boardAddress) {
+        // Fallback: fetch gauge on-chain for ended/inactive quests
+        console.log(`Quest ${bounty.questID} not found in active quests, fetching gauge on-chain...`);
+        const onChainGauge = await fetchGaugeOnChain(boardAddress, bounty.questID);
+        if (onChainGauge) {
+          bounty.gauge = onChainGauge;
+        }
       }
-      
+
       protocolBounties[protocol][index.toString()] = bounty;
       index++;
     }
   }
-  
+
   return protocolBounties;
 };
