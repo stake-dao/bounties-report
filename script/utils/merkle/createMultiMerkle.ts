@@ -270,8 +270,9 @@ export const createMultiMerkle = async (
       }
     }
 
-    if (pendleRewards) {
-      // Add all rewards from non-found gauges to the DELEGATION_ADDRESS
+    // Add all rewards from non-found gauges (gauges with bribes but no voters) to the DELEGATION_ADDRESS
+    // This applies to ALL spaces, not just Pendle, to ensure rewards are never lost
+    if (delegationRewardsForNonFoundGauges > 0) {
       let delegationVoter = voters.find(
         (v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
       );
