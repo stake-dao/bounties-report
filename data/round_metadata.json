@@ -44,7 +44,7 @@
                     {
                         "step": 4,
                         "date": "20-01-2026",
-                        "distributed": ""
+                        "distributed": "10:09"
                     }
                 ]
             },
@@ -104,23 +104,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x0435bbec344d7e865e3c69ab5386749d1d4c91550f359937c60f37d2e5c43435",
-                        "start": "01-01-2026 02:00",
-                        "end": "06-01-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "13-01-2026",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0x48a8292bc84a1224335341c3cd20087ac75e841ae39b08db69948aad627ee03f",
                         "start": "08-01-2026 02:00",
                         "end": "13-01-2026 15:00"
@@ -133,6 +116,23 @@
                         "distributed": ""
                     }
                 ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x03d553daebaef9d5e0949bab1c445d34d0223894345aaa73536cb41b068e1861",
+                        "start": "15-01-2026 02:00",
+                        "end": "20-01-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "27-01-2026",
+                        "distributed": ""
+                    }
+                ]
             }
         ],
         "currentRoundId": 1
@@ -141,28 +141,6 @@
         "rounds": [
             {
                 "id": 1,
-                "proposals": [
-                    {
-                        "id": "0x4918244f309137096668c624412073b4584adbed24ea25c460d182be4a850935",
-                        "start": "18-12-2025 02:00",
-                        "end": "23-12-2025 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "30-12-2025",
-                        "distributed": "09:38"
-                    },
-                    {
-                        "step": 2,
-                        "date": "06-01-2026",
-                        "distributed": "10:41"
-                    }
-                ]
-            },
-            {
-                "id": 2,
                 "proposals": [
                     {
                         "id": "0x57677898a6aebb198da87988989448a9b46c20ad8996166f136760dd67bc62fd",
@@ -179,11 +157,33 @@
                     {
                         "step": 2,
                         "date": "20-01-2026",
+                        "distributed": "10:09"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xf3c37c0b7b0b0dafaa12a7b09605187147abac22d7eeb8cdf91707ce20dde05f",
+                        "start": "15-01-2026 02:00",
+                        "end": "20-01-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "27-01-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "03-02-2026",
                         "distributed": ""
                     }
                 ]
             }
         ],
-        "currentRoundId": 2
+        "currentRoundId": 1
     }
 }
