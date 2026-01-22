@@ -466,7 +466,6 @@ async function main() {
 			delegationVotingPower: result.delegationVotingPower,
 			delegationShare: result.delegationShare,
 			timestamp: result.timestamp,
-			tokens: result.tokens,
 			sdtUsdPerAURA: result.sdtUsdPerAURA,
 			sdtAmount: result.sdtAmount,
 		};
