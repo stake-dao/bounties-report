@@ -390,18 +390,11 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 	// Calculate USD per AURA (weekly)
 	const usdPerAURA = delegationVotingPower > 0 ? rewardValueUSD / delegationVotingPower : 0;
 	const delegationShare = totalVotingPower > 0 ? delegationVotingPower / totalVotingPower : 0;
-	const annualizedAPR = usdPerAURA * 52 * 100;
-
-	// Validate APR is in reasonable range
-	if (annualizedAPR > 500) {
-		console.warn(`Warning: Calculated APR (${annualizedAPR.toFixed(2)}%) seems unusually high`);
-	}
 
 	console.log("\n=== vlAURA APR Calculation Results ===");
 	console.log(`Total Reward Value USD: $${rewardValueUSD.toFixed(2)}`);
 	console.log(`Delegation VP: ${delegationVotingPower.toFixed(2)}`);
 	console.log(`USD per AURA (weekly): $${usdPerAURA.toFixed(6)}`);
-	console.log(`Annualized APR: ${annualizedAPR.toFixed(2)}%`);
 
 	return {
 		totalVotingPower,
@@ -442,7 +435,6 @@ async function main() {
 		const outputData = {
 			rewardValueUSD: result.rewardValueUSD,
 			usdPerAURA: result.usdPerAURA,
-			apr: result.usdPerAURA * 52 * 100, // Annualized APR as percentage
 			totalVotingPower: result.totalVotingPower,
 			delegationVotingPower: result.delegationVotingPower,
 			delegationShare: result.delegationShare,
@@ -459,7 +451,6 @@ async function main() {
 		console.log(`Delegation Share: ${(result.delegationShare * 100).toFixed(2)}%`);
 		console.log(`Total Reward Value: $${result.rewardValueUSD.toFixed(2)}`);
 		console.log(`USD per AURA (weekly): $${result.usdPerAURA.toFixed(6)}`);
-		console.log(`Annualized APR: ${(result.usdPerAURA * 52 * 100).toFixed(2)}%`);
 		console.log(`Data saved to: ${outputPath}`);
 	} catch (error) {
 		console.error("Error:", error);
