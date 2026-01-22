@@ -15,7 +15,7 @@ import {
 } from "../../utils/snapshot";
 import { extractCSV } from "../../utils/utils";
 import * as moment from "moment";
-import { processAllDelegators } from "../../utils/cacheUtils";
+import { getVlAuraDelegators, getSnapshotBlocks } from "../../utils/vlAuraUtils";
 import {
   computeStakeDaoDelegation,
   computeDelegationSummary,
@@ -26,8 +26,6 @@ import {
   computeNonDelegatorsDistribution,
   Distribution,
 } from "./nonDelegators";
-
-import { getClient } from "../../utils/getClients";
 
 dotenv.config();
 
@@ -83,13 +81,6 @@ const main = async () => {
 
   const proposal = await getProposal(proposalId);
 
-  // Get snapshot block timestamp
-  const publicClient = await getClient(1);
-  const block = await (publicClient as any).getBlock({
-    blockNumber: BigInt(proposal.snapshot),
-  });
-  const snapshotBlockTimestamp = block.timestamp;
-
   // Fetch Aura gauge choices mapping (from aura-contracts repo)
   console.log("Fetching Aura gauge choices mapping...");
   const auraGaugeChoices = await fetchAuraGaugeChoices();
@@ -112,12 +103,10 @@ const main = async () => {
 
   let stakeDaoDelegators: string[] = [];
   if (isDelegationAddressVoter) {
-    console.log("Delegation address is among voters; fetching delegators...");
-    stakeDaoDelegators = await processAllDelegators(
-      VLAURA_SPACE,
-      Number(snapshotBlockTimestamp),
-      DELEGATION_ADDRESS
-    );
+    console.log("Delegation address voted; fetching on-chain delegators from GraphQL...");
+    stakeDaoDelegators = await getVlAuraDelegators();
+    console.log(`Fetched ${stakeDaoDelegators.length} delegators from GraphQL API`);
+    
     // Remove delegators who voted directly
     for (const delegator of stakeDaoDelegators) {
       if (
@@ -131,7 +120,9 @@ const main = async () => {
         );
       }
     }
-    console.log("Final StakeDAO delegators:", stakeDaoDelegators.length);
+    console.log(`Final delegators after exclusions: ${stakeDaoDelegators.length}`);
+  } else {
+    console.log("Delegation address did not vote this period; skipping delegation distribution");
   }
 
   // Compute non-delegators distribution
@@ -142,12 +133,16 @@ const main = async () => {
   // Compute delegation distribution
   let delegationDistribution: DelegationDistribution = {};
   if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
+    // Get snapshot blocks for balance queries (ETH from proposal, Base via timestamp)
+    console.log("Computing snapshot blocks for balance queries...");
+    const snapshotBlocks = await getSnapshotBlocks(BigInt(proposal.snapshot));
+
     for (const [voter, { tokens }] of Object.entries(
       nonDelegatorsDistribution
     )) {
       if (voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
         delegationDistribution = await computeStakeDaoDelegation(
-          proposal,
+          snapshotBlocks,
           stakeDaoDelegators,
           tokens,
           voter
@@ -160,6 +155,11 @@ const main = async () => {
 
   const delegationSummary: DelegationSummary =
     computeDelegationSummary(delegationDistribution);
+
+  if (Object.keys(delegationSummary.delegators).length > 0) {
+    console.log(`Delegation summary: ${Object.keys(delegationSummary.delegators).length} delegators`);
+    console.log(`Total tokens to distribute: ${Object.keys(delegationSummary.totalTokens).length} tokens`);
+  }
 
   // --- Break Down Distributions by Chain ---
   const distributionsByChain: Record<number, Distribution> = { 1: {} };
