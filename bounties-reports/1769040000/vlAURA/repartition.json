@@ -1,0 +1,54 @@
+{
+  "distribution": {
+    "0x68378fCB3A27D5613aFCfddB590d35a6e751972C": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "1013684969"
+      }
+    },
+    "0xBeF27037bC6311b96635E5e9Af3A73EBF6Ca8878": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "70531652"
+      }
+    },
+    "0xAA484Ba6a7f51f00A3f82a11e73b741AE1dEAB58": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "246867786"
+      }
+    },
+    "0x693f30c37D5a0Db9258C636E93Ccf011ACd8c90c": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "31257253"
+      }
+    },
+    "0xbD7316FFbACa9fae4Bc1fd110641fff5223f3eB1": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "4665454"
+      }
+    },
+    "0xE2796EEf9601daa61124E63914D3Af62C16A33eE": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "1416467"
+      }
+    },
+    "0x0ab97008cad303a8C90ea630c282760284c19e93": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "3127732"
+      }
+    },
+    "0x15C577f4b9fbe66735A9bFF9B0B5D3EA2854Bfaa": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "1556352"
+      }
+    },
+    "0xE65c2be6254731e93368CC071A2420b0C961451B": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "31309575"
+      }
+    },
+    "0x57Ef012861c4937A76B5D6061bE800199A2b9100": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "4270554"
+      }
+    }
+  }
+}
