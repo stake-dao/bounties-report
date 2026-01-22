@@ -46,7 +46,7 @@ interface USDPerAURAResult {
 		valueUSD: number;
 		chainId: number;
 	}>;
-	sdtAPR: number;
+	sdtUsdPerAURA: number;
 	sdtAmount: string;
 }
 
@@ -304,7 +304,7 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 			usdPerAURA: 0,
 			timestamp: currentPeriodTimestamp,
 			tokens: {},
-			sdtAPR: 0,
+			sdtUsdPerAURA: 0,
 			sdtAmount: "0",
 		};
 	}
@@ -412,14 +412,14 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 	const delegationShare = totalVotingPower > 0 ? delegationVotingPower / totalVotingPower : 0;
 
 	// Calculate SDT APR separately
-	const sdtAPR = delegationVotingPower > 0 ? sdtValueUSD / delegationVotingPower : 0;
+	const sdtUsdPerAURA = delegationVotingPower > 0 ? sdtValueUSD / delegationVotingPower : 0;
 
 	console.log("\n=== vlAURA APR Calculation Results ===");
 	console.log(`Total Reward Value USD (excl. SDT): $${rewardValueUSD.toFixed(2)}`);
 	console.log(`SDT Value USD: $${sdtValueUSD.toFixed(2)}`);
 	console.log(`Delegation VP: ${delegationVotingPower.toFixed(2)}`);
 	console.log(`USD per AURA (weekly, excl. SDT): $${usdPerAURA.toFixed(6)}`);
-	console.log(`SDT APR (weekly): $${sdtAPR.toFixed(6)}`);
+	console.log(`SDT USD per AURA (weekly): $${sdtUsdPerAURA.toFixed(6)}`);
 
 	return {
 		totalVotingPower,
@@ -429,7 +429,7 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 		usdPerAURA,
 		timestamp: currentPeriodTimestamp,
 		tokens: tokensData,
-		sdtAPR,
+		sdtUsdPerAURA,
 		sdtAmount: sdtAmount.toString(),
 	};
 }
@@ -467,7 +467,7 @@ async function main() {
 			delegationShare: result.delegationShare,
 			timestamp: result.timestamp,
 			tokens: result.tokens,
-			sdtAPR: result.sdtAPR,
+			sdtUsdPerAURA: result.sdtUsdPerAURA,
 			sdtAmount: result.sdtAmount,
 		};
 
@@ -481,7 +481,7 @@ async function main() {
 		console.log(`Total Reward Value (excl. SDT): $${result.rewardValueUSD.toFixed(2)}`);
 		console.log(`USD per AURA (weekly, excl. SDT): $${result.usdPerAURA.toFixed(6)}`);
 		console.log(`SDT Amount: ${result.sdtAmount}`);
-		console.log(`SDT APR (weekly): $${result.sdtAPR.toFixed(6)}`);
+		console.log(`SDT USD per AURA (weekly): $${result.sdtUsdPerAURA.toFixed(6)}`);
 		console.log(`Data saved to: ${outputPath}`);
 	} catch (error) {
 		console.error("Error:", error);
