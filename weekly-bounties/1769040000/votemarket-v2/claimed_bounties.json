@@ -407,6 +407,14 @@
       "amount": "146302476",
       "rewardToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "isWrapped": false
+    },
+    "51": {
+      "chainId": 8453,
+      "bountyId": "63",
+      "gauge": "0x2600365693F922C164E35289F2A23287002Fe0Bb",
+      "amount": "661343677",
+      "rewardToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "isWrapped": false
     }
   },
   "balancer": {
@@ -467,6 +475,47 @@
       "isWrapped": true
     }
   },
-  "fxn": {},
+  "fxn": {
+    "0": {
+      "chainId": 42161,
+      "bountyId": "89",
+      "gauge": "0x695C6F5ed9CEB6709E00C08e1326710F3169B922",
+      "amount": "108672422556711191980032",
+      "rewardToken": "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF",
+      "isWrapped": true
+    },
+    "1": {
+      "chainId": 42161,
+      "bountyId": "88",
+      "gauge": "0xa295829c082C4d21fE37dbC8C96bFa0ef6dbaa92",
+      "amount": "50113189676411018099712",
+      "rewardToken": "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF",
+      "isWrapped": true
+    },
+    "2": {
+      "chainId": 42161,
+      "bountyId": "91",
+      "gauge": "0x2122a2bee97545595550b85379AC7676Fd21a5B4",
+      "amount": "380434507",
+      "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "isWrapped": true
+    },
+    "3": {
+      "chainId": 42161,
+      "bountyId": "90",
+      "gauge": "0xA3c0f7360b922136cc8B89063BE1e8daF70427bD",
+      "amount": "52298229613483065596",
+      "rewardToken": "0x04ACaF8D2865c0714F79da09645C13FD2888977f",
+      "isWrapped": true
+    },
+    "4": {
+      "chainId": 42161,
+      "bountyId": "86",
+      "gauge": "0x9c7003bC16F2A1AA47451C858FEe6480B755363e",
+      "amount": "36257806689010357321",
+      "rewardToken": "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF",
+      "isWrapped": true
+    }
+  },
   "pendle": {}
 }
