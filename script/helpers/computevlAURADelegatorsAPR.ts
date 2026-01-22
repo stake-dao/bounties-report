@@ -19,6 +19,9 @@ import {
 	VLAURA_SPACE,
 	WEEK,
 } from "../utils/constants";
+
+// SDT token address (excluded from main APR, calculated separately)
+const SDT_ADDRESS = "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f";
 import { extractCSV } from "../utils/utils";
 import { writeFileSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
@@ -43,6 +46,8 @@ interface USDPerAURAResult {
 		valueUSD: number;
 		chainId: number;
 	}>;
+	sdtAPR: number;
+	sdtAmount: string;
 }
 
 type VlAuraCSVType = Record<
@@ -299,6 +304,8 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 			usdPerAURA: 0,
 			timestamp: currentPeriodTimestamp,
 			tokens: {},
+			sdtAPR: 0,
+			sdtAmount: "0",
 		};
 	}
 
@@ -344,6 +351,8 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 
 	// Calculate USD value
 	let rewardValueUSD = 0;
+	let sdtValueUSD = 0;
+	let sdtAmount = 0n;
 	const tokensData: Record<string, { symbol?: string; amount: string; valueUSD: number; chainId: number }> = {};
 
 	for (const [token, amount] of Object.entries(totalTokens)) {
@@ -352,6 +361,7 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 		const chainId = tokenChainIds[token] || 1;
 		const normalizedAddress = getAddress(token);
 		const llamaNetwork = LLAMA_NETWORK_MAPPING[chainId];
+		const isSDT = token.toLowerCase() === SDT_ADDRESS.toLowerCase();
 
 		if (!llamaNetwork) {
 			console.warn(`No Llama network mapping for chain ${chainId}`);
@@ -366,35 +376,50 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 			const amountInUnits = Number(amount) / Math.pow(10, decimals);
 			const valueUSD = amountInUnits * tokenPriceUSD;
 
-			rewardValueUSD += valueUSD;
-			tokensData[normalizedAddress] = {
-				amount: amount.toString(),
-				valueUSD,
-				chainId,
-			};
-
-			console.log(`Token ${normalizedAddress} on chain ${chainId}:`);
+			// SDT is tracked separately, not included in main rewardValueUSD
+			if (isSDT) {
+				sdtValueUSD = valueUSD;
+				sdtAmount = amount;
+				console.log(`SDT Token (excluded from main APR):`);
+			} else {
+				rewardValueUSD += valueUSD;
+				tokensData[normalizedAddress] = {
+					amount: amount.toString(),
+					valueUSD,
+					chainId,
+				};
+				console.log(`Token ${normalizedAddress} on chain ${chainId}:`);
+			}
 			console.log(`  Amount: ${amountInUnits.toFixed(6)}`);
 			console.log(`  Price: $${tokenPriceUSD.toFixed(4)}`);
 			console.log(`  Value: $${valueUSD.toFixed(2)}`);
 		} else {
 			console.warn(`No price found for ${normalizedAddress} on chain ${chainId}`);
-			tokensData[normalizedAddress] = {
-				amount: amount.toString(),
-				valueUSD: 0,
-				chainId,
-			};
+			if (!isSDT) {
+				tokensData[normalizedAddress] = {
+					amount: amount.toString(),
+					valueUSD: 0,
+					chainId,
+				};
+			} else {
+				sdtAmount = amount;
+			}
 		}
 	}
 
-	// Calculate USD per AURA (weekly)
+	// Calculate USD per AURA (weekly) - excluding SDT
 	const usdPerAURA = delegationVotingPower > 0 ? rewardValueUSD / delegationVotingPower : 0;
 	const delegationShare = totalVotingPower > 0 ? delegationVotingPower / totalVotingPower : 0;
 
+	// Calculate SDT APR separately
+	const sdtAPR = delegationVotingPower > 0 ? sdtValueUSD / delegationVotingPower : 0;
+
 	console.log("\n=== vlAURA APR Calculation Results ===");
-	console.log(`Total Reward Value USD: $${rewardValueUSD.toFixed(2)}`);
+	console.log(`Total Reward Value USD (excl. SDT): $${rewardValueUSD.toFixed(2)}`);
+	console.log(`SDT Value USD: $${sdtValueUSD.toFixed(2)}`);
 	console.log(`Delegation VP: ${delegationVotingPower.toFixed(2)}`);
-	console.log(`USD per AURA (weekly): $${usdPerAURA.toFixed(6)}`);
+	console.log(`USD per AURA (weekly, excl. SDT): $${usdPerAURA.toFixed(6)}`);
+	console.log(`SDT APR (weekly): $${sdtAPR.toFixed(6)}`);
 
 	return {
 		totalVotingPower,
@@ -404,6 +429,8 @@ async function computeVlAURADelegatorsAPR(overrideTimestamp?: number): Promise<U
 		usdPerAURA,
 		timestamp: currentPeriodTimestamp,
 		tokens: tokensData,
+		sdtAPR,
+		sdtAmount: sdtAmount.toString(),
 	};
 }
 
@@ -440,6 +467,8 @@ async function main() {
 			delegationShare: result.delegationShare,
 			timestamp: result.timestamp,
 			tokens: result.tokens,
+			sdtAPR: result.sdtAPR,
+			sdtAmount: result.sdtAmount,
 		};
 
 		writeFileSync(outputPath, JSON.stringify(outputData, null, 2));
@@ -449,8 +478,10 @@ async function main() {
 		console.log(`Total Voting Power: ${result.totalVotingPower.toFixed(2)}`);
 		console.log(`Delegation Voting Power: ${result.delegationVotingPower.toFixed(2)}`);
 		console.log(`Delegation Share: ${(result.delegationShare * 100).toFixed(2)}%`);
-		console.log(`Total Reward Value: $${result.rewardValueUSD.toFixed(2)}`);
-		console.log(`USD per AURA (weekly): $${result.usdPerAURA.toFixed(6)}`);
+		console.log(`Total Reward Value (excl. SDT): $${result.rewardValueUSD.toFixed(2)}`);
+		console.log(`USD per AURA (weekly, excl. SDT): $${result.usdPerAURA.toFixed(6)}`);
+		console.log(`SDT Amount: ${result.sdtAmount}`);
+		console.log(`SDT APR (weekly): $${result.sdtAPR.toFixed(6)}`);
 		console.log(`Data saved to: ${outputPath}`);
 	} catch (error) {
 		console.error("Error:", error);
