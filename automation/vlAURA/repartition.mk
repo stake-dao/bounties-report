@@ -16,7 +16,7 @@ install-deps:
 	@$(PNPM) add -D tsx
 
 run-claims: setup install-deps
-	@echo "Generating vlAURA Votemarket claims..."
+	@echo "Generating vlAURA Votemarket V2 claims..."
 	@$(PNPM) tsx script/vlAURA/claims/generateVotemarketV2.ts
 
 run-report: setup install-deps

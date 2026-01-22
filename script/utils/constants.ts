@@ -67,6 +67,7 @@ export const VLCVX_NON_DELEGATORS_MERKLE =
 // vlAURA
 export const VLAURA_SPACE = "gauges.aurafinance.eth";
 export const VLAURA_LOCKER = "0xaF52695E1bB01A16D33D7194C28C42b10e0Dbec2";
+export const VLAURA_RECIPIENT = "0x0974b559631428391e6519E21B35c87c818cAC25";
 export const SPECTRA_SAFE_MODULE =
   "0xDF9848EB9C1027AEA967270A74Dd3dd35Cb9Ab5D" as `0x${string}`;
 export const SDFXS_UNIVERSAL_MERKLE =
@@ -367,5 +368,6 @@ export const VOTEMARKET_CONVEX_LOCKER_CONFIGS: PlatformConfigs = {
     },
   ],
 };
+
 
 export { getClient, getRedundantClients, clearClientCache } from "./getClients";

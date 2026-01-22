@@ -7,7 +7,10 @@ dotenv.config();
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { generateMerkleTree } from "../utils";
 import { MerkleData } from "../../interfaces/MerkleData";
-import { WEEK } from "../../utils/constants";
+import { WEEK, VLAURA_RECIPIENT, VLAURA_SPACE } from "../../utils/constants";
+import { mainnet } from "../../utils/chains";
+import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
+import { fetchLastProposalsIds } from "../../utils/snapshot";
 
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
@@ -149,6 +152,30 @@ async function processChain(chainId: string, reportsDir: string) {
 
   fs.writeFileSync(merkleFile, JSON.stringify(newMerkleData, null, 2));
   console.log(`Chain ${chainId}: Saved merkle to ${merkleFile}`);
+
+  // Run verification for mainnet
+  if (chainId === "1") {
+    const now = Math.floor(Date.now() / 1000);
+    const filter = "Gauge Weight for Week of";
+    (async () => {
+      const proposalIdPerSpace = await fetchLastProposalsIds(
+        [VLAURA_SPACE],
+        now,
+        filter
+      );
+      const proposalId = proposalIdPerSpace[VLAURA_SPACE];
+      console.log(`Running verification against proposal: ${proposalId}`);
+      distributionVerifier(
+        VLAURA_SPACE,
+        mainnet,
+        VLAURA_RECIPIENT as `0x${string}`,
+        newMerkleData,
+        previousMerkleData,
+        currentDistribution.distribution,
+        proposalId
+      );
+    })().catch(console.error);
+  }
 
   // Log summary of totals per token
   const totals: Record<string, bigint> = {};

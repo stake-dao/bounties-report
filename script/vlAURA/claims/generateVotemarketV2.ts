@@ -1,7 +1,7 @@
 import { fetchVotemarketV2ClaimedBounties } from "../../utils/claims/votemarketV2Claims";
 import fs from "fs";
 import path from "path";
-import { VLAURA_LOCKER } from "../../utils/constants";
+import { VLAURA_RECIPIENT } from "../../utils/constants";
 import { getTimestampsBlocks } from "../../utils/reportUtils";
 import { getClient } from "../../utils/getClients";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
@@ -53,15 +53,15 @@ async function generateVlAuraVotemarketV2Bounties(pastWeek: number = 0) {
 
     console.log(`Fetching vlAURA Votemarket V2 bounties...`);
     console.log(`Period: ${currentPeriod}`);
-    console.log(`Locker: ${VLAURA_LOCKER}`);
+    console.log(`Recipient: ${VLAURA_RECIPIENT}`);
     console.log(`Timestamp range: ${timestamp1} - ${timestamp2}`);
 
-    // Fetch bounties for balancer protocol
+    // Fetch bounties for balancer protocol (Aura is a claimer on Balancer gauges)
     const balancerVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
       "balancer",
       timestamp1,
       timestamp2,
-      VLAURA_LOCKER as `0x${string}`
+      VLAURA_RECIPIENT as `0x${string}`
     );
 
     // Convert arrays to objects with numeric string keys
