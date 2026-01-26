@@ -1,0 +1,39 @@
+{
+  "protocol": "fxn",
+  "period": 1769040000,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 0,
+    "sdAssigned": 0,
+    "wethInTotal": 0,
+    "wethOutTotal": 0
+  },
+  "dropped": {
+    "tokensNotSwapped": [
+      "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef",
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "0x04acaf8d2865c0714f79da09645c13fd2888977f",
+      "0xdbdb4d16eda451d0503b854cf79d55697f90c8df"
+    ],
+    "wethNotSwapped": true
+  },
+  "perToken": {
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x04acaf8d2865c0714f79da09645c13fd2888977f": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": {
+      "mappedWeth": 0,
+      "sd": 0
+    }
+  },
+  "txs": []
+}
