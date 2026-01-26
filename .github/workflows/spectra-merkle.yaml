@@ -38,8 +38,20 @@ jobs:
       - name: Install node dependencies
         run: pnpm install
 
-      - name: Run Spectra report + repartition + merkle
-        run: make -f automation/spectra/run.mk run-all
+      - name: Run Spectra report
+        run: pnpm tsx script/spectra/1_report.ts
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Run Spectra repartition
+        run: pnpm tsx script/spectra/2_repartition.ts
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Run Spectra universal merkle generation
+        run: pnpm tsx script/sdTkns/generateUniversalMerkleSpectra.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
