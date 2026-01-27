@@ -781,10 +781,6 @@ export const getDelegationVotingPower = async (
       const batch = delegatorAddresses.slice(i, i + batchSize);
       const batchNum = Math.floor(i / batchSize) + 1;
 
-      if (totalBatches > 1) {
-        console.log(`[getDelegationVotingPower] Processing batch ${batchNum}/${totalBatches} (${batch.length} addresses)`);
-      }
-
       const { data } = await axios.post("https://score.snapshot.org/api/scores", {
         params: {
           network,
