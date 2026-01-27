@@ -760,7 +760,9 @@ export const addVotersFromAutoVoter = async (
 export const getDelegationVotingPower = async (
   proposal: any,
   delegatorAddresses: string[],
-  network: string
+  network: string,
+  batchSize: number = 50, // Default batch size of 50 addresses
+  delayMs: number = 2000 // Delay between batches
 ): Promise<Record<string, number>> => {
   try {
     // Filter out the "delegation" strategy to get only raw VP
@@ -770,39 +772,57 @@ export const getDelegationVotingPower = async (
       (s: { name: string }) => s.name !== "delegation"
     );
 
-    const { data } = await axios.post("https://score.snapshot.org/api/scores", {
-      params: {
-        network,
-        snapshot: parseInt(proposal.snapshot),
-        strategies: strategiesWithoutDelegation,
-        space: proposal.space.id,
-        addresses: delegatorAddresses,
-      },
-    });
-
-    if (!data?.result?.scores) {
-      throw new Error("No score");
-    }
-
     let result: Record<string, number> = {};
-    for (const score of data.result.scores) {
-      const parsedScore: Record<string, number> = {};
-      for (const addressScore of Object.keys(score)) {
-        parsedScore[addressScore.toLowerCase()] = score[addressScore];
+
+    // Process addresses in batches to avoid Snapshot API limits
+    const totalBatches = Math.ceil(delegatorAddresses.length / batchSize);
+
+    for (let i = 0; i < delegatorAddresses.length; i += batchSize) {
+      const batch = delegatorAddresses.slice(i, i + batchSize);
+      const batchNum = Math.floor(i / batchSize) + 1;
+
+      if (totalBatches > 1) {
+        console.log(`[getDelegationVotingPower] Processing batch ${batchNum}/${totalBatches} (${batch.length} addresses)`);
       }
 
-      let newResult = { ...result };
-      for (const address of Object.keys(newResult)) {
-        if (typeof parsedScore[address.toLowerCase()] !== "undefined") {
-          newResult[address] += parsedScore[address.toLowerCase()];
-          delete parsedScore[address.toLowerCase()];
+      const { data } = await axios.post("https://score.snapshot.org/api/scores", {
+        params: {
+          network,
+          snapshot: parseInt(proposal.snapshot),
+          strategies: strategiesWithoutDelegation,
+          space: proposal.space.id,
+          addresses: batch,
+        },
+      });
+
+      if (!data?.result?.scores) {
+        throw new Error("No score");
+      }
+
+      for (const score of data.result.scores) {
+        const parsedScore: Record<string, number> = {};
+        for (const addressScore of Object.keys(score)) {
+          parsedScore[addressScore.toLowerCase()] = score[addressScore];
         }
+
+        let newResult = { ...result };
+        for (const address of Object.keys(newResult)) {
+          if (typeof parsedScore[address.toLowerCase()] !== "undefined") {
+            newResult[address] += parsedScore[address.toLowerCase()];
+            delete parsedScore[address.toLowerCase()];
+          }
+        }
+
+        result = {
+          ...newResult,
+          ...parsedScore,
+        };
       }
 
-      result = {
-        ...newResult,
-        ...parsedScore,
-      };
+      // Delay between batches (except for last batch)
+      if (i + batchSize < delegatorAddresses.length) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
     }
 
     return result;

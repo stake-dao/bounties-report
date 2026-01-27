@@ -393,8 +393,50 @@ export const getVotingPower = async (
   proposal: Proposal,
   addresses: string[],
   network: string = "1",
-  includeExistingVp: boolean = false
+  includeExistingVp: boolean = false,
+  batchSize: number = 0, // 0 = no batching (default), >0 = batch size
+  delayMs: number = 1000 // delay between batches
 ): Promise<Record<string, number>> => {
+  // If batching is enabled and we have more addresses than batch size
+  if (batchSize > 0 && addresses.length > batchSize) {
+    console.log(`Batching ${addresses.length} addresses into chunks of ${batchSize}`);
+    const result: Record<string, number> = {};
+
+    for (let i = 0; i < addresses.length; i += batchSize) {
+      const batch = addresses.slice(i, i + batchSize);
+      const batchNum = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(addresses.length / batchSize);
+      console.log(`Processing batch ${batchNum}/${totalBatches} (${batch.length} addresses)`);
+
+      try {
+        const batchResult = await getVotingPower(proposal, batch, network, false, 0);
+        Object.assign(result, batchResult);
+
+        // Delay between batches (except for last batch)
+        if (i + batchSize < addresses.length) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      } catch (error: any) {
+        console.error(`Batch ${batchNum} failed:`, error?.response?.data || error.message);
+        throw error;
+      }
+    }
+
+    if (includeExistingVp) {
+      addresses.forEach((address) => {
+        const vote = (addresses as any as Vote[]).find(
+          (v) => v.voter.toLowerCase() === address.toLowerCase()
+        );
+        if (vote && vote.vp && vote.vp > 0) {
+          result[address.toLowerCase()] = vote.vp;
+        }
+      });
+    }
+
+    return result;
+  }
+
+  // Original single-request logic
   try {
     const { data } = await axios.post<ScoreResponse>(
       "https://score.snapshot.org/api/scores",
