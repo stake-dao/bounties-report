@@ -141,6 +141,7 @@ jobs:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          VLAURA_GRAPHQL_ENDPOINT: https://snapshot-indexer.contact-69d.workers.dev/v1/graphql
 
       - name: "[vlAURA] Run vlAURA-merkle"
         if: steps.determine.outputs.token == 'vlAURA' && (steps.determine.outputs.step == 'vlAURA-merkle')

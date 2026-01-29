@@ -236,4 +236,7 @@ async function main() {
   console.log("\nvlAURA merkle generation completed successfully.");
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

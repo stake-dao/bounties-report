@@ -200,4 +200,7 @@ async function main() {
   console.log(message.replace(/<\/?[^>]+(>|$)/g, "")); // Remove HTML tags for console output
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -277,4 +277,7 @@ const main = async () => {
   console.log("vlAURA repartition generation completed successfully.");
 };
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

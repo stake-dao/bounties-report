@@ -126,7 +126,10 @@ function generateGlobalMerkleForChain(chainId: string) {
   }
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
 
 /**
  * Processes one gauge type (either "curve" or "fxn") by:

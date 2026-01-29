@@ -689,4 +689,7 @@ async function processForwarders() {
 }
 
 // Run the forwarders processing flow
-processForwarders().catch(console.error);
+processForwarders().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
