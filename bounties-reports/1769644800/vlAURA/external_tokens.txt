@@ -1,0 +1,21 @@
+vlAURA External Tokens - Period 1769644800
+==========================================
+Tokens added manually (exclude from withdrawal)
+
+Chain 1 (Mainnet)
+-----------------
+GHO:  3,458.468371519031755579
+      Token: 0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f
+      Wei:   3458468371519031755579
+
+Chain 42161 (Arbitrum)
+----------------------
+GHO:  64.500922108204761460
+      Token: 0x7dfF72693f6A4149b17e7C6314655f6A9F7c8B33
+      Wei:   64500922108204761460
+
+Chain 8453 (Base)
+-----------------
+GHO:  258.145079085980363986
+      Token: 0x6Bb7a212910682DCFdbd5BCBb3e28FB4E8da10Ee
+      Wei:   258145079085980363986
