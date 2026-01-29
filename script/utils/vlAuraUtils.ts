@@ -231,10 +231,145 @@ export async function fetchOnChainDelegationEvents(
  * Get list of delegator addresses currently delegating to StakeDAO
  * @param chainId - Optional chain ID filter
  * @returns Array of delegator addresses (lowercase)
+ * @deprecated Use getVlAuraDelegatorsAtTimestamp for accurate historical queries
  */
 export async function getVlAuraDelegators(chainId?: number): Promise<string[]> {
   const delegations = await fetchOnChainDelegations(STAKE_DAO_VOTER, chainId);
   return delegations.map((d) => d.delegator.toLowerCase());
+}
+
+/**
+ * Get list of delegator addresses who were delegating to StakeDAO at a specific timestamp.
+ * Reconstructs delegation state by replaying events up to the given timestamp.
+ * This mirrors vlCVX's processAllDelegators behavior.
+ *
+ * @param beforeTimestamp - Unix timestamp to get delegators at (e.g., proposal.start)
+ * @param chainId - Optional chain ID filter
+ * @returns Array of delegator addresses (lowercase) who were delegating at that time
+ */
+export async function getVlAuraDelegatorsAtTimestamp(
+  beforeTimestamp: number,
+  chainId?: number
+): Promise<string[]> {
+  // Get all delegation events TO StakeDAO before the timestamp
+  const delegationEvents = await fetchOnChainDelegationEvents(
+    STAKE_DAO_VOTER,
+    beforeTimestamp,
+    chainId
+  );
+
+  // Also get un-delegation events FROM StakeDAO before the timestamp
+  // (delegators who stopped delegating to StakeDAO)
+  const undelegationEvents = await fetchUndelegationEvents(
+    STAKE_DAO_VOTER,
+    beforeTimestamp,
+    chainId
+  );
+
+  // Build a map of delegator -> their latest event timestamp and type
+  const delegatorState = new Map<string, { timestamp: string; isDelegating: boolean }>();
+
+  // Process delegation events (delegating TO StakeDAO)
+  for (const event of delegationEvents) {
+    const delegator = event.delegator.toLowerCase();
+    const existing = delegatorState.get(delegator);
+
+    if (!existing || BigInt(event.timestamp) > BigInt(existing.timestamp)) {
+      delegatorState.set(delegator, {
+        timestamp: event.timestamp,
+        isDelegating: true,
+      });
+    }
+  }
+
+  // Process un-delegation events (stopped delegating to StakeDAO)
+  for (const event of undelegationEvents) {
+    const delegator = event.delegator.toLowerCase();
+    const existing = delegatorState.get(delegator);
+
+    if (!existing || BigInt(event.timestamp) > BigInt(existing.timestamp)) {
+      delegatorState.set(delegator, {
+        timestamp: event.timestamp,
+        isDelegating: false,
+      });
+    }
+  }
+
+  // Return only delegators whose latest event shows they're still delegating
+  const activeDelegators: string[] = [];
+  for (const [delegator, state] of delegatorState) {
+    if (state.isDelegating) {
+      activeDelegators.push(delegator);
+    }
+  }
+
+  console.log(`Found ${activeDelegators.length} delegators at timestamp ${beforeTimestamp}`);
+  return activeDelegators;
+}
+
+/**
+ * Fetch un-delegation events (when someone stops delegating to a delegate)
+ * @param delegate - The delegate address they stopped delegating to
+ * @param beforeTimestamp - Optional timestamp filter
+ * @param chainId - Optional chain ID filter
+ */
+async function fetchUndelegationEvents(
+  delegate: string,
+  beforeTimestamp?: number,
+  chainId?: number
+): Promise<OnChainDelegationEvent[]> {
+  const conditions = [
+    `fromDelegate: { _eq: "${delegate.toLowerCase()}" }`,
+    `protocol: { _eq: "aura" }`,
+  ];
+
+  if (chainId) {
+    conditions.push(`chainId: { _eq: ${chainId} }`);
+  }
+
+  if (beforeTimestamp) {
+    conditions.push(`timestamp: { _lte: "${beforeTimestamp}" }`);
+  }
+
+  const query = `
+    query GetUndelegationEvents {
+      OnChainDelegationEvent(
+        where: { ${conditions.join(", ")} }
+        order_by: { timestamp: desc }
+      ) {
+        id
+        chainId
+        protocol
+        delegator
+        fromDelegate
+        toDelegate
+        block
+        timestamp
+      }
+    }
+  `;
+
+  try {
+    const response = await axios.post<GraphQLResponse<OnChainDelegationEventResponse>>(
+      GRAPHQL_ENDPOINT,
+      { query },
+      {
+        timeout: 30000,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!response.data?.data?.OnChainDelegationEvent) {
+      return [];
+    }
+
+    return response.data.data.OnChainDelegationEvent;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error("GraphQL request failed:", error.message);
+    }
+    throw error;
+  }
 }
 
 /**

@@ -15,7 +15,8 @@ import {
 } from "../../utils/snapshot";
 import { extractCSV } from "../../utils/utils";
 import * as moment from "moment";
-import { getVlAuraDelegators, getSnapshotBlocks } from "../../utils/vlAuraUtils";
+import { getVlAuraDelegatorsAtTimestamp, getSnapshotBlocks } from "../../utils/vlAuraUtils";
+import { getClient } from "../../utils/getClients";
 import {
   computeStakeDaoDelegation,
   computeDelegationSummary,
@@ -81,6 +82,14 @@ const main = async () => {
 
   const proposal = await getProposal(proposalId);
 
+  // Get snapshot block timestamp (like vlCVX does)
+  const publicClient = await getClient(1);
+  const snapshotBlock = await publicClient.getBlock({
+    blockNumber: BigInt(proposal.snapshot),
+  });
+  const snapshotBlockTimestamp = Number(snapshotBlock.timestamp);
+  console.log(`Snapshot block ${proposal.snapshot} at timestamp ${snapshotBlockTimestamp}`);
+
   // Fetch Aura gauge choices mapping (from aura-contracts repo)
   console.log("Fetching Aura gauge choices mapping...");
   const auraGaugeChoices = await fetchAuraGaugeChoices();
@@ -103,9 +112,10 @@ const main = async () => {
 
   let stakeDaoDelegators: string[] = [];
   if (isDelegationAddressVoter) {
-    console.log("Delegation address voted; fetching on-chain delegators from GraphQL...");
-    stakeDaoDelegators = await getVlAuraDelegators();
-    console.log(`Fetched ${stakeDaoDelegators.length} delegators from GraphQL API`);
+    console.log("Delegation address voted; fetching on-chain delegators at proposal snapshot...");
+    // Use snapshotBlockTimestamp (like vlCVX does)
+    stakeDaoDelegators = await getVlAuraDelegatorsAtTimestamp(snapshotBlockTimestamp);
+    console.log(`Fetched ${stakeDaoDelegators.length} delegators at snapshot block timestamp (${snapshotBlockTimestamp})`);
     
     // Remove delegators who voted directly
     for (const delegator of stakeDaoDelegators) {

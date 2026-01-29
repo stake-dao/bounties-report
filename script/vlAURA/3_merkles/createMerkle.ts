@@ -12,7 +12,9 @@ import { mainnet } from "../../utils/chains";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { fetchLastProposalsIds } from "../../utils/snapshot";
 
-const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
+const currentPeriodTimestamp = process.env.PERIOD_TIMESTAMP
+  ? parseInt(process.env.PERIOD_TIMESTAMP)
+  : Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
 // Supported chain IDs for vlAURA
 const SUPPORTED_CHAIN_IDS = ["1", "42161", "10", "8453", "137"];
