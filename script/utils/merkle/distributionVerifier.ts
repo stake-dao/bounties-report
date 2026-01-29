@@ -357,7 +357,7 @@ export const distributionVerifier = async (
     const snapshotChainId = "1";
     await delegationLogger(space, activeProposal, votes, log, snapshotChainId);
   } catch (error) {
-    log(`⚠️  Warning: Could not fetch delegation data from snapshot.org: ${error instanceof Error ? error.message : String(error)}`);
+    log(`⚠️  Warning: Could not fetch delegation data: ${error instanceof Error ? error.message : String(error)}`);
     log("Continuing with distribution verification...\n");
   }
   log(`\nTotal Votes: ${votes.length}`);

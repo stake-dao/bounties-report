@@ -2,11 +2,12 @@ import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
 import { getBlockNumberByTimestamp } from "./chainUtils";
 import { processAllDelegators } from "./cacheUtils";
-import { getClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
+import { getClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY, VLAURA_SPACE } from "./constants";
 import { getVotingPower } from "./snapshot";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
 import { verifyDelegators, fetchDelegatorsWithFallback } from "./delegationAPIUtils";
+import { getSnapshotBlocks, getDelegatorsWithBalances, formatVlAuraBalance } from "./vlAuraUtils";
 
 // VOTIUM
 export const getForwardedDelegators = async (
@@ -151,9 +152,15 @@ export const fetchDelegatorData = async (
   options: { verify?: boolean; useFallback?: boolean } = {}
 ): Promise<DelegatorDataAugmented | null> => {
   const { verify = false, useFallback = false } = options;
-  
+
+  // For vlAURA, use on-chain method instead of Snapshot's score API
+  // (Snapshot's erc20-votes-with-override strategy doesn't work at historical blocks)
+  if (space === VLAURA_SPACE) {
+    return fetchVlAuraDelegatorData(proposal);
+  }
+
   let delegators: string[];
-  
+
   if (useFallback) {
     // Use parquet with API fallback
     delegators = await fetchDelegatorsWithFallback(
@@ -192,11 +199,51 @@ export const fetchDelegatorData = async (
     }
   }
 
-  const votingPowers = await getVotingPower(proposal, delegators, chainId);
+  // Use batching to avoid overloading Snapshot's score API
+  const votingPowers = await getVotingPower(proposal, delegators, chainId, false, 5, 1000);
   const totalVotingPower = Object.values(votingPowers).reduce(
     (acc, vp) => acc + vp,
     0
   );
+
+  return {
+    delegators,
+    votingPowers,
+    totalVotingPower,
+  };
+};
+
+/**
+ * Fetch vlAURA delegator data using on-chain queries
+ * (Snapshot's score API doesn't work with erc20-votes-with-override strategy at historical blocks)
+ */
+const fetchVlAuraDelegatorData = async (
+  proposal: any
+): Promise<DelegatorDataAugmented | null> => {
+  // Get snapshot blocks for all chains based on proposal snapshot
+  const snapshotBlocks = await getSnapshotBlocks(BigInt(proposal.snapshot));
+
+  // Get delegators with their vlAURA balances
+  const delegatorsWithBalances = await getDelegatorsWithBalances(snapshotBlocks);
+
+  if (delegatorsWithBalances.length === 0) return null;
+
+  // Convert to the expected format
+  const delegators: string[] = [];
+  const votingPowers: Record<string, number> = {};
+  let totalVotingPower = 0;
+
+  for (const delegator of delegatorsWithBalances) {
+    const address = delegator.address.toLowerCase();
+    // Convert from wei (18 decimals) to human-readable number
+    const vp = Number(delegator.totalBalance) / 1e18;
+
+    delegators.push(address);
+    votingPowers[address] = vp;
+    totalVotingPower += vp;
+  }
+
+  console.log(`vlAURA on-chain: ${delegators.length} delegators, total VP: ${formatVlAuraBalance(BigInt(Math.floor(totalVotingPower * 1e18)))}`);
 
   return {
     delegators,

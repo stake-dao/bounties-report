@@ -88,5 +88,18 @@ export const computeDelegationSummary = (
     }
   }
 
+  // Validate that shares sum to 1 (with tolerance for floating point errors)
+  const sharesSum = Object.values(delegators).reduce(
+    (acc, share) => acc + parseFloat(share),
+    0
+  );
+  const tolerance = 1e-9;
+  if (Math.abs(sharesSum - 1) > tolerance) {
+    throw new Error(
+      `Delegation shares do not sum to 1. Sum: ${sharesSum}, difference: ${Math.abs(sharesSum - 1)}`
+    );
+  }
+  console.log(`Delegation shares validated: sum = ${sharesSum}`);
+
   return { totalTokens, delegators };
 };
