@@ -14,6 +14,27 @@ import { ContractRegistry } from "../contractRegistry.js";
 import { VotemarketV2Bounty, VotemarketBounty } from "../types.js";
 import { BSC_CAKE_LOCKER, BSC_CAKE_VM } from "../reportUtils.js";
 
+// Retry helper for contract reads with exponential backoff
+async function retryContractRead<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  context: string = ""
+): Promise<T> {
+  let lastError: any;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+      }
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      console.warn(`[Retry ${attempt + 1}/${maxRetries}] ${context}:`, error);
+    }
+  }
+  throw lastError;
+}
+
 export const fetchVotemarketV2ClaimedBounties = async (
   protocol: string,
   fromTimestamp: number,
@@ -192,6 +213,7 @@ export const fetchVotemarketV2ClaimedBounties = async (
       // Process results and prepare token checks
       const tokenChecks: Array<{index: number, rewardToken: string}> = [];
       const processedBounties: VotemarketV2Bounty[] = [];
+      const failedCampaigns: Array<{index: number, log: any, decodedLog: any}> = [];
 
       for (let i = 0; i < decodedLogs.length; i++) {
         const { log, decodedLog } = decodedLogs[i];
@@ -212,13 +234,14 @@ export const fetchVotemarketV2ClaimedBounties = async (
           const bountyInfo = campaignResult.result as any;
           gauge = bountyInfo[1];
           rewardToken = bountyInfo[3];
-          
+
           // Queue token check for later
           if (rewardToken !== "0x0000000000000000000000000000000000000000") {
             tokenChecks.push({ index: i, rewardToken });
           }
         } else {
-          console.warn(`[Chain ${chain}] Failed to get campaign info for ID ${decodedLog.args.campaignId}`);
+          console.warn(`[Chain ${chain}] Failed to get campaign info for ID ${decodedLog.args.campaignId}, will retry`);
+          failedCampaigns.push({ index: i, log, decodedLog });
         }
 
         // Store initial bounty data
@@ -230,6 +253,42 @@ export const fetchVotemarketV2ClaimedBounties = async (
           rewardToken,
           isWrapped: false,
         };
+      }
+
+      // Retry failed campaigns individually with delay
+      if (failedCampaigns.length > 0) {
+        console.log(`[Chain ${chain}] Retrying ${failedCampaigns.length} failed getCampaign calls...`);
+        for (const { index, log, decodedLog } of failedCampaigns) {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              // Add delay between retries
+              if (attempt > 0) {
+                await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+              }
+              const campaignInfo = await client.readContract({
+                address: getAddress(log.address),
+                abi: campaignAbi,
+                functionName: "getCampaign",
+                args: [decodedLog.args.campaignId],
+              }) as any;
+
+              const gauge = campaignInfo[1];
+              const rewardToken = campaignInfo[3];
+
+              if (gauge !== "0x0000000000000000000000000000000000000000") {
+                processedBounties[index].gauge = gauge;
+                processedBounties[index].rewardToken = rewardToken;
+                if (rewardToken !== "0x0000000000000000000000000000000000000000") {
+                  tokenChecks.push({ index, rewardToken });
+                }
+                console.log(`[Chain ${chain}] Retry successful for campaign ${decodedLog.args.campaignId}`);
+                break;
+              }
+            } catch (error) {
+              console.warn(`[Chain ${chain}] Retry attempt ${attempt + 1}/3 failed for campaign ${decodedLog.args.campaignId}:`, error);
+            }
+          }
+        }
       }
 
       // If we have tokens to check, do it in a single multicall
@@ -290,6 +349,16 @@ export const fetchVotemarketV2ClaimedBounties = async (
         } catch (error) {
           console.warn(`[Chain ${chain}] Failed to check wrapped tokens:`, error);
         }
+      }
+
+      // Check for any bounties that still have zero addresses after retries
+      const zeroAddressBounties = processedBounties.filter(
+        b => b.gauge === "0x0000000000000000000000000000000000000000"
+      );
+      if (zeroAddressBounties.length > 0) {
+        console.error(`[Chain ${chain}] WARNING: ${zeroAddressBounties.length} bounties still have zero gauge addresses after retries:`,
+          zeroAddressBounties.map(b => `campaignId=${b.bountyId}`).join(', ')
+        );
       }
 
       // Add all processed bounties
@@ -412,21 +481,46 @@ export const fetchVotemarketBSCBounties = async (
       strict: true,
     });
 
-    const bountyInfo = await publicClient.readContract({
-      address: getAddress(log.address),
-      abi: platformAbi,
-      functionName: "getBounty",
-      args: [decodedLog.args.bountyId],
-    });
+    try {
+      const bountyInfo = await retryContractRead(
+        () => publicClient.readContract({
+          address: getAddress(log.address),
+          abi: platformAbi,
+          functionName: "getBounty",
+          args: [decodedLog.args.bountyId],
+        }),
+        3,
+        `BSC getBounty for bountyId ${decodedLog.args.bountyId}`
+      );
 
-    const bounty: VotemarketBounty = {
-      bountyId: decodedLog.args.bountyId,
-      gauge: bountyInfo.gauge,
-      amount: decodedLog.args.amount,
-      rewardToken: getAddress(decodedLog.args.rewardToken),
-    };
+      const bounty: VotemarketBounty = {
+        bountyId: decodedLog.args.bountyId,
+        gauge: bountyInfo.gauge,
+        amount: decodedLog.args.amount,
+        rewardToken: getAddress(decodedLog.args.rewardToken),
+      };
 
-    filteredBounties.push(bounty);
+      filteredBounties.push(bounty);
+    } catch (error) {
+      console.error(`[BSC] Failed to get bounty info for ID ${decodedLog.args.bountyId} after retries:`, error);
+      // Still add the bounty with zero gauge so we don't lose the claim amount
+      filteredBounties.push({
+        bountyId: decodedLog.args.bountyId,
+        gauge: "0x0000000000000000000000000000000000000000",
+        amount: decodedLog.args.amount,
+        rewardToken: getAddress(decodedLog.args.rewardToken),
+      });
+    }
+  }
+
+  // Warn if any bounties have zero gauge addresses
+  const zeroGaugeBounties = filteredBounties.filter(
+    b => b.gauge === "0x0000000000000000000000000000000000000000"
+  );
+  if (zeroGaugeBounties.length > 0) {
+    console.error(`[BSC] WARNING: ${zeroGaugeBounties.length} bounties have zero gauge addresses:`,
+      zeroGaugeBounties.map(b => `bountyId=${b.bountyId}`).join(', ')
+    );
   }
 
   return { cake: filteredBounties };

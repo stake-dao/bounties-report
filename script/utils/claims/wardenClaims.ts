@@ -19,30 +19,42 @@ const fetchGaugeOnChain = async (
   boardAddress: string,
   questID: string
 ): Promise<string | null> => {
-  try {
-    const client = createPublicClient({
-      chain: mainnet,
-      transport: http(),
-    });
+  const maxRetries = 3;
+  let lastError: any;
 
-    const result = await client.readContract({
-      address: boardAddress as `0x${string}`,
-      abi: QUEST_BOARD_ABI,
-      functionName: "quests",
-      args: [BigInt(questID)],
-    });
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+      }
 
-    // result[2] is the gauge address
-    const gauge = result[2] as string;
-    if (gauge && gauge !== "0x0000000000000000000000000000000000000000") {
-      console.log(`Found gauge on-chain for quest ${questID}: ${gauge}`);
-      return getAddress(gauge);
+      const client = createPublicClient({
+        chain: mainnet,
+        transport: http(),
+      });
+
+      const result = await client.readContract({
+        address: boardAddress as `0x${string}`,
+        abi: QUEST_BOARD_ABI,
+        functionName: "quests",
+        args: [BigInt(questID)],
+      });
+
+      // result[2] is the gauge address
+      const gauge = result[2] as string;
+      if (gauge && gauge !== "0x0000000000000000000000000000000000000000") {
+        console.log(`Found gauge on-chain for quest ${questID}: ${gauge}`);
+        return getAddress(gauge);
+      }
+      return null;
+    } catch (error) {
+      lastError = error;
+      console.warn(`[Retry ${attempt + 1}/${maxRetries}] Failed to fetch gauge on-chain for quest ${questID}:`, error);
     }
-    return null;
-  } catch (error) {
-    console.error(`Failed to fetch gauge on-chain for quest ${questID}:`, error);
-    return null;
   }
+
+  console.error(`Failed to fetch gauge on-chain for quest ${questID} after ${maxRetries} retries:`, lastError);
+  return null;
 };
 
 interface WardenBounty {
