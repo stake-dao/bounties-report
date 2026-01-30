@@ -11,41 +11,41 @@
     "1": {
       "chainId": 8453,
       "bountyId": "69",
-      "gauge": "0x0000000000000000000000000000000000000000",
+      "gauge": "0xf652cdFC38E1D2fB48d6aC022AadFc2501fd437b",
       "amount": "314479302",
-      "rewardToken": "0x0000000000000000000000000000000000000000",
+      "rewardToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "isWrapped": false
     },
     "2": {
       "chainId": 8453,
       "bountyId": "71",
-      "gauge": "0x0000000000000000000000000000000000000000",
+      "gauge": "0x92106DCFa053A8283213a062735649cbf0e718A2",
       "amount": "11473108999121860384631",
-      "rewardToken": "0x0000000000000000000000000000000000000000",
+      "rewardToken": "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415",
       "isWrapped": false
     },
     "3": {
       "chainId": 8453,
       "bountyId": "73",
-      "gauge": "0x0000000000000000000000000000000000000000",
+      "gauge": "0x0EC820309f07c334A12F46f1d14A4F5cD55bcB1E",
       "amount": "416472589",
-      "rewardToken": "0x0000000000000000000000000000000000000000",
+      "rewardToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "isWrapped": false
     },
     "4": {
       "chainId": 8453,
       "bountyId": "74",
-      "gauge": "0x0000000000000000000000000000000000000000",
+      "gauge": "0x91C95Bb84AA561D93d165Ff24D0e54E6B006447C",
       "amount": "146221858",
-      "rewardToken": "0x0000000000000000000000000000000000000000",
+      "rewardToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "isWrapped": false
     },
     "5": {
       "chainId": 8453,
       "bountyId": "75",
-      "gauge": "0x0000000000000000000000000000000000000000",
+      "gauge": "0xE9c898BA654deC2bA440392028D2e7A194E6dc3e",
       "amount": "9055951585",
-      "rewardToken": "0x0000000000000000000000000000000000000000",
+      "rewardToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "isWrapped": false
     },
     "6": {
@@ -437,10 +437,10 @@
     "0": {
       "chainId": 8453,
       "bountyId": "1",
-      "gauge": "0x0000000000000000000000000000000000000000",
+      "gauge": "0x1dA19f38Eb6F2c22199dC0848118b26095C29aEd",
       "amount": "97111271",
-      "rewardToken": "0x0000000000000000000000000000000000000000",
-      "isWrapped": false
+      "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "isWrapped": true
     },
     "1": {
       "chainId": 42161,
