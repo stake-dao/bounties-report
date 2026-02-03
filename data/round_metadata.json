@@ -29,12 +29,12 @@
                     {
                         "step": 1,
                         "date": "27-01-2026",
-                        "distributed": "10:35"
+                        "distributed": "10:16"
                     },
                     {
                         "step": 2,
                         "date": "03-02-2026",
-                        "distributed": ""
+                        "distributed": "10:28"
                     },
                     {
                         "step": 3,
@@ -104,23 +104,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x03d553daebaef9d5e0949bab1c445d34d0223894345aaa73536cb41b068e1861",
-                        "start": "15-01-2026 02:00",
-                        "end": "20-01-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "27-01-2026",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0x8a01debfcd64764f4261bf9a9adf6875273bf9fda5dda226d385d838353bd6c5",
                         "start": "22-01-2026 02:00",
                         "end": "27-01-2026 15:00"
@@ -130,6 +113,23 @@
                     {
                         "step": 1,
                         "date": "03-02-2026",
+                        "distributed": ""
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x0346775a1ef8355bafdc01cee849f106525327a4bcb034f7f05af73233765484",
+                        "start": "29-01-2026 02:00",
+                        "end": "03-02-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "10-02-2026",
                         "distributed": ""
                     }
                 ]
@@ -143,28 +143,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x57677898a6aebb198da87988989448a9b46c20ad8996166f136760dd67bc62fd",
-                        "start": "01-01-2026 02:00",
-                        "end": "06-01-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "13-01-2026",
-                        "distributed": "10:31"
-                    },
-                    {
-                        "step": 2,
-                        "date": "20-01-2026",
-                        "distributed": "10:09"
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0xf3c37c0b7b0b0dafaa12a7b09605187147abac22d7eeb8cdf91707ce20dde05f",
                         "start": "15-01-2026 02:00",
                         "end": "20-01-2026 15:00"
@@ -174,16 +152,38 @@
                     {
                         "step": 1,
                         "date": "27-01-2026",
-                        "distributed": "10:35"
+                        "distributed": "10:16"
                     },
                     {
                         "step": 2,
                         "date": "03-02-2026",
+                        "distributed": "10:28"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xfb97b2f93f50530d09d41861593bc46ba9f77443c952d250505e6b626a9cb3be",
+                        "start": "29-01-2026 02:00",
+                        "end": "03-02-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "10-02-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "17-02-2026",
                         "distributed": ""
                     }
                 ]
             }
         ],
-        "currentRoundId": 2
+        "currentRoundId": 1
     }
 }
