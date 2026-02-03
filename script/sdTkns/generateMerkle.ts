@@ -652,7 +652,12 @@ const main = async () => {
 
   for (const key of Object.keys(delegationAPRs)) {
     if (delegationAPRs[key] === -1) {
-      delegationAPRs[key] = delegationAPRsClone[key] || 0;
+      // Fallback: prefer clone, then GitHub (previous week), then 0
+      delegationAPRs[key] = delegationAPRsClone[key] || delegationAPRsFromGithub[key] || 0;
+    }
+    // Never overwrite a non-zero APR with 0 - keep previous value
+    if (delegationAPRs[key] === 0 && delegationAPRsFromGithub[key] > 0) {
+      delegationAPRs[key] = delegationAPRsFromGithub[key];
     }
   }
   fs.writeFileSync(
