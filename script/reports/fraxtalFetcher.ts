@@ -9,6 +9,9 @@ export interface SdFXSTransferResult {
   txHashes: string[];
 }
 
+// Fraxtal free tier has a 10,000 block limit per request
+const FRAXTAL_BLOCK_CHUNK_SIZE = 9_000;
+
 /**
  * Fetches sdFXS transfers to the Fraxtal recipient address during the specified week
  * @param weekTimestamp - The timestamp of the week start (should be aligned to WEEK)
@@ -24,31 +27,40 @@ export async function getSdFXSTransfersOnFraxtal(weekTimestamp: number): Promise
 
   console.log(`Fetching sdFXS transfers on Fraxtal from block ${startBlock} to ${endBlock}`);
 
-  // Transfer event signature
-  // const transferSig = "Transfer(address,address,uint256)";
-  // const transferHash = keccak256(encodePacked(["string"], [transferSig]));
+  // Fetch logs in chunks to avoid RPC block range limits
+  const allLogs: any[] = [];
 
-  // Pad the recipient address for topic matching
-  // const paddedRecipient = pad(FRAXTAL_RECIPIENT as `0x${string}`, { size: 32 }).toLowerCase();
+  for (
+    let currentBlock = startBlock;
+    currentBlock <= endBlock;
+    currentBlock += FRAXTAL_BLOCK_CHUNK_SIZE
+  ) {
+    const chunkEndBlock = Math.min(currentBlock + FRAXTAL_BLOCK_CHUNK_SIZE - 1, endBlock);
 
-  // Get transfer logs
-  const logs = await fraxtalClient.getLogs({
-    address: FRAXTAL_SD_FXS as `0x${string}`,
-    event: {
-      type: 'event',
-      name: 'Transfer',
-      inputs: [
-        { type: 'address', indexed: true, name: 'from' },
-        { type: 'address', indexed: true, name: 'to' },
-        { type: 'uint256', indexed: false, name: 'value' }
-      ]
-    },
-    fromBlock: BigInt(startBlock),
-    toBlock: BigInt(endBlock),
-    args: {
-      to: SDFXS_UNIVERSAL_MERKLE as `0x${string}`
-    }
-  });
+    console.log(`  Fetching chunk: blocks ${currentBlock} to ${chunkEndBlock}`);
+
+    const logs = await fraxtalClient.getLogs({
+      address: FRAXTAL_SD_FXS as `0x${string}`,
+      event: {
+        type: 'event',
+        name: 'Transfer',
+        inputs: [
+          { type: 'address', indexed: true, name: 'from' },
+          { type: 'address', indexed: true, name: 'to' },
+          { type: 'uint256', indexed: false, name: 'value' }
+        ]
+      },
+      fromBlock: BigInt(currentBlock),
+      toBlock: BigInt(chunkEndBlock),
+      args: {
+        to: SDFXS_UNIVERSAL_MERKLE as `0x${string}`
+      }
+    });
+
+    allLogs.push(...logs);
+  }
+
+  const logs = allLogs;
 
   // Process logs to calculate total amount
   let totalAmount = 0n;
