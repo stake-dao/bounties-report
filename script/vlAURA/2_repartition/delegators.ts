@@ -36,14 +36,15 @@ export const computeStakeDaoDelegation = async (
   // Store the delegation voter's token totals
   delegationDistribution[delegationVoter] = { tokens: { ...tokens } };
 
-  // Get vlAURA balances for all delegators at snapshot blocks
-  const delegatorsWithBalances = await getDelegatorsWithBalances(snapshotBlocks);
-
-  // Filter to only include delegators in our list and compute total
-  const delegatorSet = new Set(stakeDaoDelegators.map((d) => d.toLowerCase()));
-  const filteredDelegators: AggregatedDelegator[] = delegatorsWithBalances.filter(
-    (d) => delegatorSet.has(d.address.toLowerCase())
+  // Get vlAURA balances for the delegators at snapshot blocks
+  // Pass the delegator list directly to avoid GraphQL dependency
+  const delegatorsWithBalances = await getDelegatorsWithBalances(
+    snapshotBlocks,
+    stakeDaoDelegators
   );
+
+  // All returned delegators should already be in our list
+  const filteredDelegators: AggregatedDelegator[] = delegatorsWithBalances;
 
   const totalVlAura = filteredDelegators.reduce(
     (acc, d) => acc + d.totalBalance,

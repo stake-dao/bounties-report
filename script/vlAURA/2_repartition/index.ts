@@ -15,7 +15,11 @@ import {
 } from "../../utils/snapshot";
 import { extractCSV } from "../../utils/utils";
 import * as moment from "moment";
-import { getVlAuraDelegatorsAtTimestamp, getSnapshotBlocks } from "../../utils/vlAuraUtils";
+import {
+  getVlAuraDelegatorsAtTimestamp,
+  getVlAuraDelegatorsFromParquet,
+  getSnapshotBlocks,
+} from "../../utils/vlAuraUtils";
 import { getClient } from "../../utils/getClients";
 import {
   computeStakeDaoDelegation,
@@ -110,13 +114,19 @@ const main = async () => {
     (voter) => voter.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
   );
 
+  // Get snapshot blocks early - needed for both Parquet queries and balance queries
+  console.log("Computing snapshot blocks for all chains...");
+  const snapshotBlocks = await getSnapshotBlocks(BigInt(proposal.snapshot));
+
   let stakeDaoDelegators: string[] = [];
   if (isDelegationAddressVoter) {
     console.log("Delegation address voted; fetching on-chain delegators at proposal snapshot...");
-    // Use snapshotBlockTimestamp (like vlCVX does)
-    stakeDaoDelegators = await getVlAuraDelegatorsAtTimestamp(snapshotBlockTimestamp);
-    console.log(`Fetched ${stakeDaoDelegators.length} delegators at snapshot block timestamp (${snapshotBlockTimestamp})`);
-    
+
+    // Primary: Use Parquet cache (RPC-indexed, authoritative)
+    // Fallback: GraphQL API (if cache stale/missing)
+    stakeDaoDelegators = await getVlAuraDelegatorsFromParquet(snapshotBlocks);
+    console.log(`Fetched ${stakeDaoDelegators.length} delegators from Parquet/RPC`);
+
     // Remove delegators who voted directly
     for (const delegator of stakeDaoDelegators) {
       if (
@@ -143,10 +153,7 @@ const main = async () => {
   // Compute delegation distribution
   let delegationDistribution: DelegationDistribution = {};
   if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
-    // Get snapshot blocks for balance queries (ETH from proposal, Base via timestamp)
-    console.log("Computing snapshot blocks for balance queries...");
-    const snapshotBlocks = await getSnapshotBlocks(BigInt(proposal.snapshot));
-
+    // snapshotBlocks already computed above for Parquet queries
     for (const [voter, { tokens }] of Object.entries(
       nonDelegatorsDistribution
     )) {

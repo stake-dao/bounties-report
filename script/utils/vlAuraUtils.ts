@@ -1,6 +1,7 @@
 /**
  * vlAURA on-chain delegation utilities
- * - Query delegators from GraphQL API (OnChainDelegation entity)
+ * - Query delegators from Parquet cache (primary, RPC-indexed)
+ * - Fallback to GraphQL API (OnChainDelegation entity)
  * - Fetch vlAURA balances on-chain via AuraLocker contracts
  */
 
@@ -8,6 +9,11 @@ import axios from "axios";
 import type { Address } from "viem";
 import { getClient } from "./getClients";
 import { DELEGATION_ADDRESS } from "./constants";
+import {
+  processVlAuraDelegators,
+  isVlAuraCacheFresh,
+  getVlAuraCacheEndBlock,
+} from "./vlAuraCacheUtils";
 
 // ============================================================================
 // Constants
@@ -308,6 +314,73 @@ export async function getVlAuraDelegatorsAtTimestamp(
 }
 
 /**
+ * Get vlAURA delegators from Parquet cache (RPC-indexed, authoritative)
+ * Falls back to GraphQL if cache is missing or stale.
+ *
+ * @param snapshotBlocks - Map of chainId to block number for each chain
+ * @param targetDelegate - The delegate address to filter for (default: StakeDAO)
+ * @returns Array of unique delegator addresses across all chains
+ */
+export async function getVlAuraDelegatorsFromParquet(
+  snapshotBlocks: Record<number, bigint>,
+  targetDelegate: string = STAKE_DAO_VOTER
+): Promise<string[]> {
+  const allDelegators = new Set<string>();
+  let usedParquet = true;
+
+  for (const chainId of VLAURA_CHAIN_IDS) {
+    const snapshotBlock = snapshotBlocks[chainId];
+    if (!snapshotBlock) {
+      console.warn(`[Chain ${chainId}] No snapshot block provided, skipping`);
+      continue;
+    }
+
+    const blockNum = Number(snapshotBlock);
+
+    // Check if cache is fresh enough
+    const cacheFresh = await isVlAuraCacheFresh(chainId, blockNum);
+
+    if (cacheFresh) {
+      try {
+        const delegators = await processVlAuraDelegators(chainId, targetDelegate, blockNum);
+        console.log(`[Chain ${chainId}] Found ${delegators.length} delegators from Parquet at block ${blockNum}`);
+
+        for (const d of delegators) {
+          allDelegators.add(d.toLowerCase());
+        }
+      } catch (error) {
+        console.warn(`[Chain ${chainId}] Parquet read failed, will use GraphQL fallback:`, error);
+        usedParquet = false;
+      }
+    } else {
+      const cacheEnd = await getVlAuraCacheEndBlock(chainId);
+      console.warn(
+        `[Chain ${chainId}] Parquet cache stale (ends at ${cacheEnd}, need ${blockNum}). ` +
+          `Run 'pnpm tsx script/indexer/vlauraDelegators.ts' to update.`
+      );
+      usedParquet = false;
+    }
+  }
+
+  // If any chain failed Parquet, fall back to GraphQL for all
+  if (!usedParquet) {
+    console.log("Falling back to GraphQL for delegation data...");
+
+    // Get timestamp from ETH block
+    const ethClient = await getClient(1);
+    const ethBlock = await ethClient.getBlock({ blockNumber: snapshotBlocks[1] });
+    const timestamp = Number(ethBlock.timestamp);
+
+    const graphqlDelegators = await getVlAuraDelegatorsAtTimestamp(timestamp);
+    return graphqlDelegators;
+  }
+
+  const result = [...allDelegators];
+  console.log(`Total unique delegators from Parquet: ${result.length}`);
+  return result;
+}
+
+/**
  * Fetch un-delegation events (when someone stops delegating to a delegate)
  * @param delegate - The delegate address they stopped delegating to
  * @param beforeTimestamp - Optional timestamp filter
@@ -558,31 +631,41 @@ export async function getAggregatedVlAuraBalance(
  * @returns Array of aggregated delegator data
  */
 export async function getDelegatorsWithBalances(
-  blocks: Record<number, bigint>
+  blocks: Record<number, bigint>,
+  delegatorList?: string[]
 ): Promise<AggregatedDelegator[]> {
-  // Get delegators from GraphQL
-  const delegatorsByChain = await getVlAuraDelegatorsByChain();
-  
-  // Collect unique delegators
-  const allDelegators = new Set<string>();
-  for (const delegators of delegatorsByChain.values()) {
-    for (const d of delegators) {
-      allDelegators.add(d);
+  // Use provided delegator list or fall back to GraphQL
+  let allDelegators: Set<string>;
+
+  if (delegatorList && delegatorList.length > 0) {
+    // Use the provided list (from Parquet/RPC)
+    allDelegators = new Set(delegatorList.map(d => d.toLowerCase()));
+    console.log(`Using ${allDelegators.size} delegators from provided list`);
+  } else {
+    // Fall back to GraphQL
+    const delegatorsByChain = await getVlAuraDelegatorsByChain();
+    allDelegators = new Set<string>();
+    for (const delegators of delegatorsByChain.values()) {
+      for (const d of delegators) {
+        allDelegators.add(d);
+      }
     }
+    console.log(`Using ${allDelegators.size} delegators from GraphQL`);
   }
 
   // Fetch balances for each chain
+  // Query all delegators on all chains (they may have balance on multiple chains)
   const chainBalances = new Map<number, Map<Address, bigint>>();
-  
+  const delegatorArray = [...allDelegators] as Address[];
+
   for (const [chainIdStr, blockNumber] of Object.entries(blocks)) {
     const chainId = Number.parseInt(chainIdStr, 10);
-    const delegatorsOnChain = delegatorsByChain.get(chainId) || [];
-    
-    if (delegatorsOnChain.length === 0) continue;
-    
+
+    if (delegatorArray.length === 0) continue;
+
     const balances = await getBatchVlAuraBalances(
       chainId,
-      delegatorsOnChain as Address[],
+      delegatorArray,
       blockNumber
     );
     chainBalances.set(chainId, balances);
