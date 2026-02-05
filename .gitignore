@@ -5,7 +5,7 @@ tmp/
 venv/
 .nodeenv/
 temp/
-.claude/
+.claude/settings.local.json
 .cache/
 .tmp/
 

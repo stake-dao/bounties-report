@@ -98,6 +98,20 @@ This structure shows:
 - **[Reports Structure](./bounties-reports/README.md)** - Understanding distribution reports
 - **[Raw Token Guide](./README-raw-tokens.md)** - Distributing native tokens
 
+### Claude Code Skills
+This repository includes reusable [Claude Code](https://github.com/anthropics/claude-code) skills in `.claude/commands/`:
+
+| Skill | Description |
+|-------|-------------|
+| `/verify-distrib` | Verify vlCVX and vlAURA weekly distributions against Snapshot data |
+
+**Usage:**
+```bash
+/verify-distrib              # Verify current week
+/verify-distrib 1769644800   # Verify specific timestamp
+/verify-distrib --deep       # Include full delegation VP verification
+```
+
 ## 🚀 Quick Start
 
 ### Installation
