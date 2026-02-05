@@ -24,7 +24,8 @@ dotenv.config();
 const main = async () => {
   console.log("Starting Spectra repartition generation...");
   const now = moment.utc().unix();
-  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+  const pastWeek = process.env.PAST_WEEK ? parseInt(process.env.PAST_WEEK) : 0;
+  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK - (pastWeek * WEEK);
 
   // Extract CSV report
   console.log("Extracting CSV report...");

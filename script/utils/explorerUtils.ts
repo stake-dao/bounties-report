@@ -127,16 +127,22 @@ class BlockchainExplorerUtils {
     chain_id: number
   ) {
     const results = [];
+    // Use 10k block chunks to avoid explorer API timeouts
+    const CHUNK_SIZE = 10_000;
 
     for (const address of addresses) {
-      let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${address}&apikey=${this.apiKey}`;
-      Object.entries(topics).forEach(([key, value]) => {
-        url += `&topic${key}_${parseInt(key) + 1}_opr=and&topic${key}=${value}`;
-      });
+      for (let currentBlock = fromBlock; currentBlock <= toBlock; currentBlock += CHUNK_SIZE) {
+        const chunkEndBlock = Math.min(currentBlock + CHUNK_SIZE - 1, toBlock);
 
-      const response = await this.makeRequest(url);
-      if (response?.result?.length) {
-        results.push(...response.result);
+        let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${currentBlock}&toBlock=${chunkEndBlock}&address=${address}&apikey=${this.apiKey}`;
+        Object.entries(topics).forEach(([key, value]) => {
+          url += `&topic${key}_${parseInt(key) + 1}_opr=and&topic${key}=${value}`;
+        });
+
+        const response = await this.makeRequest(url);
+        if (response?.result?.length) {
+          results.push(...response.result);
+        }
       }
     }
 
@@ -174,12 +180,25 @@ class BlockchainExplorerUtils {
     topics: { [key: string]: string },
     chain_id: number
   ) {
-    let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&apikey=${this.apiKey}`;
-    for (const [key, value] of Object.entries(topics)) {
-      url += `&topic${key}_${Number.parseInt(key) + 1}_opr=and&topic${key}=${value}`;
+    const results = [];
+    // Use 10k block chunks to avoid explorer API timeouts
+    const CHUNK_SIZE = 10_000;
+
+    for (let currentBlock = fromBlock; currentBlock <= toBlock; currentBlock += CHUNK_SIZE) {
+      const chunkEndBlock = Math.min(currentBlock + CHUNK_SIZE - 1, toBlock);
+
+      let url = `${this.baseUrl}?chainid=${chain_id}&module=logs&action=getLogs&fromBlock=${currentBlock}&toBlock=${chunkEndBlock}&apikey=${this.apiKey}`;
+      for (const [key, value] of Object.entries(topics)) {
+        url += `&topic${key}_${Number.parseInt(key) + 1}_opr=and&topic${key}=${value}`;
+      }
+
+      const response = await this.makeRequest(url);
+      if (response?.result?.length) {
+        results.push(...response.result);
+      }
     }
 
-    return this.makeRequest(url);
+    return { result: results };
   }
 }
 

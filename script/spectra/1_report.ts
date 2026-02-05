@@ -21,7 +21,9 @@ import { encodePacked, keccak256, pad, decodeAbiParameters } from "viem";
 dotenv.config();
 
 const WEEK = 604800;
-const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+// Calculate period based on PAST_WEEK env var
+const pastWeekEnv = process.env.PAST_WEEK ? parseInt(process.env.PAST_WEEK) : 0;
+const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK - (pastWeekEnv * WEEK);
 
 function writeReportToCSV(rows: SpectraClaimed[]) {
   const dirPath = path.join(
@@ -48,13 +50,15 @@ function writeReportToCSV(rows: SpectraClaimed[]) {
 
 async function main() {
   const baseClient = await getClient(8453);
+  // Use pastWeek=1 to get previous week if we just rolled over
+  const pastWeek = process.env.PAST_WEEK ? parseInt(process.env.PAST_WEEK) : 0;
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
     baseClient,
-    0,
+    pastWeek,
     "base"
   );
 
-  const firstReport = await getSpectraDistribution();
+  const firstReport = await getSpectraDistribution(pastWeek);
 
   // Transform the firstReport to the following format
 

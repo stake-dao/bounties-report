@@ -57,14 +57,21 @@ const ptAbi = [
   },
 ] as const;
 
-export async function getSpectraDistribution() {
+export async function getSpectraDistribution(pastWeek: number = 0) {
   const baseClient = await getClient(8453) as any;
 
-  // Fetch new claims from the start of the current epoch to now
+  // Fetch new claims from the start of the epoch to end
   const currentTimestamp = Math.floor(Date.now() / 1000);
   const currentEpoch = Math.floor(currentTimestamp / WEEK) * WEEK;
-  const blockNumber1 = await getClosestBlockTimestamp("base", currentEpoch);
-  const blockNumber2 = await baseClient.getBlockNumber();
+
+  // If pastWeek is specified, use previous week's epoch
+  const targetEpoch = pastWeek > 0 ? currentEpoch - (pastWeek * WEEK) : currentEpoch;
+  const endEpoch = pastWeek > 0 ? targetEpoch + WEEK : currentTimestamp;
+
+  const blockNumber1 = await getClosestBlockTimestamp("base", targetEpoch);
+  const blockNumber2 = pastWeek > 0
+    ? BigInt(await getClosestBlockTimestamp("base", endEpoch))
+    : await baseClient.getBlockNumber();
 
   // Fetch logs in chunks to avoid exceeding RPC block range limit
   // Most RPC endpoints have a limit of 1000-2000 blocks per request

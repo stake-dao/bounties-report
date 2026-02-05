@@ -164,8 +164,9 @@ async function main() {
     }
   }
   
-  // Use timestamp or calculate current period
-  const currentPeriodTimestamp = timestamp || Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+  // Use timestamp, PAST_WEEK env, or calculate current period
+  const pastWeek = process.env.PAST_WEEK ? parseInt(process.env.PAST_WEEK) : 0;
+  const currentPeriodTimestamp = timestamp || (Math.floor(Date.now() / 1000 / WEEK) * WEEK - (pastWeek * WEEK));
   const prevWeekTimestamp = currentPeriodTimestamp - WEEK;
 
   console.log(`Generating sdSpectra merkle for period: ${currentPeriodTimestamp}`);
