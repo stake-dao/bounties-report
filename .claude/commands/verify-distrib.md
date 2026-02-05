@@ -23,26 +23,6 @@ This skill verifies that vlCVX and vlAURA bounty distributions are complete, con
 
 ---
 
-## Step 0: Update Parquet Caches (BEFORE Distribution)
-
-**Run these indexers weekly BEFORE generating repartition files.** They are NOT automatically scheduled.
-
-```bash
-# vlCVX delegations (Snapshot Delegation Registry)
-pnpm tsx script/indexer/delegators.ts
-
-# vlAURA delegations (AuraLocker contracts on ETH + Base)
-pnpm tsx script/indexer/vlauraDelegators.ts
-```
-
-These scripts:
-1. Fetch delegation events from on-chain (incremental, resumes from last block)
-2. Store in Parquet files: `data/delegations/` and `data/vlaura-delegations/`
-3. Used by repartition scripts as authoritative delegation source
-
-**Timing**: Run after the Snapshot proposal closes but before generating repartition.
-
----
 
 ## Step 1: Determine Week Timestamps
 

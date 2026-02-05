@@ -28,6 +28,20 @@ import { parseAbiItem, getAddress } from "viem";
 
 dotenv.config();
 
+// vlCVX token contract address (CvxLockerV2)
+const VLCVX_TOKEN = "0x72a19342e8F1838460eBFCCEf09F6585e32db86E" as const;
+
+// vlCVX ABI for balance check
+const VLCVX_ABI = [
+  {
+    name: "balanceOf",
+    type: "function",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+] as const;
+
 // Snapshot Delegation Registry events
 const SET_DELEGATE_EVENT = parseAbiItem(
   "event SetDelegate(address indexed delegator, bytes32 indexed id, address indexed delegate)"
@@ -46,6 +60,73 @@ interface DelegationEvent {
   timestamp?: number;
 }
 
+
+/**
+ * Fetch voting power (vlCVX balance) for multiple addresses at a specific block
+ * Returns a map of address -> balance
+ */
+async function fetchVotingPowers(
+  addresses: string[],
+  atBlock: bigint
+): Promise<Map<string, bigint>> {
+  const client = await getClient(1);
+  const balances = new Map<string, bigint>();
+
+  if (addresses.length === 0) return balances;
+
+  console.log(`Fetching voting power for ${addresses.length} addresses at block ${atBlock}...`);
+
+  // Use multicall for efficiency
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
+    const batch = addresses.slice(i, i + BATCH_SIZE);
+
+    const calls = batch.map((addr) => ({
+      address: getAddress(VLCVX_TOKEN),
+      abi: VLCVX_ABI,
+      functionName: "balanceOf" as const,
+      args: [getAddress(addr)] as const,
+    }));
+
+    try {
+      const results = await client.multicall({
+        contracts: calls,
+        blockNumber: atBlock,
+      });
+
+      results.forEach((result, index) => {
+        const addr = batch[index].toLowerCase();
+        if (result.status === "success") {
+          balances.set(addr, result.result as bigint);
+        } else {
+          balances.set(addr, 0n);
+        }
+      });
+    } catch (error) {
+      console.warn(`  Multicall failed for batch ${i}, falling back to individual calls`);
+      // Fallback to individual calls
+      for (const addr of batch) {
+        try {
+          const balance = await client.readContract({
+            address: getAddress(VLCVX_TOKEN),
+            abi: VLCVX_ABI,
+            functionName: "balanceOf",
+            args: [getAddress(addr)],
+            blockNumber: atBlock,
+          });
+          balances.set(addr.toLowerCase(), balance);
+        } catch {
+          balances.set(addr.toLowerCase(), 0n);
+        }
+      }
+    }
+  }
+
+  const nonZeroCount = [...balances.values()].filter(b => b > 0n).length;
+  console.log(`  ${nonZeroCount}/${addresses.length} addresses have non-zero VP`);
+
+  return balances;
+}
 
 /**
  * Fetch all SetDelegate and ClearDelegate events from Delegation Registry
@@ -383,11 +464,35 @@ Options:
     console.log(`RPC delegators (raw): ${rpcDelegators.length}`);
 
     // Remove direct voters and delegation address
-    const rpcDelegatorsFiltered = rpcDelegators.filter(
+    const rpcDelegatorsAfterVoters = rpcDelegators.filter(
       (d) =>
         !directVoters.has(d) && d !== stakeDAODelegateAddress.toLowerCase()
     );
-    console.log(`RPC delegators (after filtering): ${rpcDelegatorsFiltered.length}`);
+    console.log(`RPC delegators (after removing voters): ${rpcDelegatorsAfterVoters.length}`);
+
+    // === Filter by voting power ===
+    console.log("\n--- Checking voting power at snapshot block ---");
+    const vpMap = await fetchVotingPowers(rpcDelegatorsAfterVoters, snapshotBlock);
+
+    const zeroVpDelegators: string[] = [];
+    const rpcDelegatorsFiltered: string[] = [];
+
+    for (const delegator of rpcDelegatorsAfterVoters) {
+      const vp = vpMap.get(delegator) || 0n;
+      if (vp > 0n) {
+        rpcDelegatorsFiltered.push(delegator);
+      } else {
+        zeroVpDelegators.push(delegator);
+      }
+    }
+
+    console.log(`Delegators with zero VP: ${zeroVpDelegators.length}`);
+    if (zeroVpDelegators.length > 0 && zeroVpDelegators.length <= 10) {
+      for (const addr of zeroVpDelegators) {
+        console.log(`  ${addr}`);
+      }
+    }
+    console.log(`RPC delegators (after removing zero-VP): ${rpcDelegatorsFiltered.length}`);
 
     // === Parquet-based delegation (for comparison) ===
     console.log("\n--- Fetching delegations via Parquet cache ---");

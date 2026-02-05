@@ -15,10 +15,21 @@ import * as moment from "moment";
 import { getClient } from "../utils/getClients";
 import { DELEGATION_ADDRESS, VLAURA_SPACE, WEEK } from "../utils/constants";
 import { fetchLastProposalsIds, getProposal, getVoters } from "../utils/snapshot";
-import { AURA_LOCKER_ADDRESSES, getVlAuraDelegatorsAtTimestamp } from "../utils/vlAuraUtils";
-import { parseAbiItem, type Address, type Log } from "viem";
+import { AURA_LOCKER_ADDRESSES } from "../utils/vlAuraUtils";
+import { parseAbiItem, getAddress as viemGetAddress, erc20Abi, type Address, type Log } from "viem";
 
 dotenv.config();
+
+// AuraLocker ABI for balance check
+const AURA_LOCKER_ABI = [
+  {
+    name: "balanceOf",
+    type: "function",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+] as const;
 
 // AuraLocker uses standard OZ delegation events
 const DELEGATE_CHANGED_EVENT = parseAbiItem(
@@ -42,6 +53,75 @@ interface DelegationEvent {
 interface DelegatorState {
   latestBlock: bigint;
   isDelegating: boolean;
+}
+
+/**
+ * Fetch voting power (vlAURA balance) for multiple addresses at a specific block
+ * Returns a map of address -> balance
+ */
+async function fetchVotingPowers(
+  chainId: number,
+  addresses: string[],
+  atBlock: bigint
+): Promise<Map<string, bigint>> {
+  const client = await getClient(chainId);
+  const lockerAddress = AURA_LOCKER_ADDRESSES[chainId];
+  const balances = new Map<string, bigint>();
+
+  if (addresses.length === 0) return balances;
+
+  console.log(`[Chain ${chainId}] Fetching voting power for ${addresses.length} addresses at block ${atBlock}...`);
+
+  // Use multicall for efficiency
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
+    const batch = addresses.slice(i, i + BATCH_SIZE);
+
+    const calls = batch.map((addr) => ({
+      address: lockerAddress,
+      abi: AURA_LOCKER_ABI,
+      functionName: "balanceOf" as const,
+      args: [viemGetAddress(addr)] as const,
+    }));
+
+    try {
+      const results = await client.multicall({
+        contracts: calls,
+        blockNumber: atBlock,
+      });
+
+      results.forEach((result, index) => {
+        const addr = batch[index].toLowerCase();
+        if (result.status === "success") {
+          balances.set(addr, result.result as bigint);
+        } else {
+          balances.set(addr, 0n);
+        }
+      });
+    } catch (error) {
+      console.warn(`[Chain ${chainId}] Multicall failed for batch ${i}, falling back to individual calls`);
+      // Fallback to individual calls
+      for (const addr of batch) {
+        try {
+          const balance = await client.readContract({
+            address: lockerAddress,
+            abi: AURA_LOCKER_ABI,
+            functionName: "balanceOf",
+            args: [viemGetAddress(addr)],
+            blockNumber: atBlock,
+          });
+          balances.set(addr.toLowerCase(), balance);
+        } catch {
+          balances.set(addr.toLowerCase(), 0n);
+        }
+      }
+    }
+  }
+
+  const nonZeroCount = [...balances.values()].filter(b => b > 0n).length;
+  console.log(`[Chain ${chainId}] ${nonZeroCount}/${addresses.length} addresses have non-zero VP`);
+
+  return balances;
 }
 
 /**
@@ -210,6 +290,8 @@ async function main() {
 
   // For each chain, fetch events and reconstruct state
   const rpcDelegators = new Set<string>();
+  const chainTargetBlocks: Record<number, bigint> = {};
+  const delegatorsByChain: Record<number, string[]> = { 1: [], 8453: [] };
 
   for (const chainId of [1, 8453]) {
     try {
@@ -239,11 +321,14 @@ async function main() {
         console.log(`[Base] Using block ${targetBlock} at timestamp ${baseBlockData.timestamp}`);
       }
 
+      chainTargetBlocks[chainId] = targetBlock;
+
       const events = await fetchDelegateChangedEvents(chainId, targetBlock);
       const delegators = reconstructDelegationState(events, stakeDAODelegateAddress, targetBlock);
 
       console.log(`[Chain ${chainId}] Found ${delegators.length} delegators to StakeDAO at block ${targetBlock}`);
 
+      delegatorsByChain[chainId] = delegators;
       for (const d of delegators) {
         rpcDelegators.add(d);
       }
@@ -255,17 +340,126 @@ async function main() {
   console.log(`\nTotal unique delegators from RPC: ${rpcDelegators.size}`);
 
   // Remove direct voters
-  const rpcDelegatorsFiltered = [...rpcDelegators].filter(d => !directVoters.has(d));
-  console.log(`After removing direct voters: ${rpcDelegatorsFiltered.length}`);
+  const rpcDelegatorsAfterVoters = [...rpcDelegators].filter(d => !directVoters.has(d));
+  console.log(`After removing direct voters: ${rpcDelegatorsAfterVoters.length}`);
 
-  // === Compare with GraphQL API (existing method) ===
+  // === Filter by voting power ===
   console.log("\n" + "=".repeat(80));
-  console.log("Fetching delegations via GraphQL API (for comparison)");
+  console.log("Checking voting power at snapshot block");
   console.log("=".repeat(80));
 
-  let graphqlDelegators = await getVlAuraDelegatorsAtTimestamp(snapshotTimestamp);
-  graphqlDelegators = graphqlDelegators.filter(d => !directVoters.has(d.toLowerCase()));
-  console.log(`GraphQL API delegators (after filtering): ${graphqlDelegators.length}`);
+  // Fetch VP for all delegators on each chain
+  const allVotingPowers = new Map<string, bigint>();
+
+  for (const chainId of [1, 8453]) {
+    const targetBlock = chainTargetBlocks[chainId];
+    if (!targetBlock) continue;
+
+    // Get delegators that haven't voted directly
+    const chainDelegators = delegatorsByChain[chainId].filter(d => !directVoters.has(d));
+    if (chainDelegators.length === 0) continue;
+
+    const vpMap = await fetchVotingPowers(chainId, chainDelegators, targetBlock);
+
+    // Merge into allVotingPowers (sum across chains)
+    for (const [addr, vp] of vpMap) {
+      const existing = allVotingPowers.get(addr) || 0n;
+      allVotingPowers.set(addr, existing + vp);
+    }
+  }
+
+  // Filter out zero-VP delegators
+  const zeroVpDelegators: string[] = [];
+  const rpcDelegatorsFiltered: string[] = [];
+
+  for (const delegator of rpcDelegatorsAfterVoters) {
+    const vp = allVotingPowers.get(delegator) || 0n;
+    if (vp > 0n) {
+      rpcDelegatorsFiltered.push(delegator);
+    } else {
+      zeroVpDelegators.push(delegator);
+    }
+  }
+
+  console.log(`\nDelegators with zero VP: ${zeroVpDelegators.length}`);
+  if (zeroVpDelegators.length > 0 && zeroVpDelegators.length <= 10) {
+    for (const addr of zeroVpDelegators) {
+      console.log(`  ${addr}`);
+    }
+  }
+  console.log(`After removing zero-VP delegators: ${rpcDelegatorsFiltered.length}`);
+
+  // === Compare with Parquet cache ===
+  console.log("\n" + "=".repeat(80));
+  console.log("Fetching delegations via Parquet cache (for comparison)");
+  console.log("=".repeat(80));
+
+  const hyparquet = await import("hyparquet");
+  const parquetFiles: Record<number, string> = {
+    1: "data/vlaura-delegations/1/0x3Fa73f1E5d8A792C80F426fc8F84FBF7Ce9bBCAC.parquet",
+    8453: "data/vlaura-delegations/8453/0x9e1f4190f1a8Fe0cD57421533deCB57F9980922e.parquet",
+  };
+
+  const parquetDelegators = new Set<string>();
+
+  for (const [chainIdStr, filePath] of Object.entries(parquetFiles)) {
+    const chainId = Number(chainIdStr);
+    // Use chain-specific snapshot block
+    const targetBlock = chainId === 1 ? snapshotBlock : await (async () => {
+      const baseClient = await getClient(8453);
+      const latestBlock = await baseClient.getBlock({ blockTag: "latest" });
+      let low = AURA_LOCKER_CREATION_BLOCKS[8453];
+      let high = latestBlock.number;
+      while (low < high) {
+        const mid = (low + high) / 2n;
+        const block = await baseClient.getBlock({ blockNumber: mid });
+        if (block.timestamp < BigInt(snapshotTimestamp)) {
+          low = mid + 1n;
+        } else {
+          high = mid;
+        }
+      }
+      return low;
+    })();
+
+    if (!fs.existsSync(filePath)) {
+      console.log(`[Chain ${chainId}] Parquet file not found: ${filePath}`);
+      continue;
+    }
+
+    let events: any[] = [];
+    await hyparquet.parquetRead({
+      file: await hyparquet.asyncBufferFromFile(filePath),
+      rowFormat: "object",
+      onComplete: (result: any[]) => { events = result; },
+    });
+
+    // Build delegation state at snapshot
+    const delegatorState = new Map<string, { toDelegate: string; block: number }>();
+    for (const e of events) {
+      if (e.event === "EndBlock") continue;
+      const block = Number(e.blockNumber);
+      if (block > Number(targetBlock)) continue;
+      const existing = delegatorState.get(e.delegator);
+      if (!existing || block > existing.block) {
+        delegatorState.set(e.delegator, { toDelegate: e.toDelegate, block });
+      }
+    }
+
+    // Find delegators to StakeDAO
+    let count = 0;
+    for (const [delegator, state] of delegatorState) {
+      if (state.toDelegate === stakeDAODelegateAddress) {
+        parquetDelegators.add(delegator);
+        count++;
+      }
+    }
+    console.log(`[Chain ${chainId}] Parquet: ${count} delegators at snapshot`);
+  }
+
+  // Filter out direct voters from parquet
+  const parquetDelegatorsFiltered = [...parquetDelegators].filter(d => !directVoters.has(d));
+  console.log(`Parquet delegators (after filtering direct voters): ${parquetDelegatorsFiltered.length}`);
 
   // === Comparison ===
   console.log("\n" + "=".repeat(80));
@@ -273,29 +467,29 @@ async function main() {
   console.log("=".repeat(80));
 
   const rpcSet = new Set(rpcDelegatorsFiltered.map(d => d.toLowerCase()));
-  const graphqlSet = new Set(graphqlDelegators.map(d => d.toLowerCase()));
+  const parquetSet = new Set(parquetDelegatorsFiltered.map(d => d.toLowerCase()));
   const existingSet = new Set(existingDelegators);
 
   console.log(`\nDelegator counts:`);
   console.log(`  - RPC (DelegateChanged events): ${rpcSet.size}`);
-  console.log(`  - GraphQL API: ${graphqlSet.size}`);
+  console.log(`  - Parquet cache: ${parquetSet.size}`);
   console.log(`  - Existing repartition file: ${existingSet.size}`);
 
   // Find differences
-  const inRpcNotGraphql = [...rpcSet].filter(d => !graphqlSet.has(d));
-  const inGraphqlNotRpc = [...graphqlSet].filter(d => !rpcSet.has(d));
+  const inRpcNotParquet = [...rpcSet].filter(d => !parquetSet.has(d));
+  const inParquetNotRpc = [...parquetSet].filter(d => !rpcSet.has(d));
   const inRpcNotExisting = [...rpcSet].filter(d => !existingSet.has(d));
   const inExistingNotRpc = [...existingSet].filter(d => !rpcSet.has(d));
 
   console.log(`\nDifferences:`);
-  console.log(`  - In RPC but NOT in GraphQL: ${inRpcNotGraphql.length}`);
-  if (inRpcNotGraphql.length > 0) {
-    console.log(`    ${inRpcNotGraphql.join("\n    ")}`);
+  console.log(`  - In RPC but NOT in Parquet: ${inRpcNotParquet.length}`);
+  if (inRpcNotParquet.length > 0) {
+    console.log(`    ${inRpcNotParquet.join("\n    ")}`);
   }
 
-  console.log(`  - In GraphQL but NOT in RPC: ${inGraphqlNotRpc.length}`);
-  if (inGraphqlNotRpc.length > 0) {
-    console.log(`    ${inGraphqlNotRpc.join("\n    ")}`);
+  console.log(`  - In Parquet but NOT in RPC: ${inParquetNotRpc.length}`);
+  if (inParquetNotRpc.length > 0) {
+    console.log(`    ${inParquetNotRpc.join("\n    ")}`);
   }
 
   console.log(`\n  - In RPC but NOT in existing file: ${inRpcNotExisting.length}`);
@@ -308,6 +502,12 @@ async function main() {
     console.log(`    ${inExistingNotRpc.join("\n    ")}`);
   }
 
+  // Parquet staleness check
+  if (inRpcNotParquet.length > 0) {
+    console.log(`\n⚠️  PARQUET CACHE STALE: ${inRpcNotParquet.length} delegators in RPC but not in Parquet`);
+    console.log("   Run: pnpm tsx script/indexer/vlauraDelegators.ts");
+  }
+
   // Final verdict
   console.log("\n" + "=".repeat(80));
   if (rpcSet.size === existingSet.size && inRpcNotExisting.length === 0 && inExistingNotRpc.length === 0) {
@@ -317,7 +517,7 @@ async function main() {
     console.log("   This could indicate stale data in the repartition file");
   } else if (inRpcNotExisting.length > 0) {
     console.log("⚠️  WARNING: Some RPC delegators are MISSING from the repartition file");
-    console.log("   These delegators may be missing rewards!");
+    console.log("   These delegators may be missing rewards (check if they have zero VP)!");
   } else {
     console.log("⚠️  MISMATCH: Delegator counts differ");
   }
