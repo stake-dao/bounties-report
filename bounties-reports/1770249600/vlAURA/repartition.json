@@ -1,0 +1,30 @@
+{
+  "distribution": {
+    "0x68378fCB3A27D5613aFCfddB590d35a6e751972C": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "910544290"
+      }
+    },
+    "0xBeF27037bC6311b96635E5e9Af3A73EBF6Ca8878": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "253167165",
+        "0xd33526068d116ce69f19a9ee46f0bd304f21a51f": "80386607856472671223"
+      }
+    },
+    "0x15C577f4b9fbe66735A9bFF9B0B5D3EA2854Bfaa": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "2272354"
+      }
+    },
+    "0xE65c2be6254731e93368CC071A2420b0C961451B": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "45713591"
+      }
+    },
+    "0x7e65FF4E8c7386b09f20De59aE2F94BB6dAb17fF": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "43972631"
+      }
+    }
+  }
+}
