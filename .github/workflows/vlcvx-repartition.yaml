@@ -1,17 +1,19 @@
-name: "Spectra: Merkle (Report + Repartition + Merkle)"
+name: "vlCVX: Repartition"
 
 on:
   workflow_dispatch:
     inputs:
       dispatch_id:
+        description: 'Unique dispatch ID for tracking'
+        required: true
         type: string
-        description: "Unique ID for Temporal tracking"
-        required: false
-        default: ""
 
 jobs:
-  generate-spectra-merkle:
+  run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,11 +21,16 @@ jobs:
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
           fetch-depth: 0
 
-      - name: Configure git and pull latest changes
+      - name: Configure git
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git pull origin main --rebase
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -35,36 +42,31 @@ jobs:
         with:
           version: 9.12.3
 
-      - name: Install node dependencies
-        run: pnpm install
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
 
-      - name: Run Spectra report
-        run: pnpm tsx script/spectra/1_report.ts
+      - name: Validate reports
+        run: make -f automation/vlCVX/repartition.mk validate-reports
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
-      - name: Run Spectra repartition
-        run: pnpm tsx script/spectra/2_repartition.ts
+      - name: Run repartition
+        run: make -f automation/vlCVX/repartition.mk run-repartition
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
-      - name: Run Spectra universal merkle generation
-        run: pnpm tsx script/sdTkns/generateUniversalMerkleSpectra.ts
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+      - name: Commit
+        run: |
+          git pull --rebase --autostash origin main
+          git add -A
+          git commit -m "chore: vlCVX repartition [${{ inputs.dispatch_id }}]" || true
+          git push
 
-      - name: Rebase on latest main before auto-commit
-        run: git pull --rebase --autostash origin main
-
-      - uses: stefanzweifel/git-auto-commit-action@v6
-        with:
-          commit_message: "chore: spectra merkle [${{ inputs.dispatch_id }}]"
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
-          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+      - name: Cleanup
+        if: always()
+        run: make -f automation/vlCVX/repartition.mk clean || true
 
       - name: Send error notification
         if: failure()
@@ -75,6 +77,6 @@ jobs:
           format: html
           message: |
             <b>Workflow failed</b>
-            <b>Workflow:</b> Spectra Merkle
+            <b>Workflow:</b> vlCVX Repartition
             <b>Dispatch ID:</b> ${{ inputs.dispatch_id }}
             <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View logs</a>

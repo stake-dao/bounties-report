@@ -1,29 +1,41 @@
-name: "Spectra: Merkle (Report + Repartition + Merkle)"
+name: "Claims: Votium"
 
 on:
   workflow_dispatch:
     inputs:
       dispatch_id:
+        description: 'Unique dispatch ID for tracking'
+        required: true
         type: string
-        description: "Unique ID for Temporal tracking"
+      past_week:
+        description: 'Number of weeks in the past (0 for current)'
         required: false
-        default: ""
+        default: "0"
+        type: string
 
 jobs:
-  generate-spectra-merkle:
+  run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Configure git and pull latest changes
+      - name: Configure git
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git pull origin main --rebase
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -35,36 +47,30 @@ jobs:
         with:
           version: 9.12.3
 
-      - name: Install node dependencies
+      - name: Install dependencies
         run: pnpm install
 
-      - name: Run Spectra report
-        run: pnpm tsx script/spectra/1_report.ts
+      - name: Generate votium claims
+        run: pnpm tsx script/vlCVX/claims/generateConvexVotium.ts ${{ inputs.past_week || '0' }}
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
+
+      - name: Run indexer
+        run: |
+          make -f automation/indexer.mk get-delegators
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
-      - name: Run Spectra repartition
-        run: pnpm tsx script/spectra/2_repartition.ts
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-
-      - name: Run Spectra universal merkle generation
-        run: pnpm tsx script/sdTkns/generateUniversalMerkleSpectra.ts
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-
-      - name: Rebase on latest main before auto-commit
-        run: git pull --rebase --autostash origin main
-
-      - uses: stefanzweifel/git-auto-commit-action@v6
-        with:
-          commit_message: "chore: spectra merkle [${{ inputs.dispatch_id }}]"
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
-          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+      - name: Commit
+        run: |
+          git pull --rebase --autostash origin main
+          git add -A
+          git commit -m "chore: votium claims [${{ inputs.dispatch_id }}]" || true
+          git push
 
       - name: Send error notification
         if: failure()
@@ -75,6 +81,6 @@ jobs:
           format: html
           message: |
             <b>Workflow failed</b>
-            <b>Workflow:</b> Spectra Merkle
+            <b>Workflow:</b> Claims Votium
             <b>Dispatch ID:</b> ${{ inputs.dispatch_id }}
             <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View logs</a>
