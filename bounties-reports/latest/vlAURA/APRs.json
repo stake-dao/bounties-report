@@ -1,10 +1,10 @@
 {
-  "rewardValueUSD": 6029.513472572768,
-  "usdPerAURA": 0.0007867864393137872,
-  "totalVotingPower": 15856725.192861615,
-  "delegationVotingPower": 7663468.981279772,
-  "delegationShare": 0.4832945572349147,
-  "timestamp": 1769644800,
+  "rewardValueUSD": 6983.018830041631,
+  "usdPerAURA": 0.0005589338179133431,
+  "totalVotingPower": 22063609.486924965,
+  "delegationVotingPower": 12493462.743247852,
+  "delegationShare": 0.5662474560498162,
+  "timestamp": 1770249600,
   "sdtUsdPerAURA": 0,
   "sdtAmount": "0"
 }

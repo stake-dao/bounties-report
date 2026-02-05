@@ -55,6 +55,12 @@ jobs:
             fi
           done
 
+          # Copy APR file
+          if [ -f "bounties-reports/${PERIOD}/vlAURA/APRs.json" ]; then
+            cp "bounties-reports/${PERIOD}/vlAURA/APRs.json" "bounties-reports/latest/vlAURA/APRs.json"
+            echo "Copied APRs.json to latest/vlAURA/"
+          fi
+
       - name: Commit
         run: |
           git pull --rebase --autostash origin main
