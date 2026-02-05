@@ -141,7 +141,13 @@ export class ClaimsTelegramLogger {
    */
   private formatProtocolName(title: string): string {
     const [protocol, fileName] = title.split("/");
-    return fileName?.includes("convex") ? `${protocol}-convex` : protocol;
+    if (fileName?.includes("vlaura")) {
+      return `${protocol}-aura`;
+    }
+    if (fileName?.includes("convex")) {
+      return `${protocol}-convex`;
+    }
+    return protocol;
   }
 
   /**
