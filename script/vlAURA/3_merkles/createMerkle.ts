@@ -5,7 +5,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import { createCombineDistribution } from "../../utils/merkle/merkle";
-import { generateMerkleTree } from "../utils";
+import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { WEEK, VLAURA_RECIPIENT, VLAURA_SPACE } from "../../utils/constants";
 import { mainnet } from "../../utils/chains";

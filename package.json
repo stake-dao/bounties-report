@@ -15,7 +15,13 @@
     "pendle-extra": "pnpm tsx script/special-distribs/pendleExtra.ts",
     "pendle-extra:no-fee": "pnpm tsx script/special-distribs/pendleExtra.ts --fee 0",
     "yb-distribution": "pnpm tsx script/special-distribs/yb.ts",
-    "check-forwarder": "pnpm tsx script/helpers/checkForwarderRewards.ts"
+    "check-forwarder": "pnpm tsx script/helpers/checkForwarderRewards.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run script/test/unit",
+    "test:integration": "vitest run script/test/integration",
+    "test:snapshot-capture": "pnpm tsx script/test/snapshots/captureSnapshots.ts"
   },
   "author": "",
   "license": "ISC",
@@ -50,6 +56,7 @@
   },
   "devDependencies": {
     "@types/yargs": "^17.0.33",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.18"
   }
 }
