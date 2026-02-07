@@ -5,7 +5,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { UniversalMerkle } from "../interfaces/UniversalMerkle";
 import { getTokenPrices, TokenIdentifier } from "../utils/priceUtils";
-import { generateMerkleTree } from "../vlCVX/utils";
+import { generateMerkleTree } from "../shared/merkle/generateMerkleTree";
 
 const argv = yargs(hideBin(process.argv))
   .option("fee", {

@@ -20,7 +20,7 @@ import {
 	mergeTokenMaps,
 } from "../../utils/reportUtils";
 import { fetchLastProposalsIds } from "../../utils/snapshot";
-import { generateMerkleTree } from "../utils";
+import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { getSCRVUsdTransfer } from "../utils";
 
 // Number of seconds in one week

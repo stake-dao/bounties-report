@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createCombineDistribution } from '../utils/merkle/merkle';
-import { generateMerkleTree } from '../vlCVX/utils';
+import { generateMerkleTree } from '../shared/merkle/generateMerkleTree';
 import { MerkleData } from '../interfaces/MerkleData';
 import { Distribution } from '../interfaces/Distribution';
 import axios from 'axios';

@@ -8,7 +8,7 @@ import {
   SD_SPECTRA,
   WEEK,
 } from "../utils/constants";
-import { generateMerkleTree } from "../vlCVX/utils";
+import { generateMerkleTree } from "../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../interfaces/MerkleData";
 import { createCombineDistribution } from "../utils/merkle/merkle";
 import { fetchTokenInfos } from "../utils/tokens";

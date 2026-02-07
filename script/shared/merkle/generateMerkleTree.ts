@@ -4,8 +4,8 @@ import {
 import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
 import { keccak256 } from "viem";
-import { MerkleData } from "../interfaces/MerkleData";
-import { UniversalMerkle } from "../interfaces/UniversalMerkle";
+import { MerkleData } from "../../interfaces/MerkleData";
+import { UniversalMerkle } from "../../interfaces/UniversalMerkle";
 
 export function generateMerkleTree(distribution: UniversalMerkle): MerkleData {
   const leaves: string[] = [];

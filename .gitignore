@@ -23,3 +23,6 @@ yarn.lock
 
 AGENTS.md
 CLAUDE.md
+
+# Test snapshots (large golden files - capture locally per machine)
+script/test/snapshots/golden/

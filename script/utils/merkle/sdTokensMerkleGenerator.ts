@@ -30,7 +30,7 @@ import { processAllDelegators } from "../cacheUtils";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { Distribution } from "../../interfaces/Distribution";
 import { createCombineDistribution } from "./merkle";
-import { generateMerkleTree } from "../../vlCVX/utils";
+import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 
 export interface SdTokensMerkleConfig {
   space: string;

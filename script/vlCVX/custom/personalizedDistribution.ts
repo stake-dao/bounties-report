@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { getAddress } from "viem";
-import { generateMerkleTree, mergeMerkleData } from "../utils";
+import { generateMerkleTree, mergeMerkleData } from "../../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { UniversalMerkle } from "../../interfaces/UniversalMerkle";
 import {

@@ -2,7 +2,7 @@
 export type Distribution = Record<string, { tokens: Record<string, bigint> }>;
 
 /**
- * Computes vlcvx rewards distribution for non‑delegation voters.
+ * Computes rewards distribution for non-delegation voters.
  * It processes the CSV report and votes using gauge mapping to compute each voter's share.
  */
 export const computeNonDelegatorsDistribution = (
@@ -50,9 +50,8 @@ export const computeNonDelegatorsDistribution = (
       voterVps[voter.voter] = voterShare / totalVp;
     });
 
-    // Use 18-decimal precision.
-    const totalVpBigInt = BigInt(Math.floor(totalVp * 1e18));
-    rewardInfos.forEach(({ rewardAddress, rewardAmount }: any) => {
+    // Distribute rewards based on voting shares
+    (rewardInfos as any[]).forEach(({ rewardAddress, rewardAmount }: any) => {
       let remainingRewards = rewardAmount;
       let processedVoters = 0;
       const totalVoters = Object.keys(voterVps).length;

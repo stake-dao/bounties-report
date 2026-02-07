@@ -17,7 +17,7 @@ import { MerkleData } from "../interfaces/MerkleData";
 import { Distribution } from "../interfaces/Distribution";
 import { distributionVerifier } from "../utils/merkle/distributionVerifier";
 import { fetchLastProposalsIds } from "../utils/snapshot";
-import { generateMerkleTree } from "../vlCVX/utils";
+import { generateMerkleTree } from "../shared/merkle/generateMerkleTree";
 
 dotenv.config();
 
