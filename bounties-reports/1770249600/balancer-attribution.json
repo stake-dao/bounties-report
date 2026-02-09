@@ -1,0 +1,63 @@
+{
+  "protocol": "balancer",
+  "period": 1770249600,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 2276.980777563259,
+    "sdAssigned": 2276.980777563259,
+    "wethInTotal": 1.077293267477042,
+    "wethOutTotal": 1.0751247506286339
+  },
+  "dropped": {
+    "tokensNotSwapped": [
+      "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+      "0x4ecf61a6c2fab8a047ceb3b3b263b401763e9d49"
+    ],
+    "wethNotSwapped": false
+  },
+  "perToken": {
+    "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": {
+      "mappedWeth": 0.016429948054639203,
+      "sd": 34.72654756711694
+    },
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
+      "mappedWeth": 0.2659931608804745,
+      "sd": 562.2065342583596
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0.7948701585419283,
+      "sd": 1680.0476957377825
+    },
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x4ecf61a6c2fab8a047ceb3b3b263b401763e9d49": {
+      "mappedWeth": 0,
+      "sd": 0
+    }
+  },
+  "txs": [
+    {
+      "tx": "0xd5ad80668ae8504614692c038958eddc4470ac55d87652d039a99bb1ac90e8a7",
+      "wethIn": 1.077293267477042,
+      "wethOut": 1.0751247506286339,
+      "sdIn": 2276.980777563259,
+      "nativeIn": 11902.993709538778,
+      "nativeOut": 11904.184127951574,
+      "nativeShareSd": 1.1904184127961344,
+      "wethBasis": 1.077293267477042,
+      "tokenWeth": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.016429948054639203,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.2659931608804745,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0.7948701585419283
+      },
+      "tokenSd": {
+        "0xba100000625a3754423978a60c9317c58a424e3d": 1.1904184127961344,
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 34.708392331884355,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 561.9126095064381,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 1679.1693573121406
+      }
+    }
+  ]
+}
