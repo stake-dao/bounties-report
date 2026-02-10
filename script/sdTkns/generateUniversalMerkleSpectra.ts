@@ -15,7 +15,7 @@ import { fetchTokenInfos } from "../utils/tokens";
 import { base } from "../utils/chains";
 import { Distribution } from "../interfaces/Distribution";
 import { distributionVerifier } from "../utils/merkle/distributionVerifier";
-import { getLastClosedProposal } from "../utils/snapshot";
+import { getLastClosedProposals } from "../utils/snapshot";
 
 dotenv.config();
 
@@ -283,7 +283,9 @@ async function main() {
     console.log(`- ${merkleDataPath} (backward compatibility)`);
 
     // Step 8: Verification
-    const proposal = await getLastClosedProposal(SPECTRA_SPACE);
+    // Bounties are claimed for the PREVIOUS voting period
+    const proposals = await getLastClosedProposals(SPECTRA_SPACE, 2 + pastWeek);
+    const proposal = proposals[1 + pastWeek];
     const proposalId = proposal.id;
 
     console.log(`\nRunning verification against proposal: ${proposalId}`);
