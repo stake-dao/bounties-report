@@ -29,17 +29,17 @@
                     {
                         "step": 1,
                         "date": "27-01-2026",
-                        "distributed": "10:16"
+                        "distributed": "10:35"
                     },
                     {
                         "step": 2,
                         "date": "03-02-2026",
-                        "distributed": "10:28"
+                        "distributed": "10:15"
                     },
                     {
                         "step": 3,
                         "date": "10-02-2026",
-                        "distributed": ""
+                        "distributed": "10:05"
                     },
                     {
                         "step": 4,
@@ -104,23 +104,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x8a01debfcd64764f4261bf9a9adf6875273bf9fda5dda226d385d838353bd6c5",
-                        "start": "22-01-2026 02:00",
-                        "end": "27-01-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "03-02-2026",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0x0346775a1ef8355bafdc01cee849f106525327a4bcb034f7f05af73233765484",
                         "start": "29-01-2026 02:00",
                         "end": "03-02-2026 15:00"
@@ -130,6 +113,23 @@
                     {
                         "step": 1,
                         "date": "10-02-2026",
+                        "distributed": ""
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x69b49dc2fe5faa8c16c0cbbb0af9e3eb7d499419309d0945603d27a8bae2f96c",
+                        "start": "05-02-2026 02:00",
+                        "end": "10-02-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "17-02-2026",
                         "distributed": ""
                     }
                 ]
@@ -152,12 +152,12 @@
                     {
                         "step": 1,
                         "date": "27-01-2026",
-                        "distributed": "10:16"
+                        "distributed": "10:35"
                     },
                     {
                         "step": 2,
                         "date": "03-02-2026",
-                        "distributed": "10:28"
+                        "distributed": "10:15"
                     }
                 ]
             },
@@ -174,7 +174,7 @@
                     {
                         "step": 1,
                         "date": "10-02-2026",
-                        "distributed": ""
+                        "distributed": "09:52"
                     },
                     {
                         "step": 2,
@@ -184,6 +184,6 @@
                 ]
             }
         ],
-        "currentRoundId": 1
+        "currentRoundId": 2
     }
 }
