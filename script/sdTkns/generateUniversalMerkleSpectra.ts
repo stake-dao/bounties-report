@@ -278,27 +278,9 @@ async function main() {
     const merkleDataPath = path.join(pathDir, "merkle_data.json");
     fs.writeFileSync(merkleDataPath, JSON.stringify(newMerkleData, null, 2));
 
-    // Save to latest directory
-    const latestDir = path.join(__dirname, `../../bounties-reports/latest/sdTkns`);
-    if (!fs.existsSync(latestDir)) {
-      fs.mkdirSync(latestDir, { recursive: true });
-    }
-    const latestMerklePath = path.join(latestDir, "sdtkns_merkle_8453.json");
-    fs.writeFileSync(latestMerklePath, JSON.stringify(newMerkleData, null, 2));
-
-    // Also save to latest/spectra for backward compatibility
-    const latestSpectraDir = path.join(__dirname, `../../bounties-reports/latest/spectra`);
-    if (!fs.existsSync(latestSpectraDir)) {
-      fs.mkdirSync(latestSpectraDir, { recursive: true });
-    }
-    const latestSpectraMerklePath = path.join(latestSpectraDir, "merkle_data_tmp.json");
-    fs.writeFileSync(latestSpectraMerklePath, JSON.stringify(newMerkleData, null, 2));
-
     console.log(`\nFiles saved to:`);
     console.log(`- ${sdTknsMerklePath} (primary)`);
     console.log(`- ${merkleDataPath} (backward compatibility)`);
-    console.log(`- ${latestMerklePath}`);
-    console.log(`- ${latestSpectraMerklePath}`);
 
     // Step 8: Verification
     const proposal = await getLastClosedProposal(SPECTRA_SPACE);
