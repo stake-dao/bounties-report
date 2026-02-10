@@ -34,7 +34,7 @@
                     {
                         "step": 2,
                         "date": "03-02-2026",
-                        "distributed": "10:15"
+                        "distributed": "10:28"
                     },
                     {
                         "step": 3,
@@ -157,7 +157,7 @@
                     {
                         "step": 2,
                         "date": "03-02-2026",
-                        "distributed": "10:15"
+                        "distributed": "10:28"
                     }
                 ]
             },
@@ -174,7 +174,7 @@
                     {
                         "step": 1,
                         "date": "10-02-2026",
-                        "distributed": "09:52"
+                        "distributed": "10:05"
                     },
                     {
                         "step": 2,
