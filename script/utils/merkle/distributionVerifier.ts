@@ -9,7 +9,6 @@ import { DistributionRow } from "../../interfaces/DistributionRow";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { formatAddress } from "../address";
 import {
-  delegationLogger,
   proposalInformationLogger,
 } from "../delegationHelper";
 import { getProposal, getVoters } from "../snapshot";
@@ -351,15 +350,6 @@ export const distributionVerifier = async (
   };
 
   proposalInformationLogger(space, activeProposal, log);
-  log("\n=== Delegation Information ===");
-  try {
-    // Snapshot voting always happens on mainnet, even if token distribution is on another chain
-    const snapshotChainId = "1";
-    await delegationLogger(space, activeProposal, votes, log, snapshotChainId);
-  } catch (error) {
-    log(`⚠️  Warning: Could not fetch delegation data: ${error instanceof Error ? error.message : String(error)}`);
-    log("Continuing with distribution verification...\n");
-  }
   log(`\nTotal Votes: ${votes.length}`);
   log(`\nHolder Distribution:`);
 
