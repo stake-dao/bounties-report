@@ -11,7 +11,14 @@ interface TokenClaim {
 }
 
 type ClaimsData = Record<string, Record<string, TokenClaim>>;
-type AggregatedClaims = Record<string, Record<string, bigint>>;
+interface AggregatedEntry {
+  amount: bigint;
+  chainId: number;
+  isWrapped: boolean;
+  protocolInfo: string;
+}
+
+type AggregatedClaims = Record<string, Record<string, AggregatedEntry>>;
 
 export class ClaimsTelegramLogger {
   /**
@@ -85,9 +92,9 @@ export class ClaimsTelegramLogger {
   }
 
   /**
-   * Aggregates claims by token address
+   * Aggregates claims by (token, chainId, isWrapped) composite key
    */
-  private aggregateClaims(claims: ClaimsData): AggregatedClaims {
+  private aggregateClaims(claims: ClaimsData, defaultChainId: number = 1): AggregatedClaims {
     const aggregated: AggregatedClaims = {};
 
     for (const protocol in claims) {
@@ -96,44 +103,20 @@ export class ClaimsTelegramLogger {
 
       for (const claimIndex in protocolClaims) {
         const claim = protocolClaims[claimIndex];
-        const { rewardToken, amount } = claim;
+        const chainId = claim.chainId ?? defaultChainId;
+        const isWrapped = claim.isWrapped ?? false;
+        const protocolInfo = claim.protocol ? ` (${claim.protocol})` : "";
+        const key = `${claim.rewardToken}:${chainId}:${isWrapped}`;
 
-        if (!aggregated[protocol][rewardToken]) {
-          aggregated[protocol][rewardToken] = 0n;
+        if (!aggregated[protocol][key]) {
+          aggregated[protocol][key] = { amount: 0n, chainId, isWrapped, protocolInfo };
         }
 
-        aggregated[protocol][rewardToken] += this.toBigInt(amount);
+        aggregated[protocol][key].amount += this.toBigInt(claim.amount);
       }
     }
 
     return aggregated;
-  }
-
-  /**
-   * Extract claim metadata for a token
-   */
-  private getClaimMetadata(
-    claims: ClaimsData,
-    protocol: string,
-    tokenAddress: string,
-    defaultChainId: number
-  ): { chainId: number; isWrapped: boolean; protocolInfo: string } {
-    let chainId = defaultChainId;
-    let isWrapped = false;
-    let protocolInfo = "";
-
-    // Find first claim with this token to get metadata
-    for (const claimIndex in claims[protocol]) {
-      const claim = claims[protocol][claimIndex];
-      if (claim.rewardToken === tokenAddress) {
-        chainId = claim.chainId ?? defaultChainId;
-        isWrapped = claim.isWrapped ?? false;
-        protocolInfo = claim.protocol ? ` (${claim.protocol})` : "";
-        break;
-      }
-    }
-
-    return { chainId, isWrapped, protocolInfo };
   }
 
   /**
@@ -173,7 +156,7 @@ export class ClaimsTelegramLogger {
     claims: ClaimsData,
     defaultChainId: number = 1
   ): Promise<void> {
-    const aggregated = this.aggregateClaims(claims);
+    const aggregated = this.aggregateClaims(claims, defaultChainId);
     const displayProtocol = this.formatProtocolName(title);
     const reportUrl = this.buildReportUrl(currentPeriod, title);
 
@@ -185,32 +168,27 @@ export class ClaimsTelegramLogger {
     for (const protocol in aggregated) {
       message += `<b>${protocol.toUpperCase()}</b>\n\n`;
 
-      // Process each token
-      for (const tokenAddress in aggregated[protocol]) {
+      // Process each aggregated entry (keyed by token:chainId:isWrapped)
+      for (const key in aggregated[protocol]) {
         try {
-          const { chainId, isWrapped, protocolInfo } = this.getClaimMetadata(
-            claims,
-            protocol,
-            tokenAddress,
-            defaultChainId
-          );
+          const entry = aggregated[protocol][key];
+          const tokenAddress = key.split(":")[0];
 
-          // Use mainnet (chainId 1) for wrapped tokens
-          const effectiveChainId = isWrapped ? 1 : chainId;
+          // Use mainnet (chainId 1) for wrapped tokens to resolve symbol/decimals
+          const effectiveChainId = entry.isWrapped ? 1 : entry.chainId;
           const tokenInfo = await this.getTokenInfo(tokenAddress, effectiveChainId);
-          
-          const amount = aggregated[protocol][tokenAddress];
-          const formattedAmount = formatUnits(amount, tokenInfo.decimals);
+
+          const formattedAmount = formatUnits(entry.amount, tokenInfo.decimals);
           const displayAmount = parseFloat(formattedAmount).toFixed(2);
 
-          const wrappedIndicator = isWrapped ? " [Wrapped]" : "";
-          message += `• ${tokenInfo.symbol}${protocolInfo}: <code>${displayAmount}</code> [Chain: ${chainId}]${wrappedIndicator}\n\n`;
+          const wrappedIndicator = entry.isWrapped ? " [Wrapped]" : "";
+          message += `\u2022 ${tokenInfo.symbol}${entry.protocolInfo}: <code>${displayAmount}</code> [Chain: ${entry.chainId}]${wrappedIndicator}\n\n`;
         } catch (err) {
-          console.error(`Error processing token ${tokenAddress}:`, err);
-          // Fallback formatting
+          console.error(`Error processing key ${key}:`, err);
+          const tokenAddress = key.split(":")[0];
           const shortAddress = this.formatUnknownToken(tokenAddress);
-          const fallbackAmount = formatUnits(aggregated[protocol][tokenAddress], 18);
-          message += `• ${shortAddress}: <code>${fallbackAmount}</code> [Chain: Unknown]\n\n`;
+          const fallbackAmount = formatUnits(aggregated[protocol][key].amount, 18);
+          message += `\u2022 ${shortAddress}: <code>${fallbackAmount}</code> [Chain: Unknown]\n\n`;
         }
       }
     }
