@@ -26,7 +26,7 @@ import {
 import {
   computeNonDelegatorsDistribution,
   Distribution,
-} from "./nonDelegators";
+} from "../../shared/nonDelegators";
 import { getGaugesInfos } from "../../utils/reportUtils";
 import { getClient } from "../../utils/getClients";
 

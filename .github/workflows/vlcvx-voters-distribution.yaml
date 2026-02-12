@@ -1,0 +1,188 @@
+name: "vlCVX: Voters Distribution"
+
+on:
+  workflow_dispatch:
+    inputs:
+      dispatch_id:
+        description: 'Unique dispatch ID for tracking'
+        required: true
+        type: string
+      step:
+        description: 'Step to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - claims-report
+          - repartition
+          - merkle
+          - publish
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull origin main --rebase
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.5.1"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      # --- Claims + Report ---
+      - name: Run claims
+        if: inputs.step == 'all' || inputs.step == 'claims-report'
+        run: make -f automation/distribution.mk run-claims PROTOCOL=vlCVX
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
+
+      - name: Validate reports
+        if: inputs.step == 'all' || inputs.step == 'claims-report'
+        run: make -f automation/distribution.mk validate-reports PROTOCOL=vlCVX
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Commit claims+report
+        if: inputs.step == 'all' || inputs.step == 'claims-report'
+        run: |
+          git pull --rebase --autostash origin main
+          git add -A
+          git commit -m "chore: vlCVX claims+report [${{ inputs.dispatch_id }}]" || true
+          git push
+
+      # --- Repartition ---
+      - name: Pull latest before repartition
+        if: inputs.step == 'all' || inputs.step == 'repartition'
+        run: git pull --rebase --autostash origin main
+
+      - name: Validate reports (pre-repartition)
+        if: inputs.step == 'repartition'
+        run: make -f automation/distribution.mk validate-reports PROTOCOL=vlCVX
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Run repartition
+        if: inputs.step == 'all' || inputs.step == 'repartition'
+        run: make -f automation/distribution.mk run-repartition PROTOCOL=vlCVX
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Commit repartition
+        if: inputs.step == 'all' || inputs.step == 'repartition'
+        run: |
+          git pull --rebase --autostash origin main
+          git add -A
+          git commit -m "chore: vlCVX repartition [${{ inputs.dispatch_id }}]" || true
+          git push
+
+      # --- Voters Merkle ---
+      - name: Pull latest before merkle
+        if: inputs.step == 'all' || inputs.step == 'merkle'
+        run: git pull --rebase --autostash origin main
+
+      - name: Create voters merkle
+        if: inputs.step == 'all' || inputs.step == 'merkle'
+        run: make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=non-delegators
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      - name: Commit voters merkle
+        if: inputs.step == 'all' || inputs.step == 'merkle'
+        run: |
+          git pull --rebase --autostash origin main
+          git add -A
+          git commit -m "chore: vlCVX voters-merkle [${{ inputs.dispatch_id }}]" || true
+          git push
+
+      # --- Publish ---
+      - name: Pull latest before publish
+        if: inputs.step == 'all' || inputs.step == 'publish'
+        run: git pull --rebase --autostash origin main
+
+      - name: Calculate current period
+        if: inputs.step == 'all' || inputs.step == 'publish'
+        id: period
+        run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+          echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
+
+      - name: Publish voters to latest
+        if: inputs.step == 'all' || inputs.step == 'publish'
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/vlCVX"
+
+          # Copy main merkle file
+          cp "bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle.json" "bounties-reports/latest/vlCVX/vlcvx_merkle.json"
+          echo "Copied vlcvx_merkle.json to latest/vlCVX/"
+
+          # Copy chain-specific merkle files
+          for file in bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle_*.json; do
+            if [ -f "$file" ]; then
+              CHAIN_ID=$(echo "$file" | sed 's/.*_\([0-9]*\)\.json/\1/')
+              cp "$file" "bounties-reports/latest/vlCVX/vlcvx_merkle_${CHAIN_ID}.json"
+              echo "Copied vlcvx_merkle_${CHAIN_ID}.json to latest/vlCVX/"
+            fi
+          done
+
+      - name: Commit publish
+        if: inputs.step == 'all' || inputs.step == 'publish'
+        run: |
+          git pull --rebase --autostash origin main
+          git add -A
+          git commit -m "chore: vlCVX publish-voters [${{ inputs.dispatch_id }}]" || true
+          git push
+
+      # --- Cleanup & Error notification ---
+      - name: Cleanup
+        if: always()
+        run: make -f automation/distribution.mk clean PROTOCOL=vlCVX || true
+
+      - name: Send error notification
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: -1002354704686
+          token: ${{ secrets.TG_API_KEY_BOT_ERROR }}
+          format: html
+          message: |
+            <b>Workflow failed</b>
+            <b>Workflow:</b> vlCVX Voters Distribution (step: ${{ inputs.step }})
+            <b>Dispatch ID:</b> ${{ inputs.dispatch_id }}
+            <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View logs</a>

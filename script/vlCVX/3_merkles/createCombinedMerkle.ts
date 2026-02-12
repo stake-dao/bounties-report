@@ -6,7 +6,7 @@ dotenv.config();
 
 import { mainnet } from "../../utils/chains";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
-import { generateMerkleTree, mergeMerkleData } from "../utils";
+import { generateMerkleTree, mergeMerkleData } from "../../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../../interfaces/MerkleData";
 import { CVX_SPACE, WEEK } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
