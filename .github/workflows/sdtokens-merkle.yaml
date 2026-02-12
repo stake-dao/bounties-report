@@ -1,0 +1,173 @@
+name: "sdTokens: Merkle"
+
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        description: 'Token pipeline to run'
+        required: true
+        type: choice
+        options:
+          - spectra
+          - sdfxs
+          - legacy
+      step:
+        description: 'Step to run'
+        required: false
+        type: choice
+        default: 'all'
+        options:
+          - all
+          - merkle
+          - publish
+      dispatch_id:
+        description: 'Unique dispatch ID for tracking'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
+        with:
+          python: ${{ inputs.token == 'sdfxs' && 'true' || 'false' }}
+
+      # ── Spectra merkle ──
+      - name: "Spectra: report + repartition + merkle"
+        if: inputs.token == 'spectra' && (inputs.step == 'all' || inputs.step == 'merkle')
+        run: |
+          pnpm tsx script/spectra/1_report.ts
+          pnpm tsx script/spectra/2_repartition.ts
+          pnpm tsx script/sdTkns/generateUniversalMerkleSpectra.ts
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      # ── sdFXS merkle ──
+      - name: "sdFXS: report + merkle"
+        if: inputs.token == 'sdfxs' && (inputs.step == 'all' || inputs.step == 'merkle')
+        run: make -f automation/sdfxs/run.mk run-merkle
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      # ── Commit after merkle ──
+      - name: Commit merkle
+        if: inputs.step == 'all' || inputs.step == 'merkle'
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: ${{ inputs.token }} merkle [${{ inputs.dispatch_id }}]"
+
+      # ── Publish ──
+      - name: Pull latest before publish
+        if: inputs.step == 'all' || inputs.step == 'publish'
+        run: git pull --rebase --autostash origin main
+
+      - name: Calculate current period
+        if: inputs.step == 'all' || inputs.step == 'publish'
+        id: period
+        run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+          echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
+
+      - name: "Spectra: publish to latest"
+        if: inputs.token == 'spectra' && (inputs.step == 'all' || inputs.step == 'publish')
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/sdTkns"
+
+          if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" ]; then
+            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" "bounties-reports/latest/spectra_merkle.json"
+            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" "bounties-reports/latest/sdTkns/sdtkns_merkle_8453.json"
+          else
+            echo "::error::Spectra merkle not found for period ${PERIOD}"
+            exit 1
+          fi
+
+      - name: "sdFXS: publish to latest"
+        if: inputs.token == 'sdfxs' && (inputs.step == 'all' || inputs.step == 'publish')
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest"
+
+          if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_252.json" ]; then
+            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_252.json" "bounties-reports/latest/sdfxs_merkle.json"
+          else
+            echo "::error::sdFXS merkle not found for period ${PERIOD}"
+            exit 1
+          fi
+
+      - name: "Legacy: publish to latest"
+        if: inputs.token == 'legacy' && (inputs.step == 'all' || inputs.step == 'publish')
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/sdTkns"
+
+          cp "bounties-reports/${PERIOD}/merkle.json" "bounties-reports/latest/merkle.json"
+          cp "bounties-reports/${PERIOD}/delegationsAPRs.json" "bounties-reports/latest/delegationsAPRs.json"
+
+          if [ -d "bounties-reports/${PERIOD}/sdTkns" ]; then
+            for file in bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_*.json; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                cp "$file" "bounties-reports/latest/sdTkns/${filename}"
+              fi
+            done
+          fi
+
+      - name: Merge delegationsAPRs
+        if: (inputs.token == 'spectra' || inputs.token == 'sdfxs') && (inputs.step == 'all' || inputs.step == 'publish')
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          if [ -f "bounties-reports/${PERIOD}/delegationsAPRs.json" ]; then
+            if [ -f "bounties-reports/latest/delegationsAPRs.json" ]; then
+              jq -s '.[0] * .[1]' \
+                bounties-reports/latest/delegationsAPRs.json \
+                bounties-reports/${PERIOD}/delegationsAPRs.json \
+                > bounties-reports/latest/delegationsAPRs.json.tmp
+              mv bounties-reports/latest/delegationsAPRs.json.tmp bounties-reports/latest/delegationsAPRs.json
+            else
+              cp "bounties-reports/${PERIOD}/delegationsAPRs.json" "bounties-reports/latest/delegationsAPRs.json"
+            fi
+          fi
+
+      - name: Compute sdPENDLE delegators APR
+        if: (inputs.token == 'spectra' || inputs.token == 'legacy') && (inputs.step == 'all' || inputs.step == 'publish')
+        run: pnpm tsx script/helpers/computeSdPendleDelegatorsAPR.ts
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+        continue-on-error: true
+
+      - name: Commit publish
+        if: inputs.step == 'all' || inputs.step == 'publish'
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: ${{ inputs.token }} publish [${{ inputs.dispatch_id }}]"
+
+      # ── Cleanup & notification ──
+      - name: Cleanup
+        if: always() && inputs.token == 'sdfxs'
+        run: make -f automation/sdfxs/run.mk clean || true
+
+      - name: Notify on failure
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          workflow_name: "sdTokens: ${{ inputs.token }} ${{ inputs.step }}"
+          dispatch_id: ${{ inputs.dispatch_id }}
+          telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}

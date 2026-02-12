@@ -1,12 +1,15 @@
-name: "vlCVX: Voters Distribution"
+name: "vlCVX: Distribution"
 
 on:
   workflow_dispatch:
     inputs:
-      dispatch_id:
-        description: 'Unique dispatch ID for tracking'
+      type:
+        description: 'Distribution type'
         required: true
-        type: string
+        type: choice
+        options:
+          - voters
+          - delegators
       step:
         description: 'Step to run'
         required: false
@@ -18,6 +21,11 @@ on:
           - repartition
           - merkle
           - publish
+      dispatch_id:
+        description: 'Unique dispatch ID for tracking'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   run:
@@ -32,33 +40,15 @@ jobs:
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
           fetch-depth: 0
 
-      - name: Configure git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull origin main --rebase
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
         with:
-          python-version: "3.10.13"
+          python: 'true'
+          frozen-lockfile: 'false'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.5.1"
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.3
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      # --- Claims + Report ---
+      # ── Claims + Report (voters only) ──
       - name: Run claims
-        if: inputs.step == 'all' || inputs.step == 'claims-report'
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'claims-report')
         run: make -f automation/distribution.mk run-claims PROTOCOL=vlCVX
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -67,68 +57,67 @@ jobs:
           TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
       - name: Validate reports
-        if: inputs.step == 'all' || inputs.step == 'claims-report'
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'claims-report')
         run: make -f automation/distribution.mk validate-reports PROTOCOL=vlCVX
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Commit claims+report
-        if: inputs.step == 'all' || inputs.step == 'claims-report'
-        run: |
-          git pull --rebase --autostash origin main
-          git add -A
-          git commit -m "chore: vlCVX claims+report [${{ inputs.dispatch_id }}]" || true
-          git push
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'claims-report')
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: vlCVX claims+report [${{ inputs.dispatch_id }}]"
 
-      # --- Repartition ---
+      # ── Repartition (voters only) ──
       - name: Pull latest before repartition
-        if: inputs.step == 'all' || inputs.step == 'repartition'
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
         run: git pull --rebase --autostash origin main
 
       - name: Validate reports (pre-repartition)
-        if: inputs.step == 'repartition'
+        if: inputs.type == 'voters' && inputs.step == 'repartition'
         run: make -f automation/distribution.mk validate-reports PROTOCOL=vlCVX
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Run repartition
-        if: inputs.step == 'all' || inputs.step == 'repartition'
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
         run: make -f automation/distribution.mk run-repartition PROTOCOL=vlCVX
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Commit repartition
-        if: inputs.step == 'all' || inputs.step == 'repartition'
-        run: |
-          git pull --rebase --autostash origin main
-          git add -A
-          git commit -m "chore: vlCVX repartition [${{ inputs.dispatch_id }}]" || true
-          git push
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: vlCVX repartition [${{ inputs.dispatch_id }}]"
 
-      # --- Voters Merkle ---
+      # ── Merkle ──
       - name: Pull latest before merkle
         if: inputs.step == 'all' || inputs.step == 'merkle'
         run: git pull --rebase --autostash origin main
 
-      - name: Create voters merkle
+      - name: Create merkle
         if: inputs.step == 'all' || inputs.step == 'merkle'
-        run: make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=non-delegators
+        run: |
+          if [ "${{ inputs.type }}" = "voters" ]; then
+            make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=non-delegators
+          else
+            make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=delegators
+          fi
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
-      - name: Commit voters merkle
+      - name: Commit merkle
         if: inputs.step == 'all' || inputs.step == 'merkle'
-        run: |
-          git pull --rebase --autostash origin main
-          git add -A
-          git commit -m "chore: vlCVX voters-merkle [${{ inputs.dispatch_id }}]" || true
-          git push
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: vlCVX ${{ inputs.type }}-merkle [${{ inputs.dispatch_id }}]"
 
-      # --- Publish ---
+      # ── Publish ──
       - name: Pull latest before publish
         if: inputs.step == 'all' || inputs.step == 'publish'
         run: git pull --rebase --autostash origin main
@@ -143,46 +132,42 @@ jobs:
           echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
 
       - name: Publish voters to latest
-        if: inputs.step == 'all' || inputs.step == 'publish'
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlCVX"
 
-          # Copy main merkle file
           cp "bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle.json" "bounties-reports/latest/vlCVX/vlcvx_merkle.json"
-          echo "Copied vlcvx_merkle.json to latest/vlCVX/"
 
-          # Copy chain-specific merkle files
           for file in bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle_*.json; do
             if [ -f "$file" ]; then
               CHAIN_ID=$(echo "$file" | sed 's/.*_\([0-9]*\)\.json/\1/')
               cp "$file" "bounties-reports/latest/vlCVX/vlcvx_merkle_${CHAIN_ID}.json"
-              echo "Copied vlcvx_merkle_${CHAIN_ID}.json to latest/vlCVX/"
             fi
           done
 
+      - name: Publish delegators to latest
+        if: inputs.type == 'delegators' && (inputs.step == 'all' || inputs.step == 'publish')
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/vlCVX"
+          cp "bounties-reports/${PERIOD}/vlCVX/merkle_data_delegators.json" "bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
+
       - name: Commit publish
         if: inputs.step == 'all' || inputs.step == 'publish'
-        run: |
-          git pull --rebase --autostash origin main
-          git add -A
-          git commit -m "chore: vlCVX publish-voters [${{ inputs.dispatch_id }}]" || true
-          git push
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: vlCVX publish-${{ inputs.type }} [${{ inputs.dispatch_id }}]"
 
-      # --- Cleanup & Error notification ---
+      # ── Cleanup & notification ──
       - name: Cleanup
         if: always()
         run: make -f automation/distribution.mk clean PROTOCOL=vlCVX || true
 
-      - name: Send error notification
+      - name: Notify on failure
         if: failure()
-        uses: appleboy/telegram-action@v1.0.1
+        uses: ./.github/actions/notify-failure
         with:
-          to: -1002354704686
-          token: ${{ secrets.TG_API_KEY_BOT_ERROR }}
-          format: html
-          message: |
-            <b>Workflow failed</b>
-            <b>Workflow:</b> vlCVX Voters Distribution (step: ${{ inputs.step }})
-            <b>Dispatch ID:</b> ${{ inputs.dispatch_id }}
-            <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View logs</a>
+          workflow_name: "vlCVX: ${{ inputs.type }} distribution (step: ${{ inputs.step }})"
+          dispatch_id: ${{ inputs.dispatch_id }}
+          telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}

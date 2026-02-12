@@ -5,8 +5,9 @@ on:
     inputs:
       dispatch_id:
         description: 'Unique dispatch ID for tracking'
-        required: true
+        required: false
         type: string
+        default: ''
       step:
         description: 'Step to run'
         required: false
@@ -32,31 +33,13 @@ jobs:
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
           fetch-depth: 0
 
-      - name: Configure git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull origin main --rebase
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
         with:
-          python-version: "3.10.13"
+          python: 'true'
+          frozen-lockfile: 'false'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.5.1"
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.3
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      # --- Claims + Report ---
+      # ── Claims + Report ──
       - name: Run claims
         if: inputs.step == 'all' || inputs.step == 'claims-report'
         run: make -f automation/distribution.mk run-claims PROTOCOL=vlAURA
@@ -77,13 +60,11 @@ jobs:
 
       - name: Commit claims+report
         if: inputs.step == 'all' || inputs.step == 'claims-report'
-        run: |
-          git pull --rebase --autostash origin main
-          git add -A
-          git commit -m "chore: vlAURA claims+report [${{ inputs.dispatch_id }}]" || true
-          git push
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: vlAURA claims+report [${{ inputs.dispatch_id }}]"
 
-      # --- Repartition ---
+      # ── Repartition ──
       - name: Pull latest before repartition
         if: inputs.step == 'all' || inputs.step == 'repartition'
         run: git pull --rebase --autostash origin main
@@ -99,13 +80,11 @@ jobs:
 
       - name: Commit repartition
         if: inputs.step == 'all' || inputs.step == 'repartition'
-        run: |
-          git pull --rebase --autostash origin main
-          git add -A
-          git commit -m "chore: vlAURA repartition [${{ inputs.dispatch_id }}]" || true
-          git push
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: vlAURA repartition [${{ inputs.dispatch_id }}]"
 
-      # --- Merkle ---
+      # ── Merkle ──
       - name: Pull latest before merkle
         if: inputs.step == 'all' || inputs.step == 'merkle'
         run: git pull --rebase --autostash origin main
@@ -120,13 +99,11 @@ jobs:
 
       - name: Commit merkle
         if: inputs.step == 'all' || inputs.step == 'merkle'
-        run: |
-          git pull --rebase --autostash origin main
-          git add -A
-          git commit -m "chore: vlAURA merkle [${{ inputs.dispatch_id }}]" || true
-          git push
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: vlAURA merkle [${{ inputs.dispatch_id }}]"
 
-      # --- Publish ---
+      # ── Publish ──
       - name: Pull latest before publish
         if: inputs.step == 'all' || inputs.step == 'publish'
         run: git pull --rebase --autostash origin main
@@ -146,45 +123,32 @@ jobs:
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlAURA"
 
-          # Copy main merkle file
           if [ -f "bounties-reports/${PERIOD}/vlAURA/vlaura_merkle.json" ]; then
             cp "bounties-reports/${PERIOD}/vlAURA/vlaura_merkle.json" "bounties-reports/latest/vlAURA/vlaura_merkle.json"
-            echo "Copied vlaura_merkle.json to latest/vlAURA/"
           fi
 
-          # Copy chain-specific merkle files
           for file in bounties-reports/${PERIOD}/vlAURA/vlaura_merkle_*.json; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
               cp "$file" "bounties-reports/latest/vlAURA/${filename}"
-              echo "Copied ${filename} to latest/vlAURA/"
             fi
           done
 
-          # Copy APR file
           if [ -f "bounties-reports/${PERIOD}/vlAURA/APRs.json" ]; then
             cp "bounties-reports/${PERIOD}/vlAURA/APRs.json" "bounties-reports/latest/vlAURA/APRs.json"
-            echo "Copied APRs.json to latest/vlAURA/"
           fi
 
       - name: Commit publish
         if: inputs.step == 'all' || inputs.step == 'publish'
-        run: |
-          git pull --rebase --autostash origin main
-          git add -A
-          git commit -m "chore: vlAURA publish [${{ inputs.dispatch_id }}]" || true
-          git push
-
-      # --- Error notification ---
-      - name: Send error notification
-        if: failure()
-        uses: appleboy/telegram-action@v1.0.1
+        uses: ./.github/actions/commit-and-push
         with:
-          to: -1002354704686
-          token: ${{ secrets.TG_API_KEY_BOT_ERROR }}
-          format: html
-          message: |
-            <b>Workflow failed</b>
-            <b>Workflow:</b> vlAURA Distribution (step: ${{ inputs.step }})
-            <b>Dispatch ID:</b> ${{ inputs.dispatch_id }}
-            <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View logs</a>
+          message: "chore: vlAURA publish [${{ inputs.dispatch_id }}]"
+
+      # ── Error notification ──
+      - name: Notify on failure
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          workflow_name: "vlAURA: Distribution (step: ${{ inputs.step }})"
+          dispatch_id: ${{ inputs.dispatch_id }}
+          telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}

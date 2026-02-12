@@ -1,0 +1,37 @@
+name: 'Notify Failure'
+description: 'Send Telegram notification on workflow failure'
+inputs:
+  workflow_name:
+    description: 'Human-readable workflow name for the notification'
+    required: true
+  dispatch_id:
+    description: 'Dispatch ID for tracking'
+    required: false
+    default: ''
+  details:
+    description: 'Extra details to include in the message'
+    required: false
+    default: ''
+  telegram_token:
+    description: 'Telegram bot token'
+    required: true
+  telegram_chat_id:
+    description: 'Telegram chat ID'
+    required: false
+    default: '-1002354704686'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Send error notification
+      uses: appleboy/telegram-action@v1.0.1
+      with:
+        to: ${{ inputs.telegram_chat_id }}
+        token: ${{ inputs.telegram_token }}
+        format: html
+        message: |
+          <b>Workflow failed</b>
+          <b>Workflow:</b> ${{ inputs.workflow_name }}
+          <b>Dispatch ID:</b> ${{ inputs.dispatch_id }}
+          ${{ inputs.details }}
+          <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View logs</a>

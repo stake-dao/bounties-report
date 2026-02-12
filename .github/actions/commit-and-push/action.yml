@@ -1,0 +1,17 @@
+name: 'Commit and Push'
+description: 'Rebase, stage all changes, commit, and push to main'
+inputs:
+  message:
+    description: 'Commit message'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Commit and push
+      shell: bash
+      run: |
+        git pull --rebase --autostash origin main
+        git add -A
+        git commit -m "${{ inputs.message }}" || true
+        git push

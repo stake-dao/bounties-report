@@ -1,0 +1,64 @@
+name: "Reports"
+
+on:
+  workflow_dispatch:
+    inputs:
+      protocol:
+        description: 'Protocol'
+        required: true
+        type: choice
+        options:
+          - curve
+          - balancer
+          - fxn
+          - frax
+          - pendle
+      type:
+        description: 'Report type'
+        required: true
+        type: choice
+        options:
+          - weekly
+          - otc
+      dispatch_id:
+        description: 'Unique dispatch ID for tracking'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
+
+      - name: Generate report
+        run: make -f automation/reports.mk run-${{ inputs.type }}-${{ inputs.protocol }}
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Commit and push
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: ${{ inputs.protocol }} ${{ inputs.type }} report [${{ inputs.dispatch_id }}]"
+
+      - name: Notify on failure
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          workflow_name: "Reports: ${{ inputs.protocol }} ${{ inputs.type }}"
+          dispatch_id: ${{ inputs.dispatch_id }}
+          telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}
