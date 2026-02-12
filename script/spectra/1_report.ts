@@ -3,7 +3,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { getSpectraDistribution, type SpectraClaimed } from "./utils";
 import {
-  ALL_MIGHT,
+  ALL_MIGHT_V2,
   escapeCSV,
   fetchAllTokenInfos,
   fetchSwapInEvents,
@@ -194,7 +194,7 @@ async function main() {
   const transferSig = "Transfer(address,address,uint256)";
   const transferHash = keccak256(encodePacked(["string"], [transferSig]));
   const paddedFrom = pad(SPECTRA_RECEIVER as `0x${string}`, { size: 32 }).toLowerCase();
-  const paddedTo = pad(ALL_MIGHT as `0x${string}`, { size: 32 }).toLowerCase();
+  const paddedTo = pad(ALL_MIGHT_V2 as `0x${string}`, { size: 32 }).toLowerCase();
 
   const transferLogs = await explorerUtils.getLogsByTopics(
     blockNumber1,
@@ -223,14 +223,14 @@ async function main() {
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
-    ALL_MIGHT
+    ALL_MIGHT_V2
   );
   const swapOut = await fetchSwapOutEvents(
     8453,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
-    ALL_MIGHT
+    ALL_MIGHT_V2
   );
 
 

@@ -7,7 +7,7 @@ import {
   AUTO_VOTER_DELEGATION_ADDRESS,
 } from "../utils/constants";
 import {
-  getLastClosedProposal,
+  getLastClosedProposals,
   getVoters,
   getVotingPower,
 } from "../utils/snapshot";
@@ -32,8 +32,10 @@ const main = async () => {
   const csvResult = await getSpectraReport(currentPeriodTimestamp);
 
   // Fetch proposal and votes
+  // Bounties are claimed for the PREVIOUS voting period, so skip the latest closed proposal
   console.log("Fetching proposal and votes...");
-  const proposal = await getLastClosedProposal(SPECTRA_SPACE);
+  const proposals = await getLastClosedProposals(SPECTRA_SPACE, 2 + pastWeek);
+  const proposal = proposals[1 + pastWeek];
   const proposalId = proposal.id;
   console.log("proposalId", proposalId);
 

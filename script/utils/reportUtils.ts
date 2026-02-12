@@ -101,6 +101,9 @@ export const OTC_REGISTRY = getAddress(
 export const ALL_MIGHT = getAddress(
   "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05"
 );
+export const ALL_MIGHT_V2 = getAddress(
+  "0xDBd24b092f686b12650EC1450e3A7138F714506c"
+);
 export const BOSS = getAddress("0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765");
 export const REWARDS_ALLOCATIONS_POOL = getAddress(
   "0xA3ECF0cc8E88136134203aaafB21F7bD2dA6359a"

@@ -30,6 +30,11 @@ jobs:
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git pull origin main --rebase
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.13"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -45,14 +50,6 @@ jobs:
 
       - name: Run VoteMarket V1 claims generation (sdTokens)
         run: make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=${{ inputs.pastWeek }}
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
-          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
-
-      - name: Run VoteMarket V1 claims generation (Convex)
-        run: make -f automation/weekly-bounties.mk run-convex PAST_WEEK=${{ inputs.pastWeek }}
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}

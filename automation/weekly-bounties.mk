@@ -35,10 +35,6 @@ run-hiddenhand: setup install-deps
 	@echo "Running Hidden Hand bounty generation..."
 	@$(PNPM) tsx script/sdTkns/claims/generateHiddenHand.ts $(PAST_WEEK)
 
-run-convex: setup install-deps
-	@echo "Running Convex Votemarket bounty generation..."
-	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarket.ts $(PAST_WEEK)
-
 run-convex-v2: setup install-deps
 	@echo "Running Convex Votemarket V2 bounty generation..."
 	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarketV2.ts $(PAST_WEEK)

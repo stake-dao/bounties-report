@@ -51,12 +51,13 @@ jobs:
       - name: Copy Spectra merkle to latest
         run: |
           PERIOD=${{ steps.period.outputs.current }}
-          mkdir -p "bounties-reports/latest"
+          mkdir -p "bounties-reports/latest/sdTkns"
 
           # Copy Spectra merkle (Base chain 8453)
           if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" ]; then
             echo "Copying Spectra merkle for period ${PERIOD}..."
             cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" "bounties-reports/latest/spectra_merkle.json"
+            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" "bounties-reports/latest/sdTkns/sdtkns_merkle_8453.json"
           else
             echo "::error::Spectra merkle not found for period ${PERIOD}"
             exit 1
