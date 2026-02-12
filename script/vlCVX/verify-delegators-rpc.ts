@@ -32,9 +32,13 @@ dotenv.config();
 const VLCVX_TOKEN = "0x72a19342e8F1838460eBFCCEf09F6585e32db86E" as const;
 
 // vlCVX ABI for balance check
+// NOTE: We use lockedBalanceOf (not balanceOf) because the Snapshot cvx.eth
+// strategy counts locked tokens including expired-but-unwithdrawn locks.
+// balanceOf returns 0 once a lock epoch expires, but lockedBalanceOf still
+// reflects the locked amount — matching how Snapshot calculates voting power.
 const VLCVX_ABI = [
   {
-    name: "balanceOf",
+    name: "lockedBalanceOf",
     type: "function",
     inputs: [{ type: "address" }],
     outputs: [{ type: "uint256" }],
@@ -62,8 +66,10 @@ interface DelegationEvent {
 
 
 /**
- * Fetch voting power (vlCVX balance) for multiple addresses at a specific block
- * Returns a map of address -> balance
+ * Fetch voting power (vlCVX lockedBalanceOf) for multiple addresses at a specific block.
+ * Uses lockedBalanceOf to match the Snapshot cvx.eth strategy, which counts locked tokens
+ * including expired-but-unwithdrawn locks (unlike balanceOf which returns 0 after expiry).
+ * Returns a map of address -> locked balance
  */
 async function fetchVotingPowers(
   addresses: string[],
@@ -84,7 +90,7 @@ async function fetchVotingPowers(
     const calls = batch.map((addr) => ({
       address: getAddress(VLCVX_TOKEN),
       abi: VLCVX_ABI,
-      functionName: "balanceOf" as const,
+      functionName: "lockedBalanceOf" as const,
       args: [getAddress(addr)] as const,
     }));
 
@@ -110,7 +116,7 @@ async function fetchVotingPowers(
           const balance = await client.readContract({
             address: getAddress(VLCVX_TOKEN),
             abi: VLCVX_ABI,
-            functionName: "balanceOf",
+            functionName: "lockedBalanceOf",
             args: [getAddress(addr)],
             blockNumber: atBlock,
           });
