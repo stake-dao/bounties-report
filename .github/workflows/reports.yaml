@@ -41,6 +41,8 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup-environment
+        with:
+          python: 'true'
 
       - name: Generate report
         run: make -f automation/reports.mk run-${{ inputs.type }}-${{ inputs.protocol }}
