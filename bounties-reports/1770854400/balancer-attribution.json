@@ -1,0 +1,63 @@
+{
+  "protocol": "balancer",
+  "period": 1770854400,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 2298.258713938302,
+    "sdAssigned": 2298.2587139383027,
+    "wethInTotal": 1.0226040959683793,
+    "wethOutTotal": 1.0205621030258336
+  },
+  "dropped": {
+    "tokensNotSwapped": [
+      "0x4ecf61a6c2fab8a047ceb3b3b263b401763e9d49",
+      "0xaf88d065e77c8cc2239327c5edb3a432268e5831"
+    ],
+    "wethNotSwapped": false
+  },
+  "perToken": {
+    "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": {
+      "mappedWeth": 0.016056877877285877,
+      "sd": 36.08714227295304
+    },
+    "0x4ecf61a6c2fab8a047ceb3b3b263b401763e9d49": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
+      "mappedWeth": 0.24843395408165764,
+      "sd": 558.3446243344337
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0.7581132640094357,
+      "sd": 1703.826947330916
+    },
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "mappedWeth": 0,
+      "sd": 0
+    }
+  },
+  "txs": [
+    {
+      "tx": "0x1813bf79eea5e6d90f04b4256c2d829328dea3c65b5025b5a26d933a3d5ac041",
+      "wethIn": 1.0226040959683793,
+      "wethOut": 1.0205621030258336,
+      "sdIn": 2298.258713938302,
+      "nativeIn": 13201.855674147213,
+      "nativeOut": 13203.175991746388,
+      "nativeShareSd": 1.320317599174814,
+      "wethBasis": 1.0226040959683793,
+      "tokenWeth": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 0.016056877877285877,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.24843395408165764,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0.7581132640094357
+      },
+      "tokenSd": {
+        "0xba100000625a3754423978a60c9317c58a424e3d": 1.320317599174814,
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": 36.066410712681794,
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 558.023863129682,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 1702.8481224967634
+      }
+    }
+  ]
+}
