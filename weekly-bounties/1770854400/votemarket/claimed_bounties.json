@@ -1,0 +1,10 @@
+{
+  "frax": {
+    "0": {
+      "bountyId": "67",
+      "gauge": "0x4c9AD8c53d0a001E7fF08a3E5E26dE6795bEA5ac",
+      "amount": "205831196661810515508",
+      "rewardToken": "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0"
+    }
+  }
+}
