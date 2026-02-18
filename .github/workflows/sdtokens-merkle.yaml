@@ -88,11 +88,10 @@ jobs:
         if: inputs.token == 'spectra' && (inputs.step == 'all' || inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
-          mkdir -p "bounties-reports/latest/sdTkns"
+          mkdir -p "bounties-reports/latest"
 
           if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" ]; then
             cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" "bounties-reports/latest/spectra_merkle.json"
-            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" "bounties-reports/latest/sdTkns/sdtkns_merkle_8453.json"
           else
             echo "::error::Spectra merkle not found for period ${PERIOD}"
             exit 1
@@ -102,10 +101,10 @@ jobs:
         if: inputs.token == 'sdfxs' && (inputs.step == 'all' || inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
-          mkdir -p "bounties-reports/latest"
+          mkdir -p "bounties-reports/latest/sdTkns"
 
           if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_252.json" ]; then
-            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_252.json" "bounties-reports/latest/sdfxs_merkle.json"
+            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_252.json" "bounties-reports/latest/sdTkns/sdtkns_merkle_252.json"
           else
             echo "::error::sdFXS merkle not found for period ${PERIOD}"
             exit 1
