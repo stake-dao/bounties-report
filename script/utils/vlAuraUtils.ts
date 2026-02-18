@@ -19,7 +19,7 @@ import {
 // Constants
 // ============================================================================
 
-const GRAPHQL_ENDPOINT = process.env.VLAURA_GRAPHQL_ENDPOINT || "https://api-snapshot.stakedao.org/v1/graphql";
+const GRAPHQL_ENDPOINT = process.env.VLAURA_GRAPHQL_ENDPOINT || "https://snapshot-indexer.contact-69d.workers.dev/v1/graphql";
 
 // AuraLocker contract addresses (vlAURA)
 export const AURA_LOCKER_ADDRESSES: Record<number, Address> = {

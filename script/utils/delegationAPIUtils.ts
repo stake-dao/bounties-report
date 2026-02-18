@@ -4,7 +4,7 @@ import { DELEGATION_ADDRESS, SPACE_TO_CHAIN_ID } from "./constants";
 import { processAllDelegators } from "./cacheUtils";
 
 // StakeDAO Snapshot GraphQL API endpoint
-const GRAPHQL_ENDPOINT = "https://api-snapshot.stakedao.org/v1/graphql";
+const GRAPHQL_ENDPOINT = "https://snapshot-indexer.contact-69d.workers.dev/v1/graphql";
 
 // Cache for API response (avoid multiple fetches in same session)
 let cachedAPIResponse: DelegationEventAPI[] | null = null;
