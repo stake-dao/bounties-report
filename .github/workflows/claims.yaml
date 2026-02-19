@@ -43,6 +43,9 @@ jobs:
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
           fetch-depth: 0
 
+      - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
+        run: echo "Tracked"
+
       - name: Setup environment
         uses: ./.github/actions/setup-environment
         with:

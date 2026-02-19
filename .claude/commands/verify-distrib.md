@@ -407,6 +407,113 @@ console.log('  Total:', ((totalF + totalNF) * 100).toFixed(2) + '%', Math.abs(to
 
 ---
 
+## Step 10: Reward Flow Verification (CRITICAL)
+
+Verify that all claimed bounty amounts are correctly split between delegation and non-delegator pools, and that cumulative merkle trees are consistent.
+
+### Pipeline Context
+
+```
+CSV claimed amounts
+├── delegation share (repartition_delegation.json → totalTokens)
+│   ├── vlCVX: forwarders (→ Votium/sCRVUSD, separate merkle) + non-forwarders (→ cumulative merkle)
+│   └── vlAURA: all delegators (→ cumulative merkle)
+└── non-delegator share (repartition.json → per-gauge direct voter amounts → cumulative merkle)
+```
+
+Key facts:
+- `repartition.json` and `repartition_delegation.json` are **this week only**
+- `merkle_data_non_delegators.json` (vlCVX) and `vlaura_merkle.json` (vlAURA) are **cumulative** across all weeks
+- vlCVX cumulative merkle includes both non-delegator voters AND non-forwarder delegators
+
+### Check 1: CSV Total = Delegation + Non-Delegators (exact, per token per chain)
+
+Write a verification script to `/tmp/verify_rewards_${WEEK}.js` and run it. The script must:
+1. Parse the CSV file and sum amounts per token per chain
+2. Sum `repartition.json` per-gauge amounts per token (= non-delegator share)
+3. Read `repartition_delegation.json` totalTokens per token (= delegation share)
+4. Verify: `CSV_total = delegation + nonDelegator` for every token (exact, zero diff)
+
+**vlCVX** (3 chain/gauge-type combinations):
+```javascript
+// For each combo: {csvFile, chainFilter, repartitionPath, delegationPath}
+// Curve Mainnet: cvx.csv, chain='1', curve/repartition.json, curve/repartition_delegation.json
+// Curve Base:    cvx.csv, chain='8453', curve/repartition_8453.json, curve/repartition_delegation_8453.json
+// FXN Mainnet:   cvx_fxn.csv, chain='1', fxn/repartition.json, fxn/repartition_delegation.json
+
+// CSV format: ChainId;GaugeAddr;GaugeName;RewardAddr;RewardToken;RewardAmount;
+// Parse: split(';'), filter by chainId, sum BigInt amounts per token (lowercase)
+// repartition.json: { distribution: { [gauge]: { tokens: { [token]: amount } } } }
+// repartition_delegation.json: { distribution: { totalTokens: { [token]: amount } } }
+// For each token: assert CSV_total === delegation_total + nonDelegator_total
+```
+
+**vlAURA** (2 chain combinations):
+```javascript
+// Mainnet: vlaura.csv, chain='1', vlAURA/repartition.json, vlAURA/repartition_delegation.json
+// Arbitrum: vlaura.csv, chain='42161', vlAURA/repartition_42161.json, vlAURA/repartition_delegation_42161.json
+```
+
+**Expected output**: diff=0 for every token on every chain. Any non-zero diff is a critical error.
+
+### Check 2: Group Split Consistency (vlCVX only)
+
+For each token in `repartition_delegation.json`:
+```
+totalPerGroup[token].forwarders + totalPerGroup[token].nonForwarders === totalTokens[token]
+```
+
+Must be exact (zero diff, BigInt comparison).
+
+### Check 3: Group Share Ratio (vlCVX only)
+
+For each token:
+```
+actualRatio = totalPerGroup[token].forwarders / totalTokens[token]
+expectedRatio = totalForwardersShare
+error = |actualRatio - expectedRatio|
+```
+
+Error should be < 1e-4 (rounding from BigInt division).
+
+### Check 4: Cumulative Merkle Consistency (vlCVX)
+
+For `merkle_data_non_delegators.json` (vlCVX curve and fxn):
+```
+current_merkle_total[token] ≈ prev_week_merkle_total[token]
+                              + this_week_repartition[token]        (non-delegator voters)
+                              + this_week_nonForwarders_deleg[token] (non-forwarder delegators)
+```
+
+Sum per-token across all claimants in both current and previous merkle files.
+`nonForwarders_deleg[token]` = `repartition_delegation.totalPerGroup[token].nonForwarders`.
+
+**Expected**: Small rounding diffs (< 1e-9 relative error) are acceptable — caused by BigInt division when distributing amounts to individual non-forwarder delegators via float shares.
+Any large diff (> 0.01% relative) indicates a bug.
+
+### Verification Report Section
+
+Add to the report template:
+
+```markdown
+### Reward Flow
+| Check | Scope | Status |
+|-------|-------|--------|
+| CSV = Deleg + NonDeleg | Curve Mainnet ({n} tokens) | ✅/❌ |
+| CSV = Deleg + NonDeleg | Curve Base ({n} tokens) | ✅/❌ |
+| CSV = Deleg + NonDeleg | FXN Mainnet ({n} tokens) | ✅/❌ |
+| CSV = Deleg + NonDeleg | vlAURA Mainnet ({n} tokens) | ✅/❌ |
+| CSV = Deleg + NonDeleg | vlAURA Arbitrum ({n} tokens) | ✅/❌ |
+| Group split exact | vlCVX Curve ({n} tokens) | ✅/❌ |
+| Group split exact | vlCVX FXN ({n} tokens) | ✅/❌ |
+| Share ratio error | vlCVX Curve (max {e}) | ✅/❌ |
+| Share ratio error | vlCVX FXN (max {e}) | ✅/❌ |
+| Cumulative merkle | Curve ({n} tokens, max err {e}) | ✅/❌ |
+| Cumulative merkle | FXN ({n} tokens, max err {e}) | ✅/❌ |
+```
+
+---
+
 ## Verification Report Template
 
 Generate a summary report after all checks:
@@ -449,6 +556,21 @@ Generate a summary report after all checks:
 | Direct voters excluded from delegation | ✅/❌ |
 | Delegation address (0x52ea...) NOT in merkle | ✅/❌ |
 | Zero-VP delegators excluded | ✅/❌ ({n} excluded) |
+
+### Reward Flow
+| Check | Scope | Status |
+|-------|-------|--------|
+| CSV = Deleg + NonDeleg | Curve Mainnet ({n} tokens) | ✅/❌ |
+| CSV = Deleg + NonDeleg | Curve Base ({n} tokens) | ✅/❌ |
+| CSV = Deleg + NonDeleg | FXN Mainnet ({n} tokens) | ✅/❌ |
+| CSV = Deleg + NonDeleg | vlAURA Mainnet ({n} tokens) | ✅/❌ |
+| CSV = Deleg + NonDeleg | vlAURA Arbitrum ({n} tokens) | ✅/❌ |
+| Group split exact | vlCVX Curve ({n} tokens) | ✅/❌ |
+| Group split exact | vlCVX FXN ({n} tokens) | ✅/❌ |
+| Share ratio error | vlCVX Curve (max {e}) | ✅/❌ |
+| Share ratio error | vlCVX FXN (max {e}) | ✅/❌ |
+| Cumulative merkle | Curve ({n} tokens, max err {e}) | ✅/❌ |
+| Cumulative merkle | FXN ({n} tokens, max err {e}) | ✅/❌ |
 
 ### Shares Calculation
 | Component | Internal Sum | Group Allocation | Total |
@@ -514,6 +636,10 @@ OR
 [ ] 12. Merkle roots valid (66-char hex starting with 0x)
 [ ] 13. Claim counts reasonable vs previous week (±20%)
 [ ] 14. Week A/B consistency (same proposal = same delegators)
+[ ] 15. CSV total = delegation + non-delegator per token per chain (exact, zero diff)
+[ ] 16. Group split exact: forwarders + nonForwarders = totalTokens (vlCVX)
+[ ] 17. Group share ratio applied correctly (< 1e-4 error)
+[ ] 18. Cumulative merkle consistent (prev + this_week ≈ current, < 1e-9 relative error)
 ```
 
 ### Detailed Verification Points
@@ -527,11 +653,15 @@ OR
 7. **DELEGATION_ADDRESS excluded** — Rewards go to individual delegators, not the delegation contract
 8. **Zero-VP delegators excluded** — Delegators with 0 voting power at snapshot don't get rewards
 9. **Week B = identical delegators to Week A** — Same Snapshot proposal must have same delegation snapshot
-9. **Internal shares normalized** — Each group's shares sum to exactly 1.0
-10. **Group allocation correct** — totalForwardersShare + totalNonForwardersShare = 1.0
-11. **Merkle roots are valid** — 66-char hex strings starting with 0x
-12. **Critical tokens present** — SDT should be in vlCVX when SDT bounties exist
-13. **Claim counts reasonable** — Sudden large changes indicate problems
+10. **Internal shares normalized** — Each group's shares sum to exactly 1.0
+11. **Group allocation correct** — totalForwardersShare + totalNonForwardersShare = 1.0
+12. **Merkle roots are valid** — 66-char hex strings starting with 0x
+13. **Critical tokens present** — SDT should be in vlCVX when SDT bounties exist
+14. **Claim counts reasonable** — Sudden large changes indicate problems
+15. **CSV total = delegation + non-delegator** — Every wei from CSV must be accounted for in exactly one pool (exact BigInt match, zero diff)
+16. **Group split exact** — forwarders + nonForwarders = totalTokens per token (vlCVX only, exact BigInt match)
+17. **Group share ratio correct** — Actual forwarder ratio matches totalForwardersShare within 1e-4 (float rounding)
+18. **Cumulative merkle consistent** — prev_merkle + this_week_additions ≈ current_merkle (< 1e-9 relative error from BigInt rounding)
 
 ### Delegation Mechanisms
 
