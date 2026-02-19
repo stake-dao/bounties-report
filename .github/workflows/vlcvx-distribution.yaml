@@ -17,7 +17,6 @@ on:
         type: choice
         options:
           - all
-          - claims-report
           - repartition
           - merkle
           - publish
@@ -46,40 +45,10 @@ jobs:
           python: 'true'
           frozen-lockfile: 'false'
 
-      # ── Claims + Report (voters only) ──
-      - name: Run claims
-        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'claims-report')
-        run: make -f automation/distribution.mk run-claims PROTOCOL=vlCVX
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
-          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
-
-      - name: Validate reports
-        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'claims-report')
-        run: make -f automation/distribution.mk validate-reports PROTOCOL=vlCVX
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-
-      - name: Commit claims+report
-        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'claims-report')
-        uses: ./.github/actions/commit-and-push
-        with:
-          message: "chore: vlCVX claims+report [${{ inputs.dispatch_id }}]"
-
       # ── Repartition (voters only) ──
-      - name: Pull latest before repartition
-        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
-        run: git pull --rebase --autostash origin main
-
       - name: Validate reports (pre-repartition)
-        if: inputs.type == 'voters' && inputs.step == 'repartition'
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
         run: make -f automation/distribution.mk validate-reports PROTOCOL=vlCVX
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Run repartition
         if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')

@@ -1,7 +1,11 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-all run-votemarket run-votemarket-v2 run-warden run-hiddenhand run-bsc clean commit-and-push
+.PHONY: all setup install-deps run-all \
+       run-votemarket run-votemarket-v2 run-warden run-hiddenhand run-spectra \
+       run-convex-votemarket-v2 run-convex-votium \
+       run-aura-votemarket-v2 \
+       clean commit-and-push
 
 # Define the default target
 .DEFAULT_GOAL := all
@@ -35,18 +39,30 @@ run-hiddenhand: setup install-deps
 	@echo "Running Hidden Hand bounty generation..."
 	@$(PNPM) tsx script/sdTkns/claims/generateHiddenHand.ts $(PAST_WEEK)
 
-run-convex-v2: setup install-deps
-	@echo "Running Convex Votemarket V2 bounty generation..."
-	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarketV2.ts $(PAST_WEEK)
-
 run-spectra: setup install-deps
 	@echo "Running Spectra bounty generation..."
 	@$(PNPM) tsx script/sdTkns/claims/generateSpectra.ts $(PAST_WEEK)
 
+# vlCVX targets
+run-convex-votemarket-v2: setup install-deps
+	@echo "Running vlCVX Votemarket V2 bounty generation..."
+	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarketV2.ts $(PAST_WEEK)
+
+run-convex-votium: setup install-deps
+	@echo "Running vlCVX Votium bounty generation..."
+	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotium.ts $(PAST_WEEK)
+
+# vlAURA targets
+run-aura-votemarket-v2: setup install-deps
+	@echo "Running vlAURA Votemarket V2 bounty generation..."
+	@$(PNPM) tsx script/vlAURA/claims/generateVotemarketV2.ts $(PAST_WEEK)
+
 # Legacy targets for backward compatibility
-run-weekly: run-all 
+run-weekly: run-all
 
 run-mainnet: run-all
+
+run-convex-v2: run-convex-votemarket-v2
 
 commit-and-push:
 	@echo "Committing and pushing changes..."

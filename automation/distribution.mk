@@ -7,7 +7,7 @@ PROTOCOL ?=
 # Merkle type for vlCVX: non-delegators or delegators (optional, defaults to non-delegators)
 TYPE ?= non-delegators
 
-.PHONY: all setup install-deps run-claims run-report run-repartition run-merkle run-all \
+.PHONY: all setup install-deps run-repartition run-merkle run-all \
         validate-reports verify-claims commit-and-push clean
 
 .DEFAULT_GOAL := all
@@ -15,14 +15,10 @@ TYPE ?= non-delegators
 # --- Protocol-specific script paths ---
 
 ifeq ($(PROTOCOL),vlAURA)
-  CLAIMS_SCRIPT    = script/vlAURA/claims/generateVotemarketV2.ts
-  REPORT_SCRIPT    = script/vlAURA/1_report.ts
   REPART_SCRIPT    = script/vlAURA/2_repartition/index.ts
   MERKLE_SCRIPT    = script/vlAURA/3_merkles/createMerkle.ts
   PROTOCOL_LABEL   = vlAURA
 else ifeq ($(PROTOCOL),vlCVX)
-  CLAIMS_SCRIPT    = script/vlCVX/claims/generateConvexVotemarketV2.ts
-  REPORT_SCRIPT    = script/vlCVX/1_report.ts
   REPART_SCRIPT    = script/vlCVX/2_repartition/index.ts
   VERIFY_SCRIPT    = script/vlCVX/verifyClaimsCompleteness.ts
   PROTOCOL_LABEL   = vlCVX
@@ -38,7 +34,7 @@ endif
 # --- Default target ---
 
 ifeq ($(PROTOCOL),vlAURA)
-  all: setup install-deps run-report run-repartition run-merkle
+  all: setup install-deps run-repartition run-merkle
 else ifeq ($(PROTOCOL),vlCVX)
   all: setup install-deps validate-reports run-repartition
 endif
@@ -52,14 +48,6 @@ install-deps:
 	@$(PNPM) install
 	@$(PNPM) add -D tsx
 
-run-claims: setup install-deps
-	@echo "Generating $(PROTOCOL_LABEL) claims..."
-	@$(PNPM) tsx $(CLAIMS_SCRIPT)
-
-run-report: setup install-deps
-	@echo "Generating $(PROTOCOL_LABEL) report..."
-	@$(PNPM) tsx $(REPORT_SCRIPT)
-
 run-repartition: setup install-deps
 	@echo "Generating $(PROTOCOL_LABEL) repartition..."
 	@$(PNPM) tsx $(REPART_SCRIPT)
@@ -71,19 +59,19 @@ run-merkle: setup install-deps
 # Alias: run-merkles maps to run-merkle (backward compat for vlCVX workflows)
 run-merkles: run-merkle
 
-run-all: run-claims run-report run-repartition run-merkle
+run-all: run-repartition run-merkle
 	@echo "$(PROTOCOL_LABEL) distribution pipeline complete"
 
 # --- vlCVX-specific targets ---
 
-validate-reports: run-report
+validate-reports:
 ifeq ($(PROTOCOL),vlCVX)
-	@echo "Validating generated reports..."
+	@echo "Validating report CSVs exist..."
 	@WEEK=$$(expr $$(date +%s) / 604800 \* 604800) && \
 	CVX_FILE="bounties-reports/$$WEEK/cvx.csv" && \
 	FXN_FILE="bounties-reports/$$WEEK/cvx_fxn.csv" && \
 	if [ ! -f "$$CVX_FILE" ] && [ ! -f "$$FXN_FILE" ]; then \
-		echo "ERROR: No report files found (cvx.csv or cvx_fxn.csv)"; \
+		echo "ERROR: No report files found (cvx.csv or cvx_fxn.csv). Run reports.yaml first."; \
 		exit 1; \
 	fi && \
 	CVX_LINES=0 && \

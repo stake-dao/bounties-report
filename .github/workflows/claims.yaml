@@ -8,13 +8,17 @@ on:
         required: true
         type: choice
         options:
+          # sdTkns
           - votemarket
           - votemarket-v2
           - warden
           - hiddenhand
           - spectra
-          - convex-v2
-          - votium
+          # vlCVX
+          - convex-votemarket-v2
+          - convex-votium
+          # vlAURA
+          - aura-votemarket-v2
       dispatch_id:
         description: 'Unique dispatch ID for tracking'
         required: false
@@ -47,13 +51,17 @@ jobs:
       - name: Generate claims
         run: |
           case "${{ inputs.platform }}" in
-            votemarket)    make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=${{ inputs.past_week }} ;;
-            votemarket-v2) make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=${{ inputs.past_week }} ;;
-            warden)        make -f automation/weekly-bounties.mk run-warden PAST_WEEK=${{ inputs.past_week }} ;;
-            hiddenhand)    make -f automation/weekly-bounties.mk run-hiddenhand PAST_WEEK=${{ inputs.past_week }} ;;
-            spectra)       make -f automation/weekly-bounties.mk run-spectra PAST_WEEK=${{ inputs.past_week }} ;;
-            convex-v2)     make -f automation/weekly-bounties.mk run-convex-v2 PAST_WEEK=${{ inputs.past_week }} ;;
-            votium)        pnpm tsx script/vlCVX/claims/generateConvexVotium.ts ${{ inputs.past_week }} ;;
+            # sdTkns
+            votemarket)            make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=${{ inputs.past_week }} ;;
+            votemarket-v2)         make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=${{ inputs.past_week }} ;;
+            warden)                make -f automation/weekly-bounties.mk run-warden PAST_WEEK=${{ inputs.past_week }} ;;
+            hiddenhand)            make -f automation/weekly-bounties.mk run-hiddenhand PAST_WEEK=${{ inputs.past_week }} ;;
+            spectra)               make -f automation/weekly-bounties.mk run-spectra PAST_WEEK=${{ inputs.past_week }} ;;
+            # vlCVX
+            convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 PAST_WEEK=${{ inputs.past_week }} ;;
+            convex-votium)         make -f automation/weekly-bounties.mk run-convex-votium PAST_WEEK=${{ inputs.past_week }} ;;
+            # vlAURA
+            aura-votemarket-v2)    make -f automation/weekly-bounties.mk run-aura-votemarket-v2 PAST_WEEK=${{ inputs.past_week }} ;;
           esac
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -61,8 +69,8 @@ jobs:
           TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
           TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
-      - name: Run delegators indexer (votium only)
-        if: inputs.platform == 'votium'
+      - name: Run delegators indexer (convex-votium only)
+        if: inputs.platform == 'convex-votium'
         run: make -f automation/indexer.mk get-delegators
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}

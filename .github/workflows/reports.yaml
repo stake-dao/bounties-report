@@ -8,11 +8,15 @@ on:
         required: true
         type: choice
         options:
+          # sdTkns
           - curve
           - balancer
           - fxn
           - frax
           - pendle
+          # vlCVX / vlAURA
+          - vlcvx
+          - vlaura
       type:
         description: 'Report type'
         required: true
