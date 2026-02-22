@@ -1282,7 +1282,11 @@ packages:
       '@scure/base': 1.2.6
       '@types/debug': 4.1.12
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       debug: 4.4.3
+=======
+      debug: 4.3.4
+>>>>>>> Stashed changes
 =======
       debug: 4.3.4
 >>>>>>> Stashed changes
