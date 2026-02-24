@@ -18,7 +18,7 @@ import {
   SPACES_UNDERLYING_TOKEN,
   WEEK,
 } from "../utils/constants";
-import * as moment from "moment";
+import moment from "moment";
 import {
   checkSpace,
   extractCSV,
@@ -89,7 +89,7 @@ async function computeSdPendleOTCOnlyAPR(
     
     // Ensure at least one external CSV exists
     if (!fs.existsSync(vmFilePath) && !fs.existsSync(otcFilePath)) {
-      console.log("No external CSV files found for external-only APR calculation");
+      console.error("No external CSV files found for external-only APR calculation");
       return;
     }
     
@@ -103,7 +103,7 @@ async function computeSdPendleOTCOnlyAPR(
     const proposalId = proposalIdPerSpace[SDPENDLE_SPACE];
     
     if (!proposalId) {
-      console.log("No proposal found for OTC period");
+      console.error("No proposal found for OTC period");
       return;
     }
 
@@ -188,7 +188,7 @@ async function computeSdPendleOTCOnlyAPR(
     const delegationVote = voters.find((v: any) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
     
     if (!delegationVote) {
-      console.log("No delegation vote found for OTC");
+      console.error("No delegation vote found for OTC");
       return;
     }
     
@@ -200,11 +200,11 @@ async function computeSdPendleOTCOnlyAPR(
     // Calculate OTC APR using VM-specific VP
     const otcAPR = computeSdPendleDelegatorsAPR([vmVPData]);
     
-    console.log(`Total External Rewards: ${totalExternalRewards.toFixed(2)} sdPENDLE`);
-    console.log(`Delegation Rewards: ${delegationRewards.toFixed(2)} sdPENDLE`);
-    console.log(`Full Delegation VP: ${delegationVote.vp.toFixed(2)}`);
-    console.log(`VM Delegation VP: ${vmVPData.vp.toFixed(2)}`);
-    console.log(`OTC-Only APR: ${otcAPR.toFixed(4)}%`);
+    console.error(`Total External Rewards: ${totalExternalRewards.toFixed(2)} sdPENDLE`);
+    console.error(`Delegation Rewards: ${delegationRewards.toFixed(2)} sdPENDLE`);
+    console.error(`Full Delegation VP: ${delegationVote.vp.toFixed(2)}`);
+    console.error(`VM Delegation VP: ${vmVPData.vp.toFixed(2)}`);
+    console.error(`OTC-Only APR: ${otcAPR.toFixed(4)}%`);
     
     delegationAPRs[SDPENDLE_SPACE] = otcAPR;
     
@@ -475,7 +475,7 @@ const main = async () => {
     
     // If ONLY external (VM/OTC) exists (no regular), recalculate APR with VM-specific VP
     if (!regularCsvExists && externalCsvExists) {
-      console.log("\n=== Adjusting sdPendle APR for external-only scenario ===");
+      console.error("\n=== Adjusting sdPendle APR for external-only scenario ===");
       
       await computeSdPendleOTCOnlyAPR(
         currentPeriodTimestamp,
