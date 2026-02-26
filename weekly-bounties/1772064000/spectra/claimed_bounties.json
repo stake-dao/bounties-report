@@ -1,0 +1,16 @@
+{
+  "spectra": {
+    "0": {
+      "bountyId": "961517390543550155500729083946438989994222682112",
+      "gauge": "0xa86bEe5400D9F58aA2ff168FeD6AB4bcB36Bcc91",
+      "amount": "116555544",
+      "rewardToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    },
+    "1": {
+      "bountyId": "1191279597371864356029517222661935334253649723392",
+      "gauge": "0xD0AaD31c66b459a37F306C19c11C7A9B0654C1fA",
+      "amount": "83577243404388570342445",
+      "rewardToken": "0xFd4330b0312fdEEC6d4225075b82E00493FF2e3f"
+    }
+  }
+}
