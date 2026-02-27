@@ -2,7 +2,7 @@
  * Verify that all delegators in repartition delegated BEFORE the snapshot block
  */
 
-import { DELEGATION_ADDRESS } from "../utils/constants";
+import { DELEGATION_ADDRESS } from "../../utils/constants";
 import * as fs from "fs";
 
 const snapshotBlocks: Record<number, number> = { 1: 24340181, 8453: 41448198 };

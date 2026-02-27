@@ -20,7 +20,7 @@ ifeq ($(PROTOCOL),vlAURA)
   PROTOCOL_LABEL   = vlAURA
 else ifeq ($(PROTOCOL),vlCVX)
   REPART_SCRIPT    = script/vlCVX/2_repartition/index.ts
-  VERIFY_SCRIPT    = script/vlCVX/verifyClaimsCompleteness.ts
+  VERIFY_SCRIPT    = script/vlCVX/verify/claimsCompleteness.ts
   PROTOCOL_LABEL   = vlCVX
   ifeq ($(TYPE),delegators)
     MERKLE_SCRIPT  = script/vlCVX/3_merkles/createDelegatorsMerkle.ts

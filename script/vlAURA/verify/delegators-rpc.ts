@@ -12,10 +12,10 @@ import * as dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import * as moment from "moment";
-import { getClient } from "../utils/getClients";
-import { DELEGATION_ADDRESS, VLAURA_SPACE, WEEK } from "../utils/constants";
-import { fetchLastProposalsIds, getProposal, getVoters } from "../utils/snapshot";
-import { AURA_LOCKER_ADDRESSES } from "../utils/vlAuraUtils";
+import { getClient } from "../../utils/getClients";
+import { DELEGATION_ADDRESS, VLAURA_SPACE, WEEK } from "../../utils/constants";
+import { fetchLastProposalsIds, getProposal, getVoters } from "../../utils/snapshot";
+import { AURA_LOCKER_ADDRESSES } from "../../utils/vlAuraUtils";
 import { parseAbiItem, getAddress as viemGetAddress, erc20Abi, type Address, type Log } from "viem";
 
 dotenv.config();
@@ -383,9 +383,7 @@ async function main() {
 
   console.log(`\nDelegators with zero VP: ${zeroVpDelegators.length}`);
   if (zeroVpDelegators.length > 0 && zeroVpDelegators.length <= 10) {
-    for (const addr of zeroVpDelegators) {
-      console.log(`  ${addr}`);
-    }
+    for (const addr of zeroVpDelegators) console.log(`  ${addr}`);
   }
   console.log(`After removing zero-VP delegators: ${rpcDelegatorsFiltered.length}`);
 
@@ -483,24 +481,16 @@ async function main() {
 
   console.log(`\nDifferences:`);
   console.log(`  - In RPC but NOT in Parquet: ${inRpcNotParquet.length}`);
-  if (inRpcNotParquet.length > 0) {
-    console.log(`    ${inRpcNotParquet.join("\n    ")}`);
-  }
+  if (inRpcNotParquet.length > 0) console.log(`    ${inRpcNotParquet.join("\n    ")}`);
 
   console.log(`  - In Parquet but NOT in RPC: ${inParquetNotRpc.length}`);
-  if (inParquetNotRpc.length > 0) {
-    console.log(`    ${inParquetNotRpc.join("\n    ")}`);
-  }
+  if (inParquetNotRpc.length > 0) console.log(`    ${inParquetNotRpc.join("\n    ")}`);
 
   console.log(`\n  - In RPC but NOT in existing file: ${inRpcNotExisting.length}`);
-  if (inRpcNotExisting.length > 0) {
-    console.log(`    ${inRpcNotExisting.join("\n    ")}`);
-  }
+  if (inRpcNotExisting.length > 0) console.log(`    ${inRpcNotExisting.join("\n    ")}`);
 
   console.log(`  - In existing file but NOT in RPC: ${inExistingNotRpc.length}`);
-  if (inExistingNotRpc.length > 0) {
-    console.log(`    ${inExistingNotRpc.join("\n    ")}`);
-  }
+  if (inExistingNotRpc.length > 0) console.log(`    ${inExistingNotRpc.join("\n    ")}`);
 
   // Parquet staleness check
   if (inRpcNotParquet.length > 0) {
