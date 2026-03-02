@@ -82,7 +82,7 @@ describe("Consolidated Makefile: automation/distribution.mk", () => {
       "script/vlCVX/2_repartition/index.ts",
       "script/vlCVX/3_merkles/createCombinedMerkle.ts",
       "script/vlCVX/3_merkles/createDelegatorsMerkle.ts",
-      "script/vlCVX/verifyClaimsCompleteness.ts",
+      "script/vlCVX/verify/claimsCompleteness.ts",
     ];
     for (const scriptPath of vlCvxScripts) {
       expect(

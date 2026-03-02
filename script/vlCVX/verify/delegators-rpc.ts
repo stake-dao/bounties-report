@@ -8,22 +8,22 @@
  * 3. Compares with the parquet cache and current repartition_delegation.json
  *
  * Usage:
- *   pnpm tsx script/vlCVX/verify-delegators-rpc.ts [--timestamp <ts>] [--gauge-type <curve|fxn|all>]
+ *   pnpm tsx script/vlCVX/verify/delegators-rpc.ts [--timestamp <ts>] [--gauge-type <curve|fxn|all>]
  */
 
 import * as dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { formatBytes32String } from "ethers/lib/utils";
-import { getClient } from "../utils/getClients";
+import { getClient } from "../../utils/getClients";
 import {
   DELEGATION_ADDRESS,
   DELEGATE_REGISTRY,
   DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
   CVX_SPACE,
   WEEK,
-} from "../utils/constants";
-import { fetchLastProposalsIds, getProposal, getVoters } from "../utils/snapshot";
+} from "../../utils/constants";
+import { fetchLastProposalsIds, getProposal, getVoters } from "../../utils/snapshot";
 import { parseAbiItem, getAddress } from "viem";
 
 dotenv.config();
@@ -314,7 +314,7 @@ async function readParquetDelegators(
 ): Promise<string[]> {
   const filePath = path.join(
     __dirname,
-    `../../data/delegations/1/${delegationAddress}.parquet`
+    `../../../data/delegations/1/${delegationAddress}.parquet`
   );
 
   if (!fs.existsSync(filePath)) {
@@ -382,7 +382,7 @@ async function main() {
       i++;
     } else if (args[i] === "--help") {
       console.log(`
-Usage: pnpm tsx script/vlCVX/verify-delegators-rpc.ts [options]
+Usage: pnpm tsx script/vlCVX/verify/delegators-rpc.ts [options]
 
 Options:
   --timestamp <ts>    Period timestamp (default: current period)
@@ -516,7 +516,7 @@ Options:
 
     // === Load repartition file ===
     const dirPath = `bounties-reports/${timestamp}/vlCVX/${gt}`;
-    const delegationFilePath = path.join(__dirname, `../../${dirPath}/repartition_delegation.json`);
+    const delegationFilePath = path.join(__dirname, `../../../${dirPath}/repartition_delegation.json`);
 
     let existingDelegators: string[] = [];
     if (fs.existsSync(delegationFilePath)) {
@@ -550,16 +550,12 @@ Options:
     console.log(`\nRPC vs Parquet:`);
     console.log(`  - In RPC but NOT in Parquet: ${inRpcNotParquet.length}`);
     if (inRpcNotParquet.length > 0 && inRpcNotParquet.length <= 10) {
-      for (const addr of inRpcNotParquet) {
-        console.log(`    ${addr}`);
-      }
+      for (const addr of inRpcNotParquet) console.log(`    ${addr}`);
     }
 
     console.log(`  - In Parquet but NOT in RPC: ${inParquetNotRpc.length}`);
     if (inParquetNotRpc.length > 0 && inParquetNotRpc.length <= 10) {
-      for (const addr of inParquetNotRpc) {
-        console.log(`    ${addr}`);
-      }
+      for (const addr of inParquetNotRpc) console.log(`    ${addr}`);
     }
 
     // Find differences between RPC and existing file
@@ -569,16 +565,12 @@ Options:
     console.log(`\nRPC vs Repartition file:`);
     console.log(`  - In RPC but NOT in file:    ${inRpcNotExisting.length}`);
     if (inRpcNotExisting.length > 0 && inRpcNotExisting.length <= 10) {
-      for (const addr of inRpcNotExisting) {
-        console.log(`    ${addr}`);
-      }
+      for (const addr of inRpcNotExisting) console.log(`    ${addr}`);
     }
 
     console.log(`  - In file but NOT in RPC:    ${inExistingNotRpc.length}`);
     if (inExistingNotRpc.length > 0 && inExistingNotRpc.length <= 10) {
-      for (const addr of inExistingNotRpc) {
-        console.log(`    ${addr}`);
-      }
+      for (const addr of inExistingNotRpc) console.log(`    ${addr}`);
     }
 
     // Final verdict for this gauge type

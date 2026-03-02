@@ -32,6 +32,12 @@ Shared utilities and helpers
 - CSV parsing and validation
 - Blockchain integrations
 
+#### **[/verify](./verify/README.md)**
+AI-powered distribution verification pipeline
+- Runs all protocol verification scripts and feeds output to an LLM
+- Produces `pass` / `warning` / `fail` verdicts with Telegram reporting
+- Supports multi-model comparison via `compareModels.ts`
+
 #### **/reports**
 Report generation scripts
 - `generateReport.ts` - Main report generator

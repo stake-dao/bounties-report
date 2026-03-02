@@ -3,6 +3,30 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+async function postToTelegram(
+  message: string,
+  apiKey: string,
+  chatId: string,
+  parseMode: "MarkdownV2" | "HTML"
+): Promise<void> {
+  const url = `https://api.telegram.org/bot${apiKey}/sendMessage`;
+  const payload = {
+    chat_id: chatId,
+    text: message,
+    parse_mode: parseMode,
+    disable_web_page_preview: true,
+  };
+
+  try {
+    const response = await axios.post(url, payload);
+    if (response.status !== 200) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Failed to send the message:", error);
+  }
+}
+
 export async function sendTelegramMessage(
   message: string,
   parseMode: "MarkdownV2" | "HTML" = "MarkdownV2"
@@ -17,20 +41,18 @@ export async function sendTelegramMessage(
     return;
   }
 
-  const url = `https://api.telegram.org/bot${TELEGRAM_API_KEY}/sendMessage`;
-  const payload = {
-    chat_id: TELEGRAM_CHAT_ID,
-    text: message,
-    parse_mode: parseMode,
-    disable_web_page_preview: true,
-  };
+  await postToTelegram(message, TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, parseMode);
+}
 
-  try {
-    const response = await axios.post(url, payload);
-    if (response.status !== 200) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-  } catch (error) {
-    console.error("Failed to send the message:", error);
-  }
+/**
+ * Send a Telegram message using explicit credentials instead of env vars.
+ * Use this when a different bot/chat is needed from the default TELEGRAM_VERIF_* one.
+ */
+export async function sendTelegramMessageWithCreds(
+  message: string,
+  apiKey: string,
+  chatId: string,
+  parseMode: "MarkdownV2" | "HTML" = "HTML"
+): Promise<void> {
+  await postToTelegram(message, apiKey, chatId, parseMode);
 }

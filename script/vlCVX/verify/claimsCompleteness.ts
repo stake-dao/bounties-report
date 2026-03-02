@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import * as dotenv from "dotenv";
-import { sendTelegramMessage } from "../utils/telegramUtils";
+import { sendTelegramMessage } from "../../utils/telegramUtils";
 
 dotenv.config();
 
@@ -66,10 +66,10 @@ function parseCSV(filePath: string): CSVRow[] {
 
   const content = fs.readFileSync(filePath, "utf-8");
   const lines = content.trim().split("\n");
-  
+
   // Skip header and filter empty lines
   const dataLines = lines.slice(1).filter(line => line.trim());
-  
+
   return dataLines.map(line => {
     const parts = line.split(";");
     return {
@@ -149,11 +149,11 @@ function verifyPeriod(timestamp: number): ValidationResult {
   // Check claimed_bounties.json - multiple possible locations
   const possibleClaimsPaths = [
     // New location (votemarket-v2)
-    path.join(__dirname, `../../weekly-bounties/${timestamp}/votemarket-v2/claimed_bounties_convex.json`),
+    path.join(__dirname, `../../../weekly-bounties/${timestamp}/votemarket-v2/claimed_bounties_convex.json`),
     // Legacy location
-    path.join(__dirname, `../../weekly-bounties/${timestamp}/claimed_bounties.json`),
+    path.join(__dirname, `../../../weekly-bounties/${timestamp}/claimed_bounties.json`),
     // Votemarket v1 location
-    path.join(__dirname, `../../weekly-bounties/${timestamp}/votemarket/claimed_bounties_convex.json`),
+    path.join(__dirname, `../../../weekly-bounties/${timestamp}/votemarket/claimed_bounties_convex.json`),
   ];
 
   let claimedBountiesPath: string | undefined;
@@ -175,15 +175,15 @@ function verifyPeriod(timestamp: number): ValidationResult {
     result.isValid = false;
   } else {
     result.summary.claimedBountiesExists = true;
-    
+
     try {
       const fileContent = fs.readFileSync(claimedBountiesPath, "utf-8");
       const parsedData = JSON.parse(fileContent);
-      
+
       // Handle different file formats
       // New format: { curve: {...}, fxn: {...} }
       // Old format: { votemarket: { curve: {...} }, votemarket_v2: { ... }, votium: {...} }
-      
+
       if (parsedData.votemarket || parsedData.votemarket_v2 || parsedData.votium) {
         // Old format
         claimedBounties = parsedData;
@@ -217,14 +217,8 @@ function verifyPeriod(timestamp: number): ValidationResult {
   }
 
   // Check CSV reports
-  const cvxCSVPath = path.join(
-    __dirname,
-    `../../bounties-reports/${timestamp}/cvx.csv`
-  );
-  const fxnCSVPath = path.join(
-    __dirname,
-    `../../bounties-reports/${timestamp}/cvx_fxn.csv`
-  );
+  const cvxCSVPath = path.join(__dirname, `../../../bounties-reports/${timestamp}/cvx.csv`);
+  const fxnCSVPath = path.join(__dirname, `../../../bounties-reports/${timestamp}/cvx_fxn.csv`);
 
   let csvExists = false;
 
@@ -359,10 +353,10 @@ function printResult(result: ValidationResult) {
 async function sendTelegramNotification(result: ValidationResult) {
   try {
     const date = new Date(result.timestamp * 1000).toISOString().split("T")[0];
-    
+
     let message = `🚨 *vlCVX Claims Verification Failed*\n\n`;
     message += `*Period:* ${result.timestamp} (${date})\n\n`;
-    
+
     // Summary
     message += `📊 *Summary:*\n`;
     message += `• claimed\\_bounties: ${result.summary.claimedBountiesExists ? "✅" : "❌"}\n`;
@@ -374,7 +368,7 @@ async function sendTelegramNotification(result: ValidationResult) {
     message += `• Total CSV rows: ${result.summary.totalCSVRows}\n`;
     message += `  \\- Curve: ${result.summary.curveCSVRows}\n`;
     message += `  \\- FXN: ${result.summary.fxnCSVRows}\n\n`;
-    
+
     // Errors
     if (result.errors.length > 0) {
       message += `🚨 *Errors:*\n`;
@@ -387,7 +381,7 @@ async function sendTelegramNotification(result: ValidationResult) {
       });
       message += `\n`;
     }
-    
+
     // Warnings
     if (result.warnings.length > 0) {
       message += `⚠️ *Warnings:*\n`;
@@ -400,11 +394,11 @@ async function sendTelegramNotification(result: ValidationResult) {
       });
       message += `\n`;
     }
-    
+
     message += `⛔ *Merkle generation blocked until issues are resolved\\.*\n\n`;
     message += `Run verification manually:\n`;
-    message += `\`pnpm tsx script/vlCVX/verifyClaimsCompleteness\\.ts \\-\\-timestamp ${result.timestamp}\``;
-    
+    message += `\`pnpm tsx script/vlCVX/verify/claimsCompleteness\\.ts \\-\\-timestamp ${result.timestamp}\``;
+
     await sendTelegramMessage(message);
     console.log("\n✅ Telegram notification sent");
   } catch (error) {

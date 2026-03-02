@@ -86,6 +86,17 @@ jobs:
         with:
           message: "chore: vlCVX ${{ inputs.type }}-merkle [${{ inputs.dispatch_id }}]"
 
+      # ── AI Verification ──
+      - name: AI verify distribution (voters)
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'merkle')
+        run: |
+          WEEK=604800
+          PERIOD=$(( $(date +%s) / WEEK * WEEK ))
+          pnpm tsx script/verify/aiVerify.ts --timestamp $PERIOD --protocol vlCVX --deep
+        env:
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
       # ── Publish ──
       - name: Pull latest before publish
         if: inputs.step == 'all' || inputs.step == 'publish'
