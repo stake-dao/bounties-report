@@ -36,13 +36,9 @@ export interface VerificationResult {
   scripts: ScriptResult[];
 }
 
-interface VerifyOptions {
-  deep?: boolean;
-}
+// ── Script registry ───────────────────────────────────────────────────────────
 
-// ── Deep script registry ──────────────────────────────────────────────────────
-
-interface DeepScript {
+interface VerifyScript {
   label: string;
   path: string;
   /** Return extra CLI args given the week timestamp. */
@@ -51,7 +47,20 @@ interface DeepScript {
   note?: string;
 }
 
-const DEEP_SCRIPTS: DeepScript[] = [
+const SCRIPTS: VerifyScript[] = [
+  // ── vlCVX ───────────────────────────────────────────────────
+  {
+    label: "vlCVX Distribution Verification",
+    path: "script/vlCVX/verify/distribution.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlCVX", "all"],
+  },
+  {
+    label: "vlCVX Reward Flow Verification",
+    path: "script/vlCVX/verify/rewardFlow.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlCVX", "all"],
+  },
   {
     label: "vlCVX parquet delegators",
     path: "script/vlCVX/verify/verifyDelegators.ts",
@@ -64,16 +73,29 @@ const DEEP_SCRIPTS: DeepScript[] = [
     args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
     protocols: ["vlCVX", "all"],
   },
+  // ── vlAURA ──────────────────────────────────────────────────
+  {
+    label: "vlAURA Distribution Verification",
+    path: "script/vlAURA/verify/distribution.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlAURA", "all"],
+  },
+  {
+    label: "vlAURA Reward Flow Verification",
+    path: "script/vlAURA/verify/rewardFlow.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlAURA", "all"],
+  },
   {
     label: "vlAURA RPC delegators",
     path: "script/vlAURA/verify/delegators-rpc.ts",
-    args: () => [], // uses current-week repartition file internally
+    args: () => [],
     protocols: ["vlAURA", "all"],
   },
   {
     label: "vlAURA delegation timing",
     path: "script/vlAURA/verify/delegation-timing.ts",
-    args: () => [], // snapshot blocks are hardcoded in the script
+    args: () => [],
     protocols: ["vlAURA", "all"],
     note: "snapshot blocks hardcoded — update script if stale",
   },
@@ -100,84 +122,73 @@ function spawnScript(relPath: string, args: string[]): ScriptResult {
 // ── Public functions ──────────────────────────────────────────────────────────
 
 /**
- * Run verification scripts and return their raw outputs.
+ * Run all verification scripts and return their raw outputs.
  * Call this once and reuse `scripts` across multiple model calls.
  */
-export function runScripts(
-  timestamp: number,
-  protocol: Protocol,
-  options: VerifyOptions = {}
-): ScriptResult[] {
-  const { deep = false } = options;
-  const tsArgs = ["--timestamp", String(timestamp)];
-  const scripts: ScriptResult[] = [];
-
-  const runProtocol = (proto: "vlCVX" | "vlAURA") => {
-    const p = proto.toLowerCase();
-    console.log(`  → ${p}/verify/distribution.ts`);
-    const d = spawnScript(`script/${proto}/verify/distribution.ts`, tsArgs);
-    d.label = `${proto} Distribution Verification`;
-    scripts.push(d);
-
-    console.log(`  → ${p}/verify/rewardFlow.ts`);
-    const f = spawnScript(`script/${proto}/verify/rewardFlow.ts`, tsArgs);
-    f.label = `${proto} Reward Flow Verification`;
-    scripts.push(f);
-  };
-
-  if (protocol === "vlCVX" || protocol === "all") runProtocol("vlCVX");
-  if (protocol === "vlAURA" || protocol === "all") runProtocol("vlAURA");
-
-  if (deep) {
-    for (const def of DEEP_SCRIPTS) {
-      if (!def.protocols.includes(protocol)) continue;
-      console.log(`  → ${def.path}${def.note ? ` [${def.note}]` : ""}`);
-      const r = spawnScript(def.path, def.args(timestamp));
-      r.label = def.label;
-      scripts.push(r);
-    }
-  }
-
-  return scripts;
+export function runScripts(timestamp: number, protocol: Protocol): ScriptResult[] {
+  return SCRIPTS
+    .filter((s) => s.protocols.includes(protocol))
+    .map((s) => {
+      console.log(`  → ${s.path}${s.note ? ` [${s.note}]` : ""}`);
+      const r = spawnScript(s.path, s.args(timestamp));
+      r.label = s.label;
+      return r;
+    });
 }
+
+/**
+ * Optional domain-specific context injected into the LLM prompt per protocol.
+ * Keeps protocol-specific knowledge out of the generic prompt template.
+ * Add an entry here when a new protocol has known triage rules or quirks.
+ */
+const PROTOCOL_CONTEXT: Partial<Record<Protocol, string>> = {
+  vlCVX: `CSV mismatch triage for vlCVX:
+1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
+2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
+When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If merkle claim count for that token is non-zero, classify as warning not fail.`,
+  vlAURA: `CSV mismatch triage for vlAURA:
+1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
+2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
+When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If merkle claim count for that token is non-zero, classify as warning not fail.`,
+};
 
 /**
  * Build the LLM prompt from collected script outputs.
  */
-function buildPrompt(
-  timestamp: number,
-  protocol: Protocol,
-  scripts: ScriptResult[],
-  deep: boolean
-): string {
+function buildPrompt(timestamp: number, protocol: Protocol, scripts: ScriptResult[]): string {
   const date = new Date(timestamp * 1000).toISOString().split("T")[0];
   const sections = scripts
     .map((s) => `────────── ${s.label} (exit ${s.exitCode}) ──────────\n${s.output}`)
     .join("\n\n");
 
-  return `You are a DeFi protocol engineer reviewing automated distribution verification for Stake DAO bounty distributions (vlCVX / vlAURA).
+  const basePrompt = `You are a DeFi protocol engineer reviewing automated distribution verification for Stake DAO bounty distributions (vlCVX / vlAURA).
 
-Week: ${timestamp} (${date})  |  Protocol: ${protocol}  |  Mode: ${deep ? "deep" : "fast"}
+Week: ${timestamp} (${date})  |  Protocol: ${protocol}
 
 ${sections}
 
 Respond with ONLY a raw JSON object (no markdown, no text outside JSON):
 {
   "verdict": "pass" | "fail" | "warning",
-  "summary": "<one concise sentence>",
-  "issues": ["<specific problem>", ...]
+  "summary": "<one concise sentence, max 20 words>",
+  "issues": ["<issue>", ...]
 }
+
+Issue writing rules:
+- Each issue is ONE short sentence, max 15 words.
+- Name the check that failed and the count/scope — do NOT embed raw hex addresses or large integers.
+- Bad:  "0x0901...e5f6 diff=20349206294183918416061799"
+- Good: "Cumulative merkle mismatch for 8 Curve Mainnet tokens"
 
 Verdict rules:
 - "pass"    → all ✅, zero ❌
 - "fail"    → any ❌ on: missing required files, invalid merkle root, delegation address in merkle, BigInt group-split mismatch, delegators in file not found via RPC, CSV diff≠0 AND token NOT in merkle (undistributed funds)
 - "warning" → only non-critical: optional file absent, week-over-week >20%, ⚠️ RPC warnings where counts still match, CSV diff≠0 BUT token IS present in merkle (reporting gap only — funds distributed correctly but CSV is incomplete)
-Issues must be empty when verdict is "pass".
+Issues must be empty when verdict is "pass".`;
 
-IMPORTANT — CSV mismatch triage (two very different severities):
-1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds were computed but never distributed
-2. CSV diff≠0 + token IS in merkle  → WARNING only: the CSV is an incomplete report (known cause: isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator). Funds reached delegators correctly.
-When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If the merkle claim count for that token is non-zero, classify as warning not fail.`;
+  const context = PROTOCOL_CONTEXT[protocol as keyof typeof PROTOCOL_CONTEXT];
+  if (context) return `${basePrompt}\n\n${context}`;
+  return basePrompt;
 }
 
 /**
@@ -189,8 +200,7 @@ export async function analyze(
   client: LLMClient,
   timestamp: number,
   protocol: Protocol,
-  scripts: ScriptResult[],
-  deep: boolean
+  scripts: ScriptResult[]
 ): Promise<VerificationResult> {
   const allOk = scripts.every((s) => s.exitCode === 0);
   const fallback = {
@@ -201,12 +211,12 @@ export async function analyze(
     issues: allOk ? [] : ["See raw script output for details"],
   };
 
-  const prompt = buildPrompt(timestamp, protocol, scripts, deep);
+  const prompt = buildPrompt(timestamp, protocol, scripts);
   const { result: parsed, error } = await client.analyzeJson<{
     verdict: Verdict;
     summary: string;
     issues: string[];
-  }>(prompt, fallback, { maxTokens: 1024, timeout: 90_000 });
+  }>(prompt, fallback, { maxTokens: 2048, timeout: 90_000 });
 
   if (error) console.warn(`  ⚠️  LLM error (${client.model}): ${error}`);
 
@@ -224,17 +234,13 @@ export async function analyze(
 export async function verify(
   client: LLMClient,
   timestamp: number,
-  protocol: Protocol = "all",
-  options: VerifyOptions = {}
+  protocol: Protocol = "all"
 ): Promise<VerificationResult> {
-  const { deep = false } = options;
   const date = new Date(timestamp * 1000).toISOString().split("T")[0];
 
-  console.log(
-    `\n[verify] week ${timestamp} (${date}), protocol=${protocol}, mode=${deep ? "deep" : "fast"}, model=${client.model}`
-  );
+  console.log(`\n[verify] week ${timestamp} (${date}), protocol=${protocol}, model=${client.model}`);
 
-  const scripts = runScripts(timestamp, protocol, options);
+  const scripts = runScripts(timestamp, protocol);
   console.log(`  → analyzing with ${client.model} (${client.provider})`);
-  return analyze(client, timestamp, protocol, scripts, deep);
+  return analyze(client, timestamp, protocol, scripts);
 }

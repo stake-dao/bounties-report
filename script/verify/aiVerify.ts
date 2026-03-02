@@ -11,6 +11,7 @@
 import * as dotenv from "dotenv";
 import { verify, Protocol } from "./distributionVerify";
 import { createZenClient, ZEN_DEFAULT_MODEL } from "../utils/openCodeZen";
+import { sendVerificationReport } from "./telegramReport";
 import { WEEK } from "../utils/constants";
 
 dotenv.config();
@@ -20,7 +21,6 @@ async function main(): Promise<void> {
   let timestamp: number | undefined;
   let protocol: Protocol = "all";
   let model = ZEN_DEFAULT_MODEL;
-  let deep = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--timestamp" && args[i + 1]) {
@@ -29,8 +29,6 @@ async function main(): Promise<void> {
       protocol = args[++i] as Protocol;
     } else if (args[i] === "--model" && args[i + 1]) {
       model = args[++i];
-    } else if (args[i] === "--deep") {
-      deep = true;
     } else if (args[i] === "--help") {
       console.log(`
 Usage: pnpm tsx script/verify/aiVerify.ts [options]
@@ -39,7 +37,6 @@ Options:
   --timestamp <ts>    Week epoch (default: current week)
   --protocol  <p>     vlCVX | vlAURA | all  (default: all)
   --model     <m>     LLM model via Opencode ZEN (default: ${ZEN_DEFAULT_MODEL})
-  --deep              Also run RPC/parquet delegation checks (~2-3 min)
   --help              Show this message
 `);
       process.exit(0);
@@ -52,7 +49,9 @@ Options:
   }
 
   const client = createZenClient(model);
-  const result = await verify(client, timestamp, protocol, { deep });
+  const result = await verify(client, timestamp, protocol);
+
+  await sendVerificationReport(result, timestamp, protocol);
 
   const icon = result.verdict === "pass" ? "✅" : result.verdict === "warning" ? "⚠️ " : "❌";
 

@@ -32,6 +32,28 @@ function stripFences(text: string): string {
     .trim();
 }
 
+/**
+ * Extract the first complete JSON object from a string.
+ * Handles models that wrap JSON in prose or markdown fences.
+ */
+function extractJson(text: string): string {
+  const stripped = stripFences(text);
+  // Fast path: already valid JSON
+  if (stripped.startsWith("{")) return stripped;
+  // Find the first '{' and its matching '}'
+  const start = text.indexOf("{");
+  if (start === -1) throw new Error("No JSON object found in response");
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  throw new Error("Unterminated JSON object in response");
+}
+
 function axiosErrorDetail(err: unknown): string {
   if (err instanceof AxiosError) {
     return `HTTP ${err.response?.status}: ${JSON.stringify(err.response?.data)}`;
@@ -86,7 +108,8 @@ class OpenCodeZenClient implements LLMClient {
     let rawText = "";
     try {
       rawText = await this.ask(prompt, options);
-      return { result: JSON.parse(stripFences(rawText)) as T, rawText };
+      const cleaned = extractJson(rawText);
+      return { result: JSON.parse(cleaned) as T, rawText };
     } catch (err) {
       return { result: fallback, rawText, error: String(err) };
     }

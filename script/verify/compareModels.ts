@@ -47,13 +47,11 @@ async function main(): Promise<void> {
   let timestamp: number | undefined;
   let protocol: Protocol = "all";
   let models = DEFAULT_MODELS;
-  let deep = false;
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--timestamp" && argv[i + 1]) timestamp = parseInt(argv[++i], 10);
     else if (argv[i] === "--protocol" && argv[i + 1]) protocol = argv[++i] as Protocol;
     else if (argv[i] === "--models" && argv[i + 1]) models = argv[++i].split(",").map((m) => m.trim());
-    else if (argv[i] === "--deep") deep = true;
     else if (argv[i] === "--help") {
       console.log(`
 Usage: pnpm tsx script/verify/compareModels.ts [options]
@@ -62,7 +60,6 @@ Options:
   --timestamp <ts>      Week epoch (default: current week)
   --protocol  <p>       vlCVX | vlAURA | all (default: all)
   --models    <m1,m2>   Comma-separated model IDs (default: ${DEFAULT_MODELS.join(",")})
-  --deep                Include RPC/parquet delegation checks
 `);
       process.exit(0);
     }
@@ -81,8 +78,8 @@ Options:
 
   // ── Run scripts once ──────────────────────────────────────────────────────
 
-  console.log(`\nRunning scripts (mode=${deep ? "deep" : "fast"})…`);
-  const scripts = runScripts(timestamp, protocol, { deep });
+  console.log("\nRunning scripts…");
+  const scripts = runScripts(timestamp, protocol);
   console.log(`Done: ${scripts.map((s) => `${s.label}(${s.exitCode})`).join(", ")}`);
 
   // ── Query all models in parallel ──────────────────────────────────────────
@@ -96,7 +93,7 @@ Options:
       const client = createZenClient(modelId, apiKey);
       const t0 = Date.now();
       try {
-        const result = await analyze(client, timestamp!, protocol, scripts, deep);
+        const result = await analyze(client, timestamp!, protocol, scripts);
         return { model: modelId, provider: client.provider, result, ms: Date.now() - t0 };
       } catch (err) {
         return { model: modelId, provider: client.provider, result: null, ms: Date.now() - t0, error: String(err) };
