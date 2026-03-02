@@ -111,6 +111,14 @@ jobs:
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
           echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
 
+      # ── Compute APR ──
+      - name: Compute APR
+        if: inputs.step == 'all' || inputs.step == 'publish'
+        run: pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
       - name: Publish voters to latest
         if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'publish')
         run: |
@@ -125,6 +133,10 @@ jobs:
               cp "$file" "bounties-reports/latest/vlCVX/vlcvx_merkle_${CHAIN_ID}.json"
             fi
           done
+
+          if [ -f "bounties-reports/${PERIOD}/vlCVX/APRs.json" ]; then
+            cp "bounties-reports/${PERIOD}/vlCVX/APRs.json" "bounties-reports/latest/vlCVX/APRs.json"
+          fi
 
       - name: Publish delegators to latest
         if: inputs.type == 'delegators' && (inputs.step == 'all' || inputs.step == 'publish')
