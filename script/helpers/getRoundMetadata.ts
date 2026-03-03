@@ -1,10 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import moment from "moment";
-import axios from "axios";
 import { fetchProposalsIdsBasedOnExactPeriods, getProposal, getLastClosedProposals } from "../utils/snapshot";
-import { WEEK, SDPENDLE_SPACE, SPECTRA_SPACE, SDCRV_SPACE, MERKLE_ADDRESS, SPECTRA_MERKLE_ADDRESS, SD_CRV, SD_PENDLE, ETH_CHAIN_ID, BASE_CHAIN_ID, MERKLE_CREATION_BLOCK_ETH } from "../utils/constants";
-import { getLatestJson } from "../utils/githubUtils";
+import { WEEK, SPECTRA_SPACE, SDCRV_SPACE, MERKLE_ADDRESS, SPECTRA_MERKLE_ADDRESS, SD_CRV, ETH_CHAIN_ID, BASE_CHAIN_ID } from "../utils/constants";
 import { getClient } from "../utils/getClients";
 import { parseAbiItem } from "viem";
 import pLimit from "p-limit";
@@ -35,7 +33,6 @@ interface ProtocolRoundMetadata {
 }
 
 interface RoundMetadata {
-    pendle?: ProtocolRoundMetadata;
     spectra?: ProtocolRoundMetadata;
     general?: ProtocolRoundMetadata;
 }
@@ -52,7 +49,9 @@ export const getRoundMetadata = async () => {
 
     let roundMetadata: RoundMetadata = {};
     if (fs.existsSync(roundMetadataPath)) {
-        roundMetadata = JSON.parse(fs.readFileSync(roundMetadataPath, "utf-8"));
+        const parsed = JSON.parse(fs.readFileSync(roundMetadataPath, "utf-8"));
+        if (parsed.spectra) roundMetadata.spectra = parsed.spectra;
+        if (parsed.general) roundMetadata.general = parsed.general;
     }
 
     // Helper to format date
@@ -266,291 +265,6 @@ export const getRoundMetadata = async () => {
         console.log(`[DEBUG] Completed processProtocol for ${protocolName}`);
     };
 
-    // Pendle processing: Monthly cycle (4 weeks) with weekly distributions
-    // Data comes from https://github.com/stake-dao/pendle-merkle-script/tree/main/scripts/data/sdPendle-rewards
-    const processPendle = async () => {
-        console.log("[DEBUG] Starting processPendle...");
-        
-        const PENDLE_REPO_PATH = "stake-dao/pendle-merkle-script";
-        const PENDLE_DIRECTORY_PATH = "scripts/data/sdPendle-rewards";
-        
-        // Reset rounds for Pendle
-        const oldRounds = roundMetadata["pendle"]?.rounds || [];
-        roundMetadata["pendle"] = { rounds: [] };
-
-        // Fetch distribution times for Pendle (using SD_CRV as proxy)
-        const eventAbi = parseAbiItem("event MerkleRootUpdated(address indexed token, bytes32 indexed merkleRoot, uint256 update)");
-        const timeMap = await fetchDistributionTimes(
-            parseInt(ETH_CHAIN_ID),
-            MERKLE_ADDRESS,
-            eventAbi,
-            { token: SD_CRV },
-            8 // 8 weeks
-        );
-
-        // Fetch list of files from GitHub to get the latest and second latest
-        const url = `https://api.github.com/repos/${PENDLE_REPO_PATH}/contents/${PENDLE_DIRECTORY_PATH}`;
-        const response = await axios.get(url);
-        
-        if (response.status !== 200) {
-            console.log("Failed to fetch Pendle rewards files from GitHub");
-            return;
-        }
-        
-        const files = response.data;
-        
-        // Parse filenames and sort by end date (format: DD-MM_DD-MM-YYYY.json)
-        const filesWithDates = files
-            .map((file: any) => {
-                // Extract end date from filename: XX-XX_DD-MM-YYYY.json
-                const match = file.name.match(/_(\d{2})-(\d{2})-(\d{4})\.json$/);
-                if (match) {
-                    const [_, day, month, year] = match;
-                    const endDate = new Date(`${year}-${month}-${day}`);
-                    return { file, endDate, name: file.name };
-                }
-                return null;
-            })
-            .filter((f: any) => f !== null)
-            .sort((a: any, b: any) => b.endDate.getTime() - a.endDate.getTime());
-        
-        if (filesWithDates.length === 0) {
-            console.log("No valid Pendle rewards files found");
-            return;
-        }
-        
-        // Get latest file (current/active cycle)
-        const latestFile = filesWithDates[0];
-        console.log(`[DEBUG] Latest Pendle file: ${latestFile.name}`);
-        
-        // Parse start and end dates from filename (DD-MM_DD-MM-YYYY.json)
-        const filenameMatch = latestFile.name.match(/(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{4})\.json$/);
-        if (!filenameMatch) {
-            console.log("Failed to parse Pendle filename");
-            return;
-        }
-        
-        const [_, startDay, startMonth, endDay, endMonth, year] = filenameMatch;
-        // Start date uses same year as end date, unless start month > end month (year rollover)
-        const startYear = parseInt(startMonth) > parseInt(endMonth) ? parseInt(year) - 1 : parseInt(year);
-        const cycleStartDate = moment.utc(`${startYear}-${startMonth}-${startDay}`, "YYYY-MM-DD");
-        const cycleEndDate = moment.utc(`${year}-${endMonth}-${endDay}`, "YYYY-MM-DD");
-        
-        console.log(`[DEBUG] Cycle: ${cycleStartDate.format("DD-MM-YYYY")} to ${cycleEndDate.format("DD-MM-YYYY")}`);
-        
-        // Get periods from the LATEST GitHub report - this is the round we're distributing NOW
-        // (The previous round from bounties-reports is already done)
-        const fileContent = await axios.get(latestFile.file.download_url);
-        const rewardsData = fileContent.data;
-        const reportPeriods = Object.keys(rewardsData.resultsByPeriod || {}).map(p => parseInt(p)).sort((a, b) => a - b);
-        const numPeriods = reportPeriods.length;
-        
-        console.log(`[DEBUG] Current round periods (from GitHub report): ${reportPeriods.map(p => formatDate(p)).join(', ')}`);
-        
-        // Check bounties-reports to see how many distributions have been done for THIS round
-        const bountyReportsPath = path.join("bounties-reports");
-        let distributionsDone = 0;
-        let firstDistDate: number | null = null;
-        
-        if (fs.existsSync(bountyReportsPath)) {
-            const folders = fs.readdirSync(bountyReportsPath)
-                .filter(f => /^\d+$/.test(f))
-                .map(f => parseInt(f))
-                .sort((a, b) => a - b);
-            
-            for (const folder of folders) {
-                const pendleCsvPath = path.join(bountyReportsPath, folder.toString(), "pendle.csv");
-                if (fs.existsSync(pendleCsvPath)) {
-                    const csvContent = fs.readFileSync(pendleCsvPath, "utf-8");
-                    const lines = csvContent.split("\n").filter(l => l.trim() && !l.startsWith("Period"));
-                    const csvPeriods = [...new Set(lines.map(l => parseInt(l.split(";")[0])).filter(p => !isNaN(p)))].sort((a, b) => a - b);
-                    
-                    // Check if this folder's periods match the current report periods
-                    if (csvPeriods.length > 0 && csvPeriods[0] === reportPeriods[0]) {
-                        distributionsDone++;
-                        if (firstDistDate === null) {
-                            firstDistDate = folder + (5 * 86400);
-                        }
-                    }
-                }
-            }
-        }
-        
-        console.log(`[DEBUG] Distributions done for current round: ${distributionsDone}`);
-        
-        let currentRoundId = 0;
-        let roundCounter = 1;
-        
-        // Standard cycle length is 4 weeks
-        const STANDARD_CYCLE_WEEKS = 4;
-        
-        // Calculate first distribution date
-        // If we found distributions for this round, use the first one
-        // Otherwise, use the upcoming Tuesday (we're starting a new round)
-        let cycleFirstDist: number;
-        if (firstDistDate !== null && distributionsDone > 0) {
-            cycleFirstDist = firstDistDate;
-        } else {
-            // No distributions yet for this round - first dist is the upcoming Tuesday
-            cycleFirstDist = getUpcomingTuesday().unix();
-        }
-        
-        console.log(`[DEBUG] First distribution date: ${formatDate(cycleFirstDist)}`);
-        
-        // Fetch proposals using period timestamps from the report
-        // fetchProposalsIdsBasedOnExactPeriods expects periodTimestamp where reportPeriod = periodTimestamp - WEEK
-        const round1PeriodsToFetch = reportPeriods.map(p => (p + WEEK).toString());
-        
-        // Round 2: proposals from AFTER the last report period (next 4 weekly proposals)
-        const lastReportPeriod = reportPeriods[reportPeriods.length - 1];
-        const nextCyclePeriods: number[] = [];
-        for (let i = 1; i <= STANDARD_CYCLE_WEEKS; i++) {
-            nextCyclePeriods.push(lastReportPeriod + (i * WEEK));
-        }
-        const round2PeriodsToFetch = nextCyclePeriods.map(p => (p + WEEK).toString());
-        
-        console.log(`[DEBUG] Round 2 proposal periods (after report): ${nextCyclePeriods.map(p => formatDate(p)).join(', ')}`);
-        
-        // Fetch all proposals
-        const allPeriodsToFetch = [...round1PeriodsToFetch, ...round2PeriodsToFetch];
-        const maxPeriod = nextCyclePeriods[nextCyclePeriods.length - 1] + (2 * WEEK);
-        const pendleProposalIds = await fetchProposalsIdsBasedOnExactPeriods(
-            SDPENDLE_SPACE,
-            allPeriodsToFetch,
-            maxPeriod
-        );
-        
-        console.log(`[DEBUG] Found Pendle proposals: ${Object.keys(pendleProposalIds).length}`);
-        
-        // Fetch and cache proposal details
-        const proposalCache = new Map<string, ProposalInfo>();
-        const seenProposalIds = new Set<string>();
-        
-        for (const period of allPeriodsToFetch) {
-            const proposalId = pendleProposalIds[period];
-            if (proposalId && !seenProposalIds.has(proposalId)) {
-                seenProposalIds.add(proposalId);
-                const proposal = await getProposal(proposalId);
-                proposalCache.set(proposalId, {
-                    id: proposal.id,
-                    start: formatDateTime(proposal.start),
-                    end: formatDateTime(proposal.end)
-                });
-            }
-        }
-        
-        // Build Round 1: Current cycle (from report)
-        // ALL proposals are distributed together over 4 weeks
-        const round1Proposals: ProposalInfo[] = [];
-        const round1ProposalIds = new Set<string>();
-        
-        for (const period of round1PeriodsToFetch) {
-            const proposalId = pendleProposalIds[period];
-            if (proposalId && !round1ProposalIds.has(proposalId)) {
-                round1ProposalIds.add(proposalId);
-                const proposalInfo = proposalCache.get(proposalId);
-                if (proposalInfo) {
-                    round1Proposals.push(proposalInfo);
-                }
-            }
-        }
-        
-        const round1: Round = {
-            id: roundCounter++,
-            proposals: round1Proposals,
-            distributions: []
-        };
-        
-        // Generate distribution dates for Round 1
-        // Always 4 distributions per round (each distribution covers ALL proposals)
-        for (let s = 1; s <= STANDARD_CYCLE_WEEKS; s++) {
-            const distTimestamp = cycleFirstDist + ((s - 1) * WEEK);
-            const distDateStr = formatDate(distTimestamp);
-            
-            let time = timeMap.get(distDateStr) || "";
-            if (!time) {
-                for (const or of oldRounds) {
-                    const d = or.distributions.find(d => d.date === distDateStr);
-                    if (d && d.distributed) {
-                        time = d.distributed;
-                        break;
-                    }
-                }
-            }
-            
-            round1.distributions.push({
-                step: s,
-                date: distDateStr,
-                distributed: time
-            });
-            
-            if (distDateStr === upcomingTuesdayStr) {
-                currentRoundId = round1.id;
-            }
-        }
-        
-        roundMetadata["pendle"]!.rounds.push(round1);
-        console.log(`Updated pendle: Round ${round1.id} (current) with ${STANDARD_CYCLE_WEEKS} distributions, ${round1Proposals.length} proposals`);
-        
-        // Build Round 2: Next cycle (projected, always 4 weeks)
-        const round2Proposals: ProposalInfo[] = [];
-        const round2ProposalIds = new Set<string>();
-        
-        for (const period of round2PeriodsToFetch) {
-            const proposalId = pendleProposalIds[period];
-            if (proposalId && !round2ProposalIds.has(proposalId) && !round1ProposalIds.has(proposalId)) {
-                round2ProposalIds.add(proposalId);
-                const proposalInfo = proposalCache.get(proposalId);
-                if (proposalInfo) {
-                    round2Proposals.push(proposalInfo);
-                }
-            }
-        }
-        
-        // Round 2 starts after Round 1's 4 distributions
-        const nextCycleFirstDist = cycleFirstDist + (STANDARD_CYCLE_WEEKS * WEEK);
-        
-        const round2: Round = {
-            id: roundCounter++,
-            proposals: round2Proposals,
-            distributions: []
-        };
-        
-        // Generate distribution dates for Round 2 (always 4 weeks)
-        for (let s = 1; s <= STANDARD_CYCLE_WEEKS; s++) {
-            const distTimestamp = nextCycleFirstDist + ((s - 1) * WEEK);
-            const distDateStr = formatDate(distTimestamp);
-            
-            let time = timeMap.get(distDateStr) || "";
-            if (!time) {
-                for (const or of oldRounds) {
-                    const d = or.distributions.find(d => d.date === distDateStr);
-                    if (d && d.distributed) {
-                        time = d.distributed;
-                        break;
-                    }
-                }
-            }
-            
-            round2.distributions.push({
-                step: s,
-                date: distDateStr,
-                distributed: time
-            });
-            
-            if (distDateStr === upcomingTuesdayStr) {
-                currentRoundId = round2.id;
-            }
-        }
-        
-        roundMetadata["pendle"]!.rounds.push(round2);
-        console.log(`Updated pendle: Round ${round2.id} (next cycle) with ${STANDARD_CYCLE_WEEKS} distributions, ${round2Proposals.length} proposals`);
-        
-        if (currentRoundId > 0) {
-            roundMetadata["pendle"]!.currentRoundId = currentRoundId;
-        }
-    };
-
     // Spectra-specific processing: one proposal = one distribution
     const processSpectra = async () => {
         console.log("[DEBUG] Starting processSpectra...");
@@ -680,10 +394,6 @@ export const getRoundMetadata = async () => {
             console.log(`No active round found for spectra`);
         }
     };
-
-    console.log("[DEBUG] Starting processPendle...");
-    await processPendle();
-    console.log("[DEBUG] Completed processPendle");
 
     // Spectra: 1 proposal = 1 distribution (weekly)
     console.log("[DEBUG] Starting processSpectra...");

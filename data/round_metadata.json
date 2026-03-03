@@ -1,103 +1,8 @@
 {
-    "pendle": {
-        "rounds": [
-            {
-                "id": 1,
-                "proposals": [
-                    {
-                        "id": "0x1fe1220a717887543c94fd850f110a676d55d5f3db75b76f7adf993d6d45ca5e",
-                        "start": "25-12-2025 02:00",
-                        "end": "30-12-2025 15:00"
-                    },
-                    {
-                        "id": "0x37ec9ec8ffb3d46f01adf57666831618adb4fdc8a435a801289d74402cc60199",
-                        "start": "01-01-2026 02:00",
-                        "end": "06-01-2026 15:00"
-                    },
-                    {
-                        "id": "0xf5d5b2ff44ad18b8abe4942d91f5882194ef984dda07771fce78665073558ec9",
-                        "start": "08-01-2026 02:00",
-                        "end": "13-01-2026 15:00"
-                    },
-                    {
-                        "id": "0x29f45569b8c0ea45819634e01acdb78cc6c406825c1a0006f7f2ca42cd858b75",
-                        "start": "15-01-2026 02:00",
-                        "end": "20-01-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "24-02-2026",
-                        "distributed": "09:49"
-                    },
-                    {
-                        "step": 2,
-                        "date": "03-03-2026",
-                        "distributed": ""
-                    },
-                    {
-                        "step": 3,
-                        "date": "10-03-2026",
-                        "distributed": ""
-                    },
-                    {
-                        "step": 4,
-                        "date": "17-03-2026",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "24-03-2026",
-                        "distributed": ""
-                    },
-                    {
-                        "step": 2,
-                        "date": "31-03-2026",
-                        "distributed": ""
-                    },
-                    {
-                        "step": 3,
-                        "date": "07-04-2026",
-                        "distributed": ""
-                    },
-                    {
-                        "step": 4,
-                        "date": "14-04-2026",
-                        "distributed": ""
-                    }
-                ]
-            }
-        ],
-        "currentRoundId": 1
-    },
     "spectra": {
         "rounds": [
             {
                 "id": 1,
-                "proposals": [
-                    {
-                        "id": "0xf2c058d93d93f5f0928dc8308fae03ad29d3b431159c29eec7299af10d7c5277",
-                        "start": "12-02-2026 02:00",
-                        "end": "17-02-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "24-02-2026",
-                        "distributed": "10:53"
-                    }
-                ]
-            },
-            {
-                "id": 2,
                 "proposals": [
                     {
                         "id": "0x3d44bee6e18ab130afc74c7dab327bb0ebbce18a6a83021343e56fdceb6aa027",
@@ -109,6 +14,23 @@
                     {
                         "step": 1,
                         "date": "03-03-2026",
+                        "distributed": "09:39"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xa43c0097d9e4c077e7883ba94772d7409aa501245608ae6431cf93b6d1e4abcf",
+                        "start": "26-02-2026 02:00",
+                        "end": "04-03-2026 11:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "10-03-2026",
                         "distributed": ""
                     }
                 ]
@@ -120,28 +42,6 @@
         "rounds": [
             {
                 "id": 1,
-                "proposals": [
-                    {
-                        "id": "0xfb97b2f93f50530d09d41861593bc46ba9f77443c952d250505e6b626a9cb3be",
-                        "start": "29-01-2026 02:00",
-                        "end": "03-02-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "10-02-2026",
-                        "distributed": "10:05"
-                    },
-                    {
-                        "step": 2,
-                        "date": "17-02-2026",
-                        "distributed": "10:29"
-                    }
-                ]
-            },
-            {
-                "id": 2,
                 "proposals": [
                     {
                         "id": "0xd80d97d2ffffe7672f987bcf34df6d2c240ce5f18b97e3faa01e498d1d2433b4",
@@ -158,11 +58,33 @@
                     {
                         "step": 2,
                         "date": "03-03-2026",
+                        "distributed": "09:27"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x25558bf7d88a158f8e091cc61388f2783a71cbe809ad8d50b7bf7562ee811bb9",
+                        "start": "26-02-2026 02:00",
+                        "end": "03-03-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "10-03-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "17-03-2026",
                         "distributed": ""
                     }
                 ]
             }
         ],
-        "currentRoundId": 2
+        "currentRoundId": 1
     }
 }

@@ -155,6 +155,12 @@ jobs:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
         continue-on-error: true
 
+      - name: Update round metadata
+        if: (inputs.token == 'legacy' || inputs.token == 'spectra') && (inputs.step == 'all' || inputs.step == 'publish')
+        run: pnpm tsx script/helpers/getRoundMetadata.ts
+        env:
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
       - name: Commit publish
         if: inputs.step == 'all' || inputs.step == 'publish'
         uses: ./.github/actions/commit-and-push
