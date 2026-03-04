@@ -35,7 +35,7 @@ Usage: pnpm tsx script/verify/aiVerify.ts [options]
 
 Options:
   --timestamp <ts>    Week epoch (default: current week)
-  --protocol  <p>     vlCVX | vlAURA | all  (default: all)
+  --protocol  <p>     vlCVX | vlAURA | bounties | all  (default: all)
   --model     <m>     LLM model via Opencode ZEN (default: ${ZEN_DEFAULT_MODEL})
   --help              Show this message
 `);
