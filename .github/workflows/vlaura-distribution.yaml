@@ -26,6 +26,10 @@ jobs:
       contents: write
 
     steps:
+      - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
+        if: always()
+        run: echo "Temporal tracking"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
