@@ -150,7 +150,7 @@ jobs:
 
       # ── Compute APR ──
       - name: Compute APR
-        if: inputs.step == 'all' || inputs.step == 'publish'
+        if: inputs.step == 'all' || (inputs.step == 'publish' && inputs.type == 'delegators')
         run: pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
