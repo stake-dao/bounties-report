@@ -2,13 +2,51 @@
  * Verify that all delegators in repartition delegated BEFORE the snapshot block
  */
 
-import { DELEGATION_ADDRESS } from "../../utils/constants";
-import * as fs from "fs";
+import * as dotenv from "dotenv";
+import * as moment from "moment";
+import { DELEGATION_ADDRESS, VLAURA_SPACE, WEEK } from "../../utils/constants";
+import { fetchLastProposalsIds, getProposal } from "../../utils/snapshot";
+import { getClient } from "../../utils/getClients";
+dotenv.config();
 
-const snapshotBlocks: Record<number, number> = { 1: 24340181, 8453: 41448198 };
+const BASE_AURA_LOCKER_FROM_BLOCK = 17894724n; // Base AuraLocker deployment block
 
 async function verifyDelegationTiming() {
   const hyparquet = await import("hyparquet");
+
+  // Fetch current proposal to get the authoritative snapshot block
+  const now = moment.utc().unix();
+  console.log("Fetching proposal...");
+  const proposalIdPerSpace = await fetchLastProposalsIds([VLAURA_SPACE], now, "Gauge Weight for Week of");
+  const proposalId = proposalIdPerSpace[VLAURA_SPACE];
+  const proposal = await getProposal(proposalId);
+  const snapshotBlock = Number(proposal.snapshot);
+  const snapshotTimestamp = await getClient(1).then(async (client) => {
+    const block = await client.getBlock({ blockNumber: BigInt(snapshotBlock) });
+    return Number(block.timestamp);
+  });
+
+  console.log(`Proposal: ${proposal.title}`);
+  console.log(`Snapshot block (ETH): ${snapshotBlock}`);
+
+  // For Base, binary-search the block at the same timestamp
+  const baseClient = await getClient(8453);
+  const latestBaseBlock = await baseClient.getBlock({ blockTag: "latest" });
+  let low = BASE_AURA_LOCKER_FROM_BLOCK;
+  let high = latestBaseBlock.number;
+  while (low < high) {
+    const mid = (low + high) / 2n;
+    const block = await baseClient.getBlock({ blockNumber: mid });
+    if (block.timestamp < BigInt(snapshotTimestamp)) {
+      low = mid + 1n;
+    } else {
+      high = mid;
+    }
+  }
+  const baseSnapshotBlock = Number(low);
+  console.log(`Snapshot block (Base): ${baseSnapshotBlock}`);
+
+  const snapshotBlocks: Record<number, number> = { 1: snapshotBlock, 8453: baseSnapshotBlock };
 
   const parquetFiles: Record<number, string> = {
     1: "data/vlaura-delegations/1/0x3Fa73f1E5d8A792C80F426fc8F84FBF7Ce9bBCAC.parquet",
