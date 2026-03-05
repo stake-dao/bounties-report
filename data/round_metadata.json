@@ -5,23 +5,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x3d44bee6e18ab130afc74c7dab327bb0ebbce18a6a83021343e56fdceb6aa027",
-                        "start": "19-02-2026 02:00",
-                        "end": "24-02-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "03-03-2026",
-                        "distributed": "09:39"
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0xa43c0097d9e4c077e7883ba94772d7409aa501245608ae6431cf93b6d1e4abcf",
                         "start": "26-02-2026 02:00",
                         "end": "04-03-2026 11:00"
@@ -31,6 +14,23 @@
                     {
                         "step": 1,
                         "date": "10-03-2026",
+                        "distributed": ""
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xe90752956149b4a72b11f6b31910be8d7d63b85fc270da70b2c5b86c3b0711b0",
+                        "start": "05-03-2026 02:00",
+                        "end": "10-03-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "17-03-2026",
                         "distributed": ""
                     }
                 ]
@@ -58,7 +58,7 @@
                     {
                         "step": 2,
                         "date": "03-03-2026",
-                        "distributed": "09:27"
+                        "distributed": "09:14"
                     }
                 ]
             },
@@ -85,6 +85,6 @@
                 ]
             }
         ],
-        "currentRoundId": 1
+        "currentRoundId": 2
     }
 }
