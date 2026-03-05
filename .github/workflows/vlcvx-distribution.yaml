@@ -125,6 +125,8 @@ jobs:
         env:
           OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          TEST_TELEGRAM_API_KEY: ${{ secrets.TEST_TELEGRAM_API_KEY }}
+          TEST_TELEGRAM_CHAT_ID: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
 
       # ── Publish ──
       - name: Pull latest before publish
