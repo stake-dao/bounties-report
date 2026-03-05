@@ -14,6 +14,7 @@ on:
         default: 'all'
         type: choice
         options:
+          - full
           - all
           - repartition
           - merkle
@@ -42,9 +43,26 @@ jobs:
           python: 'true'
           frozen-lockfile: 'false'
 
+      # ── Report Generation ──
+      - name: Generate vlAURA report
+        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'repartition'
+        run: make -f automation/reports.mk run-weekly-vlaura
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+
+      - name: Commit report
+        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'repartition'
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: vlAURA report [${{ inputs.dispatch_id }}]"
+
       # ── Repartition ──
       - name: Run repartition
-        if: inputs.step == 'all' || inputs.step == 'repartition'
+        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'repartition'
         run: make -f automation/distribution.mk run-repartition PROTOCOL=vlAURA
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -53,18 +71,18 @@ jobs:
           VLAURA_GRAPHQL_ENDPOINT: https://snapshot-indexer.contact-69d.workers.dev/v1/graphql
 
       - name: Commit repartition
-        if: inputs.step == 'all' || inputs.step == 'repartition'
+        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'repartition'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlAURA repartition [${{ inputs.dispatch_id }}]"
 
       # ── Merkle ──
       - name: Pull latest before merkle
-        if: inputs.step == 'all' || inputs.step == 'merkle'
+        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'merkle'
         run: git pull --rebase --autostash origin main
 
       - name: Create merkle
-        if: inputs.step == 'all' || inputs.step == 'merkle'
+        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'merkle'
         run: make -f automation/distribution.mk run-merkle PROTOCOL=vlAURA
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -72,14 +90,14 @@ jobs:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Commit merkle
-        if: inputs.step == 'all' || inputs.step == 'merkle'
+        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'merkle'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlAURA merkle [${{ inputs.dispatch_id }}]"
 
       # ── AI Verification ──
       - name: AI verify distribution
-        if: inputs.step == 'all' || inputs.step == 'merkle'
+        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'merkle'
         run: |
           WEEK=604800
           PERIOD=$(( $(date +%s) / WEEK * WEEK ))
