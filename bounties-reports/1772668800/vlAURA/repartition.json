@@ -1,0 +1,35 @@
+{
+  "distribution": {
+    "0xBeF27037bC6311b96635E5e9Af3A73EBF6Ca8878": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "213507016",
+        "0xd33526068d116ce69f19a9ee46f0bd304f21a51f": "154980993411350983600"
+      }
+    },
+    "0xAA484Ba6a7f51f00A3f82a11e73b741AE1dEAB58": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "619372470"
+      }
+    },
+    "0x15C577f4b9fbe66735A9bFF9B0B5D3EA2854Bfaa": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "1441153"
+      }
+    },
+    "0xE65c2be6254731e93368CC071A2420b0C961451B": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "19003740"
+      }
+    },
+    "0xcb71544ed459F934166C48E510Ed700708f82882": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "127154829"
+      }
+    },
+    "0x693f30c37D5a0Db9258C636E93Ccf011ACd8c90c": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "81100145"
+      }
+    }
+  }
+}
