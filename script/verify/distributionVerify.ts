@@ -19,7 +19,7 @@ const MAX_BUFFER = 10 * 1024 * 1024;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type Protocol = "vlCVX" | "vlAURA" | "all";
+export type Protocol = "vlCVX" | "vlAURA" | "bounties" | "all";
 
 type Verdict = "pass" | "fail" | "warning";
 
@@ -72,6 +72,13 @@ const SCRIPTS: VerifyScript[] = [
     path: "script/vlCVX/verify/delegators-rpc.ts",
     args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
     protocols: ["vlCVX", "all"],
+  },
+  // ── bounties report ─────────────────────────────────────────
+  {
+    label: "Bounties Report Verification",
+    path: "script/verify/verifyBountiesReport.ts",
+    args: (ts) => ["--epoch", String(ts)],
+    protocols: ["bounties", "all"],
   },
   // ── vlAURA ──────────────────────────────────────────────────
   {
@@ -142,6 +149,14 @@ export function runScripts(timestamp: number, protocol: Protocol): ScriptResult[
  * Add an entry here when a new protocol has known triage rules or quirks.
  */
 const PROTOCOL_CONTEXT: Partial<Record<Protocol, string>> = {
+  bounties: `Bounties report triage rules:
+- ⚠️  "frax attribution not present" → expected (frax is OTC-only, no aggregator swap)
+- ⚠️  "pendle direct distribution" → expected (wethNotSwapped=true, pendle uses direct route)
+- ⚠️  "dropped token" (ORDER mismatch) → usually a cross-chain token (e.g. Base USDC) that can't be swapped by the mainnet aggregator; classify as warning unless the token has no CSV entry at all
+- ❌  "gauge in claimed_bounties but NOT in any CSV" → CRITICAL: bounty claimed on-chain but not distributed
+- ❌  "sdInTotal mismatch > 0.5%" → CRITICAL: swap amounts don't reconcile with CSV
+- ❌  CSV file missing for a non-empty protocol → CRITICAL
+Root gauge note: Curve L2 gauges (rootGauge on Arbitrum/Base) are resolved to their mainnet gauge before checking the CSV — a failed resolution is a data issue, not a false positive.`,
   vlCVX: `CSV mismatch triage for vlCVX:
 1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
 2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
@@ -161,7 +176,7 @@ function buildPrompt(timestamp: number, protocol: Protocol, scripts: ScriptResul
     .map((s) => `────────── ${s.label} (exit ${s.exitCode}) ──────────\n${s.output}`)
     .join("\n\n");
 
-  const basePrompt = `You are a DeFi protocol engineer reviewing automated distribution verification for Stake DAO bounty distributions (vlCVX / vlAURA).
+  const basePrompt = `You are a DeFi protocol engineer reviewing automated distribution verification for Stake DAO bounty distributions (vlCVX / vlAURA / bounties report).
 
 Week: ${timestamp} (${date})  |  Protocol: ${protocol}
 

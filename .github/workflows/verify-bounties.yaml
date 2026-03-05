@@ -1,0 +1,51 @@
+name: "Bounties: AI Verify"
+
+on:
+  workflow_dispatch:
+    inputs:
+      epoch:
+        description: 'Epoch timestamp (default: current week)'
+        required: false
+        type: string
+        default: ''
+      dispatch_id:
+        description: 'Unique dispatch ID for tracking'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
+
+      - name: AI verify bounties report
+        run: |
+          if [ -n "${{ inputs.epoch }}" ]; then
+            PERIOD="${{ inputs.epoch }}"
+          else
+            WEEK=604800
+            PERIOD=$(( $(date +%s) / WEEK * WEEK ))
+          fi
+          pnpm tsx script/verify/aiVerify.ts --timestamp $PERIOD --protocol bounties
+        env:
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
+          TEST_TELEGRAM_API_KEY: ${{ secrets.TEST_TELEGRAM_API_KEY }}
+          TEST_TELEGRAM_CHAT_ID: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+
+      - name: Notify on failure
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          workflow_name: "Bounties: AI Verify"
+          dispatch_id: ${{ inputs.dispatch_id }}
+          telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}
