@@ -26,6 +26,11 @@ on:
         required: false
         type: string
         default: ''
+      force_merkle:
+        description: 'Force merkle regeneration even if files exist'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   run:
@@ -108,6 +113,7 @@ jobs:
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          FORCE_UPDATE: ${{ inputs.force_merkle && 'true' || 'false' }}
 
       - name: Commit merkle voters
         if: inputs.step == 'full' || ((inputs.step == 'all' || inputs.step == 'merkle') && inputs.type == 'voters')
@@ -125,8 +131,6 @@ jobs:
         env:
           OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-          TEST_TELEGRAM_API_KEY: ${{ secrets.TEST_TELEGRAM_API_KEY }}
-          TEST_TELEGRAM_CHAT_ID: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
 
       # ── Publish ──
       - name: Pull latest before publish
