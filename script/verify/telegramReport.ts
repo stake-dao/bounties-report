@@ -25,7 +25,7 @@ const HEADER_ICON: Record<string, string> = {
 
 const DIVIDER = "━━━━━━━━━━━━━━━━━━━━━━━━━━━";
 
-// ── Script label shortener ─────────────────────────────────────────────────────
+// ── Script label / grouping helpers ───────────────────────────────────────────
 
 /**
  * Strip the protocol prefix and "Verification" suffix from script labels.
@@ -37,6 +37,32 @@ function shortLabel(label: string): string {
     .replace(/^vl\w+\s+/i, "")
     .replace(/\s*Verification$/i, "")
     .trim();
+}
+
+/** Infer protocol group from script label prefix. */
+function inferGroup(label: string): string {
+  if (/^vlCVX/i.test(label)) return "vlCVX";
+  if (/^vlAURA/i.test(label)) return "vlAURA";
+  if (/bounties/i.test(label)) return "Bounties";
+  return "Other";
+}
+
+/** Group scripts preserving insertion order. */
+function groupScripts(scripts: VerificationResult["scripts"]): Map<string, VerificationResult["scripts"]> {
+  const groups = new Map<string, VerificationResult["scripts"]>();
+  for (const s of scripts) {
+    const g = inferGroup(s.label);
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g)!.push(s);
+  }
+  return groups;
+}
+
+/** Human-readable protocol name for the message header. */
+function protocolDisplayName(protocol: Protocol, scripts: VerificationResult["scripts"]): string {
+  if (protocol !== "all") return protocol;
+  // Build from the groups actually present in this run
+  return [...groupScripts(scripts).keys()].join(" · ");
 }
 
 // ── Formatter ─────────────────────────────────────────────────────────────────
@@ -53,11 +79,12 @@ export function formatVerificationReport(
 
   const lines: string[] = [];
 
-  // Header — icon reflects severity
-  lines.push(`${headerIcon} <b>[AI Verify] ${protocol} — ${date}</b>`);
+  // Header
+  const displayName = protocolDisplayName(protocol, result.scripts);
+  lines.push(`${headerIcon} <b>[AI Verify] ${escapeHtml(displayName)} — ${date}</b>`);
   lines.push("");
 
-  // Verdict + summary on adjacent lines
+  // Verdict + summary
   lines.push(`${verdictIcon} <b>${verdict}</b>`);
   lines.push(`<i>${escapeHtml(result.summary)}</i>`);
 
@@ -70,14 +97,26 @@ export function formatVerificationReport(
     }
   }
 
-  // Compact scripts line
+  // Scripts — grouped when multiple protocols, flat when single
   lines.push("");
   lines.push(DIVIDER);
-  const scriptParts = result.scripts.map((s) => {
-    const icon = s.exitCode === 0 ? "✅" : "❌";
-    return `${icon} ${escapeHtml(shortLabel(s.label))}`;
-  });
-  lines.push(scriptParts.join("  ·  "));
+
+  const groups = groupScripts(result.scripts);
+  const multiGroup = groups.size > 1;
+
+  for (const [group, scripts] of groups) {
+    if (multiGroup) {
+      const passCount = scripts.filter((s) => s.exitCode === 0).length;
+      const groupIcon = passCount === scripts.length ? "✅" : "❌";
+      lines.push(`\n<b>${escapeHtml(group)}</b>  ${passCount}/${scripts.length} ${groupIcon}`);
+    }
+    for (const s of scripts) {
+      const icon = s.exitCode === 0 ? "✅" : "❌";
+      const label = escapeHtml(shortLabel(s.label));
+      const note = result.scriptNotes?.[s.label];
+      lines.push(note ? `${icon} ${label} — <i>${escapeHtml(note)}</i>` : `${icon} ${label}`);
+    }
+  }
 
   const message = lines.join("\n");
 

@@ -34,6 +34,8 @@ export interface VerificationResult {
   summary: string;
   issues: string[];
   scripts: ScriptResult[];
+  /** Optional per-script metric notes extracted by the LLM (key = script label). */
+  scriptNotes?: Record<string, string>;
 }
 
 // ── Script registry ───────────────────────────────────────────────────────────
@@ -186,7 +188,8 @@ Respond with ONLY a raw JSON object (no markdown, no text outside JSON):
 {
   "verdict": "pass" | "fail" | "warning",
   "summary": "<one concise sentence, max 20 words>",
-  "issues": ["<issue>", ...]
+  "issues": ["<issue>", ...],
+  "script_notes": { "<exact script label>": "<brief metric phrase>" }
 }
 
 Issue writing rules:
@@ -194,6 +197,18 @@ Issue writing rules:
 - Name the check that failed and the count/scope — do NOT embed raw hex addresses or large integers.
 - Bad:  "0x0901...e5f6 diff=20349206294183918416061799"
 - Good: "Cumulative merkle mismatch for 8 Curve Mainnet tokens"
+
+script_notes rules:
+- Key must be the EXACT script label shown in the section header (e.g. "vlCVX Distribution Verification").
+- Value is a short phrase (max 10 words) with the most informative numbers from that script's output.
+- You MUST include a note for EVERY script — only omit if the script produced no output at all.
+- Per-script guidance (extract these specific numbers):
+  - "* Distribution Verification" → merkle claim count + token count, e.g. "234 claims, 18 tokens"
+  - "* Reward Flow Verification" → CSV balance result + chain count, e.g. "CSV balanced (3 chains)" or "CSV diff on 2 tokens"
+  - "* parquet delegators" → delegator count + forwarder/non-fwd split, e.g. "315: 89 fwd / 226 non-fwd"
+  - "* RPC delegators" → active delegator count + zero-VP filtered count, e.g. "315 active, 43 zero-VP"
+  - "* delegation timing" → snapshot block used, e.g. "block 22300000"
+  - "Bounties Report Verification" → gauge/CSV row counts or failure reason, e.g. "42 gauges, 3 CSVs" or "CSV files missing"
 
 Verdict rules:
 - "pass"    → all ✅, zero ❌
@@ -231,6 +246,7 @@ export async function analyze(
     verdict: Verdict;
     summary: string;
     issues: string[];
+    script_notes?: Record<string, string>;
   }>(prompt, fallback, { maxTokens: 2048, timeout: 90_000 });
 
   if (error) console.warn(`  ⚠️  LLM error (${client.model}): ${error}`);
@@ -240,6 +256,7 @@ export async function analyze(
     summary: parsed.summary,
     issues: parsed.issues ?? [],
     scripts,
+    scriptNotes: parsed.script_notes,
   };
 }
 

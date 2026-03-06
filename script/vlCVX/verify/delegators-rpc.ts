@@ -28,23 +28,7 @@ import { parseAbiItem, getAddress } from "viem";
 
 dotenv.config();
 
-// vlCVX token contract address (CvxLockerV2)
-const VLCVX_TOKEN = "0x72a19342e8F1838460eBFCCEf09F6585e32db86E" as const;
-
-// vlCVX ABI for balance check
-// NOTE: We use lockedBalanceOf (not balanceOf) because the Snapshot cvx.eth
-// strategy counts locked tokens including expired-but-unwithdrawn locks.
-// balanceOf returns 0 once a lock epoch expires, but lockedBalanceOf still
-// reflects the locked amount — matching how Snapshot calculates voting power.
-const VLCVX_ABI = [
-  {
-    name: "lockedBalanceOf",
-    type: "function",
-    inputs: [{ type: "address" }],
-    outputs: [{ type: "uint256" }],
-    stateMutability: "view",
-  },
-] as const;
+const SNAPSHOT_SCORE_API = "https://score.snapshot.org/api/scores";
 
 // Snapshot Delegation Registry events
 const SET_DELEGATE_EVENT = parseAbiItem(
@@ -66,72 +50,61 @@ interface DelegationEvent {
 
 
 /**
- * Fetch voting power (vlCVX lockedBalanceOf) for multiple addresses at a specific block.
- * Uses lockedBalanceOf to match the Snapshot cvx.eth strategy, which counts locked tokens
- * including expired-but-unwithdrawn locks (unlike balanceOf which returns 0 after expiry).
- * Returns a map of address -> locked balance
+ * Fetch voting power for multiple addresses using the Snapshot scoring API.
+ * This is the authoritative source — it runs the exact same strategy computation
+ * as Snapshot itself, so the VP filter here is identical to what Snapshot uses
+ * when tallying votes. Strategies and snapshot block are taken directly from the
+ * proposal object so they stay in sync automatically.
  */
-async function fetchVotingPowers(
+async function fetchSnapshotScores(
   addresses: string[],
-  atBlock: bigint
-): Promise<Map<string, bigint>> {
-  const client = await getClient(1);
-  const balances = new Map<string, bigint>();
+  strategies: Array<{ name: string; params: Record<string, unknown> }>,
+  snapshotBlock: number,
+  space: string
+): Promise<Map<string, number>> {
+  const scores = new Map<string, number>();
 
-  if (addresses.length === 0) return balances;
+  if (addresses.length === 0) return scores;
 
-  console.log(`Fetching voting power for ${addresses.length} addresses at block ${atBlock}...`);
+  console.log(`Fetching Snapshot VP for ${addresses.length} addresses at block ${snapshotBlock}...`);
 
-  // Use multicall for efficiency
-  const BATCH_SIZE = 100;
+  // Snapshot scoring API handles up to ~1000 addresses per call
+  const BATCH_SIZE = 500;
   for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
     const batch = addresses.slice(i, i + BATCH_SIZE);
 
-    const calls = batch.map((addr) => ({
-      address: getAddress(VLCVX_TOKEN),
-      abi: VLCVX_ABI,
-      functionName: "lockedBalanceOf" as const,
-      args: [getAddress(addr)] as const,
-    }));
+    const res = await fetch(SNAPSHOT_SCORE_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        params: {
+          network: "1",
+          snapshot: snapshotBlock,
+          strategies,
+          space,
+          addresses: batch,
+        },
+      }),
+    });
 
-    try {
-      const results = await client.multicall({
-        contracts: calls,
-        blockNumber: atBlock,
-      });
+    if (!res.ok) throw new Error(`Snapshot score API error: ${res.status} ${await res.text()}`);
 
-      results.forEach((result, index) => {
-        const addr = batch[index].toLowerCase();
-        if (result.status === "success") {
-          balances.set(addr, result.result as bigint);
-        } else {
-          balances.set(addr, 0n);
-        }
-      });
-    } catch (error) {
-      console.warn(`  Multicall failed for batch ${i}, falling back to individual calls`);
-      // Fallback to individual calls
-      for (const addr of batch) {
-        try {
-          const balance = await client.readContract({
-            address: getAddress(VLCVX_TOKEN),
-            abi: VLCVX_ABI,
-            functionName: "lockedBalanceOf",
-            args: [getAddress(addr)],
-            blockNumber: atBlock,
-          });
-          balances.set(addr.toLowerCase(), balance);
-        } catch {
-          balances.set(addr.toLowerCase(), 0n);
-        }
+    const data = (await res.json()) as { result?: { scores?: Record<string, number>[] } };
+    const stratScores = data.result?.scores ?? [];
+
+    // Sum VP across all strategies for each address
+    for (const stratScore of stratScores) {
+      for (const [addr, vp] of Object.entries(stratScore)) {
+        const key = addr.toLowerCase();
+        scores.set(key, (scores.get(key) ?? 0) + vp);
       }
     }
   }
 
-  const nonZeroCount = [...balances.values()].filter(b => b > 0n).length;
+  const nonZeroCount = [...scores.values()].filter((v) => v > 0).length;
   console.log(`  ${nonZeroCount}/${addresses.length} addresses have non-zero VP`);
 
-  return balances;
+  return scores;
 }
 
 /**
@@ -476,16 +449,21 @@ Options:
     );
     console.log(`RPC delegators (after removing voters): ${rpcDelegatorsAfterVoters.length}`);
 
-    // === Filter by voting power ===
-    console.log("\n--- Checking voting power at snapshot block ---");
-    const vpMap = await fetchVotingPowers(rpcDelegatorsAfterVoters, snapshotBlock);
+    // === Filter by voting power (via Snapshot scoring API) ===
+    console.log("\n--- Checking voting power via Snapshot scoring API ---");
+    const vpMap = await fetchSnapshotScores(
+      rpcDelegatorsAfterVoters,
+      proposal.strategies,
+      Number(proposal.snapshot),
+      CVX_SPACE
+    );
 
     const zeroVpDelegators: string[] = [];
     const rpcDelegatorsFiltered: string[] = [];
 
     for (const delegator of rpcDelegatorsAfterVoters) {
-      const vp = vpMap.get(delegator) || 0n;
-      if (vp > 0n) {
+      const vp = vpMap.get(delegator) ?? 0;
+      if (vp > 0) {
         rpcDelegatorsFiltered.push(delegator);
       } else {
         zeroVpDelegators.push(delegator);

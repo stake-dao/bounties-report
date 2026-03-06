@@ -49,29 +49,37 @@ Options:
   }
 
   const client = createZenClient(model);
-  const result = await verify(client, timestamp, protocol);
 
-  await sendVerificationReport(result, timestamp, protocol);
+  // When "all", run each protocol independently so each gets its own Telegram message.
+  const protocols: Protocol[] = protocol === "all"
+    ? ["vlCVX", "bounties", "vlAURA"]
+    : [protocol];
 
-  const icon = result.verdict === "pass" ? "✅" : result.verdict === "warning" ? "⚠️ " : "❌";
+  let anyFail = false;
 
-  console.log("\n" + "═".repeat(70));
-  console.log(`  AI Verification Report — ${client.model} (${client.provider})`);
-  console.log("═".repeat(70));
-  console.log(`\n  ${icon} ${result.verdict.toUpperCase()}: ${result.summary}`);
+  for (const p of protocols) {
+    const result = await verify(client, timestamp, p);
+    await sendVerificationReport(result, timestamp, p);
 
-  if (result.issues.length > 0) {
-    console.log("\n  Issues:");
-    for (const issue of result.issues) console.log(`    • ${issue}`);
+    const icon = result.verdict === "pass" ? "✅" : result.verdict === "warning" ? "⚠️ " : "❌";
+    if (result.verdict === "fail") anyFail = true;
+
+    console.log("\n" + "═".repeat(70));
+    console.log(`  AI Verification Report [${p}] — ${client.model} (${client.provider})`);
+    console.log("═".repeat(70));
+    console.log(`\n  ${icon} ${result.verdict.toUpperCase()}: ${result.summary}`);
+
+    if (result.issues.length > 0) {
+      console.log("\n  Issues:");
+      for (const issue of result.issues) console.log(`    • ${issue}`);
+    }
+
+    const scriptSummary = result.scripts.map((s) => `${s.label}=${s.exitCode}`).join(" | ");
+    console.log(`\n  Scripts: ${scriptSummary}`);
+    console.log("═".repeat(70));
   }
 
-  const scriptSummary = result.scripts
-    .map((s) => `${s.label}=${s.exitCode}`)
-    .join(" | ");
-  console.log(`\n  Scripts: ${scriptSummary}`);
-  console.log("═".repeat(70));
-
-  process.exit(result.verdict === "fail" ? 1 : 0);
+  process.exit(anyFail ? 1 : 0);
 }
 
 main().catch((err) => {
