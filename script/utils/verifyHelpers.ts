@@ -183,6 +183,75 @@ export function checkWeekComparison(
   return results;
 }
 
+// ── Generic check: Cumulative regression ──────────────────────────────────────
+//
+// For every user+token in the new merkle, the amount must be >= the amount in
+// the most recent previous merkle for the same path (scanning back up to 12 weeks).
+// A regression means a user's cumulative claimable dropped — which will cause
+// on-chain claims to revert with CLAIMABLE_TOO_LOW.
+
+export function checkCumulativeRegression(
+  timestamp: number,
+  configs: MerkleConfig[]
+): CheckResult[] {
+  const results: CheckResult[] = [];
+
+  for (const cfg of configs) {
+    const currPath = path.join(REPORTS_DIR, timestamp.toString(), cfg.path);
+    if (!fileExists(currPath)) continue;
+
+    // Find the most recent previous merkle for this path (up to 12 weeks back)
+    let prevData: Record<string, any> | null = null;
+    let prevFoundAt: string | null = null;
+    for (let w = 1; w <= 12; w++) {
+      const prevPath = path.join(REPORTS_DIR, (timestamp - w * WEEK).toString(), cfg.path);
+      if (fileExists(prevPath)) {
+        prevData = readJSON(prevPath);
+        prevFoundAt = prevPath;
+        break;
+      }
+    }
+
+    if (!prevData) {
+      results.push({
+        label: `${cfg.label} cumulative regression`,
+        ok: true,
+        detail: "no previous merkle found — skipped",
+      });
+      continue;
+    }
+
+    const currData = readJSON(currPath);
+    const regressions: string[] = [];
+
+    for (const [user, claim] of Object.entries(prevData.claims || {}) as [string, any][]) {
+      const currClaim = (currData.claims || {})[user];
+      for (const [token, prevTokenData] of Object.entries(claim.tokens || {}) as [string, any][]) {
+        const prevAmount = BigInt(prevTokenData.amount);
+        const currAmount = currClaim?.tokens?.[token]
+          ? BigInt(currClaim.tokens[token].amount)
+          : 0n;
+        if (currAmount < prevAmount) {
+          regressions.push(
+            `${user.slice(0, 10)}… ${token.slice(0, 10)}… prev=${prevAmount} curr=${currAmount}`
+          );
+        }
+      }
+    }
+
+    const ok = regressions.length === 0;
+    results.push({
+      label: `${cfg.label} cumulative regression`,
+      ok,
+      detail: ok
+        ? `no regressions vs ${prevFoundAt!.split("/").slice(-3).join("/")}`
+        : `${regressions.length} REGRESSION(S): ${regressions.slice(0, 3).join(" | ")}${regressions.length > 3 ? " …" : ""}`,
+    });
+  }
+
+  return results;
+}
+
 // ── Generic check: Token completeness ─────────────────────────────────────────
 
 function parseCSVTokens(csvPath: string, chainFilter: string): Set<string> {

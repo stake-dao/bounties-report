@@ -25,6 +25,7 @@ import {
   checkMerkleIntegrity,
   checkWeekComparison,
   checkTokenCompleteness,
+  checkCumulativeRegression,
   readJSON,
 } from "../../utils/verifyHelpers";
 
@@ -172,6 +173,7 @@ Options:
   if (!printSection("Delegation Shares", checkVlAURADelegationShares(timestamp))) allOk = false;
   if (!printSection("Merkle Integrity", checkMerkleIntegrity(timestamp, VLAURA_MERKLE_CONFIGS))) allOk = false;
   if (!printSection("Week Comparison", checkWeekComparison(timestamp, VLAURA_MERKLE_CONFIGS))) allOk = false;
+  if (!printSection("Cumulative Regression", checkCumulativeRegression(timestamp, VLAURA_MERKLE_CONFIGS))) allOk = false;
   if (!printSection("Token Completeness", checkTokenCompleteness(timestamp, VLAURA_TOKEN_CHECKS))) allOk = false;
   if (!printSection("Exclusion Checks", checkExclusions(timestamp))) allOk = false;
 

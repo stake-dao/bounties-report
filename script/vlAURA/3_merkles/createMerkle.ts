@@ -122,7 +122,28 @@ async function processChain(chainId: string, reportsDir: string) {
       `Chain ${chainId}: Loaded previous merkle from ${prevMerklePath}`
     );
   } else {
-    console.log(`Chain ${chainId}: No previous merkle data found`);
+    // Scan backwards up to 12 weeks to find the last valid merkle for this chain
+    let found = false;
+    for (let weeksBack = 2; weeksBack <= 12; weeksBack++) {
+      const pastTimestamp = currentPeriodTimestamp - weeksBack * WEEK;
+      const pastMerklePath = path.join(
+        "bounties-reports",
+        pastTimestamp.toString(),
+        "vlAURA",
+        prevMerkleFileName
+      );
+      if (fs.existsSync(pastMerklePath)) {
+        previousMerkleData = JSON.parse(fs.readFileSync(pastMerklePath, "utf8"));
+        console.log(
+          `Chain ${chainId}: No merkle for period ${prevPeriodTimestamp}, using ${pastMerklePath} (${weeksBack} weeks back)`
+        );
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      console.log(`Chain ${chainId}: No previous merkle data found`);
+    }
   }
 
   // Convert combined distribution to the format expected by createCombineDistribution

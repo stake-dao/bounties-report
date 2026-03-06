@@ -11,6 +11,7 @@ import {
 import { generateMerkleTree } from "../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../interfaces/MerkleData";
 import { createCombineDistribution } from "../utils/merkle/merkle";
+import { findPreviousMerkle } from "../utils/merkle/findPreviousMerkle";
 import { fetchTokenInfos } from "../utils/tokens";
 import { base } from "../utils/chains";
 import { Distribution } from "../interfaces/Distribution";
@@ -189,25 +190,26 @@ async function main() {
       fs.readFileSync(currentDistributionPath, "utf-8")
     );
 
-    // Step 2: Load previous merkle data from sdTkns directory (if exists)
-    const previousMerkleDataPath = path.join(
-      __dirname,
-      `../../bounties-reports/${prevWeekTimestamp}/sdTkns/sdtkns_merkle_8453.json`
+    // Step 2: Load previous merkle data, scanning back up to 12 weeks to handle skipped periods
+    // Primary: sdTkns directory; fallback: spectra directory for backward compatibility
+    let previousMerkleData: MerkleData;
+    const { data: sdTknsPrev, foundAt: sdTknsFoundAt } = findPreviousMerkle(
+      currentPeriodTimestamp,
+      "sdTkns/sdtkns_merkle_8453.json"
     );
-    let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
-    if (fs.existsSync(previousMerkleDataPath)) {
-      previousMerkleData = JSON.parse(
-        fs.readFileSync(previousMerkleDataPath, "utf-8")
-      );
-      console.log("Loaded previous merkle data from sdTkns directory");
+    if (sdTknsFoundAt) {
+      previousMerkleData = sdTknsPrev;
+      console.log(`Loaded previous merkle data from sdTkns directory: ${sdTknsFoundAt}`);
     } else {
-      // Fallback to spectra directory for backward compatibility
-      const fallbackPath = path.join(pathDirPrevious, "merkle_data.json");
-      if (fs.existsSync(fallbackPath)) {
-        previousMerkleData = JSON.parse(
-          fs.readFileSync(fallbackPath, "utf-8")
-        );
-        console.log("Loaded previous merkle data from spectra directory (fallback)");
+      const { data: spectraPrev, foundAt: spectraFoundAt } = findPreviousMerkle(
+        currentPeriodTimestamp,
+        "spectra/merkle_data.json"
+      );
+      previousMerkleData = spectraPrev;
+      if (spectraFoundAt) {
+        console.log(`Loaded previous merkle data from spectra directory (fallback): ${spectraFoundAt}`);
+      } else {
+        console.log("No previous merkle data found, starting fresh");
       }
     }
 

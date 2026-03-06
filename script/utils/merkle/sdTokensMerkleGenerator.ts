@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { BigNumber } from "ethers";
 import { getAddress } from "viem";
+import { findPreviousMerkle } from "./findPreviousMerkle";
 
 import {
   fetchLastProposalsIds,
@@ -318,19 +319,12 @@ export async function generateSdTokensMerkle(
     }
   }
   
-  // Load previous merkle data if exists
-  const prevPeriodTimestamp = currentPeriodTimestamp - WEEK;
-  const previousMerkleDataPath = path.join(
-    process.cwd(),
-    "bounties-reports",
-    prevPeriodTimestamp.toString(),
-    config.outputFileName
-  );
-  
-  let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
-  if (fs.existsSync(previousMerkleDataPath)) {
-    previousMerkleData = JSON.parse(fs.readFileSync(previousMerkleDataPath, "utf8"));
-    console.log(`Loaded previous Universal Merkle data for ${config.space}`);
+  // Load previous merkle data, scanning back up to 12 weeks to handle skipped periods
+  const { data: previousMerkleData, foundAt } = findPreviousMerkle(currentPeriodTimestamp, config.outputFileName);
+  if (foundAt) {
+    console.log(`Loaded previous Universal Merkle data for ${config.space} from ${foundAt}`);
+  } else {
+    console.log(`No previous merkle data found for ${config.space}`);
   }
   
   // Convert userRewards to Distribution format

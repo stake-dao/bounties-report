@@ -9,10 +9,11 @@ import {
   SDFXS_UNIVERSAL_MERKLE,
   FRAXTAL_SD_FXS,
 } from "../utils/constants";
-import { 
-  generateSdTokensMerkle, 
-  SdTokensMerkleConfig 
+import {
+  generateSdTokensMerkle,
+  SdTokensMerkleConfig
 } from "../utils/merkle/sdTokensMerkleGenerator";
+import { findPreviousMerkle } from "../utils/merkle/findPreviousMerkle";
 import { MerkleData } from "../interfaces/MerkleData";
 import { Distribution } from "../interfaces/Distribution";
 import { distributionVerifier } from "../utils/merkle/distributionVerifier";
@@ -45,17 +46,13 @@ async function main() {
   console.log(`sdFXS token address: ${FRAXTAL_SD_FXS}`);
   
   try {
-    // Step 1: Load previous merkle data for cumulative tracking
-    const previousMerkleDataPath = path.join(
-      __dirname,
-      `../../bounties-reports/${prevWeekTimestamp}/sdTkns/sdtkns_merkle_252.json`
+    // Step 1: Load previous merkle data, scanning back up to 12 weeks to handle skipped periods
+    const { data: previousMerkleData, foundAt: prevFoundAt } = findPreviousMerkle(
+      currentPeriodTimestamp,
+      "sdTkns/sdtkns_merkle_252.json"
     );
-    let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
-    if (fs.existsSync(previousMerkleDataPath)) {
-      previousMerkleData = JSON.parse(
-        fs.readFileSync(previousMerkleDataPath, "utf-8")
-      );
-      console.log("Loaded previous merkle data for cumulative calculation");
+    if (prevFoundAt) {
+      console.log(`Loaded previous merkle data for cumulative calculation from ${prevFoundAt}`);
     } else {
       console.log("No previous merkle data found, starting fresh");
     }

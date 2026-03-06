@@ -10,6 +10,7 @@ import { generateMerkleTree, mergeMerkleData } from "../../shared/merkle/generat
 import { MerkleData } from "../../interfaces/MerkleData";
 import { CVX_SPACE, WEEK } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
+import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import { fetchLastProposalsIds } from "../../utils/snapshot";
 
 // Round current UTC time down to the nearest week for the current period
@@ -460,33 +461,17 @@ function processChain(
     console.log("\n═══════════════════════════════════════════════════════════");
   }
 
-  // 4. Load previous Merkle data from the previous week period folder (for this gauge type)
-  const prevPeriodTimestamp = currentPeriodTimestamp - WEEK;
-  const prevReportsDir = path.join(
-    "bounties-reports",
-    prevPeriodTimestamp.toString(),
-    "vlCVX",
-    gaugeType
-  );
+  // 4. Load previous Merkle data, scanning back up to 12 weeks to handle skipped periods
   const merkleFileName =
     chainId === "1"
       ? "merkle_data_non_delegators.json"
       : `merkle_data_non_delegators_${chainId}.json`;
-  const previousMerkleDataPath = path.join(prevReportsDir, merkleFileName);
-  console.log("previousMerkleDataPath", previousMerkleDataPath);
-
-  let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
-  if (fs.existsSync(previousMerkleDataPath)) {
-    previousMerkleData = JSON.parse(
-      fs.readFileSync(previousMerkleDataPath, "utf8")
-    );
-    console.log(
-      `Loaded previous merkle data for chain ${chainId} from ${prevReportsDir}`
-    );
+  const relPath = path.join("vlCVX", gaugeType, merkleFileName);
+  const { data: previousMerkleData, foundAt } = findPreviousMerkle(currentPeriodTimestamp, relPath);
+  if (foundAt) {
+    console.log(`Loaded previous merkle data for chain ${chainId} from ${foundAt}`);
   } else {
-    console.log(
-      `No previous merkle data found for chain ${chainId} in ${prevReportsDir}`
-    );
+    console.log(`No previous merkle data found for chain ${chainId} (${relPath})`);
   }
 
   // 5. Generate the new Merkle tree
