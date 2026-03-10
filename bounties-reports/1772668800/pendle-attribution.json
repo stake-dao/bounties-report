@@ -1,0 +1,32 @@
+{
+  "protocol": "pendle",
+  "period": 1772668800,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 3056.0816131112056,
+    "sdAssigned": 0,
+    "wethInTotal": 0,
+    "wethOutTotal": 0
+  },
+  "dropped": {
+    "tokensNotSwapped": [],
+    "wethNotSwapped": true
+  },
+  "perToken": {},
+  "txs": [
+    {
+      "tx": "0xfb28368e25022ce737c2cefe3ea856ad3a445fad521d09ab4077a8b8fed676bd",
+      "wethIn": 0,
+      "wethOut": 0,
+      "sdIn": 3056.0816131112056,
+      "nativeIn": 0,
+      "nativeOut": 0,
+      "nativeShareSd": 0,
+      "wethBasis": 0,
+      "tokenWeth": {},
+      "tokenSd": {
+        "0x808507121b80c02388fad14726482e061b8da827": 3056.0816131112056
+      }
+    }
+  ]
+}
