@@ -14,6 +14,7 @@ import {
   isVlAuraCacheFresh,
   getVlAuraCacheEndBlock,
 } from "./vlAuraCacheUtils";
+import { createBlockchainExplorerUtils } from "./explorerUtils";
 
 // ============================================================================
 // Constants
@@ -585,14 +586,55 @@ export async function getBatchVlAuraBalances(
   });
 
   const balanceMap = new Map<Address, bigint>();
+  const failedAddresses: Address[] = [];
+
   addresses.forEach((address, index) => {
     const result = results[index];
     if (result.status === "success") {
       balanceMap.set(address, result.result as bigint);
     } else {
+      failedAddresses.push(address);
       balanceMap.set(address, BigInt(0));
     }
   });
+
+  // Retry failed addresses with a fresh client (different RPC endpoint)
+  if (failedAddresses.length > 0) {
+    console.warn(
+      `[Chain ${chainId}] ${failedAddresses.length}/${addresses.length} multicall balanceOf failed, retrying with fresh client...`
+    );
+    try {
+      const retryClient = await getClient(chainId, true);
+      const retryContracts = failedAddresses.map((address) => ({
+        address: lockerAddress,
+        abi: AURA_LOCKER_ABI,
+        functionName: "balanceOf" as const,
+        args: [address] as const,
+      }));
+
+      const retryResults = await retryClient.multicall({
+        contracts: retryContracts,
+        blockNumber,
+      });
+
+      let recovered = 0;
+      failedAddresses.forEach((address, index) => {
+        const result = retryResults[index];
+        if (result.status === "success") {
+          balanceMap.set(address, result.result as bigint);
+          recovered++;
+        }
+      });
+
+      if (recovered > 0) {
+        console.log(`[Chain ${chainId}] Recovered ${recovered}/${failedAddresses.length} balances on retry`);
+      } else {
+        console.warn(`[Chain ${chainId}] Retry failed — ${failedAddresses.length} addresses still have zero balance`);
+      }
+    } catch (error: any) {
+      console.warn(`[Chain ${chainId}] Retry multicall failed: ${error.shortMessage || error.message}`);
+    }
+  }
 
   return balanceMap;
 }
@@ -695,9 +737,23 @@ export async function getDelegatorsWithBalances(
     }
   }
 
+  // Warn if many delegators filtered — likely RPC issue
+  const zeroVpCount = allDelegators.size - results.length;
+  if (zeroVpCount > 0) {
+    console.log(`Delegators with balance: ${results.length}`);
+    console.log(`Zero VP delegators excluded: ${zeroVpCount}`);
+    const zeroVpRatio = zeroVpCount / allDelegators.size;
+    if (zeroVpRatio > 0.15) {
+      console.warn(
+        `⚠️  WARNING: ${(zeroVpRatio * 100).toFixed(0)}% of delegators have zero VP — ` +
+        `possible RPC issue. Verify Base chain RPC is healthy.`
+      );
+    }
+  }
+
   // Sort by total balance descending
   results.sort((a, b) => (b.totalBalance > a.totalBalance ? 1 : -1));
-  
+
   return results;
 }
 
@@ -772,43 +828,62 @@ export async function getBlockAtTimestamp(
   chainId: number,
   targetTimestamp: bigint
 ): Promise<bigint> {
+  // Primary: use Etherscan v2 API (fast, single HTTP call)
+  const explorerKey = process.env.EXPLORER_KEY || process.env.ETHERSCAN_API_KEY || "";
+  if (explorerKey) {
+    try {
+      const explorer = createBlockchainExplorerUtils();
+      const block = await explorer.getBlockNumberByTimestamp(
+        Number(targetTimestamp),
+        "before",
+        chainId
+      );
+      if (block > 0) {
+        return BigInt(block);
+      }
+    } catch (error: any) {
+      console.warn(`[Chain ${chainId}] Etherscan block-by-timestamp failed: ${error.message}, falling back to binary search`);
+    }
+  }
+
+  // Fallback: binary search via RPC with estimated lower bound
   const client = await getClient(chainId);
-  
-  // Get current block as upper bound
   const latestBlock = await client.getBlock({ blockTag: "latest" });
   let high = latestBlock.number;
-  let low = BigInt(1);
-  
-  // Binary search for the block
+
+  const avgBlockTime = chainId === 8453 ? 2n : chainId === 42161 ? 1n : 12n;
+  const timeDiff = latestBlock.timestamp - targetTimestamp;
+  const estimatedBlocksBack = timeDiff / avgBlockTime;
+  let low = high > estimatedBlocksBack * 2n ? high - estimatedBlocksBack * 2n : BigInt(1);
+
   while (low < high) {
     const mid = (low + high) / BigInt(2);
     const block = await client.getBlock({ blockNumber: mid });
-    
+
     if (block.timestamp < targetTimestamp) {
       low = mid + BigInt(1);
     } else {
       high = mid;
     }
   }
-  
-  // Verify and return the closest block
+
+  // Return the closest block
   const resultBlock = await client.getBlock({ blockNumber: low });
-  
-  // Check if previous block is closer
+
   if (low > BigInt(1)) {
     const prevBlock = await client.getBlock({ blockNumber: low - BigInt(1) });
-    const diffCurrent = resultBlock.timestamp >= targetTimestamp 
-      ? resultBlock.timestamp - targetTimestamp 
+    const diffCurrent = resultBlock.timestamp >= targetTimestamp
+      ? resultBlock.timestamp - targetTimestamp
       : targetTimestamp - resultBlock.timestamp;
     const diffPrev = targetTimestamp >= prevBlock.timestamp
       ? targetTimestamp - prevBlock.timestamp
       : prevBlock.timestamp - targetTimestamp;
-    
+
     if (diffPrev < diffCurrent) {
       return low - BigInt(1);
     }
   }
-  
+
   return low;
 }
 

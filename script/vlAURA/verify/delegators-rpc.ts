@@ -138,7 +138,7 @@ async function fetchDelegateChangedEvents(
   console.log(`[Chain ${chainId}] Fetching DelegateChanged events from block ${fromBlock} to ${toBlock}...`);
 
   const events: DelegationEvent[] = [];
-  const BATCH_SIZE = chainId === 1 ? 50000n : 25000n; // Smaller batches for mainnet and Base RPC limits
+  const BATCH_SIZE = chainId === 1 ? 50000n : 5000n; // Base public RPC limits eth_getLogs to 10,000 block range
 
   let currentFrom = fromBlock;
   let batchCount = 0;
@@ -292,6 +292,7 @@ async function main() {
   const rpcDelegators = new Set<string>();
   const chainTargetBlocks: Record<number, bigint> = {};
   const delegatorsByChain: Record<number, string[]> = { 1: [], 8453: [] };
+  const rpcFailedChains = new Set<number>();
 
   for (const chainId of [1, 8453]) {
     try {
@@ -332,12 +333,99 @@ async function main() {
       for (const d of delegators) {
         rpcDelegators.add(d);
       }
-    } catch (error) {
-      console.error(`[Chain ${chainId}] Error:`, error);
+    } catch (error: any) {
+      console.warn(`[Chain ${chainId}] RPC event fetch failed: ${error.shortMessage || error.message}`);
+      console.warn(`[Chain ${chainId}] Falling back to Parquet cache for delegation events`);
+      rpcFailedChains.add(chainId);
     }
   }
 
-  console.log(`\nTotal unique delegators from RPC: ${rpcDelegators.size}`);
+  // Fall back to Parquet for chains where RPC getLogs failed
+  if (rpcFailedChains.size > 0) {
+    const hyparquetFallback = await import("hyparquet");
+    const parquetFilesFallback: Record<number, string> = {
+      1: "data/vlaura-delegations/1/0x3Fa73f1E5d8A792C80F426fc8F84FBF7Ce9bBCAC.parquet",
+      8453: "data/vlaura-delegations/8453/0x9e1f4190f1a8Fe0cD57421533deCB57F9980922e.parquet",
+    };
+
+    for (const chainId of rpcFailedChains) {
+      const filePath = parquetFilesFallback[chainId];
+      if (!filePath || !fs.existsSync(filePath)) {
+        console.warn(`[Chain ${chainId}] No Parquet fallback available at ${filePath}`);
+        continue;
+      }
+
+      // Get target block for this chain
+      let targetBlock: bigint;
+      if (chainId === 1) {
+        targetBlock = snapshotBlock;
+      } else {
+        // Re-derive Base target block if not already set
+        if (chainTargetBlocks[chainId]) {
+          targetBlock = chainTargetBlocks[chainId];
+        } else {
+          try {
+            const baseClient = await getClient(8453);
+            const latestBlock = await baseClient.getBlock({ blockTag: "latest" });
+            let low = AURA_LOCKER_CREATION_BLOCKS[8453];
+            let high = latestBlock.number;
+            while (low < high) {
+              const mid = (low + high) / 2n;
+              const block = await baseClient.getBlock({ blockNumber: mid });
+              if (block.timestamp < BigInt(snapshotTimestamp)) {
+                low = mid + 1n;
+              } else {
+                high = mid;
+              }
+            }
+            targetBlock = low;
+            chainTargetBlocks[chainId] = targetBlock;
+          } catch {
+            console.warn(`[Chain ${chainId}] Cannot determine target block, skipping`);
+            continue;
+          }
+        }
+      }
+
+      let events: any[] = [];
+      await hyparquetFallback.parquetRead({
+        file: await hyparquetFallback.asyncBufferFromFile(filePath),
+        rowFormat: "object",
+        onComplete: (result: any[]) => { events = result; },
+      });
+
+      // Reconstruct delegation state from Parquet
+      const delegatorState = new Map<string, { toDelegate: string; block: number }>();
+      for (const e of events) {
+        if (e.event === "EndBlock") continue;
+        const block = Number(e.blockNumber);
+        if (block > Number(targetBlock)) continue;
+        const existing = delegatorState.get(e.delegator);
+        if (!existing || block > existing.block) {
+          delegatorState.set(e.delegator, { toDelegate: e.toDelegate, block });
+        }
+      }
+
+      const delegators: string[] = [];
+      for (const [delegator, state] of delegatorState) {
+        if (state.toDelegate === stakeDAODelegateAddress) {
+          delegators.push(delegator);
+        }
+      }
+
+      console.log(`[Chain ${chainId}] Parquet fallback: ${delegators.length} delegators at block ${targetBlock}`);
+
+      delegatorsByChain[chainId] = delegators;
+      for (const d of delegators) {
+        rpcDelegators.add(d);
+      }
+    }
+  }
+
+  const rpcSource = rpcFailedChains.size > 0
+    ? `RPC + Parquet fallback (chains ${[...rpcFailedChains].join(", ")} used Parquet)`
+    : "RPC";
+  console.log(`\nTotal unique delegators from ${rpcSource}: ${rpcDelegators.size}`);
 
   // Remove direct voters
   const rpcDelegatorsAfterVoters = [...rpcDelegators].filter(d => !directVoters.has(d));
