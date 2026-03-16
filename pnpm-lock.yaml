@@ -2600,7 +2600,7 @@ packages:
       '@solana/rpc-spec': 5.5.1(typescript@5.9.3)
       '@solana/rpc-spec-types': 5.5.1(typescript@5.9.3)
       typescript: 5.9.3
-      undici-types: 7.24.3
+      undici-types: 7.24.4
     dev: false
 
   /@solana/rpc-types@5.5.1(typescript@5.9.3):
@@ -7046,7 +7046,7 @@ packages:
       viem: 2.47.4(typescript@5.9.3)(zod@4.3.6)
       wagmi: 2.19.5(@tanstack/react-query@5.90.21)(react@18.3.1)(typescript@5.9.3)(viem@2.47.4)(zod@4.3.6)
       zod: 4.3.6
-      zustand: 5.0.11(react@18.3.1)(use-sync-external-store@1.4.0)
+      zustand: 5.0.12(react@18.3.1)(use-sync-external-store@1.4.0)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -8047,8 +8047,8 @@ packages:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
     dev: false
 
-  /undici-types@7.24.3:
-    resolution: {integrity: sha512-frL/LoWYV3AWaHtW+Oa3oNLX1k6fVDBd/4gspN4nkRwzO9tRj/R1HzDQpyXnt0H/5DKHbFpdn2BktNQl1tbFYA==}
+  /undici-types@7.24.4:
+    resolution: {integrity: sha512-cRaY9PagdEZoRmcwzk3tUV3SVGrVQkR6bcSilav/A0vXsfpW4Lvd0BvgRMwTEDTLLGN+QdyBTG+nnvTgJhdt6w==}
     dev: false
 
   /universalify@0.1.2:
@@ -9134,8 +9134,8 @@ packages:
       use-sync-external-store: 1.4.0(react@18.3.1)
     dev: false
 
-  /zustand@5.0.11(react@18.3.1)(use-sync-external-store@1.4.0):
-    resolution: {integrity: sha512-fdZY+dk7zn/vbWNCYmzZULHRrss0jx5pPFiOuMZ/5HJN6Yv3u+1Wswy/4MpZEkEGhtNH+pwxZB8OKgUBPzYAGg==}
+  /zustand@5.0.12(react@18.3.1)(use-sync-external-store@1.4.0):
+    resolution: {integrity: sha512-i77ae3aZq4dhMlRhJVCYgMLKuSiZAaUPAct2AksxQ+gOtimhGMdXljRT21P5BNpeT4kXlLIckvkPM029OljD7g==}
     engines: {node: '>=12.20.0'}
     peerDependencies:
       '@types/react': '>=18.0.0'
