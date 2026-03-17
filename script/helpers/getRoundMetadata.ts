@@ -100,6 +100,7 @@ export const getRoundMetadata = async () => {
             // Eth: 8 weeks = ~403k blocks. With 10k chunk size = ~40 requests
             const chunkSize = chainId === 8453 ? 50000n : 10000n;
 
+            const CHUNK_TIMEOUT_MS = 10_000;
             const limit = pLimit(10); // Reduced concurrency to avoid overwhelming RPCs
             const chunkPromises = [];
 
@@ -107,15 +108,19 @@ export const getRoundMetadata = async () => {
                 const to = (i + chunkSize) > currentBlock ? currentBlock : (i + chunkSize);
                 chunkPromises.push(limit(async () => {
                     try {
-                        return await client.getLogs({
-                            address: contractAddress as `0x${string}`,
-                            event: eventAbi,
-                            args: args,
-                            fromBlock: i,
-                            toBlock: to
-                        });
+                        return await Promise.race([
+                            client.getLogs({
+                                address: contractAddress as `0x${string}`,
+                                event: eventAbi,
+                                args: args,
+                                fromBlock: i,
+                                toBlock: to
+                            }),
+                            new Promise<never>((_, reject) =>
+                                setTimeout(() => reject(new Error(`getLogs timeout ${i}-${to}`)), CHUNK_TIMEOUT_MS)
+                            )
+                        ]);
                     } catch (e) {
-                        // console.warn(`Failed to fetch logs for chunk ${i}-${to}:`, e);
                         return [];
                     }
                 }));
@@ -305,7 +310,7 @@ export const getRoundMetadata = async () => {
             SPECTRA_MERKLE_ADDRESS,
             eventAbi,
             {},
-            8 // 8 weeks
+            4 // 4 weeks: ~24 Base chunks vs 49 for 8 weeks
         );
         console.log("[DEBUG] Fetched distribution times for Spectra, found", timeMap.size, "entries");
 
