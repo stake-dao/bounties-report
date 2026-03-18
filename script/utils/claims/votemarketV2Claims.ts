@@ -14,6 +14,22 @@ import { ContractRegistry } from "../contractRegistry.js";
 import { VotemarketV2Bounty, VotemarketBounty } from "../types.js";
 import { BSC_CAKE_LOCKER, BSC_CAKE_VM } from "../reportUtils.js";
 
+// Campaign IDs affected by the March 2026 oracle poisoning hack.
+// Attacker's 50 updateEpoch'd campaigns + 4 extra base campaigns + 1 extra on affected gauge.
+// These are already filtered in automation-jobs; mirrored here to keep merkle trees clean.
+const HACK_EXCLUDED_CAMPAIGN_IDS = new Set<bigint>([
+  // Attacker's 50 campaigns (updateEpoch'd with poisoned data)
+  1191n, 1192n, 1193n, 1194n, 1195n, 1196n, 1197n, 1198n, 1199n, 1200n,
+  1201n, 1202n, 1203n, 1204n, 1205n, 1206n, 1207n, 1208n, 1209n, 1210n,
+  1211n, 1212n, 1213n, 1214n, 1215n, 1216n, 1217n, 1218n, 1219n, 1220n,
+  1221n, 1222n, 1223n, 1224n, 1225n, 1226n, 1227n, 1228n, 1229n, 1230n,
+  1231n, 1232n, 1233n, 1234n, 1235n, 1236n, 1237n, 1238n, 1239n, 1240n,
+  // Extra campaign on affected gauge (same poisoned oracle data)
+  1181n,
+  // Base campaigns (from hack.json)
+  82n, 84n, 85n, 86n,
+]);
+
 // Retry helper for contract reads with exponential backoff
 async function retryContractRead<T>(
   fn: () => Promise<T>,
@@ -187,10 +203,25 @@ export const fetchVotemarketV2ClaimedBounties = async (
         return;
       }
 
-      console.log(`[Chain ${chain}] Processing ${decodedLogs.length} claims`);
+      // Filter out claims from hack-excluded campaigns
+      const beforeFilterCount = decodedLogs.length;
+      const filteredDecodedLogs = decodedLogs.filter(
+        ({ decodedLog }) => !HACK_EXCLUDED_CAMPAIGN_IDS.has(decodedLog.args.campaignId)
+      );
+      const filteredCount = beforeFilterCount - filteredDecodedLogs.length;
+      if (filteredCount > 0) {
+        console.log(`Filtered ${filteredCount} claims from hack-excluded campaigns`);
+      }
+
+      if (filteredDecodedLogs.length === 0) {
+        console.log(`[Chain ${chain}] No valid logs to process after hack-exclusion filter`);
+        return;
+      }
+
+      console.log(`[Chain ${chain}] Processing ${filteredDecodedLogs.length} claims`);
 
       // Prepare all getCampaign calls for multicall
-      const campaignContracts = decodedLogs.map(({ log, decodedLog }) => ({
+      const campaignContracts = filteredDecodedLogs.map(({ log, decodedLog }) => ({
         address: getAddress(log.address),
         abi: campaignAbi,
         functionName: "getCampaign",
@@ -215,8 +246,8 @@ export const fetchVotemarketV2ClaimedBounties = async (
       const processedBounties: VotemarketV2Bounty[] = [];
       const failedCampaigns: Array<{index: number, log: any, decodedLog: any}> = [];
 
-      for (let i = 0; i < decodedLogs.length; i++) {
-        const { log, decodedLog } = decodedLogs[i];
+      for (let i = 0; i < filteredDecodedLogs.length; i++) {
+        const { log, decodedLog } = filteredDecodedLogs[i];
         const campaignResult = campaignResults[i];
 
         console.log(`[Chain ${chain}] Processing claim:`, {
