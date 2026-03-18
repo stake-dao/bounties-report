@@ -36,34 +36,12 @@
                 ]
             }
         ],
-        "currentRoundId": 1
+        "currentRoundId": 2
     },
     "general": {
         "rounds": [
             {
                 "id": 1,
-                "proposals": [
-                    {
-                        "id": "0xd80d97d2ffffe7672f987bcf34df6d2c240ce5f18b97e3faa01e498d1d2433b4",
-                        "start": "12-02-2026 02:00",
-                        "end": "17-02-2026 15:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "24-02-2026",
-                        "distributed": "09:49"
-                    },
-                    {
-                        "step": 2,
-                        "date": "03-03-2026",
-                        "distributed": "09:27"
-                    }
-                ]
-            },
-            {
-                "id": 2,
                 "proposals": [
                     {
                         "id": "0x25558bf7d88a158f8e091cc61388f2783a71cbe809ad8d50b7bf7562ee811bb9",
@@ -81,6 +59,28 @@
                         "step": 2,
                         "date": "17-03-2026",
                         "distributed": "10:26"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xc04d1502d7b08f35f527c0267797c0736c2a1bb2149f9378321f1e46c7d64211",
+                        "start": "12-03-2026 02:00",
+                        "end": "17-03-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "24-03-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "31-03-2026",
+                        "distributed": ""
                     }
                 ]
             }
