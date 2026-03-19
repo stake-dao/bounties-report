@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       type:
-        description: 'Distribution type (ignored when step is full)'
+        description: 'Distribution type'
         required: true
         type: choice
         options:
@@ -16,7 +16,6 @@ on:
         default: 'all'
         type: choice
         options:
-          - full
           - all
           - repartition
           - merkle
@@ -55,9 +54,9 @@ jobs:
           python: 'true'
           frozen-lockfile: 'false'
 
-      # ── Report Generation ──
+      # ── Report Generation (voters only) ──
       - name: Generate vlCVX report
-        if: inputs.step == 'full' || (inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition'))
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
         run: make -f automation/reports.mk run-weekly-vlcvx
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -66,49 +65,49 @@ jobs:
           GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
 
       - name: Commit report
-        if: inputs.step == 'full' || (inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition'))
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX report [${{ inputs.dispatch_id }}]"
 
       # ── Repartition (voters only) ──
       - name: Validate reports (pre-repartition)
-        if: inputs.step == 'full' || (inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition'))
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
         run: make -f automation/distribution.mk validate-reports PROTOCOL=vlCVX
 
       - name: Run repartition
-        if: inputs.step == 'full' || (inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition'))
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
         run: make -f automation/distribution.mk run-repartition PROTOCOL=vlCVX
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Commit repartition
-        if: inputs.step == 'full' || (inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition'))
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'repartition')
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX repartition [${{ inputs.dispatch_id }}]"
 
       # ── Merkle ──
       - name: Pull latest before merkle
-        if: inputs.step == 'full' || inputs.step == 'all' || inputs.step == 'merkle'
+        if: inputs.step == 'all' || inputs.step == 'merkle'
         run: git pull --rebase --autostash origin main
 
       - name: Create merkle (delegators)
-        if: inputs.step == 'full' || ((inputs.step == 'all' || inputs.step == 'merkle') && inputs.type == 'delegators')
+        if: inputs.type == 'delegators' && (inputs.step == 'all' || inputs.step == 'merkle')
         run: make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=delegators
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Commit merkle delegators
-        if: inputs.step == 'full' || ((inputs.step == 'all' || inputs.step == 'merkle') && inputs.type == 'delegators')
+        if: inputs.type == 'delegators' && (inputs.step == 'all' || inputs.step == 'merkle')
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX delegators-merkle [${{ inputs.dispatch_id }}]"
 
       - name: Create merkle (voters)
-        if: inputs.step == 'full' || ((inputs.step == 'all' || inputs.step == 'merkle') && inputs.type == 'voters')
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'merkle')
         run: make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=non-delegators
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -116,14 +115,14 @@ jobs:
           FORCE_UPDATE: ${{ inputs.force_merkle && 'true' || 'false' }}
 
       - name: Commit merkle voters
-        if: inputs.step == 'full' || ((inputs.step == 'all' || inputs.step == 'merkle') && inputs.type == 'voters')
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'merkle')
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX voters-merkle [${{ inputs.dispatch_id }}]"
 
-      # ── AI Verification ──
+      # ── AI Verification (voters only) ──
       - name: AI verify distribution (voters)
-        if: inputs.step == 'full' || (inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'merkle'))
+        if: inputs.type == 'voters' && (inputs.step == 'all' || inputs.step == 'merkle')
         run: |
           WEEK=604800
           PERIOD=$(( $(date +%s) / WEEK * WEEK ))
