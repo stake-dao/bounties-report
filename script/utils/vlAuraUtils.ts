@@ -378,6 +378,34 @@ export async function getVlAuraDelegatorsFromParquet(
 
   const result = [...allDelegators];
   console.log(`Total unique delegators from Parquet: ${result.length}`);
+
+  // Cross-check parquet against GraphQL at the snapshot timestamp.
+  // Parquet can be "fresh" (EndBlock >= snapshot) but still have gaps from past indexer runs.
+  // inGraphQLNotParquet > 0 means events were missed — re-run the indexer to patch.
+  try {
+    const ethClient = await getClient(1);
+    const ethBlock = await ethClient.getBlock({ blockNumber: snapshotBlocks[1] });
+    const snapshotTimestamp = Number(ethBlock.timestamp);
+
+    const graphqlDelegators = await getVlAuraDelegatorsAtTimestamp(snapshotTimestamp);
+    const parquetSet = new Set(result.map((d) => d.toLowerCase()));
+    const graphqlSet = new Set(graphqlDelegators.map((d) => d.toLowerCase()));
+    const inGraphQLNotParquet = [...graphqlSet].filter((d) => !parquetSet.has(d));
+
+    if (inGraphQLNotParquet.length > 0) {
+      const msg =
+        `vlAURA parquet cache has ${inGraphQLNotParquet.length} gap(s) at snapshot block — ` +
+        `delegation events were missed during indexing:\n` +
+        inGraphQLNotParquet.map((a) => `  - ${a}`).join("\n") + "\n" +
+        `Re-run 'pnpm tsx script/indexer/vlauraDelegators.ts' to fix.`;
+      throw new Error(msg);
+    }
+  } catch (err: any) {
+    // If GraphQL is unavailable, do not block — warn only
+    if (err.message?.includes("parquet cache has")) throw err;
+    console.warn(`vlAURA parquet cross-check skipped (GraphQL unavailable): ${err.message}`);
+  }
+
   return result;
 }
 

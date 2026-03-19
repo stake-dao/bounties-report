@@ -21,13 +21,17 @@ const VLAURA_CHAIN_IDS = [1, 8453]; // Ethereum and Base
 
 /**
  * Cross-verify parquet delegator sets against GraphQL for each chain.
- * Warns on discrepancies instead of throwing — the GraphQL indexer
- * (OnChainDelegationEvent) may lag behind RPC, so it's not authoritative.
+ *
+ * Direction matters:
+ *   - inGraphQLNotParquet > 0  → parquet has a GAP (critical: throws)
+ *   - inParquetNotGraphQL > 0  → GraphQL lags behind RPC (acceptable: warns only)
  */
 async function verifyVlAuraDelegations() {
   console.log("\n" + "=".repeat(60));
   console.log("Cross-verifying parquet cache against GraphQL API...");
   console.log("=".repeat(60));
+
+  const errors: string[] = [];
 
   for (const chainId of VLAURA_CHAIN_IDS) {
     try {
@@ -55,22 +59,32 @@ async function verifyVlAuraDelegations() {
       if (inParquetNotGraphQL.length === 0 && inGraphQLNotParquet.length === 0) {
         console.log(`[Chain ${chainId}] ✓ ${parquetSet.size} delegators match`);
       } else {
-        console.warn(`[Chain ${chainId}] ⚠ Discrepancy detected:`);
-        console.warn(`  Parquet: ${parquetSet.size}, GraphQL: ${graphqlSet.size}`);
         if (inParquetNotGraphQL.length > 0) {
-          console.warn(`  In parquet but not GraphQL (${inParquetNotGraphQL.length}):`);
+          // GraphQL lags — parquet has more recent events. Warn only.
+          console.warn(`[Chain ${chainId}] ⚠ In parquet but not GraphQL (${inParquetNotGraphQL.length}) — GraphQL may lag:`);
           inParquetNotGraphQL.slice(0, 5).forEach((addr) => console.warn(`    - ${addr}`));
           if (inParquetNotGraphQL.length > 5) console.warn(`    ... and ${inParquetNotGraphQL.length - 5} more`);
         }
         if (inGraphQLNotParquet.length > 0) {
-          console.warn(`  In GraphQL but not parquet (${inGraphQLNotParquet.length}):`);
-          inGraphQLNotParquet.slice(0, 5).forEach((addr) => console.warn(`    - ${addr}`));
-          if (inGraphQLNotParquet.length > 5) console.warn(`    ... and ${inGraphQLNotParquet.length - 5} more`);
+          // Parquet has a gap — delegation events were missed during indexing. Critical.
+          console.error(`[Chain ${chainId}] ❌ PARQUET GAP: ${inGraphQLNotParquet.length} delegator(s) in GraphQL but missing from parquet:`);
+          inGraphQLNotParquet.forEach((addr) => console.error(`    - ${addr}`));
+          errors.push(
+            `Chain ${chainId}: parquet missing ${inGraphQLNotParquet.length} delegator(s): ${inGraphQLNotParquet.join(", ")}`
+          );
         }
       }
     } catch (error) {
       console.warn(`[Chain ${chainId}] ⚠ Verification skipped (GraphQL may be unavailable):`, error);
     }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `vlAURA parquet cache has gaps — delegation events were missed during indexing.\n` +
+      `Re-run the indexer after patching the parquet (see script/vlAURA/verify/).\n` +
+      errors.join("\n")
+    );
   }
 }
 
