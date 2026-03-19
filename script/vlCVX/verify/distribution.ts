@@ -39,10 +39,12 @@ const VLCVX_FILES = {
   curve: [
     "repartition.json",
     "repartition_delegation.json",
-    "repartition_8453.json",
     "repartition_delegation_8453.json",
     "merkle_data_non_delegators.json",
     "merkle_data_non_delegators_8453.json",
+  ],
+  curveOptional: [
+    "repartition_8453.json", // only present when direct (non-delegator) voters exist on Base
   ],
   fxn: [
     "repartition.json",
@@ -85,6 +87,15 @@ function checkFileExistence(timestamp: number): CheckResult[] {
     const p = path.join(base, "vlCVX/curve", f);
     const exists = fileExists(p);
     results.push({ label: `vlCVX/curve/${f}`, ok: exists, detail: exists ? "exists" : "MISSING" });
+  }
+  for (const f of VLCVX_FILES.curveOptional) {
+    const p = path.join(base, "vlCVX/curve", f);
+    const exists = fileExists(p);
+    results.push({
+      label: `vlCVX/curve/${f}`,
+      ok: true,
+      detail: exists ? "exists" : "not present (no direct voters on Base)",
+    });
   }
   for (const f of VLCVX_FILES.fxn) {
     const p = path.join(base, "vlCVX/fxn", f);

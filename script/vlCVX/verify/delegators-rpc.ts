@@ -517,7 +517,8 @@ Options:
     const existingSet = new Set(existingDelegators);
 
     console.log(`\nDelegator counts:`);
-    console.log(`  - RPC (direct events):       ${rpcSet.size}`);
+    console.log(`  - RPC (direct events):       ${rpcDelegatorsAfterVoters.length} (incl. ${zeroVpDelegators.length} zero-VP / expired locks)`);
+    console.log(`  - RPC (zero-VP excluded):    ${rpcSet.size}`);
     console.log(`  - Parquet (cached events):   ${parquetSet.size}`);
     console.log(`  - Repartition file:          ${existingSet.size}`);
 
@@ -531,9 +532,21 @@ Options:
       for (const addr of inRpcNotParquet) console.log(`    ${addr}`);
     }
 
-    console.log(`  - In Parquet but NOT in RPC: ${inParquetNotRpc.length}`);
-    if (inParquetNotRpc.length > 0 && inParquetNotRpc.length <= 10) {
-      for (const addr of inParquetNotRpc) console.log(`    ${addr}`);
+    const zeroVpSet = new Set(zeroVpDelegators);
+    const inParquetNotRpcZeroVp = inParquetNotRpc.filter((d) => zeroVpSet.has(d));
+    const inParquetNotRpcUnexplained = inParquetNotRpc.filter((d) => !zeroVpSet.has(d));
+    console.log(
+      `  - In Parquet but NOT in RPC: ${inParquetNotRpc.length}` +
+        (inParquetNotRpcZeroVp.length > 0
+          ? ` (${inParquetNotRpcZeroVp.length} zero-VP / expired locks — expected` +
+            (inParquetNotRpcUnexplained.length > 0
+              ? `, ${inParquetNotRpcUnexplained.length} UNEXPLAINED)`
+              : `)`)
+          : "")
+    );
+    if (inParquetNotRpcUnexplained.length > 0 && inParquetNotRpcUnexplained.length <= 10) {
+      console.log(`  Unexplained discrepancies (not zero-VP):`);
+      for (const addr of inParquetNotRpcUnexplained) console.log(`    ${addr}`);
     }
 
     // Find differences between RPC and existing file

@@ -557,9 +557,10 @@ async function main() {
   const existingSet = new Set(existingDelegators);
 
   console.log(`\nDelegator counts:`);
-  console.log(`  - RPC (DelegateChanged events): ${rpcSet.size}`);
-  console.log(`  - Parquet cache: ${parquetSet.size}`);
-  console.log(`  - Existing repartition file: ${existingSet.size}`);
+  console.log(`  - RPC (DelegateChanged events): ${rpcDelegatorsAfterVoters.length} (incl. ${zeroVpDelegators.length} zero-VP / expired locks)`);
+  console.log(`  - RPC (zero-VP excluded):        ${rpcSet.size}`);
+  console.log(`  - Parquet cache:                 ${parquetSet.size}`);
+  console.log(`  - Existing repartition file:     ${existingSet.size}`);
 
   // Find differences
   const inRpcNotParquet = [...rpcSet].filter(d => !parquetSet.has(d));
@@ -571,8 +572,22 @@ async function main() {
   console.log(`  - In RPC but NOT in Parquet: ${inRpcNotParquet.length}`);
   if (inRpcNotParquet.length > 0) console.log(`    ${inRpcNotParquet.join("\n    ")}`);
 
-  console.log(`  - In Parquet but NOT in RPC: ${inParquetNotRpc.length}`);
-  if (inParquetNotRpc.length > 0) console.log(`    ${inParquetNotRpc.join("\n    ")}`);
+  const zeroVpSet = new Set(zeroVpDelegators.map(d => d.toLowerCase()));
+  const inParquetNotRpcZeroVp = inParquetNotRpc.filter(d => zeroVpSet.has(d));
+  const inParquetNotRpcUnexplained = inParquetNotRpc.filter(d => !zeroVpSet.has(d));
+  console.log(
+    `  - In Parquet but NOT in RPC: ${inParquetNotRpc.length}` +
+      (inParquetNotRpcZeroVp.length > 0
+        ? ` (${inParquetNotRpcZeroVp.length} zero-VP / expired locks — expected` +
+          (inParquetNotRpcUnexplained.length > 0
+            ? `, ${inParquetNotRpcUnexplained.length} UNEXPLAINED)`
+            : `)`)
+        : "")
+  );
+  if (inParquetNotRpcUnexplained.length > 0 && inParquetNotRpcUnexplained.length <= 10) {
+    console.log("  Unexplained discrepancies (not zero-VP):");
+    for (const addr of inParquetNotRpcUnexplained) console.log(`    ${addr}`);
+  }
 
   console.log(`\n  - In RPC but NOT in existing file: ${inRpcNotExisting.length}`);
   if (inRpcNotExisting.length > 0) console.log(`    ${inRpcNotExisting.join("\n    ")}`);

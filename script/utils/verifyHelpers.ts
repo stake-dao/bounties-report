@@ -170,13 +170,20 @@ export function checkWeekComparison(
     const prevData = readJSON(prevPath);
     const prevCount = Object.keys(prevData.claims || {}).length;
     const change = prevCount > 0 ? ((currCount / prevCount - 1) * 100) : 0;
-    const deviation = Math.abs(change);
-    const ok = deviation <= 20;
+    // Cumulative merkles can only grow (new delegators) — a decrease is critical,
+    // a large increase is notable but not an error.
+    const decreased = currCount < prevCount;
+    const ok = !decreased;
+    const suffix = decreased
+      ? " ← REGRESSION: addresses removed from cumulative merkle"
+      : change > 20
+      ? ` ⚠️ notable increase (+${change.toFixed(1)}% — ${currCount - prevCount} new claimants)`
+      : "";
 
     results.push({
       label: `${cfg.label} vs prev week`,
       ok,
-      detail: `${currCount} (this) vs ${prevCount} (prev) = ${change >= 0 ? "+" : ""}${change.toFixed(1)}%`,
+      detail: `${currCount} (this) vs ${prevCount} (prev) = ${change >= 0 ? "+" : ""}${change.toFixed(1)}%${suffix}`,
     });
   }
 
@@ -359,22 +366,28 @@ export function verifyCSVBalance(
       continue;
     }
 
-    let repartition: any;
+    let repartition: any = null;
     let delegation: any;
     try {
-      repartition = readJSON(bp(timestamp, cfg.repartition));
       delegation = readJSON(bp(timestamp, cfg.delegation));
     } catch (e: any) {
-      results.push(`  ❌ Missing files: ${e.message}`);
+      results.push(`  ❌ Missing delegation file: ${e.message}`);
       allOk = false;
       continue;
     }
+    try {
+      repartition = readJSON(bp(timestamp, cfg.repartition));
+    } catch {
+      results.push(`  ⚠️  No repartition file (no direct voters on this chain) — verifying CSV = delegation only`);
+    }
 
     const nonDelegPerToken: Record<string, bigint> = {};
-    for (const [, gaugeData] of Object.entries(repartition.distribution) as [string, any][]) {
-      for (const [token, amount] of Object.entries(gaugeData.tokens) as [string, string][]) {
-        const key = token.toLowerCase();
-        nonDelegPerToken[key] = (nonDelegPerToken[key] || 0n) + BigInt(amount);
+    if (repartition) {
+      for (const [, gaugeData] of Object.entries(repartition.distribution) as [string, any][]) {
+        for (const [token, amount] of Object.entries(gaugeData.tokens) as [string, string][]) {
+          const key = token.toLowerCase();
+          nonDelegPerToken[key] = (nonDelegPerToken[key] || 0n) + BigInt(amount);
+        }
       }
     }
 
