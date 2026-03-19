@@ -1,6 +1,9 @@
 name: "System: Update Metadata"
 
 on:
+  schedule:
+    # Run daily at 06:00 UTC to keep distribution dates up to date
+    - cron: "0 6 * * *"
   # Allow manual trigger (e.g. to resync metadata after an out-of-band distribution)
   workflow_dispatch:
 
