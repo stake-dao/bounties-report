@@ -21,7 +21,7 @@ const MAX_BUFFER = 10 * 1024 * 1024;
 
 export type Protocol = "vlCVX" | "vlAURA" | "bounties" | "all";
 
-type Verdict = "pass" | "fail" | "warning";
+export type Verdict = "pass" | "fail" | "warning";
 
 export interface ScriptResult {
   label: string;
@@ -36,6 +36,21 @@ export interface VerificationResult {
   scripts: ScriptResult[];
   /** Optional per-script metric notes extracted by the LLM (key = script label). */
   scriptNotes?: Record<string, string>;
+}
+
+export interface ModelVerdict {
+  model: string;
+  verdict: Verdict | null;
+  summary?: string;
+  issues?: string[];
+  scriptNotes?: Record<string, string>;
+  error?: string;
+  ms: number;
+}
+
+export interface ConsensusResult extends VerificationResult {
+  modelVerdicts: ModelVerdict[];
+  consensusMethod: "unanimous" | "majority" | "script-only";
 }
 
 // ── Script registry ───────────────────────────────────────────────────────────
@@ -275,4 +290,122 @@ export async function verify(
   const scripts = runScripts(timestamp, protocol);
   console.log(`  → analyzing with ${client.model} (${client.provider})`);
   return analyze(client, timestamp, protocol, scripts);
+}
+
+// ── Multi-model consensus ────────────────────────────────────────────────────
+
+const VERDICT_RANK: Record<Verdict, number> = { pass: 0, warning: 1, fail: 2 };
+
+function resolveConsensus(
+  modelVerdicts: ModelVerdict[],
+  allScriptsPass: boolean
+): { verdict: Verdict; method: ConsensusResult["consensusMethod"] } {
+  const responded = modelVerdicts.filter((m) => m.verdict !== null);
+
+  if (responded.length === 0) {
+    return {
+      verdict: allScriptsPass ? "pass" : "fail",
+      method: "script-only",
+    };
+  }
+
+  const counts: Record<Verdict, number> = { pass: 0, warning: 0, fail: 0 };
+  for (const m of responded) counts[m.verdict!]++;
+
+  const unanimous = responded.every((m) => m.verdict === responded[0].verdict);
+  if (unanimous) {
+    let verdict = responded[0].verdict!;
+    if (verdict === "fail" && allScriptsPass) verdict = "warning";
+    return { verdict, method: "unanimous" };
+  }
+
+  let majority: Verdict = "pass";
+  let maxCount = 0;
+  for (const v of ["fail", "warning", "pass"] as Verdict[]) {
+    if (counts[v] > maxCount) {
+      maxCount = counts[v];
+      majority = v;
+    } else if (counts[v] === maxCount && VERDICT_RANK[v] > VERDICT_RANK[majority]) {
+      majority = v;
+    }
+  }
+
+  if (majority === "fail" && allScriptsPass) majority = "warning";
+  return { verdict: majority, method: "majority" };
+}
+
+/**
+ * Run scripts once, query multiple models in parallel, resolve by consensus.
+ * Scripts are the source of truth — if all pass and every LLM is down, verdict = pass.
+ */
+export async function verifyWithConsensus(
+  clients: LLMClient[],
+  timestamp: number,
+  protocol: Protocol = "all"
+): Promise<ConsensusResult> {
+  const date = new Date(timestamp * 1000).toISOString().split("T")[0];
+  const modelNames = clients.map((c) => c.model).join(", ");
+
+  console.log(`\n[verify] week ${timestamp} (${date}), protocol=${protocol}`);
+  console.log(`  models: ${modelNames}`);
+
+  const scripts = runScripts(timestamp, protocol);
+  const allScriptsPass = scripts.every((s) => s.exitCode === 0);
+
+  console.log(`  scripts: ${scripts.map((s) => `${s.label}(${s.exitCode})`).join(", ")}`);
+  console.log(`  → querying ${clients.length} models in parallel…`);
+
+  const LLM_UNAVAILABLE_MARKER = "LLM analysis unavailable";
+
+  const modelVerdicts: ModelVerdict[] = await Promise.all(
+    clients.map(async (client): Promise<ModelVerdict> => {
+      const t0 = Date.now();
+      try {
+        const result = await analyze(client, timestamp, protocol, scripts);
+        const llmFailed = result.summary.includes(LLM_UNAVAILABLE_MARKER);
+        if (llmFailed) {
+          return {
+            model: client.model,
+            verdict: null,
+            error: `LLM returned fallback (API error)`,
+            ms: Date.now() - t0,
+          };
+        }
+        return {
+          model: client.model,
+          verdict: result.verdict,
+          summary: result.summary,
+          issues: result.issues,
+          scriptNotes: result.scriptNotes,
+          ms: Date.now() - t0,
+        };
+      } catch (err) {
+        return {
+          model: client.model,
+          verdict: null,
+          error: String(err),
+          ms: Date.now() - t0,
+        };
+      }
+    })
+  );
+
+  const { verdict, method } = resolveConsensus(modelVerdicts, allScriptsPass);
+
+  const responded = modelVerdicts.filter((m) => m.verdict !== null);
+  const best = responded.find((m) => m.verdict === verdict) ?? responded[0];
+
+  const scriptOnlySummary = allScriptsPass
+    ? `All ${scripts.length} scripts passed — no LLM response, verdict from scripts only`
+    : `${scripts.filter((s) => s.exitCode !== 0).length}/${scripts.length} scripts failed — no LLM response, verdict from scripts only`;
+
+  return {
+    verdict,
+    summary: best?.summary ?? scriptOnlySummary,
+    issues: best?.issues ?? (allScriptsPass ? [] : ["See raw script output for details"]),
+    scripts,
+    scriptNotes: best?.scriptNotes,
+    modelVerdicts,
+    consensusMethod: method,
+  };
 }
