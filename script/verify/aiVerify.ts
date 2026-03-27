@@ -1,43 +1,84 @@
 /**
- * AI-powered distribution verification CLI.
+ * AI-powered distribution verification CLI with multi-model consensus.
+ *
+ * Runs verification scripts once, queries multiple LLM models in parallel,
+ * and resolves a final verdict by consensus. Scripts are the source of truth:
+ * if all scripts pass but every LLM is down, the pipeline still passes.
  *
  * Usage:
- *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|vlAURA|all] [--model MODEL] [--deep]
+ *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|vlAURA|all] [--models m1,m2] [--deep]
  *
  * Env:
  *   OPENCODE_ZEN_API_KEY  (required)
  */
 
 import * as dotenv from "dotenv";
-import { verify, Protocol } from "./distributionVerify";
+import { verifyWithConsensus, Protocol, ConsensusResult } from "./distributionVerify";
 import { createZenClient, ZEN_DEFAULT_MODEL } from "../utils/openCodeZen";
-import { sendVerificationReport } from "./telegramReport";
+import { sendConsensusReport } from "./telegramReport";
 import { WEEK } from "../utils/constants";
+import type { LLMClient } from "../utils/llmClient";
 
 dotenv.config();
+
+const DEFAULT_MODELS = [
+  "claude-haiku-4-5",
+  "gpt-5.4-mini",
+  "minimax-m2.5-free",
+];
+
+const VERDICT_ICON: Record<string, string> = { pass: "✅", warning: "⚠️ ", fail: "❌" };
+const pad = (s: string, n: number) => s.length <= n ? s.padEnd(n) : s.slice(0, n - 1) + "…";
+
+function printModelTable(result: ConsensusResult): void {
+  const W = { model: 22, verdict: 10, summary: 36, ms: 7 };
+  const header =
+    "Model".padEnd(W.model) + "Verdict".padEnd(W.verdict) +
+    "Summary".padEnd(W.summary) + "ms".padEnd(W.ms);
+
+  console.log("\n  " + header);
+  console.log("  " + "─".repeat(header.length));
+
+  for (const m of result.modelVerdicts) {
+    if (m.verdict === null) {
+      console.log(
+        `  ❌ ${pad(m.model, W.model)}${"ERROR".padEnd(W.verdict)}${pad(m.error ?? "unknown", W.summary)}${String(m.ms).padStart(W.ms)}`
+      );
+    } else {
+      const icon = VERDICT_ICON[m.verdict] ?? "❓";
+      console.log(
+        `  ${icon} ${pad(m.model, W.model)}${m.verdict.padEnd(W.verdict)}${pad(m.summary ?? "", W.summary)}${String(m.ms).padStart(W.ms)}`
+      );
+    }
+  }
+}
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   let timestamp: number | undefined;
   let protocol: Protocol = "all";
-  let model = ZEN_DEFAULT_MODEL;
+  let modelIds = DEFAULT_MODELS;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--timestamp" && args[i + 1]) {
       timestamp = parseInt(args[++i], 10);
     } else if (args[i] === "--protocol" && args[i + 1]) {
       protocol = args[++i] as Protocol;
+    } else if (args[i] === "--models" && args[i + 1]) {
+      modelIds = args[++i].split(",").map((m) => m.trim());
     } else if (args[i] === "--model" && args[i + 1]) {
-      model = args[++i];
+      modelIds = [args[++i]];
     } else if (args[i] === "--help") {
       console.log(`
 Usage: pnpm tsx script/verify/aiVerify.ts [options]
 
 Options:
-  --timestamp <ts>    Week epoch (default: current week)
-  --protocol  <p>     vlCVX | vlAURA | bounties | all  (default: all)
-  --model     <m>     LLM model via Opencode ZEN (default: ${ZEN_DEFAULT_MODEL})
-  --help              Show this message
+  --timestamp <ts>       Week epoch (default: current week)
+  --protocol  <p>        vlCVX | vlAURA | bounties | all  (default: all)
+  --models    <m1,m2>    Comma-separated model IDs (default: ${DEFAULT_MODELS.join(",")})
+  --model     <m>        Single model (shorthand for --models with one)
+  --deep                 Include RPC/parquet delegation checks (implicit)
+  --help                 Show this message
 `);
       process.exit(0);
     }
@@ -48,9 +89,9 @@ Options:
     timestamp = Math.floor(now / WEEK) * WEEK;
   }
 
-  const client = createZenClient(model);
+  const apiKey = process.env.OPENCODE_ZEN_API_KEY ?? "";
+  const clients: LLMClient[] = modelIds.map((m) => createZenClient(m, apiKey));
 
-  // When "all", run each protocol independently so each gets its own Telegram message.
   const protocols: Protocol[] = protocol === "all"
     ? ["vlCVX", "bounties", "vlAURA"]
     : [protocol];
@@ -58,16 +99,22 @@ Options:
   let anyFail = false;
 
   for (const p of protocols) {
-    const result = await verify(client, timestamp, p);
-    await sendVerificationReport(result, timestamp, p);
+    const result = await verifyWithConsensus(clients, timestamp, p);
+    await sendConsensusReport(result, timestamp, p);
 
-    const icon = result.verdict === "pass" ? "✅" : result.verdict === "warning" ? "⚠️ " : "❌";
+    const icon = VERDICT_ICON[result.verdict] ?? "❓";
     if (result.verdict === "fail") anyFail = true;
 
     console.log("\n" + "═".repeat(70));
-    console.log(`  AI Verification Report [${p}] — ${client.model} (${client.provider})`);
+    console.log(`  AI Verification Report [${p}] — consensus (${result.consensusMethod})`);
     console.log("═".repeat(70));
-    console.log(`\n  ${icon} ${result.verdict.toUpperCase()}: ${result.summary}`);
+
+    printModelTable(result);
+
+    const responded = result.modelVerdicts.filter((m) => m.verdict !== null).length;
+    const total = result.modelVerdicts.length;
+    console.log(`\n  Consensus: ${result.consensusMethod} (${responded}/${total} models responded)`);
+    console.log(`  ${icon} ${result.verdict.toUpperCase()}: ${result.summary}`);
 
     if (result.issues.length > 0) {
       console.log("\n  Issues:");
