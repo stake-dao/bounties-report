@@ -116,7 +116,10 @@ async function fetchDelegationEvents(
   toBlock: bigint
 ): Promise<DelegationEvent[]> {
   const client = await getClient(1);
-  const fromBlock = BigInt(DELEGATE_REGISTRY_CREATION_BLOCK_ETH);
+  const FIRST_STAKEDAO_DELEGATION_BLOCK = 21_000_000n;
+  const fromBlock = FIRST_STAKEDAO_DELEGATION_BLOCK > BigInt(DELEGATE_REGISTRY_CREATION_BLOCK_ETH)
+    ? FIRST_STAKEDAO_DELEGATION_BLOCK
+    : BigInt(DELEGATE_REGISTRY_CREATION_BLOCK_ETH);
   const normalizedDelegate = getAddress(targetDelegate);
 
   console.log(`Fetching delegation events from block ${fromBlock} to ${toBlock}...`);
@@ -124,7 +127,7 @@ async function fetchDelegationEvents(
   console.log(`  Space (bytes32): ${spaceBytes32}`);
 
   const events: DelegationEvent[] = [];
-  const BATCH_SIZE = 45000n; // Public RPCs often limit to 50k blocks
+  const BATCH_SIZE = 45000n;
 
   let currentFrom = fromBlock;
   let batchCount = 0;
@@ -133,19 +136,21 @@ async function fetchDelegationEvents(
     const currentTo = currentFrom + BATCH_SIZE > toBlock ? toBlock : currentFrom + BATCH_SIZE;
     batchCount++;
 
-    try {
-      // Fetch SetDelegate events for target delegate and space
+    const fetchBatch = async (from: bigint, to: bigint) => {
       const setLogs = await client.getLogs({
         address: getAddress(DELEGATE_REGISTRY),
         event: SET_DELEGATE_EVENT,
-        args: {
-          id: spaceBytes32 as `0x${string}`,
-          delegate: normalizedDelegate,
-        },
-        fromBlock: currentFrom,
-        toBlock: currentTo,
+        args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
+        fromBlock: from,
+        toBlock: to,
       });
-
+      const clearLogs = await client.getLogs({
+        address: getAddress(DELEGATE_REGISTRY),
+        event: CLEAR_DELEGATE_EVENT,
+        args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
+        fromBlock: from,
+        toBlock: to,
+      });
       for (const log of setLogs) {
         events.push({
           delegator: (log.args as any).delegator.toLowerCase(),
@@ -155,19 +160,6 @@ async function fetchDelegationEvents(
           eventType: "Set",
         });
       }
-
-      // Fetch ClearDelegate events for target delegate and space
-      const clearLogs = await client.getLogs({
-        address: getAddress(DELEGATE_REGISTRY),
-        event: CLEAR_DELEGATE_EVENT,
-        args: {
-          id: spaceBytes32 as `0x${string}`,
-          delegate: normalizedDelegate,
-        },
-        fromBlock: currentFrom,
-        toBlock: currentTo,
-      });
-
       for (const log of clearLogs) {
         events.push({
           delegator: (log.args as any).delegator.toLowerCase(),
@@ -177,6 +169,12 @@ async function fetchDelegationEvents(
           eventType: "Clear",
         });
       }
+    };
+
+    const MAX_RETRIES = 3;
+
+    try {
+      await fetchBatch(currentFrom, currentTo);
 
       if (batchCount % 5 === 0) {
         console.log(`  Processed ${batchCount} batches, ${events.length} events found so far...`);
@@ -184,55 +182,24 @@ async function fetchDelegationEvents(
 
       currentFrom = currentTo + 1n;
     } catch (error: any) {
-      // If batch is too large, try smaller
       if (error.message?.includes("query returned more than") || error.code === -32005) {
         console.log(`  Batch too large, reducing size...`);
-        const smallerBatch = BATCH_SIZE / 10n;
-        const smallerTo = currentFrom + smallerBatch > toBlock ? toBlock : currentFrom + smallerBatch;
-
-        const setLogs = await client.getLogs({
-          address: getAddress(DELEGATE_REGISTRY),
-          event: SET_DELEGATE_EVENT,
-          args: {
-            id: spaceBytes32 as `0x${string}`,
-            delegate: normalizedDelegate,
-          },
-          fromBlock: currentFrom,
-          toBlock: smallerTo,
-        });
-
-        for (const log of setLogs) {
-          events.push({
-            delegator: (log.args as any).delegator.toLowerCase(),
-            space: (log.args as any).id,
-            delegate: (log.args as any).delegate.toLowerCase(),
-            blockNumber: log.blockNumber,
-            eventType: "Set",
-          });
-        }
-
-        const clearLogs = await client.getLogs({
-          address: getAddress(DELEGATE_REGISTRY),
-          event: CLEAR_DELEGATE_EVENT,
-          args: {
-            id: spaceBytes32 as `0x${string}`,
-            delegate: normalizedDelegate,
-          },
-          fromBlock: currentFrom,
-          toBlock: smallerTo,
-        });
-
-        for (const log of clearLogs) {
-          events.push({
-            delegator: (log.args as any).delegator.toLowerCase(),
-            space: (log.args as any).id,
-            delegate: (log.args as any).delegate.toLowerCase(),
-            blockNumber: log.blockNumber,
-            eventType: "Clear",
-          });
-        }
-
+        const smallerTo = currentFrom + BATCH_SIZE / 10n > toBlock ? toBlock : currentFrom + BATCH_SIZE / 10n;
+        await fetchBatch(currentFrom, smallerTo);
         currentFrom = smallerTo + 1n;
+      } else if (error.message?.includes("429") || error.message?.includes("rate") || error.code === 429) {
+        let retried = false;
+        for (let r = 1; r <= MAX_RETRIES; r++) {
+          console.log(`  Rate limited, retry ${r}/${MAX_RETRIES} in ${r * 2}s...`);
+          await new Promise((resolve) => setTimeout(resolve, r * 2000));
+          try {
+            await fetchBatch(currentFrom, currentTo);
+            currentFrom = currentTo + 1n;
+            retried = true;
+            break;
+          } catch { /* retry */ }
+        }
+        if (!retried) throw error;
       } else {
         throw error;
       }
