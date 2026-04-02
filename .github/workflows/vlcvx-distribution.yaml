@@ -147,9 +147,9 @@ jobs:
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
           echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
 
-      # ── Compute APR ──
+      # ── Compute APR (delegators only — needs sCRVUSD transfers from Tuesday distribution) ──
       - name: Compute APR
-        if: inputs.step == 'all' || (inputs.step == 'publish' && inputs.type == 'delegators')
+        if: inputs.type == 'delegators' && (inputs.step == 'all' || inputs.step == 'publish')
         run: pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
