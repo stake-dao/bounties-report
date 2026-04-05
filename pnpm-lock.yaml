@@ -1296,9 +1296,13 @@ packages:
       '@types/debug': 4.1.13
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       debug: 4.3.4
 =======
       debug: 4.4.3
+>>>>>>> Stashed changes
+=======
+      debug: 4.3.4
 >>>>>>> Stashed changes
 =======
       debug: 4.3.4
