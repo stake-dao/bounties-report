@@ -7,14 +7,16 @@
 
 import * as dotenv from "dotenv";
 import { sendTelegramMessageWithCreds } from "../utils/telegramUtils";
-import type { VerificationResult, ConsensusResult, Protocol } from "./distributionVerify";
+import type { VerificationResult, ConsensusResult, Protocol, VerifyMetadata, SnapshotProposal } from "./distributionVerify";
 
 dotenv.config();
+
+const SNAPSHOT_BASE_URL = "https://snapshot.box/#/s:";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 const HEADER_ICON: Record<string, string> = {
@@ -61,8 +63,16 @@ function groupScripts(scripts: VerificationResult["scripts"]): Map<string, Verif
 /** Human-readable protocol name for the message header. */
 function protocolDisplayName(protocol: Protocol, scripts: VerificationResult["scripts"]): string {
   if (protocol !== "all") return protocol;
-  // Build from the groups actually present in this run
   return [...groupScripts(scripts).keys()].join(" · ");
+}
+
+function snapshotLinks(metadata?: VerifyMetadata): string[] {
+  if (!metadata?.snapshotProposals || metadata.snapshotProposals.length === 0) return [];
+  return metadata.snapshotProposals.map((p) => {
+    const shortId = p.proposalId.slice(0, 10) + "…";
+    const url = `${SNAPSHOT_BASE_URL}${p.space}/proposal/${p.proposalId}`;
+    return `🗳 <a href="${url}">${escapeHtml(p.label)} (${shortId})</a>`;
+  });
 }
 
 // ── Formatter ─────────────────────────────────────────────────────────────────
@@ -135,7 +145,8 @@ const MODEL_VERDICT_ICON: Record<string, string> = { pass: "✅", warning: "⚠�
 export function formatConsensusReport(
   result: ConsensusResult,
   timestamp: number,
-  protocol: Protocol
+  protocol: Protocol,
+  metadata?: VerifyMetadata
 ): string {
   const date = new Date(timestamp * 1000).toISOString().split("T")[0];
   const headerIcon = HEADER_ICON[result.verdict] ?? "❓";
@@ -144,7 +155,9 @@ export function formatConsensusReport(
   const lines: string[] = [];
 
   const displayName = protocolDisplayName(protocol, result.scripts);
+  const weekTag = result.weekContext && result.weekContext !== "unknown" ? `, Week ${result.weekContext}` : "";
   lines.push(`${headerIcon} <b>[AI Verify] ${escapeHtml(displayName)} — ${date}</b>`);
+  lines.push(`<code>${timestamp}</code>${weekTag}`);
   lines.push("");
 
   lines.push(`${verdictIcon} <b>${result.verdict.toUpperCase()}</b>`);
@@ -171,10 +184,34 @@ export function formatConsensusReport(
   } else {
     const modelLine = result.modelVerdicts.map((m) => {
       if (m.verdict === null) return `${escapeHtml(m.model)}: 💀`;
-      return `${escapeHtml(m.model)}: ${MODEL_VERDICT_ICON[m.verdict] ?? "❓"}`;
+      const conf = m.confidence != null ? ` (${(m.confidence * 100).toFixed(0)}%)` : "";
+      return `${escapeHtml(m.model)}: ${MODEL_VERDICT_ICON[m.verdict] ?? "❓"}${conf}`;
     }).join("  ");
     lines.push(`🤖 ${modelLine}`);
     lines.push(`<i>Consensus: ${result.consensusMethod} (${responded.length}/${result.modelVerdicts.length})</i>`);
+
+    const dissenters = responded.filter((m) => m.verdict !== result.verdict);
+    if (dissenters.length > 0) {
+      for (const d of dissenters) {
+        const icon = MODEL_VERDICT_ICON[d.verdict!] ?? "❓";
+        const conf = d.confidence != null ? ` ${(d.confidence * 100).toFixed(0)}%` : "";
+        lines.push(`${icon} <i>${escapeHtml(d.model)}${conf}</i>`);
+        if (d.summary) lines.push(`  <i>"${escapeHtml(d.summary)}"</i>`);
+        if (d.issues && d.issues.length > 0) {
+          for (const issue of d.issues.slice(0, 3)) {
+            lines.push(`  • <i>${escapeHtml(issue)}</i>`);
+          }
+          if (d.issues.length > 3) lines.push(`  <i>… +${d.issues.length - 3} more</i>`);
+        }
+      }
+    }
+  }
+
+  if (result.chainStatus && Object.keys(result.chainStatus).length > 0) {
+    const chainLine = Object.entries(result.chainStatus)
+      .map(([chain, v]) => `${chain}: ${MODEL_VERDICT_ICON[v] ?? "❓"}`)
+      .join("  ");
+    lines.push(`⛓ ${chainLine}`);
   }
 
   lines.push("");
@@ -195,6 +232,14 @@ export function formatConsensusReport(
       const note = result.scriptNotes?.[s.label];
       lines.push(note ? `${icon} ${label} — <i>${escapeHtml(note)}</i>` : `${icon} ${label}`);
     }
+  }
+
+  const snapLinks = snapshotLinks(metadata);
+  if (snapLinks.length > 0 || metadata?.commitSha) {
+    lines.push("");
+    lines.push(DIVIDER);
+    for (const link of snapLinks) lines.push(link);
+    if (metadata?.commitSha) lines.push(`📎 <code>${escapeHtml(metadata.commitSha)}</code>`);
   }
 
   const message = lines.join("\n");
@@ -232,7 +277,8 @@ export async function sendVerificationReport(
 export async function sendConsensusReport(
   result: ConsensusResult,
   timestamp: number,
-  protocol: Protocol
+  protocol: Protocol,
+  metadata?: VerifyMetadata
 ): Promise<void> {
   const apiKey = process.env.TEST_TELEGRAM_API_KEY;
   const chatId = process.env.TEST_TELEGRAM_CHAT_ID;
@@ -242,7 +288,7 @@ export async function sendConsensusReport(
     return;
   }
 
-  const message = formatConsensusReport(result, timestamp, protocol);
+  const message = formatConsensusReport(result, timestamp, protocol, metadata);
 
   try {
     await sendTelegramMessageWithCreds(message, apiKey, chatId, "HTML");
