@@ -116,7 +116,7 @@ packages:
   /@base-org/account@2.4.0(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0)(zod@4.3.6):
     resolution: {integrity: sha512-A4Umpi8B9/pqR78D1Yoze4xHyQaujioVRqqO3d6xuDFw9VRtjg6tK3bPlwE0aW+nVH/ntllCpPa2PbI8Rnjcug==}
     dependencies:
-      '@coinbase/cdp-sdk': 1.46.1(typescript@5.9.3)
+      '@coinbase/cdp-sdk': 1.47.0(typescript@5.9.3)
       '@noble/hashes': 1.4.0
       clsx: 1.2.1
       eventemitter3: 5.0.1
@@ -148,8 +148,8 @@ packages:
       '@chainsafe/is-ip': 2.1.0
     dev: false
 
-  /@coinbase/cdp-sdk@1.46.1(typescript@5.9.3):
-    resolution: {integrity: sha512-//d0db/zbg/ahUqPtTvDBufRm0NXbjIvie56Fleg0IsA5v0qI0hGK0jXePWSy+Gv3txe9jVeEKtmiA1D85V0Vg==}
+  /@coinbase/cdp-sdk@1.47.0(typescript@5.9.3):
+    resolution: {integrity: sha512-XPNScuOFxvNVeNPPUFnTng2475xFZN2AUIF1bxT9rzeQq2R6tFaUXPuFfAcYkvc4952C2otgowSHmJibgqk2Cg==}
     dependencies:
       '@solana-program/system': 0.10.0(@solana/kit@5.5.1)
       '@solana-program/token': 0.9.0(@solana/kit@5.5.1)
@@ -1018,8 +1018,8 @@ packages:
       '@multiformats/dns': 1.0.13
       '@multiformats/multiaddr': 12.5.1
       it-pushable: 3.2.3
-      it-stream-types: 2.0.2
-      main-event: 1.0.1
+      it-stream-types: 2.0.4
+      main-event: 1.0.4
       multiformats: 13.4.2
       progress-events: 1.1.0
       uint8arraylist: 2.4.8
@@ -1030,7 +1030,7 @@ packages:
     dependencies:
       '@multiformats/dns': 1.0.13
       '@multiformats/multiaddr': 13.0.1
-      main-event: 1.0.1
+      main-event: 1.0.4
       multiformats: 13.4.2
       progress-events: 1.1.0
       uint8arraylist: 2.4.8
@@ -3929,8 +3929,8 @@ packages:
       '@libp2p/logger': 5.2.0
       interface-blockstore: 5.3.2
       interface-store: 6.0.3
-      it-filter: 3.1.4
-      it-merge: 3.0.12
+      it-filter: 3.1.6
+      it-merge: 3.0.14
       multiformats: 13.4.2
     dev: false
 
@@ -5763,20 +5763,20 @@ packages:
     resolution: {integrity: sha512-Yljz7ffyPbrLpLngrMtZ7NduUgVvi6wG9RJ9IUcyCd59YQ911PBJphODUcbOVbqYfxe1wuYf/LJ8PauMRwsM/g==}
     dev: false
 
-  /it-filter@3.1.4:
-    resolution: {integrity: sha512-80kWEKgiFEa4fEYD3mwf2uygo1dTQ5Y5midKtL89iXyjinruA/sNXl6iFkTcdNedydjvIsFhWLiqRPQP4fAwWQ==}
+  /it-filter@3.1.6:
+    resolution: {integrity: sha512-yXiGPAvJn/exXjVFSCMQc3+J/7RLpOMwKoY2DH1yMhF4lYkdRoAdOwU0vnDACAlRAexf7AZvESZIc9mzhEoi/A==}
     dependencies:
-      it-peekable: 3.0.8
+      it-peekable: 3.0.10
     dev: false
 
-  /it-merge@3.0.12:
-    resolution: {integrity: sha512-nnnFSUxKlkZVZD7c0jYw6rDxCcAQYcMsFj27thf7KkDhpj0EA0g9KHPxbFzHuDoc6US2EPS/MtplkNj8sbCx4Q==}
+  /it-merge@3.0.14:
+    resolution: {integrity: sha512-D3t1Go2G2SQMkTujaA6EVojJPJKA9pFksxlSPDRBfrHKhWl6O40vEP7Itr5eCAjyCQH5p9+BFFVIy9bhLM4ZuQ==}
     dependencies:
-      it-queueless-pushable: 2.0.3
+      it-queueless-pushable: 2.0.5
     dev: false
 
-  /it-peekable@3.0.8:
-    resolution: {integrity: sha512-7IDBQKSp/dtBxXV3Fj0v3qM1jftJ9y9XrWLRIuU1X6RdKqWiN60syNwP0fiDxZD97b8SYM58dD3uklIk1TTQAw==}
+  /it-peekable@3.0.10:
+    resolution: {integrity: sha512-2E6+p1pelZOhzp69aaiiBuEybWzAl10uYbIdCR3Pxy8bFNnS/kgpbLtGbNbIZ6RVdU7yHHkmATYwjy52GfFEKA==}
     dev: false
 
   /it-pushable@3.2.3:
@@ -5785,16 +5785,16 @@ packages:
       p-defer: 4.0.1
     dev: false
 
-  /it-queueless-pushable@2.0.3:
-    resolution: {integrity: sha512-USa5EzTvmQswOcVE7+o6qsj2o2G+6KHCxSogPOs23sGYkDWFidhqVO7dAvv6ve/Z+Q+nvxpEa9rrRo6VEK7w4Q==}
+  /it-queueless-pushable@2.0.5:
+    resolution: {integrity: sha512-BaKqGLL1AQMR1AEaxiM09vzJQVXHHhfhh9UV0qPqORw/8Rm8igDQqT1qHregfHIb1NIW9jxQ/aXBibHJyuivuQ==}
     dependencies:
       abort-error: 1.0.2
       p-defer: 4.0.1
       race-signal: 2.0.0
     dev: false
 
-  /it-stream-types@2.0.2:
-    resolution: {integrity: sha512-Rz/DEZ6Byn/r9+/SBCuJhpPATDF9D+dz5pbgSUyBsCDtza6wtNATrz/jz1gDyNanC3XdLboriHnOC925bZRBww==}
+  /it-stream-types@2.0.4:
+    resolution: {integrity: sha512-tsX+klvMQ53J4Jm2B52vCIs7WD609ck+VS9X2TKMEv7VPY9VwaYKmSWyHek5QS0wHBtP0bWj9KMqCtAHgVKiXw==}
     dev: false
 
   /jose@6.2.2:
@@ -6094,8 +6094,8 @@ packages:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  /main-event@1.0.1:
-    resolution: {integrity: sha512-NWtdGrAca/69fm6DIVd8T9rtfDII4Q8NQbIbsKQq2VzS9eqOGYs8uaNQjcuaCq/d9H/o625aOTJX2Qoxzqw0Pw==}
+  /main-event@1.0.4:
+    resolution: {integrity: sha512-sKazUjIy2Jalv5lkQ446iOcrx8Q7TkaCuk6xfnzg5uUqMusMLDMPmRDmSNE2kjSVpSTJo4j1bQZusS+Ib7Bvrg==}
     dev: false
 
   /make-dir@3.1.0:
