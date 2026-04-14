@@ -126,6 +126,11 @@ jobs:
             for file in bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_*.json; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
+                # Skip spectra (8453) - handled separately via orchestrator
+                if [[ "$filename" == "sdtkns_merkle_8453.json" ]]; then
+                  echo "Skipping $filename (spectra - handled by orchestrator)"
+                  continue
+                fi
                 cp "$file" "bounties-reports/latest/sdTkns/${filename}"
               fi
             done
