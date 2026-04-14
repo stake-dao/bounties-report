@@ -1,9 +1,10 @@
 import { formatUnits } from "viem";
+import * as dotenv from "dotenv";
 
-const ENVIO_GRAPHQL_URL = "https://bots.stakedao.org/v1/graphql";
+dotenv.config();
 
 const fetchGraphQL = async (query: string, variables?: Record<string, any>) => {
-  const res = await fetch(ENVIO_GRAPHQL_URL, {
+  const res = await fetch(process.env.BOTS_ENVIO_GRAPHQL_URL_WORKER || "", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }),
