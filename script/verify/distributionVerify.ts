@@ -79,6 +79,12 @@ const SCRIPTS: VerifyScript[] = [
     protocols: ["vlCVX", "all"],
   },
   {
+    label: "vlCVX Claims Completeness",
+    path: "script/vlCVX/verify/claimsCompleteness.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlCVX", "all"],
+  },
+  {
     label: "vlCVX parquet delegators",
     path: "script/vlCVX/verify/verifyDelegators.ts",
     args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
@@ -177,7 +183,10 @@ Root gauge note: Curve L2 gauges (rootGauge on Arbitrum/Base) are resolved to th
   vlCVX: `CSV mismatch triage for vlCVX:
 1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
 2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
-When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If merkle claim count for that token is non-zero, classify as warning not fail.`,
+When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If merkle claim count for that token is non-zero, classify as warning not fail.
+Base-file triage for vlCVX:
+1. If "vlCVX Claims Completeness" shows zero Base claims implicitly (Curve claims match Mainnet-only CSV rows, no 8453 rows) OR the distribution/reward-flow scripts explicitly say "no 8453 entries in CSV" / "Curve Base skipped", then missing Base-specific files are EXPECTED and must not be treated as fail or warning.
+2. Only treat missing Base-specific files as fail if there is evidence Base claims should exist (8453 CSV rows, Base claims in claimed_bounties, or script output says Base data required).`,
   vlAURA: `CSV mismatch triage for vlAURA:
 1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
 2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
@@ -220,6 +229,7 @@ script_notes rules:
 - Per-script guidance (extract these specific numbers):
   - "* Distribution Verification" → merkle claim count + token count, e.g. "234 claims, 18 tokens"
   - "* Reward Flow Verification" → CSV balance result + chain count, e.g. "CSV balanced (3 chains)" or "CSV diff on 2 tokens"
+  - "* Claims Completeness" → total claims + Curve/FXN split, e.g. "20 claims (14 Curve / 6 FXN)"
   - "* parquet delegators" → delegator count + forwarder/non-fwd split, e.g. "315: 89 fwd / 226 non-fwd"
   - "* RPC delegators" → active delegator count + zero-VP filtered count, e.g. "315 active, 43 zero-VP"
   - "* delegation timing" → snapshot block used, e.g. "block 22300000"
@@ -229,6 +239,7 @@ Verdict rules:
 - "pass"    → all ✅, zero ❌
 - "fail"    → any ❌ on: missing required files, invalid merkle root, delegation address in merkle, BigInt group-split mismatch, delegators in file not found via RPC, CSV diff≠0 AND token NOT in merkle (undistributed funds)
 - "warning" → only non-critical: optional file absent, week-over-week >20%, ⚠️ RPC warnings where counts still match, CSV diff≠0 BUT token IS present in merkle (reporting gap only — funds distributed correctly but CSV is incomplete)
+- Missing Base-specific vlCVX files are NOT "missing required files" when claims/CSV evidence shows no Base activity that week.
 Issues must be empty when verdict is "pass".`;
 
   const context = PROTOCOL_CONTEXT[protocol as keyof typeof PROTOCOL_CONTEXT];
