@@ -6,7 +6,7 @@ inputs:
     default: '20.5.1'
   pnpm-version:
     description: 'pnpm version'
-    default: '9.12.3'
+    default: '10.33.0'
   python:
     description: 'Install Python'
     default: 'false'
