@@ -30,3 +30,6 @@ CLAUDE.md
 
 # Test snapshots (large golden files - capture locally per machine)
 script/test/snapshots/golden/
+
+# vlcvx-diagnose runtime cache (regenerated each run)
+data/votium-rounds-cache.json
