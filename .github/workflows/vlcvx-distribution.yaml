@@ -147,16 +147,50 @@ jobs:
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
           echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
 
+      - name: Check if already published
+        if: inputs.step == 'publish'
+        id: check_published
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          SOURCE_DIR="bounties-reports/${PERIOD}/vlCVX"
+          LATEST_DIR="bounties-reports/latest/vlCVX"
+
+          if [ "${{ inputs.type }}" == "voters" ]; then
+            SOURCE_FILE="${SOURCE_DIR}/vlcvx_merkle.json"
+            LATEST_FILE="${LATEST_DIR}/vlcvx_merkle.json"
+          else
+            SOURCE_FILE="${SOURCE_DIR}/merkle_data_delegators.json"
+            LATEST_FILE="${LATEST_DIR}/vlcvx_merkle_delegators.json"
+          fi
+
+          # Check if source file exists
+          if [ ! -f "${SOURCE_FILE}" ]; then
+            echo "Source file not found (${SOURCE_FILE}), skipping publish"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check if latest matches source (already published)
+          if [ -f "${LATEST_FILE}" ]; then
+            if diff -q "${SOURCE_FILE}" "${LATEST_FILE}" > /dev/null 2>&1; then
+              echo "Already published (files match), skipping"
+              echo "skip=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
+          echo "skip=false" >> $GITHUB_OUTPUT
+
       # ── Compute APR (delegators only — needs sCRVUSD transfers from Tuesday distribution) ──
       - name: Compute APR
-        if: inputs.type == 'delegators' && inputs.step == 'publish'
+        if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
         run: pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Publish voters to latest
-        if: inputs.type == 'voters' && inputs.step == 'publish'
+        if: inputs.type == 'voters' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlCVX"
@@ -175,14 +209,14 @@ jobs:
           fi
 
       - name: Publish delegators to latest
-        if: inputs.type == 'delegators' && inputs.step == 'publish'
+        if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlCVX"
           cp "bounties-reports/${PERIOD}/vlCVX/merkle_data_delegators.json" "bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
 
       - name: Commit publish
-        if: inputs.step == 'publish'
+        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX publish-${{ inputs.type }} [${{ inputs.dispatch_id }}]"
