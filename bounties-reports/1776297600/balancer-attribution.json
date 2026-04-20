@@ -1,24 +1,74 @@
 {
   "protocol": "balancer",
   "period": 1776297600,
-  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
-  "totals": {
-    "sdInTotal": 0,
-    "sdAssigned": 0,
-    "wethInTotal": 0,
-    "wethOutTotal": 0
-  },
-  "dropped": {
-    "tokensNotSwapped": [
-      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
-    ],
-    "wethNotSwapped": true
-  },
-  "perToken": {
-    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
-      "mappedWeth": 0,
-      "sd": 0
+  "mode": "treasury-routed",
+  "treasury": "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063",
+  "sdToken": "0xF24d8651578a55b0C119B9910759a351A3458895",
+  "totalRewardAmount": 539.019933,
+  "totalSdBal": 979,
+  "rows": [
+    {
+      "gauge": "0x8135d6AbFd42707A87A7b94c5CFA3529f9b432AD",
+      "gaugeName": "RDNT-WETH",
+      "rewardAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "rewardToken": "USDC",
+      "rewardAmount": 194.06044,
+      "rewardSdValue": 352.4640910821381,
+      "sharePercentage": 36.00246078469235
+    },
+    {
+      "gauge": "0x9fdD52eFEb601E4Bc78b89C6490505B8aC637E9f",
+      "gaugeName": "Aave GHO/USDT/USDC",
+      "rewardAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "rewardToken": "USDC",
+      "rewardAmount": 53.3455,
+      "rewardSdValue": 96.88926383358813,
+      "sharePercentage": 9.896758307823097
+    },
+    {
+      "gauge": "0xd5A0Eb558d62780B10Ecc202D0049B89F6145073",
+      "gaugeName": "Surge tETH-Lido wstETH",
+      "rewardAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "rewardToken": "USDC",
+      "rewardAmount": 12.099146,
+      "rewardSdValue": 21.975187203327412,
+      "sharePercentage": 2.2446565069793065
+    },
+    {
+      "gauge": "0x7f49d37D0dA53A4899Bc0ba916F59Ec9D4E6d1e2",
+      "gaugeName": "EURe-Aave USDC",
+      "rewardAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "rewardToken": "USDC",
+      "rewardAmount": 221.618796,
+      "rewardSdValue": 402.5172131881067,
+      "sharePercentage": 41.115139242911816
+    },
+    {
+      "gauge": "0x9b237fA1958E3022464343137738926d38815801",
+      "gaugeName": "Aave GHO/USDT/USDC",
+      "rewardAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "rewardToken": "USDC",
+      "rewardAmount": 6.704176,
+      "rewardSdValue": 12.176522429273502,
+      "sharePercentage": 1.2437714432352913
+    },
+    {
+      "gauge": "0xDbD4dD2d5E0b927022C2be8D493F20e79e60C2e7",
+      "gaugeName": "80TREE-20AavePrimeWETH",
+      "rewardAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "rewardToken": "USDC",
+      "rewardAmount": 34.714575,
+      "rewardSdValue": 63.0506718663408,
+      "sharePercentage": 6.44031377592858
+    },
+    {
+      "gauge": "0x1dA19f38Eb6F2c22199dC0848118b26095C29aEd",
+      "gaugeName": "Aave USDC-Aave GHO",
+      "rewardAddress": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "rewardToken": "USDC",
+      "rewardAmount": 16.4773,
+      "rewardSdValue": 29.92705039722529,
+      "sharePercentage": 3.056899938429549
     }
-  },
-  "txs": []
+  ]
 }
