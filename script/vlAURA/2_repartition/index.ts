@@ -9,7 +9,7 @@ import {
 import {
   associateAuraGaugesPerId,
   fetchAuraGaugeChoices,
-  fetchLastProposalsIds,
+  fetchLastProposalsIdsCurrentPeriod,
   getProposal,
   getVoters,
 } from "../../utils/snapshot";
@@ -74,11 +74,14 @@ const main = async () => {
   if (!csvResult) throw new Error("No CSV report found");
 
   // Fetch proposal and votes
+  // Use currentPeriodTimestamp (Thursday 00:00 UTC) instead of `now` because
+  // vlAURA proposals start at 02:00 UTC. Using `now - WEEK` can miss the current
+  // proposal if the workflow runs before 02:00 UTC (e.g., at 01:23 UTC).
   console.log("Fetching proposal and votes...");
   const filter = "Gauge Weight for Week of";
-  const proposalIdPerSpace = await fetchLastProposalsIds(
+  const proposalIdPerSpace = await fetchLastProposalsIdsCurrentPeriod(
     [VLAURA_SPACE],
-    now,
+    currentPeriodTimestamp,
     filter
   );
   const proposalId = proposalIdPerSpace[VLAURA_SPACE];

@@ -106,6 +106,12 @@ const SCRIPTS: VerifyScript[] = [
     protocols: ["vlCVX", "all"],
   },
   {
+    label: "vlCVX Claims Completeness",
+    path: "script/vlCVX/verify/claimsCompleteness.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlCVX", "all"],
+  },
+  {
     label: "vlCVX parquet delegators",
     path: "script/vlCVX/verify/verifyDelegators.ts",
     args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
@@ -204,7 +210,10 @@ Root gauge note: Curve L2 gauges (rootGauge on Arbitrum/Base) are resolved to th
   vlCVX: `CSV mismatch triage for vlCVX:
 1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
 2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
-When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If merkle claim count for that token is non-zero, classify as warning not fail.`,
+When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If merkle claim count for that token is non-zero, classify as warning not fail.
+Base-file triage for vlCVX:
+1. If "vlCVX Claims Completeness" shows zero Base claims implicitly (Curve claims match Mainnet-only CSV rows, no 8453 rows) OR the distribution/reward-flow scripts explicitly say "no 8453 entries in CSV" / "Curve Base skipped", then missing Base-specific files are EXPECTED and must not be treated as fail or warning.
+2. Only treat missing Base-specific files as fail if there is evidence Base claims should exist (8453 CSV rows, Base claims in claimed_bounties, or script output says Base data required).`,
   vlAURA: `CSV mismatch triage for vlAURA:
 1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
 2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.

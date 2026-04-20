@@ -5,7 +5,7 @@
 import * as dotenv from "dotenv";
 import * as moment from "moment";
 import { DELEGATION_ADDRESS, VLAURA_SPACE, WEEK } from "../../utils/constants";
-import { fetchLastProposalsIds, getProposal } from "../../utils/snapshot";
+import { fetchLastProposalsIdsCurrentPeriod, getProposal } from "../../utils/snapshot";
 import { getClient } from "../../utils/getClients";
 dotenv.config();
 
@@ -15,9 +15,11 @@ async function verifyDelegationTiming() {
   const hyparquet = await import("hyparquet");
 
   // Fetch current proposal to get the authoritative snapshot block
+  // Use currentPeriodTimestamp to avoid timing issues with vlAURA proposals starting at 02:00 UTC
   const now = moment.utc().unix();
+  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
   console.log("Fetching proposal...");
-  const proposalIdPerSpace = await fetchLastProposalsIds([VLAURA_SPACE], now, "Gauge Weight for Week of");
+  const proposalIdPerSpace = await fetchLastProposalsIdsCurrentPeriod([VLAURA_SPACE], currentPeriodTimestamp, "Gauge Weight for Week of");
   const proposalId = proposalIdPerSpace[VLAURA_SPACE];
   const proposal = await getProposal(proposalId);
   const snapshotBlock = Number(proposal.snapshot);

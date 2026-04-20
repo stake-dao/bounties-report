@@ -10,7 +10,7 @@ import { MerkleData } from "../../interfaces/MerkleData";
 import { WEEK, VLAURA_RECIPIENT, VLAURA_SPACE } from "../../utils/constants";
 import { mainnet } from "../../utils/chains";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
-import { fetchLastProposalsIds } from "../../utils/snapshot";
+import { fetchLastProposalsIdsCurrentPeriod } from "../../utils/snapshot";
 
 const currentPeriodTimestamp = process.env.PERIOD_TIMESTAMP
   ? parseInt(process.env.PERIOD_TIMESTAMP)
@@ -178,12 +178,11 @@ async function processChain(chainId: string, reportsDir: string) {
 
   // Run verification for mainnet
   if (chainId === "1") {
-    const now = Math.floor(Date.now() / 1000);
     const filter = "Gauge Weight for Week of";
     (async () => {
-      const proposalIdPerSpace = await fetchLastProposalsIds(
+      const proposalIdPerSpace = await fetchLastProposalsIdsCurrentPeriod(
         [VLAURA_SPACE],
-        now,
+        currentPeriodTimestamp,
         filter
       );
       const proposalId = proposalIdPerSpace[VLAURA_SPACE];
