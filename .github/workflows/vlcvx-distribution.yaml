@@ -181,6 +181,13 @@ jobs:
 
           echo "skip=false" >> $GITHUB_OUTPUT
 
+      # ── Safeguard: verify on-chain root matches source before publishing ──
+      - name: Verify on-chain root matches source
+        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
+        run: pnpm tsx script/helpers/verifyOnchainRoot.ts --target ${{ inputs.type }} --period ${{ steps.period.outputs.current }}
+        env:
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
       # ── Compute APR (delegators only — needs sCRVUSD transfers from Tuesday distribution) ──
       - name: Compute APR
         if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
