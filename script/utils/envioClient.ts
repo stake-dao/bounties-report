@@ -4,7 +4,13 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const fetchGraphQL = async (query: string, variables?: Record<string, any>) => {
-  const res = await fetch(process.env.BOTS_ENVIO_GRAPHQL_URL_WORKER || "", {
+  const url = process.env.BOTS_ENVIO_GRAPHQL_URL_WORKER;
+  if (!url) {
+    throw new Error(
+      "BOTS_ENVIO_GRAPHQL_URL_WORKER environment variable is not set"
+    );
+  }
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }),
