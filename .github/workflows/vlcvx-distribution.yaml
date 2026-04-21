@@ -212,16 +212,16 @@ jobs:
             fi
           done
 
-          if [ -f "bounties-reports/${PERIOD}/vlCVX/APRs.json" ]; then
-            cp "bounties-reports/${PERIOD}/vlCVX/APRs.json" "bounties-reports/latest/vlCVX/APRs.json"
-          fi
-
       - name: Publish delegators to latest
         if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlCVX"
           cp "bounties-reports/${PERIOD}/vlCVX/merkle_data_delegators.json" "bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
+
+          if [ -f "bounties-reports/${PERIOD}/vlCVX/APRs.json" ]; then
+            cp "bounties-reports/${PERIOD}/vlCVX/APRs.json" "bounties-reports/latest/vlCVX/APRs.json"
+          fi
 
       - name: Commit publish
         if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
