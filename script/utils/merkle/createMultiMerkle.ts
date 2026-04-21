@@ -97,7 +97,10 @@ export const createMultiMerkle = async (
     const vps = await getVotingPower(
       proposal,
       voters.map((v) => v.voter),
-      SPACE_TO_CHAIN_ID[space]
+      SPACE_TO_CHAIN_ID[space],
+      false,
+      10,
+      1000
     );
 
     voters = formatVotingPowerResult(voters, vps);
