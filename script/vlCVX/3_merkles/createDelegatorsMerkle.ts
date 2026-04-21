@@ -12,6 +12,7 @@ import { getClosestBlockTimestamp } from "../../utils/chainUtils";
 import { CRVUSD, CVX_SPACE, SCRVUSD } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
+import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 // Removed unused price utils imports
 import {
 	CRV_ADDRESS,
@@ -463,6 +464,19 @@ async function computeShares(totalScrvUsd: bigint, delegationSummary: any) {
  * and run the distribution verifier.
  */
 async function processForwarders() {
+	// Idempotency guard: abort if this period's merkle already exists, unless caller
+	// explicitly forces a regeneration. Prevents re-running the merkle step after a
+	// publish has happened — which would otherwise read a stale `latest/` (pre-fix)
+	// or simply waste work and risk inconsistency.
+	const outputPath = path.join(reportsDir, "merkle_data_delegators.json");
+	if (fs.existsSync(outputPath) && process.env.FORCE_MERKLE !== "true") {
+		console.log(
+			`Delegators merkle already exists for period ${currentPeriodTimestamp}: ${outputPath}`,
+		);
+		console.log("Set FORCE_MERKLE=true to regenerate. Exiting.");
+		return;
+	}
+
 	// Create a public viem client for mainnet (using an RPC URL from .env if provided)
 	const publicClient = createPublicClient({
 		chain: mainnet,
@@ -613,27 +627,18 @@ async function processForwarders() {
 		console.log(`\nAdding fee allocation: ${(Number(feeAmount) / 1e18).toFixed(6)} scrvUSD to ${feeRecipient}`);
 	}
 
-	// Load previous Merkle data for forwarders (if any)
-	// This file is used to ensure continuity of claims across periods
-	const previousMerkleDataPath = path.join(
-		"bounties-reports",
-		"latest",
-		"vlCVX",
-		"vlcvx_merkle_delegators.json",
+	// Load previous Merkle data for forwarders from the PREVIOUS PERIOD's archived file.
+	// Do NOT read `bounties-reports/latest/` — it is overwritten by the publish step
+	// within the current period, and reading it as "previous" on a re-run causes the
+	// current period's delta to be added on top of an already-cumulative merkle (2×).
+	const { data: previousMerkleData, foundAt } = findPreviousMerkle(
+		currentPeriodTimestamp,
+		"vlCVX/merkle_data_delegators.json",
 	);
-
-	let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
-	if (fs.existsSync(previousMerkleDataPath)) {
-		previousMerkleData = JSON.parse(
-			fs.readFileSync(previousMerkleDataPath, "utf8"),
-		);
-		console.log(
-			"Loaded previous merkle data for delegators from latest directory",
-		);
+	if (foundAt) {
+		console.log(`Loaded previous merkle data for delegators from ${foundAt}`);
 	} else {
-		console.log(
-			"No previous merkle data found for delegators in latest directory",
-		);
+		console.log("No previous merkle data found for delegators (scanned 12 weeks)");
 	}
 
 	// Combine the current distribution with the previous claims
@@ -643,9 +648,75 @@ async function processForwarders() {
 		currentDistribution,
 		previousMerkleData,
 	);
+
+	// Freeze over-claimers from the 2026-04-21 doubling incident.
+	// Cap each listed account's cumulative SCRVUSD at their on-chain `claimed()` so
+	// claimable = cumulative − claimed = 0 until future legitimate shares exceed
+	// the surplus they already received. Opt-in: only applies if an overclaimers
+	// file exists (produced by script/vlCVX/recovery_apr21_doubling/enumerateOverclaims.ts).
+	const overclaimersFile =
+		process.env.OVERCLAIMERS_FILE ??
+		path.join(
+			"script",
+			"vlCVX",
+			"recovery_apr21_doubling",
+			"overclaimers.json",
+		);
+	if (fs.existsSync(overclaimersFile)) {
+		const raw = JSON.parse(fs.readFileSync(overclaimersFile, "utf8"));
+		const list: Array<{ account: string; onchainClaimedWei: string }> =
+			raw.overclaimers ?? [];
+		const scrvUsdAddr = getAddress(SCRVUSD);
+		let frozen = 0;
+		let totalReducedWei = 0n;
+		for (const row of list) {
+			const addr = getAddress(row.account);
+			const entry = universalMerkle[addr];
+			if (!entry || entry[scrvUsdAddr] === undefined) continue;
+			const proposed = BigInt(entry[scrvUsdAddr]);
+			const cap = BigInt(row.onchainClaimedWei);
+			if (proposed > cap) {
+				totalReducedWei += proposed - cap;
+				entry[scrvUsdAddr] = cap.toString();
+				frozen++;
+			}
+		}
+		console.log(
+			`Overclaimers freeze applied: froze ${frozen}/${list.length} accounts, ` +
+				`reduced cumulative by ${(Number(totalReducedWei) / 1e18).toFixed(6)} sCRVUSD ` +
+				`(source: ${overclaimersFile})`,
+		);
+	} else {
+		console.log(
+			`No overclaimers freeze file at ${overclaimersFile}; proceeding without freeze.`,
+		);
+	}
+
 	const newMerkleData: MerkleData = generateMerkleTree(universalMerkle);
 
 	console.log("Delegators Merkle Root:", newMerkleData.merkleRoot);
+
+	// Integrity check: verify the cumulative delta across the new merkle vs the
+	// previous merkle matches the sCRVUSD actually received on-chain this period.
+	// A 2× delta indicates a stale `previousMerkleData` being re-accumulated.
+	const sumScrvUsd = (data: MerkleData): bigint => {
+		let total = 0n;
+		for (const claim of Object.values(data.claims || {})) {
+			const tok = (claim as any)?.tokens?.[SCRVUSD];
+			if (tok?.amount) total += BigInt(tok.amount);
+		}
+		return total;
+	};
+	const newCumulative = sumScrvUsd(newMerkleData);
+	const prevCumulative = sumScrvUsd(previousMerkleData);
+	const delta = newCumulative - prevCumulative;
+	const tolerance = BigInt(10 ** 15); // 0.001 sCRVUSD slack for rounding
+	if (delta > totalScrvUsd + tolerance) {
+		throw new Error(
+			`Delegators merkle integrity check failed: cumulative delta ${delta} exceeds on-chain sCRVUSD received ${totalScrvUsd}. ` +
+				"Likely cause: stale previousMerkleData reinjection (re-run after publish).",
+		);
+	}
 
 	// Ensure output directory exists
 	if (!fs.existsSync(reportsDir)) {
@@ -653,7 +724,6 @@ async function processForwarders() {
 	}
 
 	// Write the newly generated Merkle data to a JSON file
-	const outputPath = path.join(reportsDir, "merkle_data_delegators.json");
 	fs.writeFileSync(outputPath, JSON.stringify(newMerkleData, null, 2));
 	console.log(
 		"Delegators Merkle tree generated and saved as merkle_data_delegators.json",
