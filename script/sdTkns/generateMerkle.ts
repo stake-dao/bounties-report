@@ -4,7 +4,6 @@ import {
   fetchLastProposalsIds,
   fetchProposalsIdsBasedOnExactPeriods,
 } from "../utils/snapshot";
-import { fetchGlobalTotalVp } from "../utils/envioClient";
 import {
   abi,
   NETWORK_TO_MERKLE,
@@ -223,7 +222,7 @@ const main = async () => {
     { data: lastMerkles },
     proposalIdPerSpace,
     { data: delegationAPRsFromGithub },
-    sdFXSTotalVp,
+    { data: sdFXSWorkingData },
     { data: sdCakeWorkingData },
   ] = await Promise.all([
     axios.get(
@@ -233,13 +232,13 @@ const main = async () => {
     axios.get(
       "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json"
     ),
-    fetchGlobalTotalVp("sdfxs"),
+    axios.get(
+      "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdfxs-working-supply.json"
+    ),
     axios.get(
       "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdcake-working-supply.json"
     ),
   ]);
-
-  const sdFXSWorkingData = { total_vp: sdFXSTotalVp };
 
   // Check if local delegationsAPRs.json exists for current period (e.g., written by Spectra)
   // If so, use it to preserve APRs from other scripts that ran before
