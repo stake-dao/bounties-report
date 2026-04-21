@@ -13,10 +13,13 @@
  */
 
 import * as dotenv from "dotenv";
-import { verifyWithConsensus, Protocol, ConsensusResult } from "./distributionVerify";
+import { spawnSync } from "child_process";
+import * as path from "path";
+import { verifyWithConsensus, Protocol, ConsensusResult, VerifyMetadata } from "./distributionVerify";
 import { createZenClient, ZEN_DEFAULT_MODEL } from "../utils/openCodeZen";
 import { sendConsensusReport } from "./telegramReport";
-import { WEEK } from "../utils/constants";
+import { WEEK, CVX_SPACE, VLAURA_SPACE } from "../utils/constants";
+import { fetchLastProposalsIds } from "../utils/snapshot";
 import type { LLMClient } from "../utils/llmClient";
 
 dotenv.config();
@@ -51,6 +54,48 @@ function printModelTable(result: ConsensusResult): void {
       );
     }
   }
+}
+
+interface SnapshotQuery {
+  label: string;
+  space: string;
+  filter: string;
+  protocols: Protocol[];
+}
+
+const SNAPSHOT_QUERIES: SnapshotQuery[] = [
+  { label: "vlCVX Curve", space: CVX_SPACE, filter: "^(?!FXN ).*Gauge Weight for Week of", protocols: ["vlCVX", "all"] },
+  { label: "vlCVX FXN", space: CVX_SPACE, filter: "^FXN.*Gauge Weight for Week of", protocols: ["vlCVX", "all"] },
+  { label: "vlAURA", space: VLAURA_SPACE, filter: "Gauge Weight for Week of", protocols: ["vlAURA", "all"] },
+];
+
+async function fetchMetadata(timestamp: number, protocols: Protocol[]): Promise<VerifyMetadata> {
+  const meta: VerifyMetadata = { timestamp };
+
+  const gitResult = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
+    encoding: "utf-8",
+    cwd: path.join(__dirname, "../../"),
+  });
+  if (gitResult.status === 0) meta.commitSha = gitResult.stdout.trim();
+
+  const queries = SNAPSHOT_QUERIES.filter((q) => protocols.some((p) => q.protocols.includes(p)));
+
+  if (queries.length > 0) {
+    try {
+      const proposals: VerifyMetadata["snapshotProposals"] = [];
+      for (const q of queries) {
+        const result = await fetchLastProposalsIds([q.space], timestamp + WEEK, q.filter);
+        if (result[q.space]) {
+          proposals.push({ label: q.label, space: q.space, proposalId: result[q.space] });
+        }
+      }
+      if (proposals.length > 0) meta.snapshotProposals = proposals;
+    } catch (err) {
+      console.warn(`  ⚠️  Snapshot proposal fetch failed: ${err}`);
+    }
+  }
+
+  return meta;
 }
 
 async function main(): Promise<void> {
@@ -97,10 +142,11 @@ Options:
     : [protocol];
 
   let anyFail = false;
+  const metadata = await fetchMetadata(timestamp, protocols);
 
   for (const p of protocols) {
     const result = await verifyWithConsensus(clients, timestamp, p);
-    await sendConsensusReport(result, timestamp, p);
+    await sendConsensusReport(result, timestamp, p, metadata);
 
     const icon = VERDICT_ICON[result.verdict] ?? "❓";
     if (result.verdict === "fail") anyFail = true;

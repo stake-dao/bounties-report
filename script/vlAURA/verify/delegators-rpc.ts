@@ -14,7 +14,7 @@ import path from "path";
 import * as moment from "moment";
 import { getClient } from "../../utils/getClients";
 import { DELEGATION_ADDRESS, VLAURA_SPACE, WEEK } from "../../utils/constants";
-import { fetchLastProposalsIds, getProposal, getVoters } from "../../utils/snapshot";
+import { fetchLastProposalsIdsCurrentPeriod, getProposal, getVoters } from "../../utils/snapshot";
 import { AURA_LOCKER_ADDRESSES } from "../../utils/vlAuraUtils";
 import { parseAbiItem, getAddress as viemGetAddress, erc20Abi, type Address, type Log } from "viem";
 
@@ -259,9 +259,10 @@ async function main() {
   console.log(`\nLoaded ${existingDelegators.length} delegators from repartition_delegation.json`);
 
   // Fetch proposal to get snapshot block
+  // Use currentPeriodTimestamp to avoid timing issues with vlAURA proposals starting at 02:00 UTC
   console.log("\nFetching proposal...");
   const filter = "Gauge Weight for Week of";
-  const proposalIdPerSpace = await fetchLastProposalsIds([VLAURA_SPACE], now, filter);
+  const proposalIdPerSpace = await fetchLastProposalsIdsCurrentPeriod([VLAURA_SPACE], currentPeriodTimestamp, filter);
   const proposalId = proposalIdPerSpace[VLAURA_SPACE];
   const proposal = await getProposal(proposalId);
 

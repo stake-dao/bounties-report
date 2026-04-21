@@ -77,16 +77,33 @@ const VLCVX_MERKLE_CONFIGS: MerkleConfig[] = [
   { label: "vlCVX Base", path: "vlCVX/vlcvx_merkle_8453.json" },
 ];
 
+function hasChainRows(timestamp: number, csvName: string, chainId: string): boolean {
+  const csvPath = path.join(weekDir(timestamp), csvName);
+  if (!fileExists(csvPath)) return false;
+
+  const lines = fs.readFileSync(csvPath, "utf-8").trim().split("\n").slice(1);
+  return lines.some((line) => {
+    const [chain] = line.split(";");
+    return chain === chainId;
+  });
+}
+
 // ── Check 1: File Existence ───────────────────────────────────────────────────
 
 function checkFileExistence(timestamp: number): CheckResult[] {
   const results: CheckResult[] = [];
   const base = weekDir(timestamp);
+  const hasBaseClaims = hasChainRows(timestamp, "cvx.csv", "8453");
 
   for (const f of VLCVX_FILES.curve) {
     const p = path.join(base, "vlCVX/curve", f);
     const exists = fileExists(p);
-    results.push({ label: `vlCVX/curve/${f}`, ok: exists, detail: exists ? "exists" : "MISSING" });
+    const baseRequired = !f.endsWith("_8453.json") || hasBaseClaims;
+    results.push({
+      label: `vlCVX/curve/${f}`,
+      ok: exists || !baseRequired,
+      detail: exists ? "exists" : baseRequired ? "MISSING" : "not present (no 8453 entries in cvx.csv)",
+    });
   }
   for (const f of VLCVX_FILES.curveOptional) {
     const p = path.join(base, "vlCVX/curve", f);
@@ -105,7 +122,12 @@ function checkFileExistence(timestamp: number): CheckResult[] {
   for (const f of VLCVX_FILES.root) {
     const p = path.join(base, "vlCVX", f);
     const exists = fileExists(p);
-    results.push({ label: `vlCVX/${f}`, ok: exists, detail: exists ? "exists" : "MISSING" });
+    const baseRequired = f !== "vlcvx_merkle_8453.json" || hasBaseClaims;
+    results.push({
+      label: `vlCVX/${f}`,
+      ok: exists || !baseRequired,
+      detail: exists ? "exists" : baseRequired ? "MISSING" : "not present (no 8453 entries in cvx.csv)",
+    });
   }
   for (const f of VLCVX_FILES.rootOptional) {
     const p = path.join(base, "vlCVX", f);
@@ -125,11 +147,17 @@ function checkFileExistence(timestamp: number): CheckResult[] {
 function checkVlCVXDelegationShares(timestamp: number): CheckResult[] {
   const results: CheckResult[] = [];
   const base = weekDir(timestamp);
+  const hasBaseClaims = hasChainRows(timestamp, "cvx.csv", "8453");
 
   for (const cfg of VLCVX_DELEG_SHARE_CONFIGS) {
     const filePath = path.join(base, cfg.path);
     if (!fileExists(filePath)) {
-      results.push({ label: `${cfg.label} shares`, ok: false, detail: "file missing" });
+      const optionalBase = cfg.label === "Curve Base" && !hasBaseClaims;
+      results.push({
+        label: `${cfg.label} shares`,
+        ok: optionalBase,
+        detail: optionalBase ? "not present (no 8453 entries in cvx.csv)" : "file missing",
+      });
       continue;
     }
 
@@ -174,10 +202,14 @@ function checkExclusions(timestamp: number): CheckResult[] {
   const results: CheckResult[] = [];
   const base = weekDir(timestamp);
   const delegAddr = DELEGATION_ADDRESS;
+  const hasBaseClaims = hasChainRows(timestamp, "cvx.csv", "8453");
 
   for (const cfg of VLCVX_MERKLE_CONFIGS) {
     const filePath = path.join(base, cfg.path);
-    if (!fileExists(filePath)) continue;
+    if (!fileExists(filePath)) {
+      if (cfg.label === "vlCVX Base" && !hasBaseClaims) continue;
+      continue;
+    }
 
     const data = readJSON(filePath);
     const inMerkle = !!data.claims[delegAddr];
@@ -211,10 +243,14 @@ function checkExclusions(timestamp: number): CheckResult[] {
 function checkGroupAllocation(timestamp: number): CheckResult[] {
   const results: CheckResult[] = [];
   const base = weekDir(timestamp);
+  const hasBaseClaims = hasChainRows(timestamp, "cvx.csv", "8453");
 
   for (const cfg of VLCVX_DELEG_SHARE_CONFIGS) {
     const filePath = path.join(base, cfg.path);
-    if (!fileExists(filePath)) continue;
+    if (!fileExists(filePath)) {
+      if (cfg.label === "Curve Base" && !hasBaseClaims) continue;
+      continue;
+    }
 
     const data = readJSON(filePath);
     const dist = data.distribution;
@@ -295,12 +331,22 @@ Options:
   console.log(`  vlCVX Distribution Verification: ${timestamp} (${date})`);
   console.log("═".repeat(70));
 
+  const hasBaseClaims = hasChainRows(timestamp, "cvx.csv", "8453");
+  if (!hasBaseClaims) {
+    console.log("  Note: no Curve Base entries in cvx.csv; Base-specific files are optional this week");
+  }
+
   let allOk = true;
 
   if (!printSection("File Existence", checkFileExistence(timestamp))) allOk = false;
   if (!printSection("Delegation Shares", checkVlCVXDelegationShares(timestamp))) allOk = false;
-  if (!printSection("Merkle Integrity", checkMerkleIntegrity(timestamp, VLCVX_MERKLE_CONFIGS))) allOk = false;
-  if (!printSection("Week Comparison", checkWeekComparison(timestamp, VLCVX_MERKLE_CONFIGS))) allOk = false;
+  const merkleConfigs = hasBaseClaims
+    ? VLCVX_MERKLE_CONFIGS
+    : VLCVX_MERKLE_CONFIGS.map((cfg) =>
+        cfg.label === "vlCVX Base" ? { ...cfg, optional: true } : cfg
+      );
+  if (!printSection("Merkle Integrity", checkMerkleIntegrity(timestamp, merkleConfigs))) allOk = false;
+  if (!printSection("Week Comparison", checkWeekComparison(timestamp, merkleConfigs))) allOk = false;
   if (!printSection("Token Completeness", checkTokenCompleteness(timestamp, VLCVX_TOKEN_CHECKS))) allOk = false;
   if (!printSection("Exclusion Checks", checkExclusions(timestamp))) allOk = false;
   if (!printSection("Group Allocation", checkGroupAllocation(timestamp))) allOk = false;
