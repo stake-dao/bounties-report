@@ -10,7 +10,20 @@ const URD_ABI = [
     inputs: [],
     outputs: [{ name: "", type: "bytes32" }],
   },
+  {
+    name: "pendingRoot",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "root", type: "bytes32" },
+      { name: "ipfsHash", type: "bytes32" },
+      { name: "validAt", type: "uint256" },
+    ],
+  },
 ] as const;
+
+const ZERO_ROOT = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 type Target = "delegators" | "voters" | "vlaura";
 
@@ -81,7 +94,17 @@ function collectFiles(target: Target, period: number): FileSpec[] {
   return files;
 }
 
-async function verifyFile(spec: FileSpec): Promise<{ ok: boolean; source: string; onchain: string }> {
+interface VerifyResult {
+  ok: boolean;
+  source: string;
+  onchain: string;
+  pendingRoot: string;
+  pendingValidAt: bigint;
+  now: number;
+  reason?: string;
+}
+
+async function verifyFile(spec: FileSpec): Promise<VerifyResult> {
   const raw = readFileSync(spec.path, "utf8");
   const data = JSON.parse(raw) as { merkleRoot?: string };
   if (!data.merkleRoot) {
@@ -89,13 +112,49 @@ async function verifyFile(spec: FileSpec): Promise<{ ok: boolean; source: string
   }
   const source = data.merkleRoot.toLowerCase();
   const client = await getClient(spec.chainId);
-  const onchain = (await client.readContract({
-    address: spec.distributor,
-    abi: URD_ABI,
-    functionName: "root",
-  })) as `0x${string}`;
+
+  const [onchain, pending] = await Promise.all([
+    client.readContract({
+      address: spec.distributor,
+      abi: URD_ABI,
+      functionName: "root",
+    }) as Promise<`0x${string}`>,
+    client.readContract({
+      address: spec.distributor,
+      abi: URD_ABI,
+      functionName: "pendingRoot",
+    }) as Promise<readonly [`0x${string}`, `0x${string}`, bigint]>,
+  ]);
+
   const onchainLower = onchain.toLowerCase();
-  return { ok: source === onchainLower, source, onchain: onchainLower };
+  const pendingRootLower = pending[0].toLowerCase();
+  const pendingValidAt = pending[2];
+  const now = Math.floor(Date.now() / 1000);
+
+  const rootMatches = source === onchainLower;
+  const hasPending = pendingRootLower !== ZERO_ROOT;
+  const timelockExpired = Number(pendingValidAt) <= now;
+
+  let ok = true;
+  let reason: string | undefined;
+
+  if (!rootMatches) {
+    ok = false;
+    reason = "on-chain root does not match source — acceptRoot() not yet executed";
+  } else if (hasPending && !timelockExpired) {
+    ok = false;
+    reason = `pending root present with validAt=${pendingValidAt} > now=${now} — timelock still active, too soon to publish`;
+  }
+
+  return {
+    ok,
+    source,
+    onchain: onchainLower,
+    pendingRoot: pendingRootLower,
+    pendingValidAt,
+    now,
+    reason,
+  };
 }
 
 function parseArg(name: string): string | undefined {
@@ -137,12 +196,17 @@ async function main() {
 
   for (const f of files) {
     try {
-      const { ok, source, onchain } = await verifyFile(f);
-      const status = ok ? "OK" : "MISMATCH";
+      const res = await verifyFile(f);
+      const status = res.ok ? "OK" : "BLOCK";
       console.log(`[${status}] chain=${f.chainId} file=${f.path}`);
-      console.log(`   source : ${source}`);
-      console.log(`   onchain: ${onchain}`);
-      if (!ok) allOk = false;
+      console.log(`   source      : ${res.source}`);
+      console.log(`   onchain root: ${res.onchain}`);
+      console.log(`   pendingRoot : ${res.pendingRoot}`);
+      console.log(`   validAt     : ${res.pendingValidAt} (now=${res.now})`);
+      if (res.reason) {
+        console.log(`   reason      : ${res.reason}`);
+      }
+      if (!res.ok) allOk = false;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`[ERROR] chain=${f.chainId} file=${f.path}: ${msg}`);
@@ -151,12 +215,10 @@ async function main() {
   }
 
   if (!allOk) {
-    console.error(
-      "\nOn-chain root does not match source merkle. acceptRoot() likely not yet executed — aborting publish.",
-    );
+    console.error("\nPublish blocked — see reasons above.");
     process.exit(1);
   }
-  console.log("\nAll on-chain roots match source files. Safe to publish.");
+  console.log("\nAll on-chain roots match source and no active timelock. Safe to publish.");
 }
 
 main().catch((e) => {
