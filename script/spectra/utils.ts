@@ -14,7 +14,7 @@ import {
 } from "../utils/utils";
 import * as dotenv from "dotenv";
 import { getClient } from "../utils/constants";
-import { fetchSpectraUsersWorkingBalance } from "../utils/envioClient";
+import axios from "axios";
 
 dotenv.config();
 
@@ -223,20 +223,30 @@ export const getSpectraDelegationAPR = async (
   },
   stakeDaoDelegators: string[]
 ): Promise<number> => {
-  const sumRewards = parseFloat(formatUnits(Object.values(tokens)[0], 18));
-  const usersWorkingBalance = await fetchSpectraUsersWorkingBalance(stakeDaoDelegators);
+  const sumRewards = parseFloat(formatUnits(Object.values(tokens)[0], 18))
+  const {data: sdSpectraWorking} = await axios.get(
+    "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdspectra-working-supply.json"
+  )
 
   let totalVpDelegators = 0;
-  for (const delegator of stakeDaoDelegators) {
-    const wb = usersWorkingBalance[delegator.toLowerCase()];
-    if (wb) {
-      totalVpDelegators += wb;
-    } else {
-      console.log("Delegator not found " + delegator);
+  const users = Object.keys(sdSpectraWorking.users_working_balance)
+
+  for(const delegator of stakeDaoDelegators) {
+    let found = false
+    for(const user of users) {
+      if(delegator.toLowerCase() === user.toLowerCase()) {
+        totalVpDelegators += sdSpectraWorking.users_working_balance[user];
+        found = true
+        break;
+      }
+    }
+
+    if(!found) {
+      console.log("Delegator not found" + delegator);
     }
   }
-
+  
   // Because we do a weekly distribution
-  return (sumRewards / totalVpDelegators) * 52 * 100;
+  return sumRewards / totalVpDelegators * 52 * 100;
 };
 

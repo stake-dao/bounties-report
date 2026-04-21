@@ -24,7 +24,7 @@ import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import { BOTMARKET } from "../utils/reportUtils";
 import { getSpectraRewards, getsdSpectraDistributed } from "./utils";
 import { SPECTRA_ADDRESS } from "../spectra/utils";
-import { fetchGlobalTotalVp } from "../utils/envioClient";
+import axios from "axios";
 
 interface APRResult {
   totalVotingPower: number;
@@ -225,11 +225,13 @@ async function computeAPR(): Promise<APRResult> {
 
   // Calculate annualized APRs
   // Because we do a weekly distribution, multiply by 52
-  const spectraTotalVp = await fetchGlobalTotalVp("sdspectra");
+  const { data: sdSpectraWorking } = await axios.get(
+    "https://raw.githubusercontent.com/stake-dao/api/refs/heads/main/api/lockers/sdspectra-working-supply.json"
+  )
 
-  const annualizedAPR = ((totalSdSpectraDistributed * 52) / spectraTotalVp) * 100;
-  const wethAPR = ((wethRewardValueUSD * 52) / spectraTotalVp) * 100;
-  const otherAPR = ((otherRewardValueUSD * 52) / spectraTotalVp) * 100;
+  const annualizedAPR = ((totalSdSpectraDistributed * 52) / (sdSpectraWorking.total_vp)) * 100;
+  const wethAPR = ((wethRewardValueUSD * 52) / (sdSpectraWorking.total_vp)) * 100;
+  const otherAPR = ((otherRewardValueUSD * 52) / (sdSpectraWorking.total_vp)) * 100;
 
   console.log("\n=== APR Calculations ===");
   console.log("Weekly Reward:", totalRewardUSD);
