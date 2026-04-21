@@ -183,6 +183,7 @@ jobs:
 
       # ── Safeguard: verify on-chain root matches source before publishing ──
       - name: Verify on-chain root matches source
+        id: verify
         if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
         run: pnpm tsx script/helpers/verifyOnchainRoot.ts --target ${{ inputs.type }} --period ${{ steps.period.outputs.current }}
         env:
@@ -190,14 +191,14 @@ jobs:
 
       # ── Compute APR (delegators only — needs sCRVUSD transfers from Tuesday distribution) ──
       - name: Compute APR
-        if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
+        if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
         run: pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Publish voters to latest
-        if: inputs.type == 'voters' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
+        if: inputs.type == 'voters' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlCVX"
@@ -216,14 +217,14 @@ jobs:
           fi
 
       - name: Publish delegators to latest
-        if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
+        if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlCVX"
           cp "bounties-reports/${PERIOD}/vlCVX/merkle_data_delegators.json" "bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
 
       - name: Commit publish
-        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
+        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX publish-${{ inputs.type }} [${{ inputs.dispatch_id }}]"

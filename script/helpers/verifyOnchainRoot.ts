@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { getClient } from "../utils/getClients";
 
@@ -94,8 +94,10 @@ function collectFiles(target: Target, period: number): FileSpec[] {
   return files;
 }
 
+type Status = "OK" | "PENDING" | "BLOCK";
+
 interface VerifyResult {
-  ok: boolean;
+  status: Status;
   source: string;
   onchain: string;
   pendingRoot: string;
@@ -132,22 +134,30 @@ async function verifyFile(spec: FileSpec): Promise<VerifyResult> {
   const now = Math.floor(Date.now() / 1000);
 
   const rootMatches = source === onchainLower;
+  const pendingMatches = source === pendingRootLower && pendingRootLower !== ZERO_ROOT;
   const hasPending = pendingRootLower !== ZERO_ROOT;
   const timelockExpired = Number(pendingValidAt) <= now;
 
-  let ok = true;
+  let status: Status = "OK";
   let reason: string | undefined;
 
-  if (!rootMatches) {
-    ok = false;
-    reason = "on-chain root does not match source — acceptRoot() not yet executed";
-  } else if (hasPending && !timelockExpired) {
-    ok = false;
-    reason = `pending root present with validAt=${pendingValidAt} > now=${now} — timelock still active, too soon to publish`;
+  if (rootMatches) {
+    if (hasPending && !timelockExpired) {
+      status = "PENDING";
+      reason = `on-chain root matches but stale pending present validAt=${pendingValidAt} > now=${now}`;
+    }
+  } else if (pendingMatches) {
+    status = "PENDING";
+    reason = timelockExpired
+      ? `pending root matches source, timelock expired — acceptRoot() pending`
+      : `pending root matches source, timelock validAt=${pendingValidAt} > now=${now}`;
+  } else {
+    status = "BLOCK";
+    reason = "neither on-chain nor pending root matches source";
   }
 
   return {
-    ok,
+    status,
     source,
     onchain: onchainLower,
     pendingRoot: pendingRootLower,
@@ -155,6 +165,16 @@ async function verifyFile(spec: FileSpec): Promise<VerifyResult> {
     now,
     reason,
   };
+}
+
+function emitOutput(key: string, value: string) {
+  const out = process.env.GITHUB_OUTPUT;
+  if (!out) return;
+  try {
+    appendFileSync(out, `${key}=${value}\n`);
+  } catch {
+    // ignore: step continues; CI will surface as missing output
+  }
 }
 
 function parseArg(name: string): string | undefined {
@@ -192,13 +212,13 @@ async function main() {
   }
 
   console.log(`Verifying on-chain roots for target=${target} period=${period}`);
-  let allOk = true;
+  let hasBlock = false;
+  let hasPending = false;
 
   for (const f of files) {
     try {
       const res = await verifyFile(f);
-      const status = res.ok ? "OK" : "BLOCK";
-      console.log(`[${status}] chain=${f.chainId} file=${f.path}`);
+      console.log(`[${res.status}] chain=${f.chainId} file=${f.path}`);
       console.log(`   source      : ${res.source}`);
       console.log(`   onchain root: ${res.onchain}`);
       console.log(`   pendingRoot : ${res.pendingRoot}`);
@@ -206,18 +226,26 @@ async function main() {
       if (res.reason) {
         console.log(`   reason      : ${res.reason}`);
       }
-      if (!res.ok) allOk = false;
+      if (res.status === "BLOCK") hasBlock = true;
+      if (res.status === "PENDING") hasPending = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`[ERROR] chain=${f.chainId} file=${f.path}: ${msg}`);
-      allOk = false;
+      hasBlock = true;
     }
   }
 
-  if (!allOk) {
+  if (hasBlock) {
+    emitOutput("skip", "false");
     console.error("\nPublish blocked — see reasons above.");
     process.exit(1);
   }
+  if (hasPending) {
+    emitOutput("skip", "true");
+    console.log("\nPending root matches source — acceptRoot() not yet executed. Skipping publish.");
+    return;
+  }
+  emitOutput("skip", "false");
   console.log("\nAll on-chain roots match source and no active timelock. Safe to publish.");
 }
 

@@ -151,6 +151,7 @@ jobs:
 
       # ── Safeguard: verify on-chain root matches source before publishing ──
       - name: Verify on-chain root matches source
+        id: verify
         if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
         run: pnpm tsx script/helpers/verifyOnchainRoot.ts --target vlaura --period ${{ steps.period.outputs.current }}
         env:
@@ -158,14 +159,14 @@ jobs:
 
       # ── Compute APR ──
       - name: Compute APR
-        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
+        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
         run: pnpm tsx script/helpers/computevlAURADelegatorsAPR.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Publish to latest
-        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
+        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlAURA"
@@ -186,7 +187,7 @@ jobs:
           fi
 
       - name: Commit publish
-        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true'
+        if: inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlAURA publish [${{ inputs.dispatch_id }}]"
