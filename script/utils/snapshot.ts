@@ -381,6 +381,44 @@ interface ScoreResponse {
   };
 }
 
+const SCORE_API_URL = "https://score.snapshot.org/api/scores";
+
+const isRetryableAxiosError = (err: any): boolean => {
+  if (!err) return false;
+  const status = err?.response?.status;
+  if (status && status >= 500 && status < 600) return true;
+  const code = err?.code;
+  return (
+    code === "ECONNABORTED" ||
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "EAI_AGAIN"
+  );
+};
+
+const postScoresWithRetry = async <T = any>(
+  body: unknown,
+  attempts: number = 4,
+  baseDelayMs: number = 1000
+): Promise<{ data: T }> => {
+  let lastErr: any;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await axios.post<T>(SCORE_API_URL, body, { timeout: 60000 });
+    } catch (err: any) {
+      lastErr = err;
+      if (i === attempts - 1 || !isRetryableAxiosError(err)) throw err;
+      const status = err?.response?.status ?? err?.code ?? "unknown";
+      const delay = baseDelayMs * 2 ** i;
+      console.warn(
+        `score.snapshot.org failed (${status}), retry ${i + 1}/${attempts - 1} in ${delay}ms`
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+};
+
 /**
  * Get voting power for a list of addresses
  * @param proposal - Proposal object
@@ -438,18 +476,15 @@ export const getVotingPower = async (
 
   // Original single-request logic
   try {
-    const { data } = await axios.post<ScoreResponse>(
-      "https://score.snapshot.org/api/scores",
-      {
-        params: {
-          network,
-          snapshot: parseInt(proposal.snapshot),
-          strategies: proposal.strategies,
-          space: proposal.space.id,
-          addresses,
-        },
-      }
-    );
+    const { data } = await postScoresWithRetry<ScoreResponse>({
+      params: {
+        network,
+        snapshot: parseInt(proposal.snapshot),
+        strategies: proposal.strategies,
+        space: proposal.space.id,
+        addresses,
+      },
+    });
 
     if (!data?.result?.scores) {
       throw new Error("No scores returned from the API");
