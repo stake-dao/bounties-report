@@ -33,3 +33,4 @@ script/test/snapshots/golden/
 
 # vlcvx-diagnose runtime cache (regenerated each run)
 data/votium-rounds-cache.json
+script/vlCVX/recovery_apr21_doubling/fork_simulation_report.json

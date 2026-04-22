@@ -219,16 +219,54 @@ const main = async () => {
   const filter: string = "*Gauge vote.*$";
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
 
+  // Resolve `lastMerkles` from the PREVIOUS period's archived merkle, not from
+  // `latest/`. `latest/` is overwritten by the publish step in the current period,
+  // so reading it on a re-run would double-carry current-period rewards for any
+  // user who has not yet claimed. Fall back to `latest/` only if no archived period
+  // is found in the last 12 weeks (first-ever run / fresh clone).
+  const resolveLastMerkles = async (): Promise<any[]> => {
+    for (let weeksBack = 1; weeksBack <= 12; weeksBack++) {
+      const ts = currentPeriodTimestamp - weeksBack * WEEK;
+      const localPath = path.join(
+        __dirname,
+        "..",
+        "..",
+        "bounties-reports",
+        ts.toString(),
+        "merkle.json",
+      );
+      if (fs.existsSync(localPath)) {
+        console.error(
+          `Loaded lastMerkles from archived period ${ts} (${weeksBack}w back): ${localPath}`,
+        );
+        return JSON.parse(fs.readFileSync(localPath, "utf-8"));
+      }
+      try {
+        const url = `https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/${ts}/merkle.json`;
+        const resp = await axios.get(url);
+        console.error(`Loaded lastMerkles from remote archived period ${ts}`);
+        return resp.data;
+      } catch {
+        // not found for this period, try earlier
+      }
+    }
+    console.error(
+      "No archived merkle found in last 12 weeks; falling back to latest/ (may be stale)",
+    );
+    const resp = await axios.get(
+      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/merkle.json",
+    );
+    return resp.data;
+  };
+
   const [
-    { data: lastMerkles },
+    lastMerkles,
     proposalIdPerSpace,
     { data: delegationAPRsFromGithub },
     sdFXSTotalVp,
     { data: sdCakeWorkingData },
   ] = await Promise.all([
-    axios.get(
-      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/merkle.json"
-    ),
+    resolveLastMerkles(),
     fetchLastProposalsIds(SPACES, now, filter),
     axios.get(
       "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json"
