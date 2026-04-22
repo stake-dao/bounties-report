@@ -13,11 +13,9 @@ on:
           - legacy
       step:
         description: 'Step to run'
-        required: false
+        required: true
         type: choice
-        default: 'all'
         options:
-          - all
           - merkle
           - publish
       dispatch_id:
@@ -49,7 +47,7 @@ jobs:
 
       # ── Spectra merkle ──
       - name: "Spectra: report + repartition + merkle"
-        if: inputs.token == 'spectra' && (inputs.step == 'all' || inputs.step == 'merkle')
+        if: inputs.token == 'spectra' && (inputs.step == 'merkle')
         run: |
           pnpm tsx script/spectra/1_report.ts
           pnpm tsx script/spectra/2_repartition.ts
@@ -60,7 +58,7 @@ jobs:
 
       # ── sdFXS merkle ──
       - name: "sdFXS: report + merkle"
-        if: inputs.token == 'sdfxs' && (inputs.step == 'all' || inputs.step == 'merkle')
+        if: inputs.token == 'sdfxs' && (inputs.step == 'merkle')
         run: make -f automation/sdfxs/run.mk run-merkle
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -68,18 +66,18 @@ jobs:
 
       # ── Commit after merkle ──
       - name: Commit merkle
-        if: inputs.step == 'all' || inputs.step == 'merkle'
+        if: inputs.step == 'merkle'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ${{ inputs.token }} merkle [${{ inputs.dispatch_id }}]"
 
       # ── Publish ──
       - name: Pull latest before publish
-        if: inputs.step == 'all' || inputs.step == 'publish'
+        if: inputs.step == 'publish'
         run: git pull --rebase --autostash origin main
 
       - name: Calculate current period
-        if: inputs.step == 'all' || inputs.step == 'publish'
+        if: inputs.step == 'publish'
         id: period
         run: |
           WEEK=604800
@@ -88,7 +86,7 @@ jobs:
           echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
 
       - name: "Spectra: publish to latest"
-        if: inputs.token == 'spectra' && (inputs.step == 'all' || inputs.step == 'publish')
+        if: inputs.token == 'spectra' && (inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest"
@@ -101,7 +99,7 @@ jobs:
           fi
 
       - name: "sdFXS: publish to latest"
-        if: inputs.token == 'sdfxs' && (inputs.step == 'all' || inputs.step == 'publish')
+        if: inputs.token == 'sdfxs' && (inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/sdTkns"
@@ -114,7 +112,7 @@ jobs:
           fi
 
       - name: "Legacy: publish to latest"
-        if: inputs.token == 'legacy' && (inputs.step == 'all' || inputs.step == 'publish')
+        if: inputs.token == 'legacy' && (inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/sdTkns"
@@ -137,7 +135,7 @@ jobs:
           fi
 
       - name: Merge delegationsAPRs
-        if: (inputs.token == 'spectra' || inputs.token == 'sdfxs') && (inputs.step == 'all' || inputs.step == 'publish')
+        if: (inputs.token == 'spectra' || inputs.token == 'sdfxs') && (inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           if [ -f "bounties-reports/${PERIOD}/delegationsAPRs.json" ]; then
@@ -153,7 +151,7 @@ jobs:
           fi
 
       - name: Compute sdPENDLE delegators APR
-        if: (inputs.token == 'spectra' || inputs.token == 'legacy') && (inputs.step == 'all' || inputs.step == 'publish')
+        if: (inputs.token == 'spectra' || inputs.token == 'legacy') && (inputs.step == 'publish')
         run: pnpm tsx script/helpers/computeSdPendleDelegatorsAPR.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -161,13 +159,13 @@ jobs:
         continue-on-error: true
 
       - name: Update round metadata
-        if: (inputs.token == 'legacy' || inputs.token == 'spectra') && (inputs.step == 'all' || inputs.step == 'publish')
+        if: (inputs.token == 'legacy' || inputs.token == 'spectra') && (inputs.step == 'publish')
         run: pnpm tsx script/helpers/getRoundMetadata.ts
         env:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
       - name: Commit publish
-        if: inputs.step == 'all' || inputs.step == 'publish'
+        if: inputs.step == 'publish'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ${{ inputs.token }} publish [${{ inputs.dispatch_id }}]"
