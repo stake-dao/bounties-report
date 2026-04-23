@@ -55,6 +55,7 @@ jobs:
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          BOTS_ENVIO_GRAPHQL_URL_WORKER: ${{ secrets.BOTS_ENVIO_GRAPHQL_URL_WORKER }}
 
       # ── sdFXS merkle ──
       - name: "sdFXS: report + merkle"
