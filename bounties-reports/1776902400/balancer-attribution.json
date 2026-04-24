@@ -1,0 +1,24 @@
+{
+  "protocol": "balancer",
+  "period": 1776902400,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 0,
+    "sdAssigned": 0,
+    "wethInTotal": 0,
+    "wethOutTotal": 0
+  },
+  "dropped": {
+    "tokensNotSwapped": [
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    ],
+    "wethNotSwapped": true
+  },
+  "perToken": {
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0,
+      "sd": 0
+    }
+  },
+  "txs": []
+}
