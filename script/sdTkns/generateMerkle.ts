@@ -11,6 +11,8 @@ import {
   NETWORK_TO_STASH,
   SDPENDLE_SPACE,
   SDFXS_SPACE,
+  SDCRV_SPACE,
+  SDFXN_SPACE,
   SPACE_TO_NETWORK,
   SPACES,
   SPACES_IMAGE,
@@ -305,8 +307,8 @@ const main = async () => {
 
   // Loop through each space (except Pendle, handled separately)
   for (const space of Object.keys(proposalIdPerSpace)) {
-    // Skip sdFXS as it now uses Universal Merkle
-    if (space === SDFXS_SPACE) {
+    // Skip sdFXS / sdCRV / sdFXN as they now use Universal Merkle
+    if (space === SDFXS_SPACE || space === SDCRV_SPACE || space === SDFXN_SPACE) {
       continue;
     }
 
@@ -529,7 +531,20 @@ const main = async () => {
   // =====================================================
   // Raw tokens are distributed using the same voting mechanism as sdTokens
   // but distribute the native token (e.g., CRV) instead of the wrapped version (e.g., sdCRV)
-  const rawTokenDistributions = await extractAllRawTokenCSVs(currentPeriodTimestamp);
+  // CRV @ sdcrv.eth and FXN @ sdfxn.eth are now distributed via the
+  // Universal Reward Distributor pipeline (generateUniversalMerkle{Curve,Fxn}.ts).
+  // Drop those (space, token) pairs here so the legacy bundle does not
+  // double-distribute them. Other raw tokens routed through these spaces
+  // (e.g. tacIOU on sdcrv.eth) keep flowing through the legacy pipeline.
+  const CRV_RAW_ADDR = SPACES_UNDERLYING_TOKEN[SDCRV_SPACE].toLowerCase();
+  const FXN_RAW_ADDR = SPACES_UNDERLYING_TOKEN[SDFXN_SPACE].toLowerCase();
+  const rawTokenDistributions = (await extractAllRawTokenCSVs(currentPeriodTimestamp))
+    .filter((d) => {
+      const tok = d.token.toLowerCase();
+      if (d.space === SDCRV_SPACE && tok === CRV_RAW_ADDR) return false;
+      if (d.space === SDFXN_SPACE && tok === FXN_RAW_ADDR) return false;
+      return true;
+    });
 
   if (rawTokenDistributions.length > 0) {
     // Group distributions by token address and space to handle multiple gauges
