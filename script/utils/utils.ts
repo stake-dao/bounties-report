@@ -345,7 +345,7 @@ export const extractAllRawTokenCSVs = async (
         if (protocol === "curve") space = "sdcrv.eth";
         else if (protocol === "balancer") space = "sdbal.eth";
         else if (protocol === "frax") space = "sdfrax.eth";
-        else if (protocol === "fxn") space = "sdfxs.eth";
+        else if (protocol === "fxn") space = "sdfxn.eth";
         else {
           console.warn(`Unknown protocol ${protocol} for determining space`);
           continue;
