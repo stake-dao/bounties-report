@@ -10,6 +10,8 @@ on:
         options:
           - spectra
           - sdfxs
+          - sdcrv
+          - sdfxn
           - legacy
       step:
         description: 'Step to run'
@@ -65,6 +67,22 @@ jobs:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
 
+      # ── sdCRV merkle ──
+      - name: "sdCRV: merkle"
+        if: inputs.token == 'sdcrv' && (inputs.step == 'merkle')
+        run: make -f automation/sdcrv/run.mk run-merkle
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
+      # ── sdFXN merkle ──
+      - name: "sdFXN: merkle"
+        if: inputs.token == 'sdfxn' && (inputs.step == 'merkle')
+        run: make -f automation/sdfxn/run.mk run-merkle
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+
       # ── Commit after merkle ──
       - name: Commit merkle
         if: inputs.step == 'merkle'
@@ -112,6 +130,32 @@ jobs:
             exit 1
           fi
 
+      - name: "sdCRV: publish to latest"
+        if: inputs.token == 'sdcrv' && (inputs.step == 'publish')
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/sdTkns"
+
+          if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_1_sdcrv.json" ]; then
+            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_1_sdcrv.json" "bounties-reports/latest/sdTkns/sdtkns_merkle_1_sdcrv.json"
+          else
+            echo "::error::sdCRV merkle not found for period ${PERIOD}"
+            exit 1
+          fi
+
+      - name: "sdFXN: publish to latest"
+        if: inputs.token == 'sdfxn' && (inputs.step == 'publish')
+        run: |
+          PERIOD=${{ steps.period.outputs.current }}
+          mkdir -p "bounties-reports/latest/sdTkns"
+
+          if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_1_sdfxn.json" ]; then
+            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_1_sdfxn.json" "bounties-reports/latest/sdTkns/sdtkns_merkle_1_sdfxn.json"
+          else
+            echo "::error::sdFXN merkle not found for period ${PERIOD}"
+            exit 1
+          fi
+
       - name: "Legacy: publish to latest"
         if: inputs.token == 'legacy' && (inputs.step == 'publish')
         run: |
@@ -125,9 +169,11 @@ jobs:
             for file in bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_*.json; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
-                # Skip spectra (8453) - handled separately via orchestrator
-                if [[ "$filename" == "sdtkns_merkle_8453.json" ]]; then
-                  echo "Skipping $filename (spectra - handled by orchestrator)"
+                # Skip files handled by their dedicated publish branches.
+                if [[ "$filename" == "sdtkns_merkle_8453.json" \
+                   || "$filename" == "sdtkns_merkle_1_sdcrv.json" \
+                   || "$filename" == "sdtkns_merkle_1_sdfxn.json" ]]; then
+                  echo "Skipping $filename (handled by dedicated branch)"
                   continue
                 fi
                 cp "$file" "bounties-reports/latest/sdTkns/${filename}"
@@ -136,7 +182,7 @@ jobs:
           fi
 
       - name: Merge delegationsAPRs
-        if: (inputs.token == 'spectra' || inputs.token == 'sdfxs') && (inputs.step == 'publish')
+        if: (inputs.token == 'spectra' || inputs.token == 'sdfxs' || inputs.token == 'sdcrv' || inputs.token == 'sdfxn') && (inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           if [ -f "bounties-reports/${PERIOD}/delegationsAPRs.json" ]; then
