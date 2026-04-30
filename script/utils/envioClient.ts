@@ -3,23 +3,64 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const fetchGraphQL = async (query: string, variables?: Record<string, any>) => {
+const fetchGraphQL = async (
+  query: string,
+  variables?: Record<string, any>,
+  maxRetries = 3
+) => {
   const url = process.env.BOTS_ENVIO_GRAPHQL_URL_WORKER;
   if (!url) {
     throw new Error(
       "BOTS_ENVIO_GRAPHQL_URL_WORKER environment variable is not set"
     );
   }
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = await res.json();
-  if (json.errors) {
-    throw new Error(`GraphQL error: ${JSON.stringify(json.errors)}`);
+
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, variables }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(
+          `GraphQL HTTP ${res.status} ${res.statusText}${body ? `: ${body.slice(0, 200)}` : ""}`
+        );
+      }
+
+      let json: any;
+      try {
+        json = await res.json();
+      } catch (e) {
+        throw new Error(`GraphQL non-JSON response: ${(e as Error).message}`);
+      }
+
+      if (json?.errors) {
+        throw new Error(`GraphQL error: ${JSON.stringify(json.errors)}`);
+      }
+      if (!json || json.data == null) {
+        throw new Error(
+          `GraphQL empty data (attempt ${attempt}/${maxRetries})`
+        );
+      }
+      return json.data;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxRetries) {
+        const backoffMs = 500 * 2 ** (attempt - 1);
+        console.warn(
+          `fetchGraphQL attempt ${attempt}/${maxRetries} failed: ${(err as Error).message}. Retrying in ${backoffMs}ms`
+        );
+        await new Promise((r) => setTimeout(r, backoffMs));
+      }
+    }
   }
-  return json.data;
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error(`fetchGraphQL failed after ${maxRetries} attempts`);
 };
 
 const toFloat = (raw: string) => Number(formatUnits(BigInt(raw), 18));
