@@ -15,7 +15,7 @@ import path from "path";
 import { spawn } from "child_process";
 import { createPublicClient, createWalletClient, http } from "viem";
 import type { Chain, PublicClient, WalletClient } from "viem";
-import { arbitrum, base } from "viem/chains"; // mainnet available for future configs
+import { mainnet } from "viem/chains";
 import { WEEK } from "../utils/constants";
 import type { MerkleData } from "../interfaces/MerkleData";
 
@@ -34,41 +34,20 @@ interface MerkleTestConfig {
 
 const CONFIGS: MerkleTestConfig[] = [
   {
-    label: "vlAURA Arbitrum",
-    chain: arbitrum,
-    rpcUrl: "https://arb1.arbitrum.io/rpc",
-    distributor: "0x59ADeBc5cBdB18aE344a506976fE3bbBB3D89199",
-    merkleRelPath: "vlAURA/vlaura_merkle_42161.json",
+    label: "vlCVX Non-Delegators",
+    chain: mainnet,
+    rpcUrl: "https://eth.llamarpc.com",
+    distributor: "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+    merkleRelPath: "vlCVX/vlcvx_merkle.json",
   },
   {
-    label: "vlAURA Base",
-    chain: base,
-    rpcUrl: "https://mainnet.base.org",
-    distributor: "0x665d334388012d17f1d197de72b7b708ffccb67d",
-    merkleRelPath: "vlAURA/vlaura_merkle_8453.json",
+    label: "vlCVX Delegators",
+    chain: mainnet,
+    rpcUrl: "https://eth.llamarpc.com",
+    distributor: "0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380",
+    merkleRelPath: "vlCVX/merkle_data_delegators.json",
   },
   // Add more entries as needed:
-  // {
-  //   label: "vlAURA Mainnet",
-  //   chain: mainnet,
-  //   rpcUrl: "https://eth.llamarpc.com",
-  //   distributor: "0x<FILL_ME>",
-  //   merkleRelPath: "vlAURA/vlaura_merkle.json",
-  // },
-  // {
-  //   label: "vlCVX Non-Delegators",
-  //   chain: mainnet,
-  //   rpcUrl: "https://eth.llamarpc.com",
-  //   distributor: "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
-  //   merkleRelPath: "vlCVX/vlcvx_merkle.json",
-  // },
-  // {
-  //   label: "vlCVX Delegators",
-  //   chain: mainnet,
-  //   rpcUrl: "https://eth.llamarpc.com",
-  //   distributor: "0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380",
-  //   merkleRelPath: "vlCVX/merkle_data_delegators.json",
-  // },
   // {
   //   label: "sdFXS Universal",
   //   chain: fraxtal, // add fraxtal chain if needed

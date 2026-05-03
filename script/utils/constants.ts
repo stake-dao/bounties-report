@@ -49,7 +49,6 @@ export const SDCRV_SPACE = "sdcrv.eth";
 export const SDBAL_SPACE = "sdbal.eth";
 export const SDFXS_SPACE = "sdfxs.eth";
 export const SDANGLE_SPACE = "sdangle.eth";
-export const SDPENDLE_SPACE = "sdpendle.eth";
 export const SDCAKE_SPACE = "sdcake.eth";
 export const SDFXN_SPACE = "sdfxn.eth";
 export const CVX_SPACE = "cvx.eth";
@@ -64,10 +63,6 @@ export const VLCVX_DELEGATORS_MERKLE =
 export const VLCVX_NON_DELEGATORS_MERKLE =
   "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
 
-// vlAURA
-export const VLAURA_SPACE = "gauges.aurafinance.eth";
-export const VLAURA_LOCKER = "0xaF52695E1bB01A16D33D7194C28C42b10e0Dbec2";
-export const VLAURA_RECIPIENT = "0x0974b559631428391e6519E21B35c87c818cAC25";
 export const SPECTRA_SAFE_MODULE =
   "0xDF9848EB9C1027AEA967270A74Dd3dd35Cb9Ab5D" as `0x${string}`;
 export const SDFXS_UNIVERSAL_MERKLE =
@@ -94,9 +89,6 @@ export const FXN_STAKE_DAO_LOCKER =
 // FXN Convex locker
 export const FXN_CONVEX_LOCKER = "0xd11a4Ee017cA0BECA8FA45fF2abFe9C6267b7881";
 
-// Pendle Stake DAO locker
-export const PENDLE_STAKE_DAO_LOCKER = "0xD8fa8dC5aDeC503AcC5e026a98F32Ca5C1Fa289A";
-
 // Tokens
 // NOTE: For dynamic token lookups, use tokenService instead of hardcoded addresses
 // import { getTokenAddress } from "../utils/tokenService";
@@ -105,9 +97,6 @@ export const SD_BAL = getAddress("0xF24d8651578a55b0C119B9910759a351A3458895");
 export const SD_FXS = getAddress("0x402F878BDd1f5C66FdAF0fabaBcF74741B68ac36");
 export const SD_ANGLE = getAddress(
   "0x752B4c6e92d96467fE9b9a2522EF07228E00F87c"
-);
-export const SD_PENDLE = getAddress(
-  "0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9"
 );
 export const SD_FXN = getAddress("0xe19d1c837B8A1C83A56cD9165b2c0256D39653aD");
 export const SD_CAKE = getAddress("0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A");
@@ -125,7 +114,6 @@ export const SPACES: string[] = [
   SDBAL_SPACE,
   SDFXS_SPACE,
   SDANGLE_SPACE,
-  SDPENDLE_SPACE,
   SDFXN_SPACE,
   SDCAKE_SPACE,
 ];
@@ -135,13 +123,11 @@ export const LABELS_TO_SPACE: Record<string, string> = {
   curve: SDCRV_SPACE,
   balancer: SDBAL_SPACE,
   angle: SDANGLE_SPACE,
-  pendle: SDPENDLE_SPACE,
   cake: SDCAKE_SPACE,
   fxn: SDFXN_SPACE,
   cvx: CVX_SPACE,
   cvx_fxn: CVX_FXN_SPACE,
   spectra: SPECTRA_SPACE,
-  vlaura: VLAURA_SPACE,
 };
 
 export const SPACE_TO_NETWORK: Record<string, string> = {
@@ -149,11 +135,9 @@ export const SPACE_TO_NETWORK: Record<string, string> = {
   [SDCRV_SPACE]: ETHEREUM,
   [SDBAL_SPACE]: ETHEREUM,
   [SDANGLE_SPACE]: ETHEREUM,
-  [SDPENDLE_SPACE]: ETHEREUM,
   [SDFXN_SPACE]: ETHEREUM,
   [SDCAKE_SPACE]: BSC,
   [SPECTRA_SPACE]: BASE,
-  [VLAURA_SPACE]: ETHEREUM,
 };
 
 export const SPACE_TO_CHAIN_ID: Record<string, string> = {
@@ -161,12 +145,10 @@ export const SPACE_TO_CHAIN_ID: Record<string, string> = {
   [SDCRV_SPACE]: ETH_CHAIN_ID,
   [SDBAL_SPACE]: ETH_CHAIN_ID,
   [SDANGLE_SPACE]: ETH_CHAIN_ID,
-  [SDPENDLE_SPACE]: ETH_CHAIN_ID,
   [SDFXN_SPACE]: ETH_CHAIN_ID,
   [SDCAKE_SPACE]: BSC_CHAIN_ID,
   [CVX_SPACE]: ETH_CHAIN_ID,
   [SPECTRA_SPACE]: BASE_CHAIN_ID,
-  [VLAURA_SPACE]: ETH_CHAIN_ID,
 };
 
 export const NETWORK_TO_STASH: Record<string, string> = {
@@ -184,7 +166,6 @@ export const SPACES_TOKENS: Record<string, string> = {
   [SDBAL_SPACE]: SD_BAL,
   [SDFXS_SPACE]: SD_FXS,
   [SDANGLE_SPACE]: SD_ANGLE,
-  [SDPENDLE_SPACE]: SD_PENDLE,
   [SDFXN_SPACE]: SD_FXN,
   [SDCAKE_SPACE]: SD_CAKE,
 };
@@ -194,7 +175,6 @@ export const SPACES_SYMBOL: Record<string, string> = {
   [SDBAL_SPACE]: "sdBAL",
   [SDFXS_SPACE]: "sdFXS",
   [SDANGLE_SPACE]: "sdANGLE",
-  [SDPENDLE_SPACE]: "sdPENDLE",
   [SDCAKE_SPACE]: "sdCAKE",
   [SDFXN_SPACE]: "sdFXN",
 };
@@ -220,7 +200,6 @@ export const SPACES_IMAGE: Record<string, string> = {
     "https://assets.coingecko.com/coins/images/13423/small/Frax_Shares_icon.png?1679886947",
   [SDANGLE_SPACE]:
     "https://assets.coingecko.com/coins/images/19060/small/ANGLE_Token-light.png?1666774221",
-  [SDPENDLE_SPACE]: "https://beta.stakedao.org/assets/pendle.svg",
   [SDCAKE_SPACE]:
     "https://cdn.stamp.fyi/space/sdcake.eth?s=96&cb=cd2ea5c12296e731",
   [SDFXN_SPACE]:
@@ -232,7 +211,6 @@ export const SPACES_UNDERLYING_TOKEN: Record<string, string> = {
   [SDBAL_SPACE]: "0x5c6ee304399dbdb9c8ef030ab642b10820db8f56", //80BAL instead of bal
   [SDFXS_SPACE]: "0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0",
   [SDANGLE_SPACE]: "0x31429d1856ad1377a8a0079410b297e1a9e214c2",
-  [SDPENDLE_SPACE]: "0x808507121b80c02388fad14726482e061b8da827",
   [SDCAKE_SPACE]: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82",
   [SDFXN_SPACE]: "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09",
 };

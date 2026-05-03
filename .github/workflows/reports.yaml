@@ -13,10 +13,8 @@ on:
           - balancer
           - fxn
           - frax
-          - pendle
-          # vlCVX / vlAURA
+          # vlCVX
           - vlcvx
-          - vlaura
       type:
         description: 'Report type'
         required: true

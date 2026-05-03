@@ -210,55 +210,23 @@ export async function getTokenInfo(
 
 /**
  * Retrieves timestamps and block numbers for a specified week.
- *
- * For Pendle protocol, uses Tuesday noon as the period boundary to match
- * the swap script's timing logic. For other protocols, uses standard Thursday epochs.
  */
 export async function getTimestampsBlocks(
   publicClient: PublicClient,
   pastWeek?: number,
-  chain: string = "ethereum",
-  protocol?: string
+  chain: string = "ethereum"
 ) {
   const currentTimestamp = Math.floor(Date.now() / 1000);
   let timestamp1: number, timestamp2: number;
 
-  // Special handling for Pendle: use Tuesday noon as period boundary
-  if (protocol?.toLowerCase() === "pendle") {
-    const thursdayEpoch = Math.floor(currentTimestamp / WEEK) * WEEK;
-    // Tuesday is 5 days after Thursday epoch (Thu=0, Fri=1, Sat=2, Sun=3, Mon=4, Tue=5)
-    const thisWeeksTuesdayNoon = thursdayEpoch + (5 * 86400) + (10 * 3600);
-
-    if (!pastWeek || pastWeek === 0) {
-      console.log("No past week specified, using current week (Pendle Tuesday-adjusted)");
-      timestamp2 = currentTimestamp;
-
-      // If we're past Tuesday noon this week, start from this Tuesday
-      // Otherwise, start from last Tuesday
-      if (currentTimestamp >= thisWeeksTuesdayNoon) {
-        timestamp1 = thisWeeksTuesdayNoon;
-      } else {
-        timestamp1 = thisWeeksTuesdayNoon - WEEK;
-      }
-
-      console.log(`Pendle period: From ${new Date(timestamp1 * 1000).toUTCString()} to now`);
-    } else {
-      console.log(`Past week specified: ${pastWeek} (Pendle Tuesday-adjusted)`);
-      // For past weeks, use Tuesday boundaries
-      timestamp2 = thisWeeksTuesdayNoon;
-      timestamp1 = timestamp2 - pastWeek * WEEK;
-    }
+  if (!pastWeek || pastWeek === 0) {
+    console.log("No past week specified, using current week");
+    timestamp2 = currentTimestamp;
+    timestamp1 = Math.floor(currentTimestamp / WEEK) * WEEK;
   } else {
-    // Standard Thursday-based timing for other protocols
-    if (!pastWeek || pastWeek === 0) {
-      console.log("No past week specified, using current week");
-      timestamp2 = currentTimestamp;
-      timestamp1 = Math.floor(currentTimestamp / WEEK) * WEEK;
-    } else {
-      console.log(`Past week specified: ${pastWeek}`);
-      timestamp2 = Math.floor(currentTimestamp / WEEK) * WEEK;
-      timestamp1 = timestamp2 - pastWeek * WEEK;
-    }
+    console.log(`Past week specified: ${pastWeek}`);
+    timestamp2 = Math.floor(currentTimestamp / WEEK) * WEEK;
+    timestamp1 = timestamp2 - pastWeek * WEEK;
   }
 
   const blockNumber1 = await getClosestBlockTimestamp(chain, timestamp1);
@@ -267,12 +235,7 @@ export async function getTimestampsBlocks(
       ? Number(await publicClient.getBlockNumber())
       : await getClosestBlockTimestamp(chain, timestamp2);
 
-  // For Pendle, also return the Thursday epoch for storage consistency
-  const storageTimestamp = protocol?.toLowerCase() === "pendle"
-    ? Math.floor(currentTimestamp / WEEK) * WEEK
-    : timestamp1;
-
-  return { timestamp1, timestamp2, blockNumber1, blockNumber2, storageTimestamp };
+  return { timestamp1, timestamp2, blockNumber1, blockNumber2, storageTimestamp: timestamp1 };
 }
 
 export function isValidAddress(address: string): address is `0x${string}` {
@@ -328,10 +291,6 @@ export const PROTOCOLS_TOKENS: {
   fxn: {
     native: getAddress("0x365accfca291e7d3914637abf1f7635db165bb09"),
     sdToken: getAddress("0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad"),
-  },
-  pendle: {
-    native: getAddress("0x808507121B80c02388fAd14726482e061B8da827"),
-    sdToken: getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9"),
   },
   spectra: {
     native: getAddress("0x64FCC3A02eeEba05Ef701b7eed066c6ebD5d4E51"),
@@ -592,7 +551,7 @@ export function processSwapsOTC(
 export function aggregateBounties(
   claimedBounties: ClaimedBounties
 ): Record<string, Bounty[]> {
-  const protocols = ["curve", "balancer", "fxn", "frax", "pendle"];
+  const protocols = ["curve", "balancer", "fxn", "frax"];
   const aggregated: Record<string, Bounty[]> = {};
   for (const protocol of protocols) {
     aggregated[protocol] = [
@@ -973,8 +932,6 @@ export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
       return getFxnGaugesInfos();
     case "cake":
       return getCakeGaugesInfos();
-    case "pendle":
-      return getPendleGaugesInfos();
     default:
       return [];
   }
@@ -1144,41 +1101,6 @@ export async function getCakeGaugesInfos(): Promise<GaugeInfo[]> {
     return [];
   }
 }
-
-export const getPendleGaugesInfos = async (): Promise<GaugeInfo[]> => {
-  try {
-    const chains = [1, 42161, 5000, 56, 8453, 146];
-    const responses = await Promise.all(
-      chains.map((chainId) =>
-        axios.get(
-          `https://api-v2.pendle.finance/core/v1/${chainId}/markets/active`
-        )
-      )
-    );
-
-    const allMarkets = responses.flatMap((r) => r.data.markets);
-
-    if (Array.isArray(allMarkets)) {
-      return allMarkets.map((market: any) => ({
-        name: `${market.name} - ${new Date(market.expiry)
-          .toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })
-          .toUpperCase()
-          .replace(/ /g, "")}`,
-        address: market.address,
-      }));
-    } else {
-      console.error("Failed to fetch Pendle gauges: Invalid response format");
-      return [];
-    }
-  } catch (error) {
-    console.error("Error fetching Pendle gauges:", error);
-    return [];
-  }
-};
 
 /**
  * Fetch transfer events to a specific delegation recipient address

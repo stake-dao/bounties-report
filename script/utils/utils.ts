@@ -9,9 +9,7 @@ import {
   MERKLE_CREATION_BLOCK_BSC,
   MERKLE_CREATION_BLOCK_ETH,
   SDBAL_SPACE,
-  SDPENDLE_SPACE,
   SPECTRA_SPACE,
-  VLAURA_SPACE,
   getClient,
 } from "./constants";
 import fs from "fs";
@@ -31,14 +29,13 @@ import { getBlockNumberByTimestamp } from "./chainUtils";
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
-export type PendleCSVType = Record<string, Record<string, number>>;
 export type OtherCSVType = Record<string, number>;
 export type CvxCSVType = Record<
   string,
   Array<{ rewardAddress: string; rewardAmount: bigint; chainId: number }>
 >;
 
-export type ExtractCSVType = PendleCSVType | OtherCSVType | CvxCSVType;
+export type ExtractCSVType = OtherCSVType | CvxCSVType;
 
 export function isOddWeek(timestamp?: number): boolean {
   // If no timestamp provided, use current time in seconds
@@ -102,30 +99,26 @@ export const extractCSV = async (
 
   let totalPerToken: Record<string, number | bigint> = {};
 
-  // For non-sdpendle spaces, also check for OTC file
-  if (space !== SDPENDLE_SPACE) {
-    const otcFilePath = path.join(
-      __dirname,
-      `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}-otc.csv`
+  const otcFilePath = path.join(
+    __dirname,
+    `../../bounties-reports/${currentPeriodTimestamp}/${nameSpace}-otc.csv`
+  );
+
+  if (fs.existsSync(otcFilePath)) {
+    const otcCsvFile = fs.readFileSync(otcFilePath, "utf8");
+    let otcRecords = parse(otcCsvFile, {
+      columns: true,
+      skip_empty_lines: true,
+      delimiter: ";",
+    });
+
+    otcRecords = otcRecords.map((row: Record<string, string>) =>
+      Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [key.toLowerCase(), value])
+      )
     );
-    
-    if (fs.existsSync(otcFilePath)) {
-      const otcCsvFile = fs.readFileSync(otcFilePath, "utf8");
-      let otcRecords = parse(otcCsvFile, {
-        columns: true,
-        skip_empty_lines: true,
-        delimiter: ";",
-      });
-      
-      otcRecords = otcRecords.map((row: Record<string, string>) =>
-        Object.fromEntries(
-          Object.entries(row).map(([key, value]) => [key.toLowerCase(), value])
-        )
-      );
-      
-      // Merge OTC records into main records
-      records = records.concat(otcRecords);
-    }
+
+    records = records.concat(otcRecords);
   }
 
   for (const row of records) {
@@ -141,22 +134,7 @@ export const extractCSV = async (
       }
     }
 
-    if (space === SDPENDLE_SPACE) {
-      const period = row["period"];
-      const pendleResponse = response as PendleCSVType;
-      if (!pendleResponse[period]) {
-        pendleResponse[period] = {};
-      }
-      if (!pendleResponse[period][gaugeAddress]) {
-        pendleResponse[period][gaugeAddress] = 0;
-      }
-
-      if (row["reward sd value"]) {
-        pendleResponse[period][gaugeAddress] += parseFloat(
-          row["reward sd value"]
-        );
-      }
-    } else if (space === CVX_SPACE || space === CVX_FXN_SPACE || space === VLAURA_SPACE) {
+    if (space === CVX_SPACE || space === CVX_FXN_SPACE) {
       const cvxResponse = response as CvxCSVType;
       const rewardAddress = row["reward address"].toLowerCase();
       const rewardAmount = BigInt(row["reward amount"]);
@@ -205,67 +183,6 @@ export const extractCSV = async (
       }
     }
   }
-  return response;
-};
-
-/**
- * Reads and parses an OTC CSV file for Pendle.
- * The CSV is expected to have at least:
- *  - "timestamp": to key each snapshot,
- *  - "gauge address": used as the sub-key,
- *  - "reward sd value": the reward amount (as a string to be parsed to a number).
- *
- * @param filePath - The full path to the pendle external CSV file (votemarket or otc).
- * @returns A promise that resolves to a PendleCSVType object grouping rewards by timestamp.
- */
-export const extractOTCCSV = async (
-  filePath: string
-): Promise<PendleCSVType> => {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`OTC CSV file does not exist at path: ${filePath}`);
-  }
-
-  const csvFile = fs.readFileSync(filePath, "utf8");
-  let records = parse(csvFile, {
-    columns: true,
-    skip_empty_lines: true,
-    delimiter: ";",
-  });
-
-  // Normalize column names to lowercase.
-  records = records.map((row: Record<string, string>) =>
-    Object.fromEntries(
-      Object.entries(row).map(([key, value]) => [key.toLowerCase(), value])
-    )
-  );
-
-  const response: PendleCSVType = {};
-
-  for (const row of records) {
-    const period = row["period"];
-    const gaugeAddress = row["gauge address"] ? row["gauge address"].toLowerCase() : undefined;
-
-    if (!period) {
-      throw new Error("Missing 'period' in row: " + JSON.stringify(row));
-    }
-    if (!gaugeAddress) {
-      throw new Error("Missing 'gauge address' in row: " + JSON.stringify(row));
-    }
-
-    if (!response[period]) {
-      response[period] = {};
-    }
-
-    // Initialize gauge address value if needed.
-    if (!response[period][gaugeAddress]) {
-      response[period][gaugeAddress] = 0;
-    }
-
-    if (row["reward sd value"]) {
-      response[period][gaugeAddress] += parseFloat(row["reward sd value"]);
-    }
-  }
-
   return response;
 };
 
@@ -461,61 +378,32 @@ export const extractProposalChoices = (
 ): Record<string, number> => {
   const addressesPerChoice: Record<string, number> = {};
 
-  if (proposal.space.id.toLowerCase() === SDPENDLE_SPACE) {
-    const SEP = " - ";
-    const SEP2 = "-";
+  const SEP = " - 0x";
 
-    for (let i = 0; i < proposal.choices.length; i++) {
-      const choice = proposal.choices[i];
-      if (
-        choice.indexOf("Current Weights") > -1 ||
-        choice.indexOf("Paste") > -1 ||
-        choice.indexOf("Total Percentage") > -1
-      ) {
+  for (let i = 0; i < proposal.choices.length; i++) {
+    const choice = proposal.choices[i];
+    if (
+      choice.indexOf("Current Weights") > -1 ||
+      choice.indexOf("Paste") > -1 ||
+      choice.indexOf("Total Percentage") > -1
+    ) {
+      continue;
+    }
+    const start = choice.indexOf(" - 0x");
+    if (start === -1) {
+      throw new Error("Impossible to parse choice : " + choice);
+    }
+
+    let end = choice.indexOf("…", start);
+    if (end === -1) {
+      end = choice.indexOf("...", start);
+      if (end === -1) {
         continue;
       }
-      const start = choice.indexOf(SEP);
-      if (start === -1) {
-        throw new Error("Impossible to parse choice : " + choice);
-      }
-
-      const end = choice.indexOf(SEP2, start + SEP.length);
-      if (end === -1) {
-        throw new Error("Impossible to parse choice : " + choice);
-      }
-
-      const address = choice.substring(end + SEP2.length);
-      addressesPerChoice[address] = i + 1;
     }
-  } else {
-    const SEP = " - 0x";
 
-    for (let i = 0; i < proposal.choices.length; i++) {
-      const choice = proposal.choices[i];
-      if (
-        choice.indexOf("Current Weights") > -1 ||
-        choice.indexOf("Paste") > -1 ||
-        choice.indexOf("Total Percentage") > -1
-      ) {
-        continue;
-      }
-      const start = choice.indexOf(" - 0x");
-      if (start === -1) {
-        throw new Error("Impossible to parse choice : " + choice);
-      }
-
-      let end = choice.indexOf("…", start);
-      if (end === -1) {
-        end = choice.indexOf("...", start);
-        if (end === -1) {
-          //throw new Error("Impossible to parse choice : " + choice);
-          continue;
-        }
-      }
-
-      const address = choice.substring(start + SEP.length - 2, end);
-      addressesPerChoice[address] = i + 1;
-    }
+    const address = choice.substring(start + SEP.length - 2, end);
+    addressesPerChoice[address] = i + 1;
   }
 
   return addressesPerChoice;

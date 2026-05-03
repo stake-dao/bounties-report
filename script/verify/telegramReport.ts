@@ -32,7 +32,6 @@ const DIVIDER = "━━━━━━━━━━━━━━━━━━━━━
 /**
  * Strip the protocol prefix and "Verification" suffix from script labels.
  * "vlCVX Distribution Verification" → "Distribution"
- * "vlAURA Reward Flow Verification" → "Reward Flow"
  */
 function shortLabel(label: string): string {
   return label
@@ -44,7 +43,6 @@ function shortLabel(label: string): string {
 /** Infer protocol group from script label prefix. */
 function inferGroup(label: string): string {
   if (/^vlCVX/i.test(label)) return "vlCVX";
-  if (/^vlAURA/i.test(label)) return "vlAURA";
   if (/bounties/i.test(label)) return "Bounties";
   return "Other";
 }

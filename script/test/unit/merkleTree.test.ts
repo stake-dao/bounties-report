@@ -1,17 +1,13 @@
 /**
  * Unit tests for generateMerkleTree and mergeMerkleData.
  *
- * Tests the shared module extracted from vlAURA and vlCVX.
+ * Tests the shared universal merkle module.
  */
 import { describe, it, expect } from "vitest";
 import {
   generateMerkleTree as generateShared,
   mergeMerkleData as mergeShared,
 } from "../../shared/merkle/generateMerkleTree";
-const generateVlAURA = generateShared;
-const mergeVlAURA = mergeShared;
-const generateVlCVX = generateShared;
-const mergeVlCVX = mergeShared;
 import {
   singleAddressDistribution,
   multiAddressDistribution,
@@ -53,10 +49,9 @@ function verifyProof(
   return tree.verify(proof, leaf, merkleRoot);
 }
 
-// Run tests against both implementations
+// Run tests against the shared implementation.
 const implementations = [
-  { name: "vlAURA", generate: generateVlAURA, merge: mergeVlAURA },
-  { name: "vlCVX", generate: generateVlCVX, merge: mergeVlCVX },
+  { name: "shared", generate: generateShared, merge: mergeShared },
 ] as const;
 
 for (const { name, generate, merge } of implementations) {
@@ -310,71 +305,3 @@ for (const { name, generate, merge } of implementations) {
     });
   });
 }
-
-// --- Cross-implementation parity ---
-
-describe("vlAURA vs vlCVX merkle parity", () => {
-  it("produces identical merkle roots for identical single-address input", () => {
-    const resultA = generateVlAURA(singleAddressDistribution);
-    const resultB = generateVlCVX(singleAddressDistribution);
-
-    expect(resultA.merkleRoot).toBe(resultB.merkleRoot);
-  });
-
-  it("produces identical merkle roots for multi-address input", () => {
-    const resultA = generateVlAURA(multiAddressDistribution);
-    const resultB = generateVlCVX(multiAddressDistribution);
-
-    expect(resultA.merkleRoot).toBe(resultB.merkleRoot);
-  });
-
-  it("produces identical merkle roots for multi-token input", () => {
-    const resultA = generateVlAURA(multiTokenDistribution);
-    const resultB = generateVlCVX(multiTokenDistribution);
-
-    expect(resultA.merkleRoot).toBe(resultB.merkleRoot);
-  });
-
-  it("produces identical claims for multi-token input", () => {
-    const resultA = generateVlAURA(multiTokenDistribution);
-    const resultB = generateVlCVX(multiTokenDistribution);
-
-    for (const address of Object.keys(resultA.claims)) {
-      expect(resultB.claims[address]).toBeDefined();
-      for (const token of Object.keys(resultA.claims[address].tokens)) {
-        expect(resultA.claims[address].tokens[token].amount).toBe(
-          resultB.claims[address].tokens[token].amount
-        );
-        expect(resultA.claims[address].tokens[token].proof).toEqual(
-          resultB.claims[address].tokens[token].proof
-        );
-      }
-    }
-  });
-
-  it("produces identical merge results", () => {
-    const distA = { [ADDR_A]: { [TOKEN_USDC]: "1000000" } };
-    const distB = { [ADDR_B]: { [TOKEN_DOLA]: "500000000000000000000" } };
-
-    const merkleAura1 = generateVlAURA(distA);
-    const merkleAura2 = generateVlAURA(distB);
-    const mergedAura = mergeVlAURA(merkleAura1, merkleAura2);
-
-    const merkleCvx1 = generateVlCVX(distA);
-    const merkleCvx2 = generateVlCVX(distB);
-    const mergedCvx = mergeVlCVX(merkleCvx1, merkleCvx2);
-
-    expect(mergedAura.merkleRoot).toBe(mergedCvx.merkleRoot);
-
-    for (const address of Object.keys(mergedAura.claims)) {
-      for (const token of Object.keys(mergedAura.claims[address].tokens)) {
-        expect(mergedAura.claims[address].tokens[token].amount).toBe(
-          mergedCvx.claims[address].tokens[token].amount
-        );
-        expect(mergedAura.claims[address].tokens[token].proof).toEqual(
-          mergedCvx.claims[address].tokens[token].proof
-        );
-      }
-    }
-  });
-});

@@ -25,7 +25,7 @@ const URD_ABI = [
 
 const ZERO_ROOT = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-type Target = "delegators" | "voters" | "vlaura";
+type Target = "delegators" | "voters";
 
 interface FileSpec {
   path: string;
@@ -44,15 +44,8 @@ const VLCVX_VOTERS: Record<number, `0x${string}`> = {
   8453: "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
 };
 
-const VLAURA: Record<number, `0x${string}`> = {
-  1: "0x59ADeBc5cBdB18aE344a506976fE3bbBB3D89199",
-  42161: "0x59ADeBc5cBdB18aE344a506976fE3bbBB3D89199",
-  8453: "0x59ADeBc5cBdB18aE344a506976fE3bbBB3D89199",
-};
-
 function collectFiles(target: Target, period: number): FileSpec[] {
   const vlcvxDir = path.join("bounties-reports", String(period), "vlCVX");
-  const vlauraDir = path.join("bounties-reports", String(period), "vlAURA");
   const files: FileSpec[] = [];
 
   if (target === "delegators") {
@@ -79,18 +72,6 @@ function collectFiles(target: Target, period: number): FileSpec[] {
     return files;
   }
 
-  // vlaura
-  files.push({
-    path: path.join(vlauraDir, "vlaura_merkle.json"),
-    chainId: 1,
-    distributor: VLAURA[1],
-  });
-  for (const chainId of [42161, 8453]) {
-    const p = path.join(vlauraDir, `vlaura_merkle_${chainId}.json`);
-    if (existsSync(p)) {
-      files.push({ path: p, chainId, distributor: VLAURA[chainId] });
-    }
-  }
   return files;
 }
 
@@ -189,11 +170,11 @@ async function main() {
 
   if (!target || !periodStr) {
     console.error(
-      "Usage: verifyOnchainRoot --target <delegators|voters|vlaura> --period <timestamp>",
+      "Usage: verifyOnchainRoot --target <delegators|voters> --period <timestamp>",
     );
     process.exit(2);
   }
-  if (!["delegators", "voters", "vlaura"].includes(target)) {
+  if (!["delegators", "voters"].includes(target)) {
     console.error(`Unknown target: ${target}`);
     process.exit(2);
   }

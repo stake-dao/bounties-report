@@ -1,7 +1,7 @@
 /**
  * Unit tests for createCombineDistribution from script/utils/merkle/merkle.ts.
  *
- * This function is used by both vlAURA and vlCVX merkle generation to combine
+ * This function is used by universal merkle generation to combine
  * current distribution data with previous merkle data. It is NOT being moved
  * in the refactor, but its correct behavior is critical to ensure the pipeline
  * produces identical outputs.
