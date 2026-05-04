@@ -649,49 +649,6 @@ async function processForwarders() {
 		previousMerkleData,
 	);
 
-	// Freeze over-claimers from the 2026-04-21 doubling incident.
-	// Cap each listed account's cumulative SCRVUSD at their on-chain `claimed()` so
-	// claimable = cumulative − claimed = 0 until future legitimate shares exceed
-	// the surplus they already received. Opt-in: only applies if an overclaimers
-	// file exists (produced by script/vlCVX/recovery_apr21_doubling/enumerateOverclaims.ts).
-	const overclaimersFile =
-		process.env.OVERCLAIMERS_FILE ??
-		path.join(
-			"script",
-			"vlCVX",
-			"recovery_apr21_doubling",
-			"overclaimers.json",
-		);
-	if (fs.existsSync(overclaimersFile)) {
-		const raw = JSON.parse(fs.readFileSync(overclaimersFile, "utf8"));
-		const list: Array<{ account: string; onchainClaimedWei: string }> =
-			raw.overclaimers ?? [];
-		const scrvUsdAddr = getAddress(SCRVUSD);
-		let frozen = 0;
-		let totalReducedWei = 0n;
-		for (const row of list) {
-			const addr = getAddress(row.account);
-			const entry = universalMerkle[addr];
-			if (!entry || entry[scrvUsdAddr] === undefined) continue;
-			const proposed = BigInt(entry[scrvUsdAddr]);
-			const cap = BigInt(row.onchainClaimedWei);
-			if (proposed > cap) {
-				totalReducedWei += proposed - cap;
-				entry[scrvUsdAddr] = cap.toString();
-				frozen++;
-			}
-		}
-		console.log(
-			`Overclaimers freeze applied: froze ${frozen}/${list.length} accounts, ` +
-				`reduced cumulative by ${(Number(totalReducedWei) / 1e18).toFixed(6)} sCRVUSD ` +
-				`(source: ${overclaimersFile})`,
-		);
-	} else {
-		console.log(
-			`No overclaimers freeze file at ${overclaimersFile}; proceeding without freeze.`,
-		);
-	}
-
 	const newMerkleData: MerkleData = generateMerkleTree(universalMerkle);
 
 	console.log("Delegators Merkle Root:", newMerkleData.merkleRoot);
