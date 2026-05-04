@@ -1,222 +1,87 @@
-# Utilities Documentation
+# Utilities
 
-This directory contains shared utilities and helper functions used across the distribution system.
+Shared utilities used by the report, repartition, merkle, indexer, and verification scripts.
 
-## 📁 File Structure
+## Core Files
 
-### Core Files
+- `constants.ts` - contract addresses, Snapshot spaces, token mappings, chain IDs, merkle contracts, and platform configs.
+- `utils.ts` - CSV loaders, raw-token CSV parsing, Snapshot choice helpers, delegation voting power helpers, token price helpers, and on-chain claim lookup helpers.
+- `snapshot.ts` - Snapshot proposal, voter, voting power, and gauge-choice queries.
+- `reportUtils.ts` - report token/gauge helpers used by protocol report generators.
+- `contractRegistry.ts` - contract address registry helpers.
+- `getClients.ts`, `rpcConfig.ts`, `rpcClientManager.ts`, `chains/` - RPC client creation and chain definitions.
+- `tokenService.ts`, `tokens.ts`, `priceUtils.ts` - token metadata and pricing helpers.
+- `cacheUtils.ts`, `forwarderCacheUtils.ts` - cache readers and writers for delegation/forwarding data.
+- `claims/` - Votemarket, Votium, and Warden claim parsing helpers.
+- `merkle/` - reusable merkle distribution logic.
 
-#### **constants.ts**
-Central configuration file containing:
-- Protocol mappings and addresses
-- Space configurations
-- Network settings
-- Token addresses
+## Merkle Helpers
 
-Key exports:
-```typescript
-export const SPACES = [SDCRV_SPACE, SDBAL_SPACE, ...];
-export const SPACES_TOKENS: Record<string, string>;
-export const SPACE_TO_NETWORK: Record<string, string>;
-export const LABELS_TO_SPACE: Record<string, string>;
-```
+- `merkle/createMultiMerkle.ts` - legacy sdToken merkle calculation used by `script/sdTkns/generateMerkle.ts`.
+- `merkle/sdTokensMerkleGenerator.ts` - universal sdToken generator used by sdFXS and sdSpectra flows.
+- `merkle/merkle.ts` - conversion and carry-forward helpers for universal merkle data.
+- `merkle/findPreviousMerkle.ts` - scans previous weekly folders for the last available merkle file.
+- `merkle/distributionVerifier.ts` - verifies generated universal merkles against period distributions.
+- `shared/merkle/generateMerkleTree.ts` - canonical universal merkle tree builder.
 
-#### **utils.ts**
-Core utility functions including:
-- `extractCSV()` - Parse distribution CSV files
-- `extractAllRawTokenCSVs()` - Parse raw token distributions
-- `checkSpace()` - Validate space configuration
-- `getTokenPrice()` - Fetch token prices
-
-#### **createMerkle.ts**
-Merkle tree generation logic:
-```typescript
-export const createMerkle = async (
-  ids: string[],          // Proposal IDs
-  space: string,          // Snapshot space
-  lastMerkles: any,       // Previous merkles for unclaimed rewards
-  csvResult: any,         // Distribution data
-  // ... additional parameters
-  overrideTokenAddress?: string  // For raw token distributions
-): Promise<MerkleStat>
-```
-
-### Helper Modules
-
-#### **snapshot.ts**
-Snapshot.org integration:
-- Fetch proposals
-- Get voting results
-- Query voting power
-
-#### **reportUtils.ts**
-Report generation utilities:
-- Protocol token mappings
-- Report formatting helpers
-
-#### **merkle.ts**
-Merkle tree utilities:
-- Tree construction
-- Proof generation
-- Root calculation
-
-#### **delegationHelper.ts**
-Delegation management:
-- Process delegations
-- Calculate delegator shares
-- Track delegation changes
-
-#### **priceUtils.ts**
-Token price fetching:
-- CoinGecko integration
-- DeFiLlama price feeds
-- Historical price data
-
-#### **contractRegistry.ts**
-Smart contract addresses:
-- Merkle distributors
-- Token contracts
-- Protocol contracts
-
-## 🔧 Key Functions
-
-### CSV Processing
+## Common Imports
 
 ```typescript
-// Extract standard CSV
-const csvData = await extractCSV(timestamp, space);
+import {
+  extractCSV,
+  extractAllRawTokenCSVs,
+  extractProposalChoices,
+  getChoiceWhereExistsBribe,
+} from "../utils/utils";
 
-// Extract raw token CSV
-const rawTokens = await extractAllRawTokenCSVs(timestamp);
+import {
+  fetchLastProposalsIds,
+  getProposal,
+  getVoters,
+  getVotingPower,
+} from "../utils/snapshot";
+
+import { createMultiMerkle } from "../utils/merkle/createMultiMerkle";
+import { generateMerkleTree } from "../shared/merkle/generateMerkleTree";
 ```
 
-### Merkle Generation
+## CSV Loading
 
 ```typescript
-// Create merkle tree
-const merkleStat = await createMerkle(
-  proposalIds,
-  space,
-  lastMerkles,
-  distributions
-);
+const csvData = await extractCSV(timestamp, "sdcrv.eth");
+const rawTokenRows = await extractAllRawTokenCSVs(timestamp);
 ```
 
-### Snapshot Integration
+`extractCSV()` resolves the protocol filename through `LABELS_TO_SPACE`. `extractAllRawTokenCSVs()` scans `bounties-reports/{timestamp}/raw/{protocol}/{protocol}.csv`.
 
-```typescript
-// Fetch latest proposals
-const proposals = await fetchLastProposalsIds(spaces, timestamp, filter);
-
-// Get voting power
-const votingPower = await getVotingPower(proposal, voters, chainId);
-```
-
-## 📊 Type Definitions
-
-### Distribution Types
+## Raw Token Shape
 
 ```typescript
 export type RawTokenDistribution = {
-  gauge: string;     // Gauge address
-  token: string;     // Token to distribute
-  amount: number;    // Amount to distribute
-  space: string;     // Snapshot space
-};
-
-export type MerkleStat = {
-  apr: number;
-  merkle: Merkle;
-  logs: Log[];
+  gauge: string;
+  token: string;
+  symbol: string;
+  amount: number;
+  space: string;
 };
 ```
 
-### CSV Types
+Raw token merkle generation is documented in [README-raw-tokens.md](../../README-raw-tokens.md).
 
-```typescript
-export type OtherCSVType = Record<string, number>;
-export type PendleCSVType = Record<string, Record<string, number>>;
-export type CvxCSVType = Record<string, CvxReward[]>;
-```
+## Adding Protocol Support
 
-## 🔌 External Integrations
+Typical changes:
 
-### Price Feeds
-- **CoinGecko**: General token prices
-- **DeFiLlama**: DeFi token prices
-- **Curve API**: Pool-specific data
+1. Add or update constants in `constants.ts`.
+2. Add report generation logic under `script/reports/` or a protocol-specific directory.
+3. Wire make targets in `automation/reports.mk` or `automation/distribution.mk`.
+4. Add verification coverage when the protocol affects published merkle data.
 
-### Blockchain Data
-- **Viem**: Ethereum interactions
-- **Ethers**: Legacy compatibility
-- **Multicall**: Batch RPC calls
+Avoid adding a new helper here until at least two pipeline areas need it; protocol-local helpers are easier to maintain when behavior is still specific.
 
-## 🚀 Usage Examples
+## Testing
 
-### Adding a New Protocol
-
-1. Update `constants.ts`:
-```typescript
-export const SDNEW_SPACE = "sdnew.eth";
-export const SD_NEW = "0x..."; // Token address
-
-// Add to mappings
-SPACES.push(SDNEW_SPACE);
-SPACES_TOKENS[SDNEW_SPACE] = SD_NEW;
-SPACE_TO_NETWORK[SDNEW_SPACE] = ETHEREUM;
-```
-
-2. Configure in `reportUtils.ts`:
-```typescript
-PROTOCOLS_TOKENS["new"] = {
-  native: "0x...",
-  sdToken: SD_NEW
-};
-```
-
-### Processing Raw Tokens
-
-```typescript
-// Extract raw token distributions
-const rawDistributions = await extractAllRawTokenCSVs(timestamp);
-
-// Group by token and space
-const grouped = groupDistributionsByToken(rawDistributions);
-
-// Create merkle with override token
-const merkle = await createMerkle(
-  proposalIds,
-  space,
-  lastMerkles,
-  distributions,
-  undefined,
-  undefined,
-  undefined,
-  {},
-  rawTokenAddress // Override token
-);
-```
-
-## 🔍 Debugging
-
-Enable debug logging:
-```typescript
-if (process.env.DEBUG) {
-  console.log("Debug info:", data);
-}
-```
-
-Common issues:
-- Missing space configuration
-- Invalid CSV format
-- Network connection errors
-- Missing proposal data
-
-## 🧪 Testing
-
-Test utilities:
 ```bash
-npm test -- script/utils
+pnpm test:unit
+pnpm test:integration
 ```
-
-Mock data available in `test/helpers.ts`

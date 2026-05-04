@@ -11,9 +11,6 @@
  * If no period is provided, uses the latest available period.
  *
  * This captures:
- * - vlAURA repartition.json files
- * - vlAURA repartition_delegation*.json files
- * - vlAURA vlaura_merkle*.json files
  * - vlCVX curve/fxn repartition.json files
  * - vlCVX curve/fxn repartition_delegation*.json files
  * - vlCVX curve/fxn merkle_data_non_delegators*.json files
@@ -73,17 +70,6 @@ function captureFiles(period: number): void {
 
   // Define file patterns to capture
   const filesToCapture = [
-    // vlAURA
-    "vlAURA/repartition.json",
-    "vlAURA/repartition_42161.json",
-    "vlAURA/repartition_8453.json",
-    "vlAURA/repartition_delegation.json",
-    "vlAURA/repartition_delegation_42161.json",
-    "vlAURA/repartition_delegation_8453.json",
-    "vlAURA/vlaura_merkle.json",
-    "vlAURA/vlaura_merkle_42161.json",
-    "vlAURA/vlaura_merkle_8453.json",
-    "vlAURA/APRs.json",
     // vlCVX
     "vlCVX/curve/repartition.json",
     "vlCVX/curve/repartition_8453.json",

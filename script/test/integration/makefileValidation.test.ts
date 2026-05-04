@@ -29,12 +29,13 @@ describe("Consolidated Makefile: automation/distribution.mk", () => {
   it("should contain all required common targets", () => {
     const content = fs.readFileSync(makefilePath, "utf-8");
     const targets = [
-      "run-claims",
-      "run-report",
       "run-repartition",
       "run-merkle",
       "run-merkles",
       "run-all",
+      "validate-reports",
+      "verify-claims",
+      "commit-and-push",
       "clean",
       "setup",
       "install-deps",
@@ -60,21 +61,6 @@ describe("Consolidated Makefile: automation/distribution.mk", () => {
     }
   });
 
-  it("should reference vlAURA scripts that exist on disk", () => {
-    const vlAuraScripts = [
-      "script/vlAURA/claims/generateVotemarketV2.ts",
-      "script/vlAURA/1_report.ts",
-      "script/vlAURA/2_repartition/index.ts",
-      "script/vlAURA/3_merkles/createMerkle.ts",
-    ];
-    for (const scriptPath of vlAuraScripts) {
-      expect(
-        fs.existsSync(path.join(ROOT, scriptPath)),
-        `Referenced vlAURA script not found: ${scriptPath}`
-      ).toBe(true);
-    }
-  });
-
   it("should reference vlCVX scripts that exist on disk", () => {
     const vlCvxScripts = [
       "script/vlCVX/claims/generateConvexVotemarketV2.ts",
@@ -92,21 +78,12 @@ describe("Consolidated Makefile: automation/distribution.mk", () => {
     }
   });
 
-  it("should contain vlAURA script paths in Makefile content", () => {
-    const content = fs.readFileSync(makefilePath, "utf-8");
-    expect(content).toContain("script/vlAURA/claims/generateVotemarketV2.ts");
-    expect(content).toContain("script/vlAURA/1_report.ts");
-    expect(content).toContain("script/vlAURA/2_repartition/index.ts");
-    expect(content).toContain("script/vlAURA/3_merkles/createMerkle.ts");
-  });
-
   it("should contain vlCVX script paths in Makefile content", () => {
     const content = fs.readFileSync(makefilePath, "utf-8");
-    expect(content).toContain("script/vlCVX/claims/generateConvexVotemarketV2.ts");
-    expect(content).toContain("script/vlCVX/1_report.ts");
     expect(content).toContain("script/vlCVX/2_repartition/index.ts");
     expect(content).toContain("script/vlCVX/3_merkles/createCombinedMerkle.ts");
     expect(content).toContain("script/vlCVX/3_merkles/createDelegatorsMerkle.ts");
+    expect(content).toContain("script/vlCVX/verify/claimsCompleteness.ts");
   });
 
   it("should handle TYPE=delegators for vlCVX merkle", () => {
@@ -118,7 +95,6 @@ describe("Consolidated Makefile: automation/distribution.mk", () => {
 
 describe("Old Makefiles should not exist", () => {
   const oldMakefiles = [
-    "automation/vlAURA/repartition.mk",
     "automation/vlCVX/repartition.mk",
     "automation/vlCVX/merkles.mk",
   ];
@@ -134,11 +110,8 @@ describe("Consolidated GitHub Actions workflows", () => {
   const workflowDir = path.join(ROOT, ".github/workflows");
 
   const consolidatedWorkflows = [
-    "vlaura-distribution.yaml",
-    "vlcvx-voters-distribution.yaml",
-    "vlcvx-delegators-distribution.yaml",
-    "vlaura-compute-apr.yaml",
-    "vlcvx-compute-apr.yaml",
+    "vlcvx-distribution.yaml",
+    "compute-apr.yaml",
   ];
 
   for (const workflow of consolidatedWorkflows) {
@@ -159,48 +132,23 @@ describe("Consolidated GitHub Actions workflows", () => {
     }
   });
 
-  it("vlaura-distribution.yaml should have step selector with all options", () => {
+  it("vlcvx-distribution.yaml should have type and step selectors", () => {
     const content = fs.readFileSync(
-      path.join(workflowDir, "vlaura-distribution.yaml"),
+      path.join(workflowDir, "vlcvx-distribution.yaml"),
       "utf-8"
     );
+    expect(content).toContain("type:");
+    expect(content).toContain("- voters");
+    expect(content).toContain("- delegators");
     expect(content).toContain("step:");
-    expect(content).toContain("- all");
-    expect(content).toContain("- claims-report");
     expect(content).toContain("- repartition");
-    expect(content).toContain("- merkle");
-    expect(content).toContain("- publish");
-  });
-
-  it("vlcvx-voters-distribution.yaml should have step selector with all options", () => {
-    const content = fs.readFileSync(
-      path.join(workflowDir, "vlcvx-voters-distribution.yaml"),
-      "utf-8"
-    );
-    expect(content).toContain("step:");
-    expect(content).toContain("- all");
-    expect(content).toContain("- claims-report");
-    expect(content).toContain("- repartition");
-    expect(content).toContain("- merkle");
-    expect(content).toContain("- publish");
-  });
-
-  it("vlcvx-delegators-distribution.yaml should have step selector with merkle and publish", () => {
-    const content = fs.readFileSync(
-      path.join(workflowDir, "vlcvx-delegators-distribution.yaml"),
-      "utf-8"
-    );
-    expect(content).toContain("step:");
-    expect(content).toContain("- all");
     expect(content).toContain("- merkle");
     expect(content).toContain("- publish");
   });
 
   it("consolidated workflows should reference automation/distribution.mk", () => {
     const workflowsWithMake = [
-      "vlaura-distribution.yaml",
-      "vlcvx-voters-distribution.yaml",
-      "vlcvx-delegators-distribution.yaml",
+      "vlcvx-distribution.yaml",
     ];
     for (const workflow of workflowsWithMake) {
       const content = fs.readFileSync(
@@ -211,10 +159,6 @@ describe("Consolidated GitHub Actions workflows", () => {
         content.includes("automation/distribution.mk"),
         `${workflow} should reference automation/distribution.mk`
       ).toBe(true);
-      expect(
-        content.includes("automation/vlAURA/"),
-        `${workflow} should not reference old automation/vlAURA/ path`
-      ).toBe(false);
       expect(
         content.includes("automation/vlCVX/"),
         `${workflow} should not reference old automation/vlCVX/ path`
@@ -228,9 +172,7 @@ describe("Consolidated GitHub Actions workflows", () => {
     const makefileContent = fs.readFileSync(makefilePath, "utf-8");
 
     const workflowsWithMake = [
-      "vlaura-distribution.yaml",
-      "vlcvx-voters-distribution.yaml",
-      "vlcvx-delegators-distribution.yaml",
+      "vlcvx-distribution.yaml",
     ];
 
     for (const workflow of workflowsWithMake) {
@@ -258,10 +200,6 @@ describe("Old workflows should not exist", () => {
   const workflowDir = path.join(ROOT, ".github/workflows");
 
   const oldWorkflows = [
-    "vlaura-claims-report.yaml",
-    "vlaura-repartition.yaml",
-    "vlaura-create-merkle.yaml",
-    "vlaura-publish.yaml",
     "vlcvx-claims-report.yaml",
     "vlcvx-repartition.yaml",
     "vlcvx-create-voters-merkle.yaml",

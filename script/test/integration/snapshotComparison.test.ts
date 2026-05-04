@@ -168,14 +168,6 @@ describe("Output structure integrity", () => {
   const latestPeriod = periods[0];
 
   it.skipIf(!latestPeriod)(
-    "vlAURA directory should exist for latest period",
-    () => {
-      const dir = path.join(BOUNTIES_DIR, latestPeriod.toString(), "vlAURA");
-      expect(fs.existsSync(dir)).toBe(true);
-    }
-  );
-
-  it.skipIf(!latestPeriod)(
     "vlCVX directory should exist for latest period",
     () => {
       const dir = path.join(BOUNTIES_DIR, latestPeriod.toString(), "vlCVX");
@@ -187,11 +179,6 @@ describe("Output structure integrity", () => {
     "merkle files should contain valid JSON with merkleRoot field",
     () => {
       const merkleFiles = [
-        path.join(
-          BOUNTIES_DIR,
-          latestPeriod.toString(),
-          "vlAURA/vlaura_merkle.json"
-        ),
         path.join(
           BOUNTIES_DIR,
           latestPeriod.toString(),
@@ -215,11 +202,6 @@ describe("Output structure integrity", () => {
     "repartition files should contain valid JSON with distribution field",
     () => {
       const repartitionFiles = [
-        path.join(
-          BOUNTIES_DIR,
-          latestPeriod.toString(),
-          "vlAURA/repartition.json"
-        ),
         path.join(
           BOUNTIES_DIR,
           latestPeriod.toString(),

@@ -2,9 +2,9 @@ include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
 .PHONY: all setup install-deps \
-        run-weekly-curve run-weekly-balancer run-weekly-fxn run-weekly-frax run-weekly-pendle \
-        run-weekly-vlcvx run-weekly-vlaura \
-        run-otc-curve run-otc-balancer run-otc-fxn run-otc-frax run-otc-pendle \
+        run-weekly-curve run-weekly-balancer run-weekly-fxn run-weekly-frax \
+        run-weekly-vlcvx \
+        run-otc-curve run-otc-balancer run-otc-fxn run-otc-frax \
         clean
 
 .DEFAULT_GOAL := all
@@ -35,19 +35,10 @@ run-weekly-frax: setup install-deps
 	@echo "Generating Frax weekly report..."
 	@$(PNPM) tsx script/reports/generateReportFrax.ts
 
-run-weekly-pendle: setup install-deps
-	@echo "Generating Pendle weekly report..."
-	@$(PNPM) tsx script/reports/generatePendleReport.ts
-	@$(PNPM) tsx script/reports/generateReport.ts pendle
-
-# vlCVX / vlAURA reports
+# vlCVX reports
 run-weekly-vlcvx: setup install-deps
 	@echo "Generating vlCVX weekly report..."
 	@$(PNPM) tsx script/vlCVX/1_report.ts
-
-run-weekly-vlaura: setup install-deps
-	@echo "Generating vlAURA weekly report..."
-	@$(PNPM) tsx script/vlAURA/1_report.ts
 
 # OTC reports
 run-otc-curve: setup install-deps
@@ -65,10 +56,6 @@ run-otc-fxn: setup install-deps
 run-otc-frax: setup install-deps
 	@echo "Generating Frax OTC report..."
 	@$(PNPM) tsx script/reports/generateOTCReport.ts frax
-
-run-otc-pendle: setup install-deps
-	@echo "Generating Pendle OTC report..."
-	@$(PNPM) tsx script/reports/generateOTCReport.ts pendle
 
 clean:
 	@echo "Cleaning up local files..."

@@ -9,7 +9,6 @@ on:
         type: choice
         options:
           - vlCVX
-          - vlAURA
       dispatch_id:
         description: 'Unique dispatch ID for tracking'
         required: false
@@ -43,12 +42,7 @@ jobs:
           echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
 
       - name: Compute delegation APR
-        run: |
-          if [ "${{ inputs.protocol }}" = "vlCVX" ]; then
-            pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
-          else
-            pnpm tsx script/helpers/computevlAURADelegatorsAPR.ts
-          fi
+        run: pnpm tsx script/helpers/computevlCVXDelegatorsAPR.ts
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}

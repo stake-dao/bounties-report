@@ -1,8 +1,8 @@
 /**
  * Test fixtures for computeNonDelegatorsDistribution.
  *
- * These fixtures model the real data shapes used in both vlAURA and vlCVX
- * pipelines. Each fixture exercises a different aspect of the distribution logic.
+ * These fixtures model the real data shapes used by the voting distribution
+ * pipeline. Each fixture exercises a different aspect of the distribution logic.
  */
 
 // A token address used across tests (USDC-like)

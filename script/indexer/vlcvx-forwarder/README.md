@@ -18,23 +18,23 @@ This HyperIndex service ingests the Votium forwarder registry and maintains both
 
 1. Ensure the Envio CLI is available:
    ```bash
-   npx envio --help
+   pnpm dlx envio --help
    ```
-   (You can substitute `pnpm dlx` or a global install; the commands below remain the same.)
+   A global Envio install works too; the examples below use `pnpm dlx` so they match this repo's package manager.
 
 2. Generate types and scaffolding:
    ```bash
-   npx envio codegen --config script/indexer/vlcvx-forwarder/config.yaml
+   pnpm dlx envio codegen --config script/indexer/vlcvx-forwarder/config.yaml
    ```
 
 3. Run the handler unit tests against Envio’s in-memory store:
    ```bash
-   npx tsx script/indexer/vlcvx-forwarder/tests/forwarding.test.ts
+   pnpm tsx script/indexer/vlcvx-forwarder/tests/forwarding.test.ts
    ```
 
 4. Launch the indexer locally once you have an RPC endpoint:
    ```bash
-   ETHEREUM_RPC_URL=<https_endpoint> npx envio dev --config script/indexer/vlcvx-forwarder/config.yaml
+   ETHEREUM_RPC_URL=<https_endpoint> pnpm dlx envio dev --config script/indexer/vlcvx-forwarder/config.yaml
    ```
 
 5. For production, build and start the service with the Envio deployment command that matches your environment (`envio start`, Docker, or Hosted Service).

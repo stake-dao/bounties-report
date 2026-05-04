@@ -14,8 +14,6 @@
     "report:frax": "pnpm tsx script/reports/generateReportFrax.ts",
     "spectra-report": "pnpm tsx script/spectra/1_report.ts",
     "spectra-repartition": "pnpm tsx script/spectra/2_repartition.ts",
-    "pendle-extra": "pnpm tsx script/special-distribs/pendleExtra.ts",
-    "pendle-extra:no-fee": "pnpm tsx script/special-distribs/pendleExtra.ts --fee 0",
     "yb-distribution": "pnpm tsx script/special-distribs/yb.ts",
     "check-forwarder": "pnpm tsx script/helpers/checkForwarderRewards.ts",
     "test": "vitest run",

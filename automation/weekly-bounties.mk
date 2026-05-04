@@ -4,7 +4,6 @@ include automation/setup/node.mk
 .PHONY: all setup install-deps run-all \
        run-votemarket run-votemarket-v2 run-warden run-hiddenhand run-spectra \
        run-convex-votemarket-v2 run-convex-votium \
-       run-aura-votemarket-v2 \
        clean commit-and-push
 
 # Define the default target
@@ -51,11 +50,6 @@ run-convex-votemarket-v2: setup install-deps
 run-convex-votium: setup install-deps
 	@echo "Running vlCVX Votium bounty generation..."
 	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotium.ts $(PAST_WEEK)
-
-# vlAURA targets
-run-aura-votemarket-v2: setup install-deps
-	@echo "Running vlAURA Votemarket V2 bounty generation..."
-	@$(PNPM) tsx script/vlAURA/claims/generateVotemarketV2.ts $(PAST_WEEK)
 
 # Legacy targets for backward compatibility
 run-weekly: run-all

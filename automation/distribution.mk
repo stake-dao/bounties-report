@@ -1,7 +1,7 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-# Protocol parameter: vlAURA or vlCVX (required)
+# Protocol parameter: vlCVX (required)
 PROTOCOL ?=
 
 # Merkle type for vlCVX: non-delegators or delegators (optional, defaults to non-delegators)
@@ -14,11 +14,7 @@ TYPE ?= non-delegators
 
 # --- Protocol-specific script paths ---
 
-ifeq ($(PROTOCOL),vlAURA)
-  REPART_SCRIPT    = script/vlAURA/2_repartition/index.ts
-  MERKLE_SCRIPT    = script/vlAURA/3_merkles/createMerkle.ts
-  PROTOCOL_LABEL   = vlAURA
-else ifeq ($(PROTOCOL),vlCVX)
+ifeq ($(PROTOCOL),vlCVX)
   REPART_SCRIPT    = script/vlCVX/2_repartition/index.ts
   VERIFY_SCRIPT    = script/vlCVX/verify/claimsCompleteness.ts
   PROTOCOL_LABEL   = vlCVX
@@ -28,14 +24,12 @@ else ifeq ($(PROTOCOL),vlCVX)
     MERKLE_SCRIPT  = script/vlCVX/3_merkles/createCombinedMerkle.ts
   endif
 else
-  $(error PROTOCOL must be set to vlAURA or vlCVX)
+  $(error PROTOCOL must be set to vlCVX)
 endif
 
 # --- Default target ---
 
-ifeq ($(PROTOCOL),vlAURA)
-  all: setup install-deps run-repartition run-merkle
-else ifeq ($(PROTOCOL),vlCVX)
+ifeq ($(PROTOCOL),vlCVX)
   all: setup install-deps validate-reports run-repartition
 endif
 

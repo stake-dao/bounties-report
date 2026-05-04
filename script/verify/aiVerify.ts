@@ -6,7 +6,7 @@
  * if all scripts pass but every LLM is down, the pipeline still passes.
  *
  * Usage:
- *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|vlAURA|all] [--models m1,m2] [--deep]
+ *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|bounties|all] [--models m1,m2] [--deep]
  *
  * Env:
  *   OPENCODE_ZEN_API_KEY  (required)
@@ -18,7 +18,7 @@ import * as path from "path";
 import { verifyWithConsensus, Protocol, ConsensusResult, VerifyMetadata } from "./distributionVerify";
 import { createZenClient, ZEN_DEFAULT_MODEL } from "../utils/openCodeZen";
 import { sendConsensusReport } from "./telegramReport";
-import { WEEK, CVX_SPACE, VLAURA_SPACE } from "../utils/constants";
+import { WEEK, CVX_SPACE } from "../utils/constants";
 import { fetchLastProposalsIds } from "../utils/snapshot";
 import type { LLMClient } from "../utils/llmClient";
 
@@ -66,7 +66,6 @@ interface SnapshotQuery {
 const SNAPSHOT_QUERIES: SnapshotQuery[] = [
   { label: "vlCVX Curve", space: CVX_SPACE, filter: "^(?!FXN ).*Gauge Weight for Week of", protocols: ["vlCVX", "all"] },
   { label: "vlCVX FXN", space: CVX_SPACE, filter: "^FXN.*Gauge Weight for Week of", protocols: ["vlCVX", "all"] },
-  { label: "vlAURA", space: VLAURA_SPACE, filter: "Gauge Weight for Week of", protocols: ["vlAURA", "all"] },
 ];
 
 async function fetchMetadata(timestamp: number, protocols: Protocol[]): Promise<VerifyMetadata> {
@@ -119,7 +118,7 @@ Usage: pnpm tsx script/verify/aiVerify.ts [options]
 
 Options:
   --timestamp <ts>       Week epoch (default: current week)
-  --protocol  <p>        vlCVX | vlAURA | bounties | all  (default: all)
+  --protocol  <p>        vlCVX | bounties | all  (default: all)
   --models    <m1,m2>    Comma-separated model IDs (default: ${DEFAULT_MODELS.join(",")})
   --model     <m>        Single model (shorthand for --models with one)
   --deep                 Include RPC/parquet delegation checks (implicit)
@@ -138,7 +137,7 @@ Options:
   const clients: LLMClient[] = modelIds.map((m) => createZenClient(m, apiKey));
 
   const protocols: Protocol[] = protocol === "all"
-    ? ["vlCVX", "bounties", "vlAURA"]
+    ? ["vlCVX", "bounties"]
     : [protocol];
 
   let anyFail = false;

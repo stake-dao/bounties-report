@@ -1,12 +1,10 @@
 /**
  * Unit tests for computeNonDelegatorsDistribution.
  *
- * Tests the shared module extracted from vlAURA and vlCVX.
+ * Tests the shared non-delegator distribution module.
  */
 import { describe, it, expect } from "vitest";
 import { computeNonDelegatorsDistribution as computeShared } from "../../shared/nonDelegators";
-const computeVlAURA = computeShared;
-const computeVlCVX = computeShared;
 import {
   minimalCsvResult,
   minimalGaugeMapping,
@@ -41,10 +39,9 @@ function recipientCount(
   return Object.keys(distribution).length;
 }
 
-// Run the same test suite against both implementations
+// Run the test suite against the shared implementation.
 const implementations = [
-  { name: "vlAURA", fn: computeVlAURA },
-  { name: "vlCVX", fn: computeVlCVX },
+  { name: "shared", fn: computeShared },
 ] as const;
 
 for (const { name, fn } of implementations) {
@@ -214,80 +211,3 @@ for (const { name, fn } of implementations) {
     });
   });
 }
-
-// --- Cross-implementation parity ---
-
-describe("vlAURA vs vlCVX nonDelegators parity", () => {
-  it("produces identical outputs for identical inputs (basic case)", () => {
-    const resultA = computeVlAURA(
-      minimalCsvResult,
-      minimalGaugeMapping,
-      twoEqualVoters
-    );
-    const resultB = computeVlCVX(
-      minimalCsvResult,
-      minimalGaugeMapping,
-      twoEqualVoters
-    );
-
-    // Both should have the same recipients
-    expect(Object.keys(resultA).sort()).toEqual(Object.keys(resultB).sort());
-
-    // Both should distribute the same total
-    const totalA = sumTokenAmounts(resultA, TOKEN_A);
-    const totalB = sumTokenAmounts(resultB, TOKEN_A);
-    expect(totalA).toBe(totalB);
-
-    // Each voter should get the same amount in both implementations
-    for (const voter of Object.keys(resultA)) {
-      for (const token of Object.keys(resultA[voter].tokens)) {
-        expect(resultA[voter].tokens[token]).toBe(
-          resultB[voter].tokens[token]
-        );
-      }
-    }
-  });
-
-  it("produces identical outputs for multi-gauge multi-token inputs", () => {
-    const resultA = computeVlAURA(
-      multiGaugeCsvResult,
-      multiGaugeMapping,
-      multiGaugeVoters
-    );
-    const resultB = computeVlCVX(
-      multiGaugeCsvResult,
-      multiGaugeMapping,
-      multiGaugeVoters
-    );
-
-    expect(Object.keys(resultA).sort()).toEqual(Object.keys(resultB).sort());
-    for (const voter of Object.keys(resultA)) {
-      for (const token of Object.keys(resultA[voter].tokens)) {
-        expect(resultA[voter].tokens[token]).toBe(
-          resultB[voter].tokens[token]
-        );
-      }
-    }
-  });
-
-  it("produces identical outputs for unequal voters", () => {
-    const resultA = computeVlAURA(
-      minimalCsvResult,
-      minimalGaugeMapping,
-      unequalVoters
-    );
-    const resultB = computeVlCVX(
-      minimalCsvResult,
-      minimalGaugeMapping,
-      unequalVoters
-    );
-
-    for (const voter of Object.keys(resultA)) {
-      for (const token of Object.keys(resultA[voter].tokens)) {
-        expect(resultA[voter].tokens[token]).toBe(
-          resultB[voter].tokens[token]
-        );
-      }
-    }
-  });
-});
