@@ -268,6 +268,8 @@ const processGaugeProposal = async (
   };
 
   // --- 6) Save Results to Files ---
+  const snapshotBlock = Number(proposal.snapshot);
+
   // Save Non-Delegator Distributions by Chain
   Object.entries(distributionsByChain).forEach(
     ([chainId, chainDistribution]) => {
@@ -276,7 +278,11 @@ const processGaugeProposal = async (
       fs.writeFileSync(
         `${dirPath}/${filename}`,
         JSON.stringify(
-          { distribution: convertToJsonFormat(chainDistribution) },
+          {
+            proposalId,
+            snapshotBlock,
+            distribution: convertToJsonFormat(chainDistribution),
+          },
           null,
           2
         )
@@ -294,7 +300,15 @@ const processGaugeProposal = async (
             : `repartition_delegation_${chainId}.json`;
         fs.writeFileSync(
           `${dirPath}/${filename}`,
-          JSON.stringify({ distribution: chainDelegationSummary }, null, 2)
+          JSON.stringify(
+            {
+              proposalId,
+              snapshotBlock,
+              distribution: chainDelegationSummary,
+            },
+            null,
+            2
+          )
         );
       }
     }

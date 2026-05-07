@@ -269,6 +269,21 @@ function checkGroupAllocation(timestamp: number): CheckResult[] {
 
 // ── Check 8: Week A/B Detection ───────────────────────────────────────────────
 
+function delegatorSet(filePath: string): Set<string> | null {
+  if (!fileExists(filePath)) return null;
+  const data = readJSON(filePath);
+  const dist = data.distribution || {};
+  const fwd = Object.keys(dist.forwarders || {}).map((s) => s.toLowerCase());
+  const nfwd = Object.keys(dist.nonForwarders || {}).map((s) => s.toLowerCase());
+  return new Set([...fwd, ...nfwd]);
+}
+
+function setsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
 function checkWeekAB(timestamp: number): CheckResult[] {
   const base = weekDir(timestamp);
   const prevBase = weekDir(timestamp - WEEK);
@@ -282,22 +297,53 @@ function checkWeekAB(timestamp: number): CheckResult[] {
   const currData = readJSON(currPath);
   const currId: string | undefined = currData.proposalId;
 
-  if (!currId)
-    return [{ label: "Week A/B", ok: true, detail: "proposalId not stored in file" }];
+  // Primary path: proposalId comparison
+  if (currId) {
+    if (!fileExists(prevPath))
+      return [{ label: "Week A/B", ok: true, detail: `Week A — proposalId: ${currId.slice(0, 14)}... (no prev week)` }];
 
+    const prevData = readJSON(prevPath);
+    const prevId: string | undefined = prevData.proposalId;
+    const isWeekB = !!prevId && currId === prevId;
+
+    return [{
+      label: "Week A/B",
+      ok: true,
+      detail: isWeekB
+        ? `Week B — same proposalId as prev week (${currId.slice(0, 14)}...) — delegator sets must be identical`
+        : `Week A — new proposalId: ${currId.slice(0, 14)}...`,
+    }];
+  }
+
+  // Fallback: compare delegator sets (curr vs prev) for both gauges
   if (!fileExists(prevPath))
-    return [{ label: "Week A/B", ok: true, detail: `Week A — proposalId: ${currId.slice(0, 14)}... (no prev week)` }];
+    return [{ label: "Week A/B", ok: true, detail: "proposalId missing + no prev week — cannot infer" }];
 
-  const prevData = readJSON(prevPath);
-  const prevId: string | undefined = prevData.proposalId;
-  const isWeekB = !!prevId && currId === prevId;
+  const currCurve = delegatorSet(currPath);
+  const prevCurve = delegatorSet(prevPath);
+  const currFxn = delegatorSet(path.join(base, "vlCVX/fxn/repartition_delegation.json"));
+  const prevFxn = delegatorSet(path.join(prevBase, "vlCVX/fxn/repartition_delegation.json"));
+
+  if (!currCurve || !prevCurve)
+    return [{ label: "Week A/B", ok: true, detail: "proposalId missing + cannot read both Curve files" }];
+
+  const curveSame = setsEqual(currCurve, prevCurve);
+  const fxnSame = currFxn && prevFxn ? setsEqual(currFxn, prevFxn) : null;
+  const isWeekB = curveSame && (fxnSame === null || fxnSame === true);
+
+  const detailParts = [
+    `proposalId not stored — inferred from delegator sets`,
+    `Curve: ${currCurve.size} curr vs ${prevCurve.size} prev (${curveSame ? "identical" : "differ"})`,
+  ];
+  if (currFxn && prevFxn) {
+    detailParts.push(`FXN: ${currFxn.size} curr vs ${prevFxn.size} prev (${fxnSame ? "identical" : "differ"})`);
+  }
+  detailParts.unshift(isWeekB ? "Week B (inferred)" : "Week A (inferred)");
 
   return [{
     label: "Week A/B",
     ok: true,
-    detail: isWeekB
-      ? `Week B — same proposalId as prev week (${currId.slice(0, 14)}...) — delegator sets must be identical`
-      : `Week A — new proposalId: ${currId.slice(0, 14)}...`,
+    detail: detailParts.join(" | "),
   }];
 }
 
