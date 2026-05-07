@@ -94,7 +94,7 @@ function collectFiles(target: Target, period: number): FileSpec[] {
   return files;
 }
 
-type Status = "OK" | "PENDING" | "BLOCK";
+type Status = "OK" | "READY" | "PENDING" | "BLOCK";
 
 interface VerifyResult {
   status: Status;
@@ -104,6 +104,53 @@ interface VerifyResult {
   pendingValidAt: bigint;
   now: number;
   reason?: string;
+}
+
+interface RootStatusInput {
+  source: string;
+  onchain: string;
+  pendingRoot: string;
+  pendingValidAt: bigint;
+  now: number;
+}
+
+export function classifyRootStatus(input: RootStatusInput): Pick<VerifyResult, "status" | "reason"> {
+  const source = input.source.toLowerCase();
+  const onchain = input.onchain.toLowerCase();
+  const pendingRoot = input.pendingRoot.toLowerCase();
+  const rootMatches = source === onchain;
+  const pendingMatches = source === pendingRoot && pendingRoot !== ZERO_ROOT;
+  const hasPending = pendingRoot !== ZERO_ROOT;
+  const timelockExpired = Number(input.pendingValidAt) <= input.now;
+
+  if (rootMatches) {
+    if (hasPending && !timelockExpired) {
+      return {
+        status: "PENDING",
+        reason: `on-chain root matches but stale pending present validAt=${input.pendingValidAt} > now=${input.now}`,
+      };
+    }
+    return { status: "OK" };
+  }
+
+  if (pendingMatches) {
+    if (timelockExpired) {
+      return {
+        status: "READY",
+        reason: "pending root matches source, timelock expired; acceptRoot() callable",
+      };
+    }
+
+    return {
+      status: "PENDING",
+      reason: `pending root matches source, timelock validAt=${input.pendingValidAt} > now=${input.now}`,
+    };
+  }
+
+  return {
+    status: "BLOCK",
+    reason: "neither on-chain nor pending root matches source",
+  };
 }
 
 async function verifyFile(spec: FileSpec): Promise<VerifyResult> {
@@ -132,29 +179,13 @@ async function verifyFile(spec: FileSpec): Promise<VerifyResult> {
   const pendingRootLower = pending[0].toLowerCase();
   const pendingValidAt = pending[2];
   const now = Math.floor(Date.now() / 1000);
-
-  const rootMatches = source === onchainLower;
-  const pendingMatches = source === pendingRootLower && pendingRootLower !== ZERO_ROOT;
-  const hasPending = pendingRootLower !== ZERO_ROOT;
-  const timelockExpired = Number(pendingValidAt) <= now;
-
-  let status: Status = "OK";
-  let reason: string | undefined;
-
-  if (rootMatches) {
-    if (hasPending && !timelockExpired) {
-      status = "PENDING";
-      reason = `on-chain root matches but stale pending present validAt=${pendingValidAt} > now=${now}`;
-    }
-  } else if (pendingMatches) {
-    status = "PENDING";
-    reason = timelockExpired
-      ? `pending root matches source, timelock expired — acceptRoot() pending`
-      : `pending root matches source, timelock validAt=${pendingValidAt} > now=${now}`;
-  } else {
-    status = "BLOCK";
-    reason = "neither on-chain nor pending root matches source";
-  }
+  const { status, reason } = classifyRootStatus({
+    source,
+    onchain: onchainLower,
+    pendingRoot: pendingRootLower,
+    pendingValidAt,
+    now,
+  });
 
   return {
     status,
@@ -214,6 +245,7 @@ async function main() {
   console.log(`Verifying on-chain roots for target=${target} period=${period}`);
   let hasBlock = false;
   let hasPending = false;
+  let hasReady = false;
 
   for (const f of files) {
     try {
@@ -228,6 +260,7 @@ async function main() {
       }
       if (res.status === "BLOCK") hasBlock = true;
       if (res.status === "PENDING") hasPending = true;
+      if (res.status === "READY") hasReady = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`[ERROR] chain=${f.chainId} file=${f.path}: ${msg}`);
@@ -242,14 +275,20 @@ async function main() {
   }
   if (hasPending) {
     emitOutput("skip", "true");
-    console.log("\nPending root matches source — acceptRoot() not yet executed. Skipping publish.");
+    console.log("\nActive pending root timelock detected. Skipping publish.");
     return;
   }
   emitOutput("skip", "false");
+  if (hasReady) {
+    console.log("\nPending root matches source and timelock expired. Proceeding with publish.");
+    return;
+  }
   console.log("\nAll on-chain roots match source and no active timelock. Safe to publish.");
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
