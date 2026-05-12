@@ -535,33 +535,49 @@ export const addVotersFromAutoVoter = async (
   // Fetch delegators weight registered in the auto voter contract
   const publicClient = await getClient(1);
 
-  const { data } = await axios.post("https://score.snapshot.org/api/scores", {
-    params: {
-      network: "1",
-      snapshot: parseInt(proposal.snapshot),
-      strategies: proposal.strategies,
-      space: proposal.space.id,
-      addresses: delegators,
-    },
-  });
-
   // Compute delegators voting power at the proposal timestamp
   const votersVp: Record<string, number> = {};
 
-  for (const score of data.result.scores) {
-    const keys = Object.keys(score);
-    for (const key of keys) {
-      const vp = score[key];
-      if (vp === 0) {
-        continue;
-      }
+  try {
+    const { data } = await axios.post("https://score.snapshot.org/api/scores", {
+      params: {
+        network: "1",
+        snapshot: parseInt(proposal.snapshot),
+        strategies: proposal.strategies,
+        space: proposal.space.id,
+        addresses: delegators,
+      },
+    });
 
-      const user = key.toLowerCase();
-      if (!votersVp[user]) {
-        votersVp[user] = 0;
-      }
+    for (const score of data.result.scores) {
+      const keys = Object.keys(score);
+      for (const key of keys) {
+        const vp = score[key];
+        if (vp === 0) {
+          continue;
+        }
 
-      votersVp[user] += vp;
+        const user = key.toLowerCase();
+        if (!votersVp[user]) {
+          votersVp[user] = 0;
+        }
+
+        votersVp[user] += vp;
+      }
+    }
+  } catch (e) {
+    if (!canComputeSdFxsVotingPower(proposal)) {
+      throw e;
+    }
+
+    console.warn(
+      "Snapshot Score failed for sdFXS auto-voter delegator voting power; falling back to direct RPC scoring."
+    );
+    const fallbackVotingPower = await getSdFxsVotingPower(proposal, delegators);
+    for (const [address, vp] of Object.entries(fallbackVotingPower)) {
+      if (vp > 0) {
+        votersVp[address.toLowerCase()] = vp;
+      }
     }
   }
 
