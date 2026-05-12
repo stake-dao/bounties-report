@@ -327,12 +327,18 @@ export async function getSdFxsVotingPower(
   }
 
   for (const delegation of delegations) {
-    if (votingPower[delegation.destination] !== undefined) {
-      votingPower[delegation.destination] += votingPower[delegation.source] || 0;
+    if (delegation.source === delegation.destination) {
+      continue;
     }
+
+    const delegatedVotingPower = votingPower[delegation.source] || 0;
+    if (votingPower[delegation.destination] !== undefined) {
+      votingPower[delegation.destination] += delegatedVotingPower;
+    }
+    votingPower[delegation.source] = 0;
   }
 
   return Object.fromEntries(
-    Object.entries(votingPower).map(([address, score]) => [getAddress(address).toLowerCase(), score])
+    addresses.map((address) => [getAddress(address).toLowerCase(), votingPower[address] || 0])
   );
 }
