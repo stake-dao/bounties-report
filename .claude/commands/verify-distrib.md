@@ -290,6 +290,34 @@ console.log('Forwarder addresses:', Object.keys(curr.claims || {}).length, '(thi
 
 **IMPORTANT**: The script writes `merkle_data_delegators.json` to the week folder. The `latest/vlCVX/vlcvx_merkle_delegators.json` must be updated separately (copy or symlink) for the next week's cumulative base.
 
+### Strict Forwarders Merkle Verification (on-chain ↔ shares ↔ overclaim)
+
+Run this script to assert four invariants in one shot:
+1. On-chain sCRVUSD received this period == cumulative merkle delta (within 1e15 wei tolerance, accounting for 1e14 safety buffer subtracted in the script).
+2. No overclaimer: every claimer's current cumulative ≥ previous cumulative (zero negative deltas).
+3. Sum of per-address deltas == cumulative delta (no orphan claims).
+4. Each forwarder's this-week delta is proportional to their `forwarders[addr]` share in `repartition_delegation.json` — `delta/share` constant within group (rel spread < 1e-4). Curve+FXN overlap addresses verified against `cSh*curveAlloc + fSh*fxnAlloc`.
+
+```bash
+WEB3_ALCHEMY_API_KEY="" pnpm tsx script/vlCVX/verify/verifyForwardersMerkle.ts $WEEK
+```
+
+**Expected output:**
+- `On-chain sCRVUSD received this week: {N}` — from etherscan-indexed Transfer logs to `VLCVX_DELEGATORS_MERKLE`
+- `Match (±1e15): ✅` — cumulative merkle delta matches on-chain
+- `Negative delta: 0 ✅ no overclaim`
+- `Matches cumulative delta: ✅`
+- `rel spread=0.0000% ✅ proportional` for Only-Curve / Only-FXN / Overlap groups
+- `Fee=0 expected: ✅` when no Votium data this week
+
+**If `WEB3_ALCHEMY_API_KEY` is invalid** the script falls back to flashbots RPC — explicitly clear the env var (`WEB3_ALCHEMY_API_KEY=""`) to skip alchemy when its key is dead.
+
+**Failure modes:**
+- `Match (±1e15): ❌` with positive overshoot → script may have re-accumulated stale `latest/` (2× delta).
+- `Negative delta > 0` → CRITICAL. Some claimer cumulative shrank → wallets cannot claim what they could before.
+- `rel spread > 1e-4` → shares not applied uniformly → bug in `computeShares` or wrong `repartition_delegation.json`.
+- `Sum per-addr deltas != cumulative delta` → claims missing from one of the two merkles.
+
 ---
 
 ## Step 5: Verify Merkle Data Integrity
@@ -765,6 +793,7 @@ OR
 [ ] 17. Group share ratio applied correctly (< 1e-4 error)
 [ ] 18. Cumulative merkle consistent (prev + this_week ≈ current, < 1e-9 relative error)
 [ ] 19. Forwarders merkle generated (merkle_data_delegators.json exists, sCRVUSD amount coherent)
+[ ] 20. Forwarders strict verify: on-chain transfers == merkle delta; no overclaim; per-addr shares proportional (run `verifyForwardersMerkle.ts`)
 ```
 
 ### Detailed Verification Points
