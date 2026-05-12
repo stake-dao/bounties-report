@@ -1,54 +1,56 @@
-# Raw Token Distribution Feature
+# Raw Token Distributions
 
-This feature allows distributing raw tokens (like CRV, BAL, etc.) alongside the existing sdToken distributions, using the same Snapshot voting mechanism.
+Raw token distributions let the sdToken pipeline distribute native tokens such as CRV, BAL, or FXS with the same Snapshot vote weighting used for the matching sdToken space.
 
-## How It Works
+## Directory Layout
 
-1. **Directory Structure**: Raw token reports are placed in `bounties-reports/{WEEK}/raw/{protocol}/` directories
-2. **CSV Format**: The CSV files must include the following columns:
-   - `gauge address`: The gauge/pool address receiving rewards
-   - `reward token`: The token contract address to distribute
-   - `reward amount`: The amount of tokens to distribute
-   - `space` (or `snapshot space`): The Snapshot space (e.g., `sdcrv.eth`) whose voting rules determine distribution
+Place raw token reports under:
 
-3. **Processing**: The system will:
-   - Read all CSV files from `raw/` subdirectories
-   - Group distributions by token address and space
-   - Create separate merkle trees for each unique token
-   - Use the same voting rules as the specified space
-
-## Example CSV
-
-File: `bounties-reports/1748476800/raw/curve/curve.csv`
-
-```csv
-gauge address;reward token;reward amount;space
-0x7E1444BA99dcdFfE8fBdb42C02fb0005009e961A;0xD533a949740bb3306d119CC777fa900bA034cd52;1000;sdcrv.eth
-0x4e6bB6B7447B7B2Aa268C16AB87F4Bb48BF57939;0xD533a949740bb3306d119CC777fa900bA034cd52;2000;sdcrv.eth
+```text
+bounties-reports/{timestamp}/raw/{protocol}/{protocol}.csv
 ```
 
-This example distributes:
-- 1000 CRV tokens to gauge `0x7E1444BA99dcdFfE8fBdb42C02fb0005009e961A`
-- 2000 CRV tokens to gauge `0x4e6bB6B7447B7B2Aa268C16AB87F4Bb48BF57939`
+The loader scans every protocol directory inside `raw/` for a CSV matching the directory name.
 
-The distribution follows the voting rules of `sdcrv.eth` space.
+## CSV Format
 
-## Key Features
+Required columns:
 
-- **Multiple Tokens**: You can distribute different tokens in the same CSV file
-- **Multiple Spaces**: Different rows can reference different spaces
-- **Coexistence**: Raw token distributions work alongside existing sdToken distributions
-- **Same Infrastructure**: Uses the same merkle tree and claiming infrastructure
+- `gauge address` - gauge or pool address receiving the reward.
+- `reward address` - token contract address to distribute.
+- `reward amount` - token amount in normal token units, not wei.
 
-## Implementation Details
+Optional columns:
 
-- Raw tokens are distributed using the `overrideTokenAddress` parameter in `createMerkle`
-- Each unique token gets its own merkle tree
-- The system groups distributions by both token address AND space
-- No changes to the existing sdToken distribution system
+- `reward token` - token symbol used in generated metadata and logs.
+- `space` or `snapshot space` - Snapshot space whose voting rules apply. If omitted, the loader derives the space from the protocol name when possible.
+
+Example:
+
+```csv
+gauge address;reward address;reward token;reward amount;space
+0x7E1444BA99dcdFfE8fBdb42C02fb0005009e961A;0xD533a949740bb3306d119CC777fa900bA034cd52;CRV;1000;sdcrv.eth
+0x4e6bB6B7447B7B2Aa268C16AB87F4Bb48BF57939;0xD533a949740bb3306d119CC777fa900bA034cd52;CRV;2000;sdcrv.eth
+```
+
+## Processing
+
+`script/sdTkns/generateMerkle.ts`:
+
+- reads all `raw/` CSVs with `extractAllRawTokenCSVs()`;
+- groups rows by token address and Snapshot space;
+- calls `createMultiMerkle(..., overrideTokenAddress)` so the native token is distributed instead of the default sdToken for that space;
+- appends the raw-token merkle to the weekly `merkle.json` output and root-update transaction data.
+
+Run it with:
+
+```bash
+pnpm sd-merkle
+```
 
 ## Notes
 
-- The `Reward sd Value` column is NOT used for raw tokens
-- Token symbols are temporarily generated as `RAW_{address}` - ideally fetch from chain
-- The system validates that the space exists and has an active proposal
+- Raw token rows do not use `reward sd value`.
+- Amounts are parsed as decimal numbers by the current loader.
+- If `space` is omitted, only the built-in protocol mapping is used; unknown protocol directories are skipped.
+- The generated token symbol comes from `reward token` and falls back to `UNKNOWN` when absent.

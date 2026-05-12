@@ -50,7 +50,7 @@ const REPORTS_DIR = path.join(__dirname, "../../bounties-reports");
 const WEEKLY_DIR = path.join(__dirname, "../../weekly-bounties");
 const WEEK = 604800;
 
-const PROTOCOLS = ["curve", "balancer", "frax", "pendle", "fxn"] as const;
+const PROTOCOLS = ["curve", "balancer", "frax", "fxn"] as const;
 type Protocol = (typeof PROTOCOLS)[number];
 
 const BOT_MARKET = "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF" as const;
@@ -277,7 +277,7 @@ function checkProtocol(epoch: number, proto: Protocol): ProtocolSummary {
   const attrSdTotal = attr.totals.sdInTotal;
   const droppedTokens = attr.dropped.tokensNotSwapped;
 
-  // Protocols with wethNotSwapped=true and sdInTotal=0 use direct distribution (e.g. pendle)
+  // Protocols with wethNotSwapped=true and sdInTotal=0 use direct distribution.
   const isDirectDistrib = attr.dropped.wethNotSwapped && attrSdTotal === 0 && attr.txs.length === 0;
 
   // sdInTotal ≈ csvSdTotal (main CSV only — OTC rows are settled via OTC, not the aggregator)

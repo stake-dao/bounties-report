@@ -86,16 +86,16 @@ jobs:
           CURRENT_PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
           echo "current=$CURRENT_PERIOD" >> $GITHUB_OUTPUT
 
-      - name: "Spectra: publish to latest"
+      - name: "sdSpectra: publish to sdTkns latest"
         if: inputs.token == 'spectra' && (inputs.step == 'publish')
         run: |
           PERIOD=${{ steps.period.outputs.current }}
-          mkdir -p "bounties-reports/latest"
+          mkdir -p "bounties-reports/latest/sdTkns"
 
           if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" ]; then
-            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" "bounties-reports/latest/spectra_merkle.json"
+            cp "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" "bounties-reports/latest/sdTkns/sdtkns_merkle_8453.json"
           else
-            echo "::error::Spectra merkle not found for period ${PERIOD}"
+            echo "::error::sdSpectra merkle not found for period ${PERIOD}"
             exit 1
           fi
 
@@ -125,9 +125,9 @@ jobs:
             for file in bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_*.json; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
-                # Skip spectra (8453) - handled separately via orchestrator
+                # Skip Base sdSpectra (8453) - handled by the spectra token publish step
                 if [[ "$filename" == "sdtkns_merkle_8453.json" ]]; then
-                  echo "Skipping $filename (spectra - handled by orchestrator)"
+                  echo "Skipping $filename (Base sdSpectra - handled by spectra token publish)"
                   continue
                 fi
                 cp "$file" "bounties-reports/latest/sdTkns/${filename}"
@@ -150,14 +150,6 @@ jobs:
               cp "bounties-reports/${PERIOD}/delegationsAPRs.json" "bounties-reports/latest/delegationsAPRs.json"
             fi
           fi
-
-      - name: Compute sdPENDLE delegators APR
-        if: (inputs.token == 'spectra' || inputs.token == 'legacy') && (inputs.step == 'publish')
-        run: pnpm tsx script/helpers/computeSdPendleDelegatorsAPR.ts
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-        continue-on-error: true
 
       - name: Update round metadata
         if: (inputs.token == 'legacy' || inputs.token == 'spectra') && (inputs.step == 'publish')

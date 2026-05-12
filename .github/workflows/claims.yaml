@@ -17,8 +17,6 @@ on:
           # vlCVX
           - convex-votemarket-v2
           - convex-votium
-          # vlAURA
-          - aura-votemarket-v2
       dispatch_id:
         description: 'Unique dispatch ID for tracking'
         required: false
@@ -63,8 +61,6 @@ jobs:
             # vlCVX
             convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 PAST_WEEK=${{ inputs.past_week }} ;;
             convex-votium)         make -f automation/weekly-bounties.mk run-convex-votium PAST_WEEK=${{ inputs.past_week }} ;;
-            # vlAURA
-            aura-votemarket-v2)    make -f automation/weekly-bounties.mk run-aura-votemarket-v2 PAST_WEEK=${{ inputs.past_week }} ;;
           esac
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}

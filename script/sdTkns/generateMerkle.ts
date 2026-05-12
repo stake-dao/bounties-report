@@ -1,15 +1,11 @@
 import axios from "axios";
 import * as dotenv from "dotenv";
-import {
-  fetchLastProposalsIds,
-  fetchProposalsIdsBasedOnExactPeriods,
-} from "../utils/snapshot";
+import { fetchLastProposalsIds } from "../utils/snapshot";
 import { fetchGlobalTotalVp } from "../utils/envioClient";
 import {
   abi,
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
-  SDPENDLE_SPACE,
   SDFXS_SPACE,
   SPACE_TO_NETWORK,
   SPACES,
@@ -23,10 +19,8 @@ import moment from "moment";
 import {
   checkSpace,
   extractCSV,
-  extractOTCCSV,
   extractAllRawTokenCSVs,
   getAllAccountClaimedSinceLastFreeze,
-  PendleCSVType,
 } from "../utils/utils";
 import { createMultiMerkle } from "../utils/merkle/createMultiMerkle";
 import {
@@ -67,152 +61,6 @@ const convertToProperHex = (value: any): string => {
   }
   return value.hex || "0x0";
 };
-
-/**
- * Compute sdPendle APR when ONLY OTC bounties exist (no regular pendle.csv)
- * Uses VM-specific delegation VP instead of full delegation VP
- */
-async function computeSdPendleOTCOnlyAPR(
-  currentPeriodTimestamp: number,
-  delegationAPRs: Record<string, number>
-): Promise<void> {
-  const {
-    calculateSdPendleVMVotingPower,
-    computeSdPendleDelegatorsAPR,
-  } = await import("../helpers/computeSdPendleDelegatorsAPR");
-  const { getProposal, getVoters, getVotingPower, formatVotingPowerResult, fetchLastProposalsIds } = await import("../utils/snapshot");
-  const { extractProposalChoices, addVotersFromAutoVoter, getChoicesBasedOnReport } = await import("../utils/utils");
-  const { DELEGATION_ADDRESS, SPACE_TO_CHAIN_ID, WEEK } = await import("../utils/constants");
-
-  try {
-    const vmFilePath = path.join(__dirname, "..", "..", "bounties-reports", currentPeriodTimestamp.toString(), "pendle-votemarket.csv");
-    const otcFilePath = path.join(__dirname, "..", "..", "bounties-reports", currentPeriodTimestamp.toString(), "pendle-otc.csv");
-    
-    // Ensure at least one external CSV exists
-    if (!fs.existsSync(vmFilePath) && !fs.existsSync(otcFilePath)) {
-      console.error("No external CSV files found for external-only APR calculation");
-      return;
-    }
-    
-    // Get proposal
-    const filter = "*Gauge vote.*$";
-    const proposalIdPerSpace = await fetchLastProposalsIds(
-      [SDPENDLE_SPACE],
-      currentPeriodTimestamp + WEEK,
-      filter
-    );
-    const proposalId = proposalIdPerSpace[SDPENDLE_SPACE];
-    
-    if (!proposalId) {
-      console.error("No proposal found for OTC period");
-      return;
-    }
-
-    const proposal = await getProposal(proposalId);
-    const allAddressesPerChoice = extractProposalChoices(proposal);
-    
-    // Helper to read and parse pendle CSV files
-    const readPendleCsv = (filePath: string): Record<string, number> => {
-      if (!fs.existsSync(filePath)) return {};
-      const parse = require("csv-parse/sync").parse;
-      const csvContent = fs.readFileSync(filePath, "utf-8");
-      const records = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
-      
-      const rewards: Record<string, number> = {};
-      for (const row of records) {
-        const gaugeAddress = row["Gauge Address"]?.toLowerCase();
-        const rewardAmount = parseFloat(row["Reward sd Value"] || "0");
-        if (gaugeAddress) {
-          rewards[gaugeAddress] = (rewards[gaugeAddress] || 0) + rewardAmount;
-        }
-      }
-      return rewards;
-    };
-
-    // Read both VoteMarket and OTC files
-    const vmRewards = readPendleCsv(vmFilePath);
-    const otcRewards = readPendleCsv(otcFilePath);
-
-    // Merge rewards from both sources
-    const pendleRewards: Record<string, number> = { ...vmRewards };
-    for (const [gauge, amount] of Object.entries(otcRewards)) {
-      pendleRewards[gauge] = (pendleRewards[gauge] || 0) + amount;
-    }
-    const totalExternalRewards = Object.values(pendleRewards).reduce((a, b) => a + b, 0);
-    
-    const addressesPerChoice = getChoicesBasedOnReport(allAddressesPerChoice, pendleRewards);
-    
-    // Get voters
-    let voters = await getVoters(proposalId);
-    const vps = await getVotingPower(proposal, voters.map((v: any) => v.voter), SPACE_TO_CHAIN_ID[SDPENDLE_SPACE]);
-    voters = formatVotingPowerResult(voters, vps);
-    voters = await addVotersFromAutoVoter(SDPENDLE_SPACE, proposal, voters, allAddressesPerChoice);
-    voters = voters.filter((voter: any) => voter.voter.toLowerCase() !== "0x8bBF0c99cc5Eb98177cc42eC397dc542c4903E0a".toLowerCase());
-    
-    // Calculate rewards
-    for (const voter of voters) voter.totalRewards = 0;
-    
-    for (const [gaugeAddress, choiceData] of Object.entries(addressesPerChoice)) {
-      const index = choiceData.index;
-      const sdTknRewardAmount = pendleRewards[gaugeAddress.toLowerCase()] || 0;
-      if (sdTknRewardAmount === 0) continue;
-      
-      let totalVP = 0;
-      for (const voter of voters) {
-        let vpChoiceSum = 0, currentChoiceIndex = 0;
-        for (const choiceIndex of Object.keys(voter.choice || {})) {
-          if (index === parseInt(choiceIndex)) currentChoiceIndex = voter.choice[choiceIndex];
-          vpChoiceSum += voter.choice[choiceIndex];
-        }
-        if (currentChoiceIndex === 0) continue;
-        const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
-        totalVP += (voter.vp * ratio) / 100;
-      }
-      
-      if (totalVP === 0) continue;
-      
-      for (const voter of voters) {
-        let vpChoiceSum = 0, currentChoiceIndex = 0;
-        for (const choiceIndex of Object.keys(voter.choice || {})) {
-          if (index === parseInt(choiceIndex)) currentChoiceIndex = voter.choice[choiceIndex];
-          vpChoiceSum += voter.choice[choiceIndex];
-        }
-        if (currentChoiceIndex === 0) continue;
-        const ratio = (currentChoiceIndex * 100) / vpChoiceSum;
-        const vpUsed = (voter.vp * ratio) / 100;
-        const totalVPRatio = (vpUsed * 100) / totalVP;
-        const amountEarned = (totalVPRatio * sdTknRewardAmount) / 100;
-        voter.totalRewards += amountEarned;
-      }
-    }
-    
-    const delegationVote = voters.find((v: any) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase());
-    
-    if (!delegationVote) {
-      console.error("No delegation vote found for OTC");
-      return;
-    }
-    
-    const delegationRewards = delegationVote.totalRewards || 0;
-    
-    // Calculate VM-specific voting power
-    const vmVPData = calculateSdPendleVMVotingPower(voters, addressesPerChoice, delegationRewards, currentPeriodTimestamp);
-    
-    // Calculate OTC APR using VM-specific VP
-    const otcAPR = computeSdPendleDelegatorsAPR([vmVPData]);
-    
-    console.error(`Total External Rewards: ${totalExternalRewards.toFixed(2)} sdPENDLE`);
-    console.error(`Delegation Rewards: ${delegationRewards.toFixed(2)} sdPENDLE`);
-    console.error(`Full Delegation VP: ${delegationVote.vp.toFixed(2)}`);
-    console.error(`VM Delegation VP: ${vmVPData.vp.toFixed(2)}`);
-    console.error(`OTC-Only APR: ${otcAPR.toFixed(4)}%`);
-    
-    delegationAPRs[SDPENDLE_SPACE] = otcAPR;
-    
-  } catch (error) {
-    console.error("Error computing sdPendle OTC-only APR:", error);
-  }
-}
 
 const main = async () => {
   const now = moment.utc().unix();
@@ -303,7 +151,7 @@ const main = async () => {
   const toFreeze: Record<string, string[]> = {};
   const toSet: Record<string, string[]> = {};
 
-  // Loop through each space (except Pendle, handled separately)
+  // Loop through each active sdToken Snapshot space.
   for (const space of Object.keys(proposalIdPerSpace)) {
     // Skip sdFXS as it now uses Universal Merkle
     if (space === SDFXS_SPACE) {
@@ -323,125 +171,17 @@ const main = async () => {
 
     // Skip if no CSV data for this space.
     const csvResult = await extractCSV(currentPeriodTimestamp, space);
-    const isPendle = space === SDPENDLE_SPACE;
     const network = SPACE_TO_NETWORK[space];
 
-    // For Pendle, we need to check OTC even if there's no regular report
-    if (!csvResult && !isPendle) {
+    if (!csvResult) {
       continue;
     }
 
-    let totalSDToken = 0;
-    let ids: string[] = [];
-    let pendleRewards: Record<string, Record<string, number>> | undefined = undefined;
-
-    if (isPendle) {
-      // Initialize pendleRewards
-      pendleRewards = {};
-
-
-      // Process regular report if it exists
-      if (csvResult) {
-        let proposalsPeriods = await fetchProposalsIdsBasedOnExactPeriods(
-          space,
-          Object.keys(csvResult),
-          currentPeriodTimestamp
-        );
-
-        for (const period of Object.keys(csvResult)) {
-          const proposalId = proposalsPeriods[period];
-          const periodRewards = (csvResult as PendleCSVType)[period];
-          if (!pendleRewards[proposalId]) {
-            pendleRewards[proposalId] = {};
-          }
-          for (const address in periodRewards) {
-            pendleRewards[proposalId][address] = (pendleRewards[proposalId][address] || 0) + periodRewards[address];
-          }
-          totalSDToken += Object.values(periodRewards).reduce(
-            (acc, amount) => acc + amount,
-            0
-          );
-        }
-      }
-
-      // Process VoteMarket and OTC reports
-      const vmCsvPath = path.join(
-        __dirname,
-        "..",
-        "..",
-        "bounties-reports",
-        currentPeriodTimestamp.toString(),
-        "pendle-votemarket.csv"
-      );
-      const otcCsvPath = path.join(
-        __dirname,
-        "..",
-        "..",
-        "bounties-reports",
-        currentPeriodTimestamp.toString(),
-        "pendle-otc.csv"
-      );
-
-      // Helper to process external CSV files
-      const processPendleExternalCsv = async (csvPath: string): Promise<Record<string, Record<string, number>> | null> => {
-        if (!fs.existsSync(csvPath)) return null;
-        return await extractOTCCSV(csvPath);
-      };
-
-      const vmCsvResult = await processPendleExternalCsv(vmCsvPath);
-      const otcCsvResult = await processPendleExternalCsv(otcCsvPath);
-
-      // Merge results from both sources
-      const mergedExternalResult: Record<string, Record<string, number>> = {};
-      for (const result of [vmCsvResult, otcCsvResult]) {
-        if (!result) continue;
-        for (const [timestamp, rewards] of Object.entries(result)) {
-          if (!mergedExternalResult[timestamp]) mergedExternalResult[timestamp] = {};
-          for (const [address, amount] of Object.entries(rewards)) {
-            mergedExternalResult[timestamp][address] = (mergedExternalResult[timestamp][address] || 0) + amount;
-          }
-        }
-      }
-
-      if (Object.keys(mergedExternalResult).length > 0) {
-        const externalTimestamps = Object.keys(mergedExternalResult);
-        let proposalsPeriodsExternal: Record<string, string> = {};
-
-        // Fetch proposals for external CSV periods
-        proposalsPeriodsExternal = await fetchProposalsIdsBasedOnExactPeriods(
-          space,
-          externalTimestamps,
-          currentPeriodTimestamp
-        );
-
-        // Merge external rewards into pendleRewards and add to total
-        for (const timestamp of externalTimestamps) {
-          const proposalId = proposalsPeriodsExternal[timestamp];
-          if (!pendleRewards[proposalId]) {
-            pendleRewards[proposalId] = {};
-          }
-          const rewards = mergedExternalResult[timestamp];
-          for (const address in rewards) {
-            pendleRewards[proposalId][address] =
-              (pendleRewards[proposalId][address] || 0) + rewards[address];
-            totalSDToken += rewards[address]; // Add external rewards to total
-          }
-        }
-      }
-
-      // Only process if we have either regular or OTC rewards
-      if (Object.keys(pendleRewards).length === 0) {
-        continue;
-      }
-
-      ids = Object.keys(pendleRewards);
-    } else if (csvResult) {
-      totalSDToken = Object.values(csvResult).reduce(
-        (acc, amount) => acc + amount,
-        0
-      );
-      ids = [proposalIdPerSpace[space]];
-    }
+    const totalSDToken = Object.values(csvResult).reduce(
+      (acc, amount) => acc + amount,
+      0
+    );
+    const ids = [proposalIdPerSpace[space]];
 
     // Save using the token symbol as key
     logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
@@ -457,7 +197,6 @@ const main = async () => {
       space,
       lastMerkles,
       csvResult,
-      pendleRewards,
       sdFXSWorkingData,
       sdCakeWorkingData,
       {}
@@ -482,46 +221,6 @@ const main = async () => {
       }
       logData[log.id] = logData[log.id].concat(log.content);
     }
-  }
-
-  // =====================================================
-  // Adjust sdPendle APR if ONLY external (VM/OTC) exists (no regular)
-  // =====================================================
-  // When only external bounties exist, we need to use VM-specific delegation VP
-  // instead of full delegation VP
-  const sdPendleSpace = SDPENDLE_SPACE;
-  if (proposalIdPerSpace[sdPendleSpace]) {
-    const regularCsvExists = await extractCSV(currentPeriodTimestamp, sdPendleSpace);
-    const vmCsvPath = path.join(
-      __dirname,
-      "..",
-      "..",
-      "bounties-reports",
-      currentPeriodTimestamp.toString(),
-      "pendle-votemarket.csv"
-    );
-    const otcCsvPath = path.join(
-      __dirname,
-      "..",
-      "..",
-      "bounties-reports",
-      currentPeriodTimestamp.toString(),
-      "pendle-otc.csv"
-    );
-    const vmCsvExists = fs.existsSync(vmCsvPath);
-    const otcCsvExists = fs.existsSync(otcCsvPath);
-    const externalCsvExists = vmCsvExists || otcCsvExists;
-    
-    // If ONLY external (VM/OTC) exists (no regular), recalculate APR with VM-specific VP
-    if (!regularCsvExists && externalCsvExists) {
-      console.error("\n=== Adjusting sdPendle APR for external-only scenario ===");
-      
-      await computeSdPendleOTCOnlyAPR(
-        currentPeriodTimestamp,
-        delegationAPRs
-      );
-    }
-    // If both exist or only regular exists, the standard APR from createMultiMerkle is correct
   }
 
   // =====================================================
@@ -582,7 +281,6 @@ const main = async () => {
           space,
           lastMerkles,
           distributions,
-          undefined, // No pendle-specific rewards for raw tokens
           sdFXSWorkingData,
           sdCakeWorkingData,
           {},

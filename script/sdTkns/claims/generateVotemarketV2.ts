@@ -7,7 +7,6 @@ import { mainnet } from "../../utils/chains";
 import {
   BALANCER_STAKE_DAO_LOCKER,
   FXN_STAKE_DAO_LOCKER,
-  PENDLE_STAKE_DAO_LOCKER,
   STAKE_DAO_LOCKER,
 } from "../../utils/constants";
 import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
@@ -94,13 +93,6 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
     FXN_STAKE_DAO_LOCKER
   );
 
-  const pendleVotemarketV2Bounties = await fetchVotemarketV2ClaimedBounties(
-    "pendle",
-    timestamp1,
-    timestamp2,
-    PENDLE_STAKE_DAO_LOCKER
-  );
-
   // Convert arrays to objects with numeric string keys
   const votemarketV2Bounties: { [key: string]: any } = {};
   
@@ -122,14 +114,6 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
   }
   
   for (const [protocol, bounties] of Object.entries(fxnVotemarketV2Bounties)) {
-    if (Array.isArray(bounties)) {
-      votemarketV2Bounties[protocol] = arrayToNumericKeyObject(bounties);
-    } else {
-      votemarketV2Bounties[protocol] = bounties;
-    }
-  }
-
-  for (const [protocol, bounties] of Object.entries(pendleVotemarketV2Bounties)) {
     if (Array.isArray(bounties)) {
       votemarketV2Bounties[protocol] = arrayToNumericKeyObject(bounties);
     } else {

@@ -72,7 +72,6 @@ async function fetchOTCWithdrawals(
       balancer: [],
       fxn: [],
       frax: [],
-      pendle: []
     };
   }
 
@@ -103,7 +102,6 @@ async function fetchOTCWithdrawals(
     balancer: [],
     fxn: [],
     frax: [],
-    pendle: [],
   };
 
   // For each log, fetch detailed OTC data from the contract and store it under its protocol
@@ -204,10 +202,10 @@ async function main() {
   const protocol = process.argv[2];
   if (
     !protocol ||
-    !["curve", "balancer", "fxn", "frax", "pendle"].includes(protocol)
+    !["curve", "balancer", "fxn", "frax"].includes(protocol)
   ) {
     console.error(
-      "Please specify a valid protocol: curve, balancer, fxn, frax, or pendle"
+      "Please specify a valid protocol: curve, balancer, fxn, or frax"
     );
     process.exit(1);
   }
@@ -250,9 +248,6 @@ async function main() {
       break;
     case "frax":
       gaugesInfo = await getGaugesInfos("frax");
-      break;
-    case "pendle":
-      gaugesInfo = await getGaugesInfos("pendle");
       break;
   }
   aggregatedBounties = {

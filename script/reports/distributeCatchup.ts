@@ -145,8 +145,8 @@ Examples:
   # Process FXN CSV, save to new file
   tsx script/reports/distributeCatchup.ts bounties-reports/1761177600/fxn.csv 500 bounties-reports/1761177600/fxn-updated.csv
 
-  # Process Pendle CSV
-  tsx script/reports/distributeCatchup.ts bounties-reports/1761177600/pendle.csv 250.5
+  # Process Balancer CSV
+  tsx script/reports/distributeCatchup.ts bounties-reports/1761177600/balancer.csv 250.5
 `);
     process.exit(1);
   }

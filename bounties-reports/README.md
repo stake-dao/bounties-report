@@ -1,169 +1,114 @@
-# Bounties Reports Directory
+# Bounties Reports
 
-This directory contains all weekly distribution reports and generated merkle trees organized by timestamp.
+This directory stores weekly reports, repartition data, APR snapshots, and generated merkle trees. Timestamped folders are historical records; `latest/` contains the currently published copies.
 
-## 📁 Directory Structure
+## Layout
 
-```
+```text
 bounties-reports/
-├── {timestamp}/                 # Unix timestamp for each week
-│   ├── merkle.json             # sdToken merkle tree
-│   ├── delegationsAPRs.json    # Delegation APR calculations
-│   ├── {protocol}.csv          # Distribution reports per protocol
-│   ├── raw/                    # Raw token distributions
-│   │   └── {protocol}/
-│   │       └── {protocol}.csv
-│   ├── vlCVX/                  # vlCVX specific files
-│   ├── spectra/                # Spectra specific files
-└── latest/                     # Current active distributions
+├── {timestamp}/
+│   ├── {protocol}.csv
+│   ├── {protocol}-otc.csv
+│   ├── {protocol}-attribution.json
+│   ├── merkle.json
+│   ├── delegationsAPRs.json
+│   ├── raw/{protocol}/{protocol}.csv
+│   ├── sdTkns/sdtkns_merkle_{chainId}.json
+│   ├── spectra/
+│   │   ├── repartition.json
+│   │   └── merkle_data.json
+│   └── vlCVX/
+│   │   ├── curve/
+│   │   ├── fxn/
+│   │   ├── vlcvx_merkle.json
+│   │   ├── vlcvx_merkle_{chainId}.json
+│   │   ├── merkle_data_delegators.json
+│   │   └── APRs.json
+└── latest/
     ├── merkle.json
     ├── delegationsAPRs.json
-    ├── vlCVX/
-    └── spectra/
+    ├── sdTkns/
+    └── vlCVX/
 ```
 
-## 📅 Timestamp Format
+## Timestamps
 
-Directories are named using Unix timestamps representing the start of each distribution week:
-- Example: `1747872000` = February 22, 2024 00:00:00 UTC
-- New directories are created every Thursday at 00:00 UTC
+Weekly folders are Unix timestamps for the Thursday 00:00 UTC period start.
 
-## 📄 File Types
+Example: `1747872000` is `2025-05-22T00:00:00.000Z`.
 
-### Protocol CSV Files
+## CSV Reports
 
-Standard format for sdToken distributions:
+Standard report CSVs use semicolon delimiters. Common columns include:
+
 ```csv
 gauge address;gauge name;reward token;reward amount;reward sd value
-0x7E1444BA99dcdFfE8fBdb42C02fb0005009e961A;sETH/ETH;0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F;1000;500
+0x7E1444BA99dcdFfE8fBdb42C02fb0005009e961A;sETH/ETH;SDT;1000;500
 ```
 
-### Raw Token CSV Files
+vlCVX reports include reward token addresses and chain IDs:
 
-Located in `raw/{protocol}/` for native token distributions:
 ```csv
-gauge address;reward token;reward amount;space
-0x7E1444BA99dcdFfE8fBdb42C02fb0005009e961A;0xD533a949740bb3306d119CC777fa900bA034cd52;1000;sdcrv.eth
+ChainId;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;
+1;Gauge;0xGauge;USDC;0xToken;1000000;
 ```
 
-### merkle.json
+Raw token CSVs live in `raw/{protocol}/` and are documented in [README-raw-tokens.md](../README-raw-tokens.md).
 
-Complete merkle tree data:
+## Merkle Formats
+
+Legacy sdToken `merkle.json` is an array of token entries:
+
 ```json
 [
   {
     "symbol": "sdCRV",
-    "address": "0xD1b5651E55D4CeeD36251c61c50C889B36F6abB5",
-    "image": "https://...",
+    "address": "0x...",
     "merkle": {
-      "0xuser1": {
+      "0xuser": {
         "index": 0,
-        "amount": "1000000000000000000",
-        "proof": ["0x...", "0x..."]
+        "amount": { "type": "BigNumber", "hex": "0x..." },
+        "proof": ["0x..."]
       }
     },
     "root": "0x...",
-    "total": "10000000000000000000000",
     "chainId": 1,
-    "merkleContract": "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4"
+    "merkleContract": "0x..."
   }
 ]
 ```
 
-### delegationsAPRs.json
+Universal merkles (`sdTkns/`, `vlCVX/`) use:
 
-APR calculations for each space:
 ```json
 {
-  "sdcrv.eth": 25.5,
-  "sdbal.eth": 18.3,
-  "sdfxs.eth": 22.7
+  "merkleRoot": "0x...",
+  "claims": {
+    "0xuser": {
+      "tokens": {
+        "0xtoken": {
+          "amount": "1000000000000000000",
+          "proof": ["0x..."]
+        }
+      }
+    }
+  }
 }
 ```
 
-## 🔄 Latest Directory
+## Current Published Files
 
-The `latest/` directory contains symlinks or copies of the most recent distribution files used by:
-- Frontend applications
-- Smart contracts
-- API endpoints
+See [latest/README.md](./latest/README.md) for the active files copied by publish workflows.
 
-Files are automatically updated after each weekly distribution.
+## Generation
 
-## 📊 Protocol Files
+Typical order:
 
-### Supported Protocols
-- **curve.csv** - Curve protocol distributions
-- **balancer.csv** - Balancer protocol distributions
-- **frax.csv** - Frax protocol distributions
-- **fxn.csv** - FXN protocol distributions
-- **pendle.csv** - Pendle protocol distributions
-- **cake.csv** - PancakeSwap distributions (BSC)
+1. Fetch claims into `weekly-bounties/{timestamp}/`.
+2. Generate CSV reports.
+3. Generate protocol repartition files.
+4. Generate merkle files and APR files.
+5. Verify outputs.
+6. Publish to `latest/` after on-chain roots are set or verified.
 
-### Special Files
-- **pendle-otc.csv** - OTC distributions for Pendle
-- **curve-otc.csv** - OTC distributions for Curve
-
-## 🛠️ Generation Process
-
-1. **Thursday 00:00 UTC**: New week begins
-2. **Bounty Collection**: Platforms report incentives
-3. **CSV Generation**: Create distribution files
-4. **Merkle Generation**: Run `generateMerkle.ts`
-5. **Verification**: Check distribution accuracy
-6. **Deployment**: Update `latest/` directory
-
-## 📝 Data Validation
-
-Each distribution includes:
-- Total reward amounts per token
-- User allocation details
-- Merkle proofs for claiming
-- APR calculations
-
-Validation checks:
-- Sum of user allocations equals total
-- All addresses are valid
-- Merkle root is correctly calculated
-- Token balances are sufficient
-
-## 🔗 Integration
-
-Frontend integration:
-```javascript
-// Fetch latest merkle data
-const response = await fetch('https://.../bounties-reports/latest/merkle.json');
-const merkles = await response.json();
-
-// Get user proof
-const userProof = merkles[0].merkle[userAddress];
-```
-
-Contract integration:
-```solidity
-// Claim with merkle proof
-merkleDistributor.claim(
-    token,
-    index,
-    account,
-    amount,
-    merkleProof
-);
-```
-
-## 📈 Historical Data
-
-Historical distributions are preserved for:
-- Audit trails
-- Analytics
-- Debugging
-- User verification
-
-Access historical data:
-```bash
-# List all weeks
-ls -la bounties-reports/
-
-# View specific week
-cat bounties-reports/1747872000/merkle.json
-```
+Relevant workflow entry points are `Claims`, `Reports`, `sdTokens: Merkle`, `vlCVX: Distribution`, and `Compute APR`.

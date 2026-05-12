@@ -1,49 +1,69 @@
-# vlCVX Rewards Distribution Process
+# vlCVX Rewards Distribution
 
-This document outlines the process for distributing rewards to vlCVX voters and delegators.
+The vlCVX pipeline distributes Convex voting rewards to direct voters, Stake DAO delegators, and Votium forwarders.
 
-## Process Overview
+## Process
 
-0. **Claims rewards from Votium** (Tuesday)
-   - Claims forwarded rewards from Votium for delegators who opted to forward their rewards
-   - This happens two days before Votemarket claims
+1. Fetch claims.
+   - Votemarket v2 claims use `claims/generateConvexVotemarketV2.ts`.
+   - Votium forwarded rewards use `claims/generateConvexVotium.ts`.
+2. Generate reports with `1_report.ts`.
+   - Outputs `bounties-reports/{timestamp}/cvx.csv` and, when applicable, `cvx_fxn.csv`.
+3. Generate repartition data with `2_repartition/index.ts`.
+   - Writes Curve/FXN repartitions under `bounties-reports/{timestamp}/vlCVX/curve/` and `.../vlCVX/fxn/`.
+   - Writes delegation repartitions for forwarders and non-forwarders.
+4. Generate voter merkles with `3_merkles/createCombinedMerkle.ts`.
+   - Outputs `vlcvx_merkle.json` and chain-specific `vlcvx_merkle_{chainId}.json`.
+5. Generate forwarded-delegator merkle with `3_merkles/createDelegatorsMerkle.ts`.
+   - Outputs `merkle_data_delegators.json`.
+6. Verify on-chain roots and publish current files to `bounties-reports/latest/vlCVX/`.
 
-1. **Claims rewards from Votemarket** (Thursday) (`claims/generateConvexVotemarket.ts` and `claims/generateConvexVotemarketV2.ts`)
-   - Fetches claimed bounties from Votemarket v1 and v2
-   - Saves data to JSON files for further processing
+On-chain swaps, root submission, and final publish are handled outside these scripts by automation jobs and the `vlCVX: Distribution` workflow.
 
-2. **Generates report (rewards / gauges)** (`1_report.ts`)
-   - Processes claimed bounties data
-   - Creates a CSV report with reward details per gauge
-   - Saves report to `bounties-reports/{timestamp}/cvx.csv`
+## Commands
 
-3. **Generates repartition data** (`2_repartition/index.ts`)
-   - Calculates distribution for non-delegators (`2_repartition/nonDelegators.ts`)
-   - Calculates distribution for delegators (`2_repartition/delegators.ts`)
-   - Handles forwarding status on Votium for delegators
-   - Saves data to:
-     - `bounties-reports/{timestamp}/vlCVX/repartition.json` (and chain-specific variants)
-     - `bounties-reports/{timestamp}/vlCVX/repartition_delegation.json` (and chain-specific variants)
+```bash
+# Report and repartition
+make -f automation/reports.mk run-weekly-vlcvx
+make -f automation/distribution.mk validate-reports PROTOCOL=vlCVX
+make -f automation/distribution.mk run-repartition PROTOCOL=vlCVX
 
-4. **Swaps forwarded delegators rewards to crvUSD** (handled by automation-jobs)
+# Voter merkle
+make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=non-delegators
 
-5. **Generates Merkle trees** (`3_merkles.ts`)
-   - For vlCVX voters: `3_merkles/createCombinedMerkle.ts`
-     - Processes distribution data across multiple chains
-     - Generates chain-specific Merkle trees
-      - Taking also into account delegators non-forwarded rewards   - For delegators: `3_merkles/createDelegatorsMerkle.ts`
-     - Computes crvUSD amounts for delegators using shares from `repartition_delegation.json`
-     - Generates a separate Merkle tree for delegators
-   - Saves Merkle data to:
-     - `bounties-reports/{timestamp}/vlCVX/merkle_data_{CHAIN_ID}.json`
-     - `bounties-reports/{timestamp}/vlCVX/merkle_data_delegators.json`
+# Forwarded-delegator merkle
+make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=delegators
 
-6. **Withdraws funds to respective Merkle contracts** (handled by automation-jobs)
+# User diagnostics
+pnpm vlcvx-diagnose
+```
 
-7. **Sets Merkle roots for distribution** (handled by automation-jobs)
-   - Thursday: Distributes unprocessed rewards (non-delegators + non-forwarded ones)
-   - Tuesday: Distributes swapped rewards (for delegators who forwarded their Votium rewards)
+Set `FORCE_UPDATE=true` when a script refuses to overwrite existing period files.
 
-8. **Copies Merkle data to latest directory** (GitHub workflow: `copy-vlCVX-merkle.yaml`)
-   - Copies temporary Merkle data to `bounties-reports/latest/vlCVX_merkle.json`
-   - Computes and publishes APR (non-delegators on Thursday, delegators on Tuesday)
+## Outputs
+
+Weekly files:
+
+- `bounties-reports/{timestamp}/vlCVX/curve/repartition*.json`
+- `bounties-reports/{timestamp}/vlCVX/fxn/repartition*.json`
+- `bounties-reports/{timestamp}/vlCVX/vlcvx_merkle.json`
+- `bounties-reports/{timestamp}/vlCVX/vlcvx_merkle_{chainId}.json`
+- `bounties-reports/{timestamp}/vlCVX/merkle_data_delegators.json`
+- `bounties-reports/{timestamp}/vlCVX/APRs.json`
+
+Published files:
+
+- `bounties-reports/latest/vlCVX/vlcvx_merkle.json`
+- `bounties-reports/latest/vlCVX/vlcvx_merkle_{chainId}.json`
+- `bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json`
+- `bounties-reports/latest/vlCVX/APRs.json`
+
+## Verification
+
+```bash
+pnpm tsx script/verify/aiVerify.ts --protocol vlCVX
+pnpm tsx script/vlCVX/verify/distribution.ts --timestamp 1771459200
+pnpm tsx script/vlCVX/verify/rewardFlow.ts --timestamp 1771459200
+pnpm tsx script/vlCVX/verify/verifyDelegators.ts --timestamp 1771459200 --gauge-type all
+pnpm tsx script/vlCVX/verify/delegators-rpc.ts --timestamp 1771459200 --gauge-type all
+```

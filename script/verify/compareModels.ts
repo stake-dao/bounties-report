@@ -9,7 +9,7 @@
  *
  * Options:
  *   --timestamp <ts>      Week epoch (default: current week)
- *   --protocol  <p>       vlCVX | vlAURA | all (default: all)
+ *   --protocol  <p>       vlCVX | bounties | all (default: all)
  *   --models    <m1,m2>   Comma-separated model IDs
  *   --deep                Include RPC/parquet delegation checks
  *
@@ -58,7 +58,7 @@ Usage: pnpm tsx script/verify/compareModels.ts [options]
 
 Options:
   --timestamp <ts>      Week epoch (default: current week)
-  --protocol  <p>       vlCVX | vlAURA | all (default: all)
+  --protocol  <p>       vlCVX | bounties | all (default: all)
   --models    <m1,m2>   Comma-separated model IDs (default: ${DEFAULT_MODELS.join(",")})
 `);
       process.exit(0);

@@ -1,31 +1,31 @@
-# Pendle Extra Distributions
+# Special Distributions
 
-This script processes Pendle reward distributions for Stake DAO's delegation address and redistributes them to individual holders based on their time-weighted positions.
+One-off distribution scripts that build or update extra merkle data outside the normal weekly sdToken/vlCVX flows.
 
-## How it works
+## Scripts
 
-1. **Fetches Pendle campaigns** from their GitHub repository that include rewards for Stake DAO's delegation address (`0x52ea58f4FC3CEd48fa18E909226c1f8A0EF887DC`)
+### CSV distribution
 
-2. **Gets holder data** from Stake DAO's API for each campaign period
-
-3. **Calculates rewards using TWAP** (Time-Weighted Average Position):
-   - Users who hold for the full period get 100% of their proportional share
-   - Users who exit early get proportionally less
-   - Example: If you hold 100 tokens for half the period, you get half the rewards compared to someone who holds 100 tokens for the full period
-
-4. **Applies 15% fee** on total rewards before distribution
-
-5. **Generates a Merkle tree** for efficient claiming
-
-## Running the script
+`csvDistribution.ts` reads `script/special-distribs/distribution-data.csv`, merges it with `data/extra_merkle/merkle.json`, and rewrites the extra merkle files.
 
 ```bash
-npm run pendle-extra
+pnpm tsx script/special-distribs/csvDistribution.ts
 ```
 
-## Output
+### Yearn Boost / YB merge
 
-The script generates a distribution file in `data/pendle-extra/` containing:
-- Merkle root for on-chain verification
-- Individual user claims with amounts and proofs
-- Summary of total distributions per token
+`yb.ts` merges `yb_merkle.json` with the current extra merkle from the main branch and writes the combined result to `data/extra_merkle/merkle.json`.
+
+```bash
+pnpm yb-distribution
+```
+
+### Linea sdZERO
+
+`lineaDistribution.ts` creates a Linea-specific extra merkle for sdZERO holders at the Dec 1, 2025 snapshot.
+
+```bash
+pnpm tsx script/special-distribs/lineaDistribution.ts
+```
+
+Outputs are written under `data/extra_merkle/59144/`.

@@ -12,7 +12,6 @@ on:
         - balancer
         - fxn
         - frax
-        - pendle
         - cake
         default: 'curve'
   repository_dispatch:

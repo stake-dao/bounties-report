@@ -13,7 +13,7 @@ const MAX_WEEKS_BACK = 12;
  * preventing the cumulative merkle from incorrectly resetting to zero.
  *
  * @param currentPeriodTimestamp - The current week's timestamp
- * @param relPath - Path relative to `bounties-reports/{timestamp}/` (e.g. "vlAURA/vlaura_merkle_42161.json")
+ * @param relPath - Path relative to `bounties-reports/{timestamp}/` (e.g. "vlCVX/vlcvx_merkle_8453.json")
  * @returns The most recent previous MerkleData found, or empty data if none
  */
 export function findPreviousMerkle(

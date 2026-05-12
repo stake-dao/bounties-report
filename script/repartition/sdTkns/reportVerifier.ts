@@ -56,11 +56,6 @@ const PROTOCOLS_TOKENS = {
     decimals: 18,
     botmarket: BOTMARKETS[SPACE_TO_NETWORK[LABELS_TO_SPACE.fxn]],
   },
-  pendle: {
-    sdToken: SPACES_TOKENS[LABELS_TO_SPACE.pendle],
-    decimals: 18,
-    botmarket: BOTMARKETS[SPACE_TO_NETWORK[LABELS_TO_SPACE.pendle]],
-  },
 } as const;
 
 type ProtocolKey = keyof typeof PROTOCOLS_TOKENS;

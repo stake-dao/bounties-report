@@ -369,7 +369,7 @@ async function main() {
         yargsBuilder.positional("protocol", {
           describe: "Protocol to process",
           type: "string",
-          choices: ["curve", "balancer", "fxn", "frax", "pendle"],
+          choices: ["curve", "balancer", "fxn", "frax"],
         })
     )
     .option("excludeTx", {
@@ -430,7 +430,7 @@ async function main() {
 
   const totalBounties = await fetchBountiesData(currentPeriod);
   if (isDebugEnabled()) {
-    const protocolsForDebug = ["curve", "balancer", "fxn", "frax", "pendle"];
+    const protocolsForDebug = ["curve", "balancer", "fxn", "frax"];
     const countSource = (src: Record<string, any>) =>
       Object.fromEntries(
         protocolsForDebug.map((p) => [
@@ -511,9 +511,6 @@ async function main() {
       break;
     case "fxn":
       gaugesInfo = await getGaugesInfos("fxn");
-      break;
-    case "pendle":
-      gaugesInfo = await getGaugesInfos("pendle");
       break;
   }
   // Convert aggregatedBounties to array format for processReport
@@ -738,35 +735,6 @@ async function main() {
     }
   }
 
-  if (protocol === "pendle") {
-    const PENDLE_FEE_RECIPIENT =
-      "0xe42a462dbf54f281f95776e663d8c942dcf94f17".toLowerCase();
-    const USDT_ADDRESS =
-      "0xdac17f958d2ee523a2206206994597c13d831ec7".toLowerCase();
-    const feeRecipientTxs = new Set<string>();
-
-    for (const swap of swapInFiltered) {
-      if (
-        swap.token.toLowerCase() === USDT_ADDRESS &&
-        swap.from.toLowerCase() === PENDLE_FEE_RECIPIENT &&
-        swap.transactionHash
-      ) {
-        feeRecipientTxs.add(swap.transactionHash.toLowerCase());
-      }
-    }
-
-    swapInFiltered = swapInFiltered.filter((swap) => {
-      if (swap.token.toLowerCase() !== USDT_ADDRESS) return true;
-      return swap.from.toLowerCase() !== PENDLE_FEE_RECIPIENT;
-    });
-
-    swapOutFiltered = swapOutFiltered.filter((swap) => {
-      if (swap.token.toLowerCase() !== USDT_ADDRESS) return true;
-      const txLower = (swap.transactionHash || "").toLowerCase();
-      return !feeRecipientTxs.has(txLower);
-    });
-  }
-
   // Filter out delegated tokens (NOT entire transactions, just the specific tokens that were delegated)
   const beforeDelegationFilterIn = swapInFiltered.length;
   const beforeDelegationFilterOut = swapOutFiltered.length;
@@ -877,7 +845,6 @@ async function main() {
     tokenInfos,
     vlcvxRecipientSwapsInBlockNumbers
   );
-  // Pendle-specific logic removed in favor of universal pass below
 
   // Generic: drop tokens that were not swapped for this protocol (all protocols)
   try {
@@ -1545,133 +1512,23 @@ async function main() {
       continue;
     }
 
-    // Special handling for Pendle protocol
-    if (protocol === "pendle") {
-      const fileName = `${protocol}-votemarket.csv`;
-      const filePath = path.join(dirPath, fileName);
-      const header =
-        "Period;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol";
+    const csvContent = [
+      "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
+      ...rows.map(
+        (row) =>
+          `${escapeCSV(row.gaugeName)};${escapeCSV(
+            row.gaugeAddress
+          )};${escapeCSV(row.rewardToken)};` +
+          `${escapeCSV(row.rewardAddress)};${row.rewardAmount.toFixed(
+            6
+          )};${row.rewardSdValue.toFixed(6)};` +
+          `${row.sharePercentage.toFixed(2)}`
+      ),
+    ].join("\n");
 
-      const maybeUnquote = (value: string): string => {
-        const trimmed = value.trim();
-        if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-          return trimmed.slice(1, -1).replace(/""/g, '"');
-        }
-        return trimmed;
-      };
-
-      const parseExistingRows = () => {
-        if (!fs.existsSync(filePath)) {
-          return [];
-        }
-        const content = fs.readFileSync(filePath, "utf-8");
-        return content
-          .split(/\r?\n/)
-          .slice(1) // drop header
-          .filter((line) => line.trim().length > 0)
-          .map((line) => line.split(";"))
-          .filter((parts) => parts.length >= 8)
-          .map((parts) => ({
-            period: Number(maybeUnquote(parts[0])),
-            gaugeName: maybeUnquote(parts[1]),
-            gaugeAddress: maybeUnquote(parts[2]),
-            rewardToken: maybeUnquote(parts[3]),
-            rewardAddress: maybeUnquote(parts[4]),
-            rewardAmount: Number(maybeUnquote(parts[5])),
-            rewardSdValue: Number(maybeUnquote(parts[6])),
-            sharePercentage: Number(maybeUnquote(parts[7])),
-          }));
-      };
-
-      const existingRows: Array<{
-        period: number;
-        gaugeName: string;
-        gaugeAddress: string;
-        rewardToken: string;
-        rewardAddress: string;
-        rewardAmount: number;
-        rewardSdValue: number;
-        sharePercentage: number;
-      }> = parseExistingRows();
-      const newRows = rows.map((row) => ({
-        period: currentPeriod,
-        gaugeName: row.gaugeName,
-        gaugeAddress: row.gaugeAddress,
-        rewardToken: row.rewardToken,
-        rewardAddress: row.rewardAddress,
-        rewardAmount: row.rewardAmount,
-        rewardSdValue: row.rewardSdValue,
-        sharePercentage: 0,
-      }));
-
-      const buildKey = (row: {
-        period: number;
-        gaugeAddress: string;
-        rewardAddress: string;
-        rewardToken: string;
-      }) =>
-        `${row.period}|${row.gaugeAddress.toLowerCase()}|${row.rewardAddress.toLowerCase()}|${row.rewardToken.toLowerCase()}`;
-
-      const newKeys = new Set(newRows.map(buildKey));
-      const mergedRows: Array<{
-        period: number;
-        gaugeName: string;
-        gaugeAddress: string;
-        rewardToken: string;
-        rewardAddress: string;
-        rewardAmount: number;
-        rewardSdValue: number;
-        sharePercentage: number;
-      }> = [
-          ...existingRows.filter((row) => !newKeys.has(buildKey(row))),
-          ...newRows,
-        ];
-
-      const totalSdValue = mergedRows.reduce(
-        (sum, row) => sum + row.rewardSdValue,
-        0
-      );
-      mergedRows.forEach((row) => {
-        row.sharePercentage =
-          totalSdValue > 0 ? (row.rewardSdValue / totalSdValue) * 100 : 0;
-      });
-
-      const csvContent = [
-        header,
-        ...mergedRows.map(
-          (row) =>
-            `${row.period};${escapeCSV(row.gaugeName)};${escapeCSV(
-              row.gaugeAddress
-            )};${escapeCSV(row.rewardToken)};${escapeCSV(
-              row.rewardAddress
-            )};${row.rewardAmount.toFixed(6)};${row.rewardSdValue.toFixed(
-              6
-            )};${row.sharePercentage.toFixed(2)}`
-        ),
-      ].join("\n");
-
-      fs.writeFileSync(filePath, csvContent);
-      console.log(`Report updated for ${protocol}: ${fileName}`);
-    } else {
-      // Standard format for other protocols
-      const csvContent = [
-        "Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;Reward sd Value;Share % per Protocol",
-        ...rows.map(
-          (row) =>
-            `${escapeCSV(row.gaugeName)};${escapeCSV(
-              row.gaugeAddress
-            )};${escapeCSV(row.rewardToken)};` +
-            `${escapeCSV(row.rewardAddress)};${row.rewardAmount.toFixed(
-              6
-            )};${row.rewardSdValue.toFixed(6)};` +
-            `${row.sharePercentage.toFixed(2)}`
-        ),
-      ].join("\n");
-
-      const fileName = `${protocol}.csv`;
-      fs.writeFileSync(path.join(dirPath, fileName), csvContent);
-      console.log(`Report generated for ${protocol}: ${fileName}`);
-    }
+    const fileName = `${protocol}.csv`;
+    fs.writeFileSync(path.join(dirPath, fileName), csvContent);
+    console.log(`Report generated for ${protocol}: ${fileName}`);
   }
 
   // Generate raw token CSV reports

@@ -9,11 +9,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: [
-        "script/vlAURA/utils.ts",
         "script/vlCVX/utils.ts",
-        "script/vlAURA/2_repartition/nonDelegators.ts",
         "script/vlCVX/2_repartition/nonDelegators.ts",
-        // After refactor, these will be the shared modules:
         "script/shared/**/*.ts",
       ],
       thresholds: {

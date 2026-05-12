@@ -8,7 +8,6 @@ import {
   SDCAKE_SPACE,
   SDCRV_SPACE,
   SDFXS_SPACE,
-  SDPENDLE_SPACE,
   SPACE_TO_CHAIN_ID,
   SPACE_TO_NETWORK,
   SPACES_IMAGE,
@@ -27,7 +26,6 @@ import {
   ChoiceBribe,
   extractProposalChoices,
   getAllAccountClaimedSinceLastFreeze,
-  getChoicesBasedOnReport,
   getChoiceWhereExistsBribe,
   getDelegationVotingPower,
 } from "../utils";
@@ -43,7 +41,6 @@ import { processAllDelegators } from "../cacheUtils";
  * @param space - Snapshot space (e.g., 'sdcrv.eth')
  * @param lastMerkles - Previous merkle trees for unclaimed rewards carry-over
  * @param csvResult - Distribution amounts per gauge from CSV
- * @param pendleRewards - Special handling for Pendle multi-period rewards
  * @param sdFXSWorkingData - Working supply data for sdFXS APR calculation
  * @param sdCakeWorkingData - Working supply data for sdCAKE APR calculation
  * @param additionalDelegatorRewards - Extra rewards for delegators
@@ -55,7 +52,6 @@ export const createMultiMerkle = async (
   space: string,
   lastMerkles: any,
   csvResult: any,
-  pendleRewards: Record<string, Record<string, number>> | undefined,
   sdFXSWorkingData: any,
   sdCakeWorkingData: any,
   additionalDelegatorRewards: Record<string, number> = {},
@@ -77,19 +73,8 @@ export const createMultiMerkle = async (
     // Get only choices where we have a bribe reward
     // Now, the address is the complete address
     // Map -> gauge address => {index : choice index, amount: sdTKN }
-    let addressesPerChoice: Record<string, ChoiceBribe> = {};
-
-    if (pendleRewards) {
-      addressesPerChoice = getChoicesBasedOnReport(
-        allAddressesPerChoice,
-        pendleRewards[id]
-      );
-    } else {
-      addressesPerChoice = getChoiceWhereExistsBribe(
-        allAddressesPerChoice,
-        csvResult
-      );
-    }
+    const addressesPerChoice: Record<string, ChoiceBribe> =
+      getChoiceWhereExistsBribe(allAddressesPerChoice, csvResult);
 
     // Here, we should have delegation voter + all other voters
     // Object with vp property
@@ -274,7 +259,7 @@ export const createMultiMerkle = async (
     }
 
     // Add all rewards from non-found gauges (gauges with bribes but no voters) to the DELEGATION_ADDRESS
-    // This applies to ALL spaces, not just Pendle, to ensure rewards are never lost
+    // This applies to all spaces to ensure rewards are never lost.
     if (delegationRewardsForNonFoundGauges > 0) {
       let delegationVoter = voters.find(
         (v) => v.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()

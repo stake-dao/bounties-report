@@ -1,163 +1,127 @@
 # Stake DAO Rewards Distribution
 
-This repository manages the complete reward distribution system for Stake DAO's liquid lockers and governance participants.
+This repository generates, verifies, and publishes Stake DAO weekly reward distributions. It covers sdToken voting incentives, vlCVX voter/delegator rewards, and the current Spectra sdToken pipeline.
 
-## 🎯 Overview
+## Systems
 
-The system handles multiple types of reward distributions across different protocols and chains:
+### sdToken distributions
 
-### 1. **[sdToken Distribution](./script/sdTkns/README.md)**
-Manages voting incentives for Stake DAO's liquid locker tokens (sdCRV, sdBAL, sdFXS, etc.)
-- Processes rewards from voting markets (Votemarket, Hidden Hand, Warden)
-- Distributes based on Snapshot governance votes
-- Supports delegation with automatic reward sharing
-- Handles both sdTokens and raw token distributions
+See [script/sdTkns/README.md](./script/sdTkns/README.md).
 
-### 2. **[vlCVX Distribution](./script/vlCVX/README.md)**
-Manages rewards for vlCVX holders across multiple chains
-- Processes Convex voting rewards
-- Supports multi-chain distributions (Ethereum, Arbitrum, Base)
-- Handles delegator reward sharing
+- Processes voting incentives for Curve, Balancer, Frax, FXN, and Cake reports.
+- Builds legacy `merkle.json` outputs plus newer chain-specific universal merkle files in `sdTkns/`.
+- Supports raw token distributions from `bounties-reports/{timestamp}/raw/{protocol}/`.
+- Publishes active files under `bounties-reports/latest/` through the `sdTokens: Merkle` workflow.
 
-### 3. **[Spectra Distribution](./script/spectra/README.md)**
-Protocol-specific distributions for Spectra
-- Custom reward calculations
-- Merkle tree generation for Spectra voters
+### vlCVX distributions
 
-## 🔧 Key Features
+See [script/vlCVX/README.md](./script/vlCVX/README.md).
 
-- **Multi-Protocol Support**: Curve, Balancer, Frax, FXN, Pendle, Cake
-- **Cross-Chain**: Ethereum, BSC, Base, Arbitrum
-- **Delegation System**: Automatic reward distribution to delegators
-- **Raw Token Support**: Distribute native tokens (CRV, BAL) alongside sdTokens
-- **Automated Workflows**: GitHub Actions for weekly distributions
+- Processes Convex Votemarket and Votium rewards.
+- Splits rewards between direct voters, delegators, and Votium forwarders.
+- Publishes main and chain-specific merkles under `bounties-reports/latest/vlCVX/`.
 
-## 📁 Repository Structure
+### Spectra sdToken distributions
+
+See [script/spectra/README.md](./script/spectra/README.md).
+
+- Generates the Spectra report and repartition data.
+- Uses `script/sdTkns/generateUniversalMerkleSpectra.ts` to publish the Base sdSpectra merkle as `sdTkns/sdtkns_merkle_8453.json`.
+
+## Repository Layout
 
 ```text
 .
-├── bounties-reports/        
-│   ├── {timestamp}/        # Weekly distribution reports and calculations
-│   │   ├── merkle.json     # sdTokens merkle tree
-│   │   ├── delegationsAPRs.json  # Delegation APRs for sdTokens
-│   │   ├── vlCVX/         # vlCVX distribution files
-│   │   │   ├── repartition.json  # Main distribution data
-│   │   │   ├── repartition_{chainId}.json  # Chain-specific distributions
-│   │   │   ├── repartition_delegation.json  # Delegator shares
-│   │   │   ├── merkle_data_non_delegators.json
-│   │   │   └── merkle_data_delegators.json
-│   │   └── spectra/       # Spectra distribution files
-│   │       ├── repartition.json
-│   │       └── merkle_data.json
-│   │
-│   └── latest/            # Current active distribution files
-│       ├── merkle.json    # Latest sdTokens merkle tree
-│       ├── delegationsAPRs.json  # Current APRs for delegations
-│       ├── spectra_merkle.json   # Latest Spectra merkle tree
-│       └── vlCVX/         # Latest vlCVX merkle trees
-│           ├── vlcvx_merkle.json         # Main distribution
-│           ├── vlcvx_merkle_{chainId}.json  # Chain-specific distributions
-│           └── vlcvx_merkle_delegators.json # Delegators distribution
-│
-├── weekly_bounties/        # Claimed rewards from Votemarket
-│                          # (liquid lockers + external protocols)
-│
+├── automation/                       # Make targets used by GitHub Actions and local ops
+├── bounties-reports/
+│   ├── {timestamp}/                  # Weekly report, repartition, APR, and merkle outputs
+│   │   ├── merkle.json               # Legacy sdToken merkle output
+│   │   ├── delegationsAPRs.json      # sdToken delegation APRs
+│   │   ├── {protocol}.csv            # Protocol reports
+│   │   ├── raw/{protocol}/           # Optional raw token reports
+│   │   ├── sdTkns/                   # Universal sdToken merkles by chain
+│   │   ├── spectra/                  # Spectra repartition and compatibility merkle data
+│   │   └── vlCVX/                    # vlCVX repartitions, APRs, and merkles
+│   └── latest/                       # Current published copies consumed by claim UIs/contracts
+│       ├── merkle.json
+│       ├── delegationsAPRs.json
+│       ├── sdTkns/sdtkns_merkle_{chainId}.json
+│       └── vlCVX/
+├── data/                             # Indexed delegation data, metadata, and extra merkles
 ├── script/
-│   ├── vlCVX/            # vlCVX distribution scripts
-│   │   ├── 1_report.ts   # Generate rewards/gauges report
-│   │   ├── 2_repartition.ts  # Generate distribution data
-│   │   └── 3_merkles.ts  # Generate merkle trees
-│   ├── sdTkns/           # sdToken distribution scripts
-│   ├── spectra/          # Spectra protocol distribution scripts
-│   ├── indexer/          # Blockchain data indexing
-│   ├── repartition/      # Distribution calculation logic
-│   ├── reports/          # Report generation
-│   └── utils/            # Shared utilities
-│
-├── data/                  # Indexed blockchain data (parquet format)
-├── merkle.json           # Current sdToken merkle tree
-├── log.json              # sdToken distribution logs
-└── proposalHelper.ts     # Script to verify votes in Snapshot
+│   ├── reports/                      # Report generation
+│   ├── sdTkns/                       # sdToken merkle generation and claim fetchers
+│   ├── special-distribs/             # One-off extra distribution scripts
+│   ├── spectra/                      # Spectra report and repartition steps
+│   ├── utils/                        # Shared utilities
+│   ├── verify/                       # Automated verification and LLM triage
+│   └── vlCVX/                        # vlCVX distribution pipeline
+└── weekly-bounties/                  # Claimed rewards fetched from external platforms
 ```
 
-This structure shows:
-1. Weekly timestamp-based folders with all calculation data
-2. The `latest` directory with current merkle trees used by contracts
-3. Complete distribution process files (reports, repartition, merkles)
-4. Supporting scripts and utilities for each protocol
+## Setup
 
-## 📚 Documentation
-
-### Core Systems
-- **[sdToken Distribution Guide](./script/sdTkns/README.md)** - Complete guide for sdToken distributions
-- **[vlCVX Distribution Guide](./script/vlCVX/README.md)** - vlCVX reward distribution system
-- **[Spectra Distribution Guide](./script/spectra/README.md)** - Spectra protocol integration
-
-### Technical References
-- **[Utilities Documentation](./script/utils/README.md)** - Shared functions and helpers
-- **[Reports Structure](./bounties-reports/README.md)** - Understanding distribution reports
-- **[Raw Token Guide](./README-raw-tokens.md)** - Distributing native tokens
-
-### Claude Code Skills
-This repository includes reusable [Claude Code](https://github.com/anthropics/claude-code) skills in `.claude/commands/`:
-
-| Skill | Description |
-|-------|-------------|
-| `/verify-distrib` | Verify vlCVX and vlAURA weekly distributions against Snapshot data |
-
-**Usage:**
 ```bash
-/verify-distrib              # Verify current week
-/verify-distrib 1769644800   # Verify specific timestamp
-/verify-distrib --deep       # Include full delegation VP verification
+pnpm install
+cp .env.example .env
 ```
 
-## 🚀 Quick Start
+Fill the RPC/API keys needed by the pipeline you are running. Common variables are `WEB3_ALCHEMY_API_KEY`, `EXPLORER_KEY`, `ETHERSCAN_TOKEN`, `BOTS_ENVIO_GRAPHQL_URL_WORKER`, and Telegram variables for notification scripts.
 
-### Installation
+## Common Commands
+
 ```bash
-# Clone the repository
-git clone https://github.com/stake-dao/bounties-report.git
+# Legacy sdToken merkle
+pnpm sd-merkle
 
-# Install dependencies
-npm install
+# Universal sdFXS and sdSpectra merkles
+pnpm sd-merkle:frax
+pnpm spectra-report
+pnpm spectra-repartition
+pnpm sd-merkle:spectra
+
+# vlCVX report, repartition, and merkles
+make -f automation/reports.mk run-weekly-vlcvx
+make -f automation/distribution.mk run-repartition PROTOCOL=vlCVX
+make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=non-delegators
+make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=delegators
+
+# Tests
+pnpm test
+pnpm test:unit
+pnpm test:integration
 ```
 
-### Generate Distributions
-```bash
-# Generate sdToken merkle trees
-npm run generate-merkle
+## Report Exclusions
 
-# Generate vlCVX distributions
-npm run vlcvx:all
+- Add persistent exclusions per protocol in `data/excluded-transactions.json`. Entries can be plain hashes or objects with `hash`, optional `note`, and optional `periods`, `startPeriod`, or `endPeriod`.
+- Add ad-hoc exclusions with `--exclude-tx`: `pnpm tsx script/reports/generateReport.ts curve --exclude-tx 0xabc...`.
+- Load exclusions from a file with `--exclude-tx-file`.
+- Use `--no-default-exclusions` to ignore `data/excluded-transactions.json` for one run.
 
-# Generate Spectra distributions
-npm run spectra:all
-```
+## GitHub Workflows
 
-### Excluding Transactions From Reports
-- Add persistent exclusions per protocol by editing `data/excluded-transactions.json`. Each entry can be a plain hash string or an object with `hash`, optional `note`, and optional `periods/startPeriod/endPeriod` filters (UNIX week start).
-- Pass ad-hoc hashes on the CLI: `pnpm tsx script/reports/generateReport.ts curve --exclude-tx 0xabc... --exclude-tx 0xdef...`
-- Or load them from a file (newline/comma-separated list or JSON): `pnpm tsx script/reports/generateReport.ts curve --exclude-tx-file ./my-txs.txt`.
-- Use `--no-default-exclusions` when you want to ignore the shared `data/excluded-transactions.json` file for a specific run.
+Current workflow entry points are:
 
-## 🔄 Distribution Process
+- `Claims` - fetches claimed rewards into `weekly-bounties/`.
+- `Reports` - generates weekly and OTC CSV reports.
+- `sdTokens: Verify Reports` - verifies sdToken report inputs.
+- `sdTokens: Merkle` - runs and publishes legacy, sdFXS, and sdSpectra merkle steps.
+- `vlCVX: Distribution` - runs vlCVX repartition, merkle, verification, and publish steps.
+- `Compute APR` - recomputes latest vlCVX APR files.
+- `System: Index Delegators` - refreshes delegation caches.
 
-The distribution process runs weekly through automated workflows:
+## Claude Commands
 
-1. **Thursday 00:00 UTC** - New distribution period begins
-2. **Bounty Collection** - Platforms report voting incentives
-3. **Report Generation** - Create CSV files for each protocol
-4. **Merkle Generation** - Build merkle trees for efficient claiming
-5. **Deployment** - Update contracts with new merkle roots
+Reusable Claude commands live in `.claude/commands/`:
 
-### GitHub Actions Workflows
-- `copy-sdtkns-merkle` - Processes sdToken distributions
-- `copy-spectra-merkle` - Handles Spectra protocol
-- `vlcvx-merkle-generation` - Manages vlCVX rewards
+- `/verify-distrib` verifies vlCVX distribution files.
+- `/verify-votemarket` verifies bounty report CSVs, attribution files, and claimed rewards.
 
-Latest distributions are always available in `bounties-reports/latest/`.
+## Documentation
 
-## 🧪 Testing
-
-WIP
+- [Script overview](./script/README.md)
+- [Reports directory](./bounties-reports/README.md)
+- [Latest published files](./bounties-reports/latest/README.md)
+- [Raw token distributions](./README-raw-tokens.md)
+- [Verification pipeline](./script/verify/README.md)

@@ -22,13 +22,6 @@ const VLCVX_SCRIPTS = [
   "vlCVX RPC delegators",
 ];
 
-const VLAURA_SCRIPTS = [
-  "vlAURA Distribution Verification",
-  "vlAURA Reward Flow Verification",
-  "vlAURA RPC delegators",
-  "vlAURA delegation timing",
-];
-
 const BOUNTIES_SCRIPTS = ["Bounties Report Verification"];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -51,10 +44,10 @@ describe("formatVerificationReport", () => {
         verdict: "pass",
         summary: "All good.",
         issues: [],
-        scripts: makeScripts([...VLCVX_SCRIPTS, ...BOUNTIES_SCRIPTS, ...VLAURA_SCRIPTS]),
+        scripts: makeScripts([...VLCVX_SCRIPTS, ...BOUNTIES_SCRIPTS]),
       };
       const msg = formatVerificationReport(result, WEEK_TS, "all");
-      expect(msg).toContain("vlCVX · Bounties · vlAURA");
+      expect(msg).toContain("vlCVX · Bounties");
     });
   });
 
@@ -120,25 +113,25 @@ describe("formatVerificationReport", () => {
         verdict: "pass",
         summary: "All good.",
         issues: [],
-        scripts: makeScripts([...VLCVX_SCRIPTS, ...VLAURA_SCRIPTS]),
+        scripts: makeScripts([...VLCVX_SCRIPTS, ...BOUNTIES_SCRIPTS]),
       };
       const msg = formatVerificationReport(result, WEEK_TS, "all");
       expect(msg).toContain("<b>vlCVX</b>  4/4 ✅");
-      expect(msg).toContain("<b>vlAURA</b>  4/4 ✅");
+      expect(msg).toContain("<b>Bounties</b>  1/1 ✅");
     });
 
     it("shows ❌ in group header when any script in that group fails", () => {
       const scripts = [
         ...makeScripts(VLCVX_SCRIPTS.slice(0, 3)),
         { label: VLCVX_SCRIPTS[3], output: "err", exitCode: 1 },
-        ...makeScripts(VLAURA_SCRIPTS),
+        ...makeScripts(BOUNTIES_SCRIPTS),
       ];
       const result: VerificationResult = {
         verdict: "fail", summary: "RPC check failed.", issues: ["RPC mismatch"], scripts,
       };
       const msg = formatVerificationReport(result, WEEK_TS, "all");
       expect(msg).toContain("<b>vlCVX</b>  3/4 ❌");
-      expect(msg).toContain("<b>vlAURA</b>  4/4 ✅");
+      expect(msg).toContain("<b>Bounties</b>  1/1 ✅");
     });
   });
 

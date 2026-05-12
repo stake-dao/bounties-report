@@ -1,7 +1,7 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-vlcvx-apr run-vlaura-apr clean
+.PHONY: all setup install-deps run-vlcvx-apr clean
 
 .DEFAULT_GOAL := all
 
@@ -23,15 +23,6 @@ run-vlcvx-apr: setup install-deps
 	@if [ -f "bounties-reports/$(WEEK)/vlCVX/APRs.json" ]; then \
 		cp "bounties-reports/$(WEEK)/vlCVX/APRs.json" "bounties-reports/latest/vlCVX/APRs.json"; \
 		echo "Copied APRs.json to latest/vlCVX/"; \
-	fi
-
-run-vlaura-apr: setup install-deps
-	@echo "Computing vlAURA delegation APR..."
-	@$(PNPM) tsx script/helpers/computevlAURADelegatorsAPR.ts
-	@mkdir -p bounties-reports/latest/vlAURA
-	@if [ -f "bounties-reports/$(WEEK)/vlAURA/APRs.json" ]; then \
-		cp "bounties-reports/$(WEEK)/vlAURA/APRs.json" "bounties-reports/latest/vlAURA/APRs.json"; \
-		echo "Copied APRs.json to latest/vlAURA/"; \
 	fi
 
 clean:

@@ -1,7 +1,7 @@
 /**
  * Distribution verification orchestrator.
  *
- * Runs vlCVX / vlAURA verification scripts as subprocesses, builds a prompt
+ * Runs verification scripts as subprocesses, builds a prompt
  * from their output, and delegates analysis to any LLMClient.
  *
  * Fast mode  : verifyDistribution.ts + verifyRewardFlow.ts  (~5s, no network)
@@ -19,7 +19,7 @@ const MAX_BUFFER = 10 * 1024 * 1024;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type Protocol = "vlCVX" | "vlAURA" | "bounties" | "all";
+export type Protocol = "vlCVX" | "bounties" | "all";
 
 export type Verdict = "pass" | "fail" | "warning";
 
@@ -130,32 +130,6 @@ const SCRIPTS: VerifyScript[] = [
     args: (ts) => ["--epoch", String(ts)],
     protocols: ["bounties", "all"],
   },
-  // ── vlAURA ──────────────────────────────────────────────────
-  {
-    label: "vlAURA Distribution Verification",
-    path: "script/vlAURA/verify/distribution.ts",
-    args: (ts) => ["--timestamp", String(ts)],
-    protocols: ["vlAURA", "all"],
-  },
-  {
-    label: "vlAURA Reward Flow Verification",
-    path: "script/vlAURA/verify/rewardFlow.ts",
-    args: (ts) => ["--timestamp", String(ts)],
-    protocols: ["vlAURA", "all"],
-  },
-  {
-    label: "vlAURA RPC delegators",
-    path: "script/vlAURA/verify/delegators-rpc.ts",
-    args: () => [],
-    protocols: ["vlAURA", "all"],
-  },
-  {
-    label: "vlAURA delegation timing",
-    path: "script/vlAURA/verify/delegation-timing.ts",
-    args: () => [],
-    protocols: ["vlAURA", "all"],
-    note: "snapshot blocks hardcoded — update script if stale",
-  },
 ];
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -201,7 +175,6 @@ export function runScripts(timestamp: number, protocol: Protocol): ScriptResult[
 const PROTOCOL_CONTEXT: Partial<Record<Protocol, string>> = {
   bounties: `Bounties report triage rules:
 - ⚠️  "frax attribution not present" → expected (frax is OTC-only, no aggregator swap)
-- ⚠️  "pendle direct distribution" → expected (wethNotSwapped=true, pendle uses direct route)
 - ⚠️  "dropped token" (ORDER mismatch) → usually a cross-chain token (e.g. Base USDC) that can't be swapped by the mainnet aggregator; classify as warning unless the token has no CSV entry at all
 - ❌  "gauge in claimed_bounties but NOT in any CSV" → CRITICAL: bounty claimed on-chain but not distributed
 - ❌  "sdInTotal mismatch > 0.5%" → CRITICAL: swap amounts don't reconcile with CSV
@@ -214,10 +187,6 @@ When you see a CSV mismatch, check whether the script output mentions the token 
 Base-file triage for vlCVX:
 1. If "vlCVX Claims Completeness" shows zero Base claims implicitly (Curve claims match Mainnet-only CSV rows, no 8453 rows) OR the distribution/reward-flow scripts explicitly say "no 8453 entries in CSV" / "Curve Base skipped", then missing Base-specific files are EXPECTED and must not be treated as fail or warning.
 2. Only treat missing Base-specific files as fail if there is evidence Base claims should exist (8453 CSV rows, Base claims in claimed_bounties, or script output says Base data required).`,
-  vlAURA: `CSV mismatch triage for vlAURA:
-1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
-2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
-When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If merkle claim count for that token is non-zero, classify as warning not fail.`,
 };
 
 /**
@@ -242,7 +211,6 @@ Analyze the verification script outputs below. Each script tests a different asp
 
 ## BASELINE EXPECTATIONS (typical healthy week)
 - vlCVX: 200–300 merkle claims, 30–50 tokens, 280–350 delegators, zero-VP filtered: 50–100
-- vlAURA: 80–150 merkle claims, 3–8 tokens, 80–120 delegators
 - CSV diff should be exactly 0 for all tokens
 - Cumulative merkle: prev + this_week amounts (diff < 1e-9 relative is acceptable BigInt rounding)
 - Group split (fwd + nfwd) must be exact (0 diff)

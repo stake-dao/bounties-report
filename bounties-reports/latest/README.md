@@ -1,16 +1,24 @@
-This directory contains the most recent merkle files copied from the distribution process. Files are automatically updated here once distribution is completed on chain.
+# Latest Published Distributions
 
-## Files
-- `merkle.json` - Latest sdTokens distribution merkle tree
-- `delegationsAPRs.json` - Current delegation APRs for sdTokens distribution
-- `spectra_merkle.json` - Latest Spectra protocol distribution merkle tree
-- `vlCVX/vlcvx_merkle{nothing or chainId}.json` - Latest vlCVX distribution merkle tree
-- `vlCVX/vlcvx_merkle_delegators.json` - Latest vlCVX delegators distribution merkle tree
+This directory contains the current merkle and APR files copied by publish workflows after distribution processing.
 
-## Update Process
-Files are automatically copied here through GitHub Actions workflows when distributions are processed:
-- sdTokens distribution files via `copy-sdtkns-merkle` workflow
-- Spectra distribution files via `copy-spectra-merkle` workflow
-- vlCVX distribution files via dedicated merkle generation scripts
+## Active Files
 
-The files in this directory serve as the current source of truth for active distributions and are used by the claiming contracts.
+- `merkle.json` - latest legacy sdToken merkle tree.
+- `delegationsAPRs.json` - latest sdToken delegation APRs.
+- `sdTkns/sdtkns_merkle_252.json` - latest Fraxtal sdFXS universal merkle.
+- `sdTkns/sdtkns_merkle_8453.json` - latest Base sdSpectra universal merkle.
+- `vlCVX/vlcvx_merkle.json` - latest vlCVX voter merkle.
+- `vlCVX/vlcvx_merkle_{chainId}.json` - latest chain-specific vlCVX voter merkles.
+- `vlCVX/vlcvx_merkle_delegators.json` - latest vlCVX forwarded-delegator merkle.
+- `vlCVX/APRs.json` - latest vlCVX APR data.
+- `vlAURA/vlaura_merkle.json` - latest vlAURA merkle.
+- `vlAURA/vlaura_merkle_{chainId}.json` - latest chain-specific vlAURA merkles.
+
+## Publish Sources
+
+- `sdTokens: Merkle` publishes legacy sdToken, sdFXS, and sdSpectra files.
+- `vlCVX: Distribution` publishes vlCVX voters and delegators files.
+- `Compute APR` can refresh latest vlCVX APR files.
+
+`newMerkle.json` is a legacy/manual artifact and is not written by the current publish workflows.

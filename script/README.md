@@ -1,151 +1,81 @@
-# Script Directory Overview
+# Script Directory
 
-This directory contains all the core logic for processing and distributing rewards across Stake DAO's ecosystem.
+This directory contains the TypeScript pipelines used to fetch rewards, generate reports, compute distributions, build merkle trees, and verify weekly outputs.
 
-## 📁 Directory Structure
+## Main Areas
 
-### Distribution Systems
+- [sdTkns](./sdTkns/README.md) - legacy sdToken merkle generation plus universal sdFXS and sdSpectra support.
+- [vlCVX](./vlCVX/README.md) - vlCVX report, repartition, merkle, and verification scripts.
+- [spectra](./spectra/README.md) - Spectra report and repartition steps used by the sdSpectra universal merkle.
+- [utils](./utils/README.md) - shared constants, CSV parsing, Snapshot helpers, merkle helpers, RPC clients, and claim fetchers.
+- [verify](./verify/README.md) - distribution verification and LLM triage pipeline.
+- [special-distribs](./special-distribs/README.md) - one-off extra merkle generation scripts.
+- `reports/` - protocol report generators.
+- `indexer/` - delegation and forwarding indexers.
+- `interfaces/` - shared TypeScript interfaces for merkle and distribution data.
+- `test/` - unit, integration, and snapshot tests.
 
-#### **[/sdTkns](./sdTkns/README.md)**
-Main distribution system for sdToken rewards
-- Processes voting incentives from multiple platforms
-- Generates merkle trees for on-chain distribution
-- Supports both sdTokens and raw token distributions
-
-#### **[/vlCVX](./vlCVX/README.md)**
-vlCVX reward distribution system
-- Multi-chain support (Ethereum, Arbitrum, Base)
-- Delegator reward processing
-- Separate merkle trees per chain
-
-#### **[/spectra](./spectra/README.md)**
-Spectra protocol integration
-- Custom reward calculations
-- Protocol-specific distribution logic
-
-### Supporting Modules
-
-#### **[/utils](./utils/README.md)**
-Shared utilities and helpers
-- Constants and configuration
-- Merkle tree generation
-- CSV parsing and validation
-- Blockchain integrations
-
-#### **[/verify](./verify/README.md)**
-AI-powered distribution verification pipeline
-- Runs all protocol verification scripts and feeds output to an LLM
-- Produces `pass` / `warning` / `fail` verdicts with Telegram reporting
-- Supports multi-model comparison via `compareModels.ts`
-
-#### **/reports**
-Report generation scripts
-- `generateReport.ts` - Main report generator
-- `generateBSCReport.ts` - BSC-specific reports
-- `generatePendleReport.ts` - Pendle protocol reports
-- `generateOTCReport.ts` - OTC distribution reports
-
-#### **/indexer**
-Blockchain data indexing
-- Delegation tracking
-- Historical data processing
-- Event monitoring
-
-#### **/interfaces**
-TypeScript interfaces and types
-- Distribution data structures
-- Merkle tree types
-- API response types
-
-## 🔧 Key Scripts
-
-### Distribution Generation
+## Common Commands
 
 ```bash
-# Generate sdToken distributions
-ts-node script/sdTkns/generateMerkle.ts
+# sdToken merkles
+pnpm sd-merkle
+pnpm sd-merkle:frax
+pnpm sd-merkle:spectra
 
-# Generate vlCVX distributions
-ts-node script/vlCVX/1_report.ts
-ts-node script/vlCVX/2_repartition.ts
-ts-node script/vlCVX/3_merkles.ts
+# Spectra report and repartition
+pnpm spectra-report
+pnpm spectra-repartition
 
-# Generate Spectra distributions
-ts-node script/spectra/1_report.ts
-ts-node script/spectra/2_repartition.ts
-ts-node script/spectra/3_merkles.ts
+# Report generation
+make -f automation/reports.mk run-weekly-curve
+make -f automation/reports.mk run-weekly-balancer
+make -f automation/reports.mk run-weekly-fxn
+make -f automation/reports.mk run-weekly-frax
+make -f automation/reports.mk run-weekly-vlcvx
+
+# OTC reports
+make -f automation/reports.mk run-otc-curve
+make -f automation/reports.mk run-otc-balancer
+make -f automation/reports.mk run-otc-fxn
+make -f automation/reports.mk run-otc-frax
+
+# vlCVX distribution steps
+make -f automation/distribution.mk run-repartition PROTOCOL=vlCVX
+make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=non-delegators
+make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=delegators
 ```
 
-### Report Generation
+Direct script execution uses `pnpm tsx`:
 
 ```bash
-# Generate protocol reports (supports: curve, balancer, fxn, frax, pendle)
-ts-node script/reports/generateReport.ts curve
-ts-node script/reports/generateReport.ts balancer
-ts-node script/reports/generateReport.ts fxn
-ts-node script/reports/generateReport.ts frax
-
-# For Pendle, run BOTH scripts (order matters)
-ts-node script/reports/generatePendleReport.ts     # USDT fee recipient rewards
-ts-node script/reports/generateReport.ts pendle    # Non-USDT VM bounties
+pnpm tsx script/reports/generateReport.ts curve
+pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol vlCVX
 ```
 
-## 🏗️ Architecture
+## Data Flow
 
-### Data Flow
-
-```
-1. Reports (CSV) → 2. Processing → 3. Merkle Trees → 4. On-chain
-     ↓                   ↓              ↓                ↓
-generateReport    generateMerkle   merkle.json    Smart Contracts
-```
-
-### Module Dependencies
-
-```
-sdTkns/
-  ├── uses → utils/
-  ├── uses → reports/
-  └── outputs → bounties-reports/
-
-vlCVX/
-  ├── uses → utils/
-  ├── uses → indexer/
-  └── outputs → bounties-reports/
-
-utils/
-  ├── constants.ts (configuration)
-  ├── snapshot.ts (governance data)
-  └── merkle.ts (tree generation)
+```text
+weekly-bounties/ claims
+        |
+        v
+report scripts -> bounties-reports/{timestamp}/*.csv
+        |
+        v
+repartition scripts -> protocol repartition JSON
+        |
+        v
+merkle scripts -> merkle JSON + APR files
+        |
+        v
+publish workflows -> bounties-reports/latest/
 ```
 
-## 🔌 External Integrations
+## Tests
 
-- **Snapshot.org** - Governance proposal data
-- **Votemarket** - Voting incentive data
-- **Hidden Hand** - Bribe marketplace data
-- **Warden** - Delegation market data
-
-## 📝 Adding New Protocols
-
-1. Update configuration in `utils/constants.ts`
-2. Add report generation logic in `reports/`
-3. Configure distribution in relevant system (sdTkns/vlCVX/spectra)
-4. Test with sample data
-5. Deploy and monitor
-
-## 🐛 Debugging
-
-Enable verbose logging:
 ```bash
-DEBUG=true npm run generate-merkle
+pnpm test
+pnpm test:unit
+pnpm test:integration
+pnpm test:coverage
 ```
-
-Common log locations:
-- `log.json` - sdToken distribution logs
-
-## 📚 Further Reading
-
-- [sdToken System Architecture](./sdTkns/README.md)
-- [vlCVX Distribution Details](./vlCVX/README.md)
-- [Utility Functions Reference](./utils/README.md)

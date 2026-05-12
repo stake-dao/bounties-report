@@ -389,21 +389,7 @@ function processReport(
       (acc, bounty) => acc + (bounty.sdTokenAmount || 0),
       0
     );
-    let remainingSdTokenAmount = flows.totalSdTokenIn - directSdTokenAmount;
-    // Pendle: scale by share of WETH that came from included reward tokens
-    if (protocol === "pendle") {
-      const matchedIncludedWeth = Object.values(tokenValues[protocol] || {}).reduce(
-        (acc, v) => acc + (v || 0),
-        0
-      );
-      const includedShare = flows.totalWethIn > 0 ? matchedIncludedWeth / flows.totalWethIn : 1;
-      if (includedShare > 0 && includedShare < 1) {
-        remainingSdTokenAmount = remainingSdTokenAmount * includedShare;
-      }
-      if (isDebugEnabled()) {
-        debug("[pendle scale] includedShare", { matchedIncludedWeth, totalWethIn: flows.totalWethIn, includedShare });
-      }
-    }
+    const remainingSdTokenAmount = flows.totalSdTokenIn - directSdTokenAmount;
     if (isDebugEnabled()) {
       debug("[sdToken] direct/remaining", protocol, {
         directSdTokenAmount,

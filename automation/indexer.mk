@@ -6,7 +6,7 @@ include automation/setup/node.mk
 # Define the default target
 .DEFAULT_GOAL := all
 
-all: setup install-deps get-delegators get-vlaura-delegators
+all: setup install-deps get-delegators
 
 setup: setup-node
 
@@ -19,10 +19,6 @@ get-delegators: setup install-deps
 	@echo "Running vlCVX delegation data collection..."
 	@$(PNPM) tsx script/indexer/delegators.ts
 
-get-vlaura-delegators: setup install-deps
-	@echo "Running vlAURA delegation data collection (ETH + Base)..."
-	@$(PNPM) tsx script/indexer/vlauraDelegators.ts
-
 commit-and-push:
 	@echo "Committing and pushing changes..."
 	@git config --global user.name 'github-actions[bot]'
@@ -30,11 +26,11 @@ commit-and-push:
 	@git stash
 	@git pull --rebase origin main
 	@git stash pop || true
-	@if git diff --quiet data/delegations/ data/vlaura-delegations/ 2>/dev/null; then \
+	@if git diff --quiet data/delegations/ 2>/dev/null; then \
 		echo "No changes to commit"; \
 		exit 0; \
 	fi
-	@git add data/delegations/* data/vlaura-delegations/* 2>/dev/null || true
+	@git add data/delegations/* 2>/dev/null || true
 	@git commit -m "Update delegation data [$(shell date +%Y-%m-%d)]" || true
 	@git push origin main
 
