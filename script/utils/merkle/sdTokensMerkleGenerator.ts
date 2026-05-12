@@ -15,6 +15,7 @@ import {
 import {
   AUTO_VOTER_DELEGATION_ADDRESS,
   DELEGATION_ADDRESS,
+  SDFXS_SPACE,
   SPACE_TO_CHAIN_ID,
   WEEK,
 } from "../constants";
@@ -106,11 +107,14 @@ export async function generateSdTokensMerkle(
   
   // Get voters and voting power
   let voters = await getVoters(proposalId);
-  const vps = await getVotingPower(
-    proposal,
-    voters.map(v => v.voter),
-    SPACE_TO_CHAIN_ID[config.space]
-  );
+  const vps =
+    config.space === SDFXS_SPACE
+      ? Object.fromEntries(voters.map((v) => [v.voter.toLowerCase(), Number(v.vp || 0)]))
+      : await getVotingPower(
+          proposal,
+          voters.map(v => v.voter),
+          SPACE_TO_CHAIN_ID[config.space]
+        );
   
   voters = formatVotingPowerResult(voters, vps);
   voters = await addVotersFromAutoVoter(config.space, proposal, voters, allAddressesPerChoice);
