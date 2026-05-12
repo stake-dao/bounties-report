@@ -8,6 +8,8 @@ import {
 } from "viem";
 import { getClient } from "./constants";
 
+const LEGACY_VE_SDT = getAddress("0x0C30476f66034E11782938DF8e4384970B6c9e8a");
+const LEGACY_VE_PROXY_BOOST_SDT = getAddress("0xD67bdBefF01Fc492f1864E61756E5FBB3f173506");
 const VL_SDT = getAddress("0x94818A7baa7e9F5dC62ce4da1B52ef9a760b80B8");
 const VL_PROXY_BOOST_SDT = getAddress("0xaB05ca46d1c78CAbB051efFE35099714Cad2AddA");
 const TOKENLESS_PRODUCTION = 40;
@@ -37,6 +39,11 @@ type SdGaugeLessVoteBoostOptions = {
   whiteListedAddress?: string[];
   delegation?: Record<string, string>;
   veSDTUserAddresses?: Record<string, string>;
+};
+
+type ScoringContracts = {
+  votingToken: Address;
+  boostProxy: Address;
 };
 
 function format18(value: bigint): number {
@@ -129,6 +136,36 @@ function findSdFxsStrategy(proposal: SnapshotProposal): SnapshotStrategy | undef
   return proposal.strategies.find((strategy) => strategy.name === "sd-gauge-less-vote-boost");
 }
 
+async function getScoringContracts(
+  client: PublicClient,
+  snapshotBlock: bigint
+): Promise<ScoringContracts> {
+  // Snapshot migrated this strategy from veSDT to vlSDT; historical proposals
+  // before vlSDT supply exists must still be scored with the legacy contracts.
+  const vlSupply = await readContract18(
+    client,
+    {
+      address: VL_SDT,
+      abi: SD_FXS_SCORE_ABI,
+      functionName: "totalSupply",
+      blockNumber: snapshotBlock,
+    },
+    true
+  );
+
+  if (vlSupply > 0) {
+    return {
+      votingToken: VL_SDT,
+      boostProxy: VL_PROXY_BOOST_SDT,
+    };
+  }
+
+  return {
+    votingToken: LEGACY_VE_SDT,
+    boostProxy: LEGACY_VE_PROXY_BOOST_SDT,
+  };
+}
+
 export function canComputeSdFxsVotingPower(proposal: SnapshotProposal): boolean {
   return Boolean(findSdFxsStrategy(proposal));
 }
@@ -181,6 +218,7 @@ export async function getSdFxsVotingPower(
   const mainnetClient = await getClient(1);
   const destinationClient = await getClient(Number(targetChainId));
   const snapshotBlock = BigInt(proposal.snapshot);
+  const scoringContracts = await getScoringContracts(mainnetClient, snapshotBlock);
   const destinationBlock = await getDestinationChainBlock(snapshotBlock, targetChainId, mainnetClient);
 
   const mainnetBlocks = getPreviousBlocks(
@@ -212,7 +250,7 @@ export async function getSdFxsVotingPower(
         const value = await readContract18(
           mainnetClient,
           {
-            address: VL_PROXY_BOOST_SDT,
+            address: scoringContracts.boostProxy,
             abi: SD_FXS_SCORE_ABI,
             functionName: "adjusted_balance_of",
             args: [getAddress(mappedAddress) as Address],
@@ -247,7 +285,7 @@ export async function getSdFxsVotingPower(
     if (isEnd) {
       const [veSupply, gaugeSupply] = await Promise.all([
         readContract18(mainnetClient, {
-          address: VL_SDT,
+          address: scoringContracts.votingToken,
           abi: SD_FXS_SCORE_ABI,
           functionName: "totalSupply",
           blockNumber: mainnetBlock,
