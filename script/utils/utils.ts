@@ -26,6 +26,10 @@ import { bsc, mainnet } from "../utils/chains";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { processAllDelegators } from "./cacheUtils";
 import { getBlockNumberByTimestamp } from "./chainUtils";
+import {
+  canComputeSdFxsVotingPower,
+  getSdFxsVotingPower,
+} from "./sdfxsVotingPower";
 const VOTER_ABI = require("../../abis/AutoVoter.json");
 const { parse } = require("csv-parse/sync");
 
@@ -711,6 +715,13 @@ export const getDelegationVotingPower = async (
 
     return result;
   } catch (e) {
+    if (canComputeSdFxsVotingPower(proposal)) {
+      console.warn(
+        "Snapshot Score failed for sdFXS delegator voting power; falling back to direct RPC scoring."
+      );
+      return getSdFxsVotingPower(proposal, delegatorAddresses);
+    }
+
     console.log(e);
     throw e;
   }
