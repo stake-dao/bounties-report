@@ -194,6 +194,50 @@ describe("createCombineDistribution", () => {
     expect(result[checksumA][checksumUsdc]).toBe("1000000");
   });
 
+  it("skips zero-amount current distribution entries", () => {
+    const currentDistribution = {
+      distribution: {
+        [ADDR_A]: {
+          tokens: {
+            [TOKEN_USDC]: 0n,
+          },
+        },
+      },
+    };
+    const previousMerkle = { merkleRoot: "", claims: {} };
+
+    const result = createCombineDistribution(
+      currentDistribution,
+      previousMerkle
+    );
+
+    expect(result[getAddress(ADDR_A)]).toBeUndefined();
+  });
+
+  it("skips zero-amount previous merkle entries", () => {
+    const currentDistribution = { distribution: {} };
+    const previousMerkle = {
+      merkleRoot: "0xabc",
+      claims: {
+        [ADDR_A]: {
+          tokens: {
+            [TOKEN_USDC]: {
+              amount: "0",
+              proof: [],
+            },
+          },
+        },
+      },
+    };
+
+    const result = createCombineDistribution(
+      currentDistribution,
+      previousMerkle
+    );
+
+    expect(result[getAddress(ADDR_A)]).toBeUndefined();
+  });
+
   it("handles null previous merkle claims gracefully", () => {
     const currentDistribution = {
       distribution: {

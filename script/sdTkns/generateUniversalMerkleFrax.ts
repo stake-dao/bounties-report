@@ -85,25 +85,32 @@ async function main() {
     
     // First, copy all previous claims
     for (const [address, prevClaim] of Object.entries(previousMerkleData.claims)) {
-      cumulativeClaims[address] = {
-        tokens: {}
-      };
+      const tokens: Record<string, { amount: string; proof: [] }> = {};
+
       for (const [token, tokenData] of Object.entries((prevClaim as any).tokens)) {
-        cumulativeClaims[address].tokens[token] = {
-          amount: (tokenData as any).amount,
+        const amount = BigInt((tokenData as any).amount);
+        if (amount <= 0n) continue;
+
+        tokens[token] = {
+          amount: amount.toString(),
           proof: [] // Will be recalculated
         };
+      }
+
+      if (Object.keys(tokens).length > 0) {
+        cumulativeClaims[address] = { tokens };
       }
     }
     
     // Then add this week's distributions to the cumulative total
     for (const [address, weekClaim] of Object.entries(weekResult.merkleData.claims)) {
-      if (!cumulativeClaims[address]) {
-        cumulativeClaims[address] = { tokens: {} };
-      }
-      
       for (const [token, weekTokenData] of Object.entries((weekClaim as any).tokens)) {
         const weekAmount = BigInt((weekTokenData as any).amount);
+        if (weekAmount <= 0n) continue;
+
+        if (!cumulativeClaims[address]) {
+          cumulativeClaims[address] = { tokens: {} };
+        }
         
         if (!cumulativeClaims[address].tokens[token]) {
           cumulativeClaims[address].tokens[token] = {
@@ -121,10 +128,18 @@ async function main() {
     const cumulativeUniversalMerkle: { [address: string]: { [tokenAddress: string]: string } } = {};
     for (const [address, claim] of Object.entries(cumulativeClaims)) {
       const claimData = claim as any;
-      cumulativeUniversalMerkle[address] = {};
+      const tokens: Record<string, string> = {};
+
       for (const [token, tokenData] of Object.entries(claimData.tokens)) {
         const data = tokenData as any;
-        cumulativeUniversalMerkle[address][token] = data.amount; // Already a string
+        const amount = BigInt(data.amount);
+        if (amount > 0n) {
+          tokens[token] = amount.toString();
+        }
+      }
+
+      if (Object.keys(tokens).length > 0) {
+        cumulativeUniversalMerkle[address] = tokens;
       }
     }
     

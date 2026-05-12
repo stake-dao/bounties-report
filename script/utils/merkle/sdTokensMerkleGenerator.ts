@@ -308,8 +308,11 @@ export async function generateSdTokensMerkle(
       
       for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
         const vp = delegatorsVotingPower[delegatorAddress];
+        if (vp <= 0) continue;
+
         const ratioVp = (vp * 100) / delegatorSumVotingPower;
         const tokenAmount = (ratioVp * totalAmount) / 100;
+        if (tokenAmount <= 0) continue;
         
         const delAddress = delegatorAddress.toLowerCase();
         if (!userRewards[delAddress]) {
@@ -334,11 +337,18 @@ export async function generateSdTokensMerkle(
   // Convert userRewards to Distribution format
   const currentDistribution: Distribution = {};
   for (const [address, tokens] of Object.entries(userRewards)) {
-    currentDistribution[address] = { tokens: {} };
+    const addressDistribution: Distribution[string] = { tokens: {} };
+
     for (const [token, amount] of Object.entries(tokens)) {
       // Convert to wei (BigInt)
       const weiAmount = BigInt(Math.floor(amount * 1e18));
-      currentDistribution[address].tokens[token] = weiAmount;
+      if (weiAmount > 0n) {
+        addressDistribution.tokens[token] = weiAmount;
+      }
+    }
+
+    if (Object.keys(addressDistribution.tokens).length > 0) {
+      currentDistribution[address] = addressDistribution;
     }
   }
 
