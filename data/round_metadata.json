@@ -14,7 +14,7 @@
                     {
                         "step": 1,
                         "date": "12-05-2026",
-                        "distributed": ""
+                        "distributed": "14:31"
                     }
                 ]
             },
@@ -36,34 +36,12 @@
                 ]
             }
         ],
-        "currentRoundId": 1
+        "currentRoundId": 2
     },
     "general": {
         "rounds": [
             {
                 "id": 1,
-                "proposals": [
-                    {
-                        "id": "0x18282df651802e20cfd207ebe7a8a25e0f3fd6aa932a6485b933231aad6ff5e4",
-                        "start": "09-04-2026 02:00",
-                        "end": "14-04-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "21-04-2026",
-                        "distributed": "10:22"
-                    },
-                    {
-                        "step": 2,
-                        "date": "28-04-2026",
-                        "distributed": "08:14"
-                    }
-                ]
-            },
-            {
-                "id": 2,
                 "proposals": [
                     {
                         "id": "0x8931af2eae85d4515402bf2824bfaaeed35a955508e948c478453e4f36f3eec7",
@@ -81,6 +59,28 @@
                         "step": 2,
                         "date": "12-05-2026",
                         "distributed": "08:29"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xb4bed9609711e57918903934e235d4393a62dbab13b936c6baa3230122e79721",
+                        "start": "07-05-2026 02:00",
+                        "end": "12-05-2026 14:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "19-05-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "26-05-2026",
+                        "distributed": ""
                     }
                 ]
             }
