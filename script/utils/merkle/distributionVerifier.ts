@@ -256,7 +256,11 @@ export const distributionVerifier = async (
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
   proposalId?: string,
   merkleType?: string,
-) => {
+): Promise<DistributionRow[]> => {
+  if (!proposalId) {
+    throw new Error("distributionVerifier: proposalId is required");
+  }
+
   const addressCount = Object.keys(distribution).length;
   console.log(`Current Distribution has ${addressCount} addresses.`);
 
@@ -402,10 +406,11 @@ export const distributionVerifier = async (
       gaugeType,
       currentMerkleData,
       previousMerkleData,
-      log,
-      merkleType
+      log
     );
   }
+
+  return comparisonRows;
 };
 
 const compareMerkleData = async (

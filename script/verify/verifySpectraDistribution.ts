@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   const proposalId = proposals[1].id;
   console.log(`Verifying against proposal: ${proposalId}\n`);
 
-  await distributionVerifier(
+  const rows = await distributionVerifier(
     SPECTRA_SPACE,
     base,
     SPECTRA_MERKLE_ADDRESS,
@@ -88,6 +88,20 @@ async function main(): Promise<void> {
     proposalId,
     "8453"
   );
+
+  // Every row's merkle delta (newAmount - prevAmount) must equal the amount
+  // repartition.json assigned that address — anything else is a mis-built tree.
+  const mismatches = rows.filter((r) => r.isError);
+  if (mismatches.length > 0) {
+    console.error(`\n❌ ${mismatches.length} of ${rows.length} rows do not reconcile:`);
+    for (const m of mismatches) {
+      console.error(
+        `  ${m.address} ${m.symbol}: repartition=${m.distributionAmount} merkleDelta=${m.weekChange}`
+      );
+    }
+    process.exit(1);
+  }
+  console.log(`\n✅ all ${rows.length} address/token rows reconcile with repartition.json`);
 }
 
 main().catch((err) => {
