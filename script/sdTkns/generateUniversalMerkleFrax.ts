@@ -251,8 +251,7 @@ async function main() {
           cumulativeMerkleData,
           previousMerkleData,
           weekDistribution,
-          proposalId,
-          "252"
+          proposalId
         );
       } else {
         console.log("\nNo proposal found for verification");

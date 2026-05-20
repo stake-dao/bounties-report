@@ -255,15 +255,19 @@ export const distributionVerifier = async (
   previousMerkleData: MerkleData,
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
   proposalId?: string,
-  merkleType?: string,
-) => {
+  merkleType?: "forwarders" | "combined",
+): Promise<DistributionRow[]> => {
+  if (!proposalId) {
+    throw new Error("distributionVerifier: proposalId is required");
+  }
+
   const addressCount = Object.keys(distribution).length;
   console.log(`Current Distribution has ${addressCount} addresses.`);
 
   const tokenSums: { [token: string]: bigint } = {};
   for (const data of Object.values(distribution)) {
     for (const [token, amount] of Object.entries(data.tokens)) {
-      tokenSums[token] = (tokenSums[token] || 0n) + amount;
+      tokenSums[token] = (tokenSums[token] || 0n) + BigInt(amount);
     }
   }
   console.log("Token totals in current distribution (absolute):");
@@ -406,6 +410,8 @@ export const distributionVerifier = async (
       merkleType
     );
   }
+
+  return comparisonRows;
 };
 
 const compareMerkleData = async (

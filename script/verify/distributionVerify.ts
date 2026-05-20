@@ -19,7 +19,7 @@ const MAX_BUFFER = 10 * 1024 * 1024;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type Protocol = "vlCVX" | "bounties" | "all";
+export type Protocol = "vlCVX" | "bounties" | "spectra" | "all";
 
 export type Verdict = "pass" | "fail" | "warning";
 
@@ -129,6 +129,13 @@ const SCRIPTS: VerifyScript[] = [
     path: "script/verify/verifyBountiesReport.ts",
     args: (ts) => ["--epoch", String(ts)],
     protocols: ["bounties", "all"],
+  },
+  // ── spectra ─────────────────────────────────────────────────
+  {
+    label: "sdSPECTRA Distribution Verification",
+    path: "script/verify/verifySpectraDistribution.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["spectra", "all"],
   },
 ];
 

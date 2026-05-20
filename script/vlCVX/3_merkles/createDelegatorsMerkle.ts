@@ -707,7 +707,6 @@ async function processForwarders() {
 			previousMerkleData,
 			currentDistribution.distribution,
 			proposalId,
-			"1",
 			"forwarders",
 		);
 	} catch (error) {
