@@ -38,10 +38,11 @@ jobs:
       - name: AI verify sdToken distribution
         run: |
           case "${{ inputs.token }}" in
-            sdfxs) PROTOCOL=bounties ;;
+            sdfxs)   PROTOCOL=bounties ;;
+            spectra) PROTOCOL=spectra ;;
             *)
               echo "❌ Unsupported token '${{ inputs.token }}': aiVerify.ts has no protocol mapping for it."
-              echo "   Supported: sdfxs. Extend script/verify/aiVerify.ts to add more."
+              echo "   Supported: sdfxs, spectra. Extend script/verify/aiVerify.ts to add more."
               exit 1
               ;;
           esac

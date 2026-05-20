@@ -44,6 +44,7 @@ function shortLabel(label: string): string {
 function inferGroup(label: string): string {
   if (/^vlCVX/i.test(label)) return "vlCVX";
   if (/bounties/i.test(label)) return "Bounties";
+  if (/spectra/i.test(label)) return "Spectra";
   return "Other";
 }
 
