@@ -263,7 +263,7 @@ export const distributionVerifier = async (
   const tokenSums: { [token: string]: bigint } = {};
   for (const data of Object.values(distribution)) {
     for (const [token, amount] of Object.entries(data.tokens)) {
-      tokenSums[token] = (tokenSums[token] || 0n) + amount;
+      tokenSums[token] = (tokenSums[token] || 0n) + BigInt(amount);
     }
   }
   console.log("Token totals in current distribution (absolute):");
