@@ -298,9 +298,8 @@ async function main() {
       SPECTRA_MERKLE_ADDRESS, 
       newMerkleData, 
       previousMerkleData, 
-      currentDistribution.distribution, 
-      proposalId, 
-      "8453"
+      currentDistribution.distribution,
+      proposalId
     );
     
     // Log contract address

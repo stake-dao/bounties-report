@@ -255,7 +255,7 @@ export const distributionVerifier = async (
   previousMerkleData: MerkleData,
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
   proposalId?: string,
-  merkleType?: string,
+  merkleType?: "forwarders" | "combined",
 ): Promise<DistributionRow[]> => {
   if (!proposalId) {
     throw new Error("distributionVerifier: proposalId is required");
@@ -406,7 +406,8 @@ export const distributionVerifier = async (
       gaugeType,
       currentMerkleData,
       previousMerkleData,
-      log
+      log,
+      merkleType
     );
   }
 

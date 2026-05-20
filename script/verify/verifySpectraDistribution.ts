@@ -85,8 +85,7 @@ async function main(): Promise<void> {
     currentMerkleData,
     previousMerkleData,
     currentDistribution.distribution,
-    proposalId,
-    "8453"
+    proposalId
   );
 
   // Every row's merkle delta (newAmount - prevAmount) must equal the amount
