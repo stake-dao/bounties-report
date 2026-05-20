@@ -19,7 +19,7 @@ This directory contains automated verification for weekly distributions and boun
 `distributionVerify.ts` currently accepts:
 
 ```typescript
-export type Protocol = "vlCVX" | "bounties" | "spectra" | "all";
+export type Protocol = "vlCVX" | "bounties" | "spectra" | "frax" | "all";
 ```
 
 Registered scripts:
@@ -27,6 +27,7 @@ Registered scripts:
 - vlCVX distribution, reward flow, claims completeness, parquet delegators, and RPC delegators.
 - bounty report verification through `verifyBountiesReport.ts`.
 - sdSPECTRA distribution verification through `verifySpectraDistribution.ts`.
+- frax-only bounty verification (the sdFXS gate) — `verifyBountiesReport.ts --only frax`.
 
 ## Usage
 
@@ -38,6 +39,7 @@ pnpm tsx script/verify/aiVerify.ts
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol vlCVX
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol bounties
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol spectra
+pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol frax
 
 # Override models
 pnpm tsx script/verify/aiVerify.ts --model claude-haiku-4-5
