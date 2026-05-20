@@ -180,11 +180,11 @@ function makeMainnetClient() {
 
 // ── Check 1: File existence ───────────────────────────────────────────────────
 
-function checkFiles(epoch: number): CheckResult[] {
+function checkFiles(epoch: number, protocols: readonly Protocol[]): CheckResult[] {
   const results: CheckResult[] = [];
   const base = epochDir(epoch);
 
-  for (const proto of PROTOCOLS) {
+  for (const proto of protocols) {
     const csvPath = path.join(base, `${proto}.csv`);
     const attrPath = path.join(base, `${proto}-attribution.json`);
     const otcPath = path.join(base, `${proto}-otc.csv`);
@@ -363,7 +363,7 @@ function checkProtocol(epoch: number, proto: Protocol): ProtocolSummary {
 
 // ── Check 4: claimed_bounties ↔ CSV ───────────────────────────────────────────
 
-function checkClaimedBounties(epoch: number, summaries: ProtocolSummary[], rootGaugeMap: Map<string, string>): CheckResult[] {
+function checkClaimedBounties(epoch: number, summaries: ProtocolSummary[], rootGaugeMap: Map<string, string>, protocols: readonly Protocol[]): CheckResult[] {
   const results: CheckResult[] = [];
   const claimedPath = path.join(weeklyDir(epoch), "votemarket-v2", "claimed_bounties.json");
 
@@ -375,7 +375,7 @@ function checkClaimedBounties(epoch: number, summaries: ProtocolSummary[], rootG
   const claimed = readJSON<Record<string, Record<string, ClaimEntry>>>(claimedPath);
   const base = epochDir(epoch);
 
-  for (const proto of PROTOCOLS) {
+  for (const proto of protocols) {
     const protoEntries = Object.values(claimed[proto] ?? {});
     if (protoEntries.length === 0) continue;
 
@@ -534,12 +534,20 @@ function printSummaryTable(summaries: ProtocolSummary[]): void {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   let epoch: number | undefined;
+  let only: Protocol | undefined;
 
   for (let i = 0; i < args.length; i++) {
     if ((args[i] === "--epoch" || args[i] === "--period") && args[i + 1]) {
       epoch = parseInt(args[++i], 10);
+    } else if (args[i] === "--only" && args[i + 1]) {
+      const v = args[++i];
+      if (!(PROTOCOLS as readonly string[]).includes(v)) {
+        console.error(`--only: unknown protocol '${v}' — expected one of ${PROTOCOLS.join(", ")}`);
+        process.exit(1);
+      }
+      only = v as Protocol;
     } else if (args[i] === "--help") {
-      console.log(`Usage: pnpm tsx script/verify/verifyBountiesReport.ts [--epoch EPOCH]\n`);
+      console.log(`Usage: pnpm tsx script/verify/verifyBountiesReport.ts [--epoch EPOCH] [--only PROTOCOL]\n`);
       process.exit(0);
     }
   }
@@ -564,12 +572,14 @@ async function main(): Promise<void> {
 
   let allOk = true;
 
+  const activeProtocols: readonly Protocol[] = only ? [only] : PROTOCOLS;
+
   // 1 — files
-  if (!printSection("File Existence", checkFiles(epoch))) allOk = false;
+  if (!printSection("File Existence", checkFiles(epoch, activeProtocols))) allOk = false;
 
   // 2 + 3 — per-protocol CSV + attribution
   const summaries: ProtocolSummary[] = [];
-  for (const proto of PROTOCOLS) {
+  for (const proto of activeProtocols) {
     const base = epochDir(epoch);
     const csvPath = path.join(base, `${proto}.csv`);
     const attrPath = path.join(base, `${proto}-attribution.json`);
@@ -586,7 +596,7 @@ async function main(): Promise<void> {
   console.log("\n  claimed_bounties ↔ CSV (resolving root gauges…)");
   const [rootGaugeMap, botResults] = await Promise.all([buildRootGaugeMap(), checkBotMarket()]);
   console.log(`  Root gauge map: ${rootGaugeMap.size} entries loaded`);
-  if (!printSection("claimed_bounties ↔ CSV", checkClaimedBounties(epoch, summaries, rootGaugeMap))) allOk = false;
+  if (!printSection("claimed_bounties ↔ CSV", checkClaimedBounties(epoch, summaries, rootGaugeMap, activeProtocols))) allOk = false;
 
   // 5 — BotMarket allowlist
   if (!printSection("BotMarket", botResults)) allOk = false;

@@ -6,7 +6,7 @@
  * if all scripts pass but every LLM is down, the pipeline still passes.
  *
  * Usage:
- *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|bounties|spectra|all] [--models m1,m2] [--deep]
+ *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|bounties|spectra|frax|all] [--models m1,m2] [--deep]
  *
  * Env:
  *   OPENCODE_ZEN_API_KEY  (required)
@@ -118,7 +118,7 @@ Usage: pnpm tsx script/verify/aiVerify.ts [options]
 
 Options:
   --timestamp <ts>       Week epoch (default: current week)
-  --protocol  <p>        vlCVX | bounties | spectra | all  (default: all)
+  --protocol  <p>        vlCVX | bounties | spectra | frax | all  (default: all)
   --models    <m1,m2>    Comma-separated model IDs (default: ${DEFAULT_MODELS.join(",")})
   --model     <m>        Single model (shorthand for --models with one)
   --deep                 Include RPC/parquet delegation checks (implicit)

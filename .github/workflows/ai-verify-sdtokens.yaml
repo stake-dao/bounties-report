@@ -38,7 +38,7 @@ jobs:
       - name: AI verify sdToken distribution
         run: |
           case "${{ inputs.token }}" in
-            sdfxs)   PROTOCOL=bounties ;;
+            sdfxs)   PROTOCOL=frax ;;
             spectra) PROTOCOL=spectra ;;
             *)
               echo "❌ Unsupported token '${{ inputs.token }}': aiVerify.ts has no protocol mapping for it."

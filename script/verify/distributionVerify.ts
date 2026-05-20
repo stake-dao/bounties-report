@@ -19,7 +19,7 @@ const MAX_BUFFER = 10 * 1024 * 1024;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type Protocol = "vlCVX" | "bounties" | "spectra" | "all";
+export type Protocol = "vlCVX" | "bounties" | "spectra" | "frax" | "all";
 
 export type Verdict = "pass" | "fail" | "warning";
 
@@ -137,6 +137,13 @@ const SCRIPTS: VerifyScript[] = [
     args: (ts) => ["--timestamp", String(ts)],
     protocols: ["spectra", "all"],
   },
+  // ── frax (sdFXS — frax slice of the bounties report only) ────
+  {
+    label: "Frax Bounties Verification",
+    path: "script/verify/verifyBountiesReport.ts",
+    args: (ts) => ["--epoch", String(ts), "--only", "frax"],
+    protocols: ["frax"],
+  },
 ];
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -187,6 +194,12 @@ const PROTOCOL_CONTEXT: Partial<Record<Protocol, string>> = {
 - ❌  "sdInTotal mismatch > 0.5%" → CRITICAL: swap amounts don't reconcile with CSV
 - ❌  CSV file missing for a non-empty protocol → CRITICAL
 Root gauge note: Curve L2 gauges (rootGauge on Arbitrum/Base) are resolved to their mainnet gauge before checking the CSV — a failed resolution is a data issue, not a false positive.`,
+  frax: `Frax bounties report triage (sdFXS distribution — frax is OTC-only):
+- ⚠️  "attribution.json not present" → EXPECTED for frax (OTC-only, no aggregator swap), not an error
+- ❌  "gauge in claimed_bounties but NOT in CSV" → CRITICAL: bounty claimed on-chain but not distributed
+- ❌  "frax.csv missing" when frax has claimed bounties → CRITICAL
+- ❌  "sdInTotal mismatch > 0.5%" → CRITICAL: swap amounts don't reconcile with CSV
+Only frax is in scope here — curve/balancer/fxn are deliberately excluded from the sdFXS gate.`,
   vlCVX: `CSV mismatch triage for vlCVX:
 1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
 2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
