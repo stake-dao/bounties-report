@@ -16,6 +16,8 @@ import type { LLMClient } from "../utils/llmClient";
 
 const PROJECT_ROOT = path.join(__dirname, "../../");
 const MAX_BUFFER = 10 * 1024 * 1024;
+/** Per-script wall-clock cap — a hung child (stalled RPC/HTTP) is killed, not waited on forever. */
+const SCRIPT_TIMEOUT_MS = 5 * 60 * 1000;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -153,14 +155,20 @@ function spawnScript(relPath: string, args: string[]): ScriptResult {
     cwd: PROJECT_ROOT,
     encoding: "utf-8",
     maxBuffer: MAX_BUFFER,
+    timeout: SCRIPT_TIMEOUT_MS,
     stdio: ["inherit", "pipe", "pipe"],
   });
   const out = result.stdout ?? "";
   const err = result.stderr ?? "";
+  const timedOut =
+    (result.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
+  const tail = timedOut
+    ? `\n[timeout] killed after ${SCRIPT_TIMEOUT_MS / 1000}s`
+    : "";
   return {
     label: relPath,
-    output: (err ? `${out}\n[stderr]\n${err}` : out).trim(),
-    exitCode: result.status ?? 1,
+    output: ((err ? `${out}\n[stderr]\n${err}` : out) + tail).trim(),
+    exitCode: timedOut ? 124 : result.status ?? 1,
   };
 }
 
