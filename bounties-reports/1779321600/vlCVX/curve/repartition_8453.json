@@ -1,0 +1,11 @@
+{
+  "proposalId": "0x0ea43f78972b887bdc23cd55c8f80055bb6e9920c14ad8bcb154dadb3c5e5f3d",
+  "snapshotBlock": 25039433,
+  "distribution": {
+    "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A": {
+      "tokens": {
+        "0xe5020a6d073a794b6e7f05678707de47986fb0b6": "15385491311567122114"
+      }
+    }
+  }
+}
