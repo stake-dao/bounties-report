@@ -5,23 +5,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0xb189557f4974675a697b00d77f84cadb3a89bdc946f6d31a9ce57ae96e95669e",
-                        "start": "07-05-2026 02:00",
-                        "end": "12-05-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "19-05-2026",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0x8648ab5c7d2f9a28c286fe84363d63d2f0c14190308141afc3c83b167c8ccbff",
                         "start": "14-05-2026 02:00",
                         "end": "19-05-2026 14:00"
@@ -34,9 +17,26 @@
                         "distributed": ""
                     }
                 ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x48bfadea26e334daa2b2d0e1d387b19d501806e6234df5e02805bebed74fd9d9",
+                        "start": "21-05-2026 02:00",
+                        "end": "26-05-2026 14:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "02-06-2026",
+                        "distributed": ""
+                    }
+                ]
             }
         ],
-        "currentRoundId": 2
+        "currentRoundId": 1
     },
     "general": {
         "rounds": [
@@ -53,12 +53,12 @@
                     {
                         "step": 1,
                         "date": "05-05-2026",
-                        "distributed": "08:25"
+                        "distributed": "08:16"
                     },
                     {
                         "step": 2,
                         "date": "12-05-2026",
-                        "distributed": "08:14"
+                        "distributed": "08:29"
                     }
                 ]
             },
@@ -75,7 +75,7 @@
                     {
                         "step": 1,
                         "date": "19-05-2026",
-                        "distributed": "08:32"
+                        "distributed": "08:25"
                     },
                     {
                         "step": 2,
