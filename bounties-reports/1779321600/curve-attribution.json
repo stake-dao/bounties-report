@@ -3,15 +3,14 @@
   "period": 1779321600,
   "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
   "totals": {
-    "sdInTotal": 268918.4730400161,
-    "sdAssigned": 268918.47304001614,
-    "wethInTotal": 19.695083968407488,
-    "wethOutTotal": 19.690782775927037
+    "sdInTotal": 273955.19589339837,
+    "sdAssigned": 273955.1958933984,
+    "wethInTotal": 20.0438840224072,
+    "wethOutTotal": 20.039546946633
   },
   "dropped": {
     "tokensNotSwapped": [
-      "0xcacd6fd266af91b8aed52accc382b4e165586e29",
-      "0x501ebf66d76a96d4fb26ccead42957653e16b8b8"
+      "0xcacd6fd266af91b8aed52accc382b4e165586e29"
     ],
     "wethNotSwapped": false
   },
@@ -22,7 +21,7 @@
     },
     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
       "mappedWeth": 3.920361997601078,
-      "sd": 53454.32466160978
+      "sd": 53454.32466160977
     },
     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": {
       "mappedWeth": 0.11647838270793065,
@@ -41,8 +40,8 @@
       "sd": 1754.7197220408398
     },
     "0x501ebf66d76a96d4fb26ccead42957653e16b8b8": {
-      "mappedWeth": 0,
-      "sd": 0
+      "mappedWeth": 0.3488000539997123,
+      "sd": 5036.722853382282
     },
     "0x01791f726b4103694969820be083196cc7c045ff": {
       "mappedWeth": 1.3189767784397264,
@@ -50,7 +49,7 @@
     },
     "0x52c66b5e7f8fde20843de900c5c8b4b0f23708a0": {
       "mappedWeth": 0.3393593575721152,
-      "sd": 4697.309269213917
+      "sd": 4697.309269213916
     },
     "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": {
       "mappedWeth": 0.3050702203183209,
@@ -248,6 +247,22 @@
       },
       "tokenSd": {
         "0xdd468a1ddc392dcdbef6db6e34e89aa338f9f186": 1451.0954270057878
+      }
+    },
+    {
+      "tx": "0x7a47095cd81aff54af1037f5b932f4d6bce0a31ea6faa26cf85a2c7775586009",
+      "wethIn": 0.3488000539997123,
+      "wethOut": 0.34876417070596294,
+      "sdIn": 5036.722853382282,
+      "nativeIn": 3300.60532352301,
+      "nativeOut": 3300.60532352301,
+      "nativeShareSd": 0,
+      "wethBasis": 0.3488000539997123,
+      "tokenWeth": {
+        "0x501ebf66d76a96d4fb26ccead42957653e16b8b8": 0.3488000539997123
+      },
+      "tokenSd": {
+        "0x501ebf66d76a96d4fb26ccead42957653e16b8b8": 5036.722853382282
       }
     }
   ]
