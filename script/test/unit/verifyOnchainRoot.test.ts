@@ -43,11 +43,24 @@ describe("classifyRootStatus", () => {
     expect(result.status).toBe("OK");
   });
 
-  it("blocks publish when neither on-chain nor pending root matches source", () => {
+  it("waits (noop) when no pending root has been submitted yet", () => {
     const result = classifyRootStatus({
       source: SOURCE_ROOT,
       onchain: OLD_ROOT,
       pendingRoot: ZERO_ROOT,
+      pendingValidAt: 0n,
+      now: 1_000,
+    });
+
+    expect(result.status).toBe("WAITING");
+    expect(result.reason).toContain("set-root has not been called");
+  });
+
+  it("blocks publish when pending root is present but does not match source", () => {
+    const result = classifyRootStatus({
+      source: SOURCE_ROOT,
+      onchain: OLD_ROOT,
+      pendingRoot: OLD_ROOT,
       pendingValidAt: 0n,
       now: 1_000,
     });

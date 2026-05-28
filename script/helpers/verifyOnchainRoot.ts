@@ -75,7 +75,7 @@ function collectFiles(target: Target, period: number): FileSpec[] {
   return files;
 }
 
-type Status = "OK" | "READY" | "PENDING" | "BLOCK";
+type Status = "OK" | "READY" | "PENDING" | "WAITING" | "BLOCK";
 
 interface VerifyResult {
   status: Status;
@@ -125,6 +125,13 @@ export function classifyRootStatus(input: RootStatusInput): Pick<VerifyResult, "
     return {
       status: "PENDING",
       reason: `pending root matches source, timelock validAt=${input.pendingValidAt} > now=${input.now}`,
+    };
+  }
+
+  if (!hasPending) {
+    return {
+      status: "WAITING",
+      reason: "no pending root on-chain yet; set-root has not been called for this period",
     };
   }
 
@@ -226,6 +233,7 @@ async function main() {
   console.log(`Verifying on-chain roots for target=${target} period=${period}`);
   let hasBlock = false;
   let hasPending = false;
+  let hasWaiting = false;
   let hasReady = false;
 
   for (const f of files) {
@@ -241,6 +249,7 @@ async function main() {
       }
       if (res.status === "BLOCK") hasBlock = true;
       if (res.status === "PENDING") hasPending = true;
+      if (res.status === "WAITING") hasWaiting = true;
       if (res.status === "READY") hasReady = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -257,6 +266,11 @@ async function main() {
   if (hasPending) {
     emitOutput("skip", "true");
     console.log("\nActive pending root timelock detected. Skipping publish.");
+    return;
+  }
+  if (hasWaiting) {
+    emitOutput("skip", "true");
+    console.log("\nNo pending root on-chain yet (set-root not called). Skipping publish.");
     return;
   }
   emitOutput("skip", "false");
