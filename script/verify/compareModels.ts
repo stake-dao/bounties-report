@@ -14,7 +14,7 @@
  *   --deep                Include RPC/parquet delegation checks
  *
  * Available ZEN models: GET https://opencode.ai/zen/v1/models
- * Free options: kimi-k2.5-free, minimax-m2.5-free, big-pickle, glm-5-free
+ * Free options: minimax-m2.5-free, deepseek-v4-flash-free, mimo-v2.5-free, nemotron-3-super-free, qwen3.6-plus-free
  *
  * Env:
  *   OPENCODE_ZEN_API_KEY  (required)
@@ -22,15 +22,15 @@
 
 import * as dotenv from "dotenv";
 import { runScripts, analyze, Protocol, VerificationResult } from "./distributionVerify";
-import { createZenClient, ZEN_DEFAULT_MODEL } from "../utils/openCodeZen";
+import { createZenClient } from "../utils/openCodeZen";
 import { WEEK } from "../utils/constants";
 
 dotenv.config();
 
 const DEFAULT_MODELS = [
-  ZEN_DEFAULT_MODEL,          // best quality (claude-sonnet-4-6)
-  "claude-haiku-4-5",         // fast, cheap
-  "kimi-k2.5-free",           // free — OpenAI-compat
+  "claude-opus-4-7",          // Anthropic frontier
+  "gpt-5.5",                  // OpenAI frontier (non-pro: avoids reasoning-overflow truncation)
+  "minimax-m2.7",             // Minimax frontier (provider diversity)
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

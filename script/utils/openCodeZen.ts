@@ -6,7 +6,7 @@
  * when the upstream Anthropic API returns any non-200 response.
  *
  * Usage:
- *   const client = createZenClient();           // kimi-k2 (default)
+ *   const client = createZenClient();           // kimi-k2.6 (default)
  *   const text   = await client.ask("...");
  *   const parsed = await client.analyzeJson<MyType>("...", fallback);
  */
@@ -17,7 +17,7 @@ import type { LLMClient, LLMMessage, LLMOptions, LLMJsonResult } from "./llmClie
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ZEN_BASE_URL = "https://opencode.ai/zen/v1";
-export const ZEN_DEFAULT_MODEL = "kimi-k2";
+export const ZEN_DEFAULT_MODEL = "kimi-k2.6";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
