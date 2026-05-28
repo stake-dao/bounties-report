@@ -5,23 +5,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x8648ab5c7d2f9a28c286fe84363d63d2f0c14190308141afc3c83b167c8ccbff",
-                        "start": "14-05-2026 02:00",
-                        "end": "19-05-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "26-05-2026",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0x48bfadea26e334daa2b2d0e1d387b19d501806e6234df5e02805bebed74fd9d9",
                         "start": "21-05-2026 02:00",
                         "end": "26-05-2026 14:00"
@@ -34,9 +17,26 @@
                         "distributed": ""
                     }
                 ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x341dd8eb0c80da62b4e313d0b1865d12bb61e81751cd204cd78b1bb0745d4992",
+                        "start": "28-05-2026 02:00",
+                        "end": "02-06-2026 14:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "09-06-2026",
+                        "distributed": ""
+                    }
+                ]
             }
         ],
-        "currentRoundId": 2
+        "currentRoundId": 1
     },
     "general": {
         "rounds": [
@@ -58,7 +58,7 @@
                     {
                         "step": 2,
                         "date": "26-05-2026",
-                        "distributed": "10:41"
+                        "distributed": "10:23"
                     }
                 ]
             },
