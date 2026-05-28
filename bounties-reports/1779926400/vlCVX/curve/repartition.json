@@ -1,0 +1,94 @@
+{
+  "proposalId": "0xfceccd83eac81328176c055f46ce393bd271d9dd697d2b15b7092a7026371140",
+  "snapshotBlock": 25139894,
+  "distribution": {
+    "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A": {
+      "tokens": {
+        "0xdd468a1ddc392dcdbef6db6e34e89aa338f9f186": "25144463748707580254",
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "268905430",
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": "975651152333707026952826",
+        "0x04acaf8d2865c0714f79da09645c13fd2888977f": "13199770855487212999"
+      }
+    },
+    "0x649f69CCd077Da03dFb11f4b1daAb4B625f5E9A3": {
+      "tokens": {
+        "0xdd468a1ddc392dcdbef6db6e34e89aa338f9f186": "281902178074190876196"
+      }
+    },
+    "0x23C1e36e3ce446cA91325510e35897CA2F9960A1": {
+      "tokens": {
+        "0xdd468a1ddc392dcdbef6db6e34e89aa338f9f186": "5002394424015716781"
+      }
+    },
+    "0x1732951b80C737dBb8F367e83E530623bB612E54": {
+      "tokens": {
+        "0xdd468a1ddc392dcdbef6db6e34e89aa338f9f186": "139218993511993927381"
+      }
+    },
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "8963412208",
+        "0x501ebf66d76a96d4fb26ccead42957653e16b8b8": "1156641784",
+        "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": "222043869211988346520",
+        "0x865377367054516e17014ccded1e7d814edc9ce4": "6261918158300866829271"
+      }
+    },
+    "0x2A4C7d66583b89e81229c3d42CB523A716dF09Af": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "4295724"
+      }
+    },
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "tokens": {
+        "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": "18202260156549717479"
+      }
+    },
+    "0x2D8304750A8AC17DC1B9A5Da1c85c0a55f12c3D3": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "73071162"
+      }
+    },
+    "0xBd0a74e51729a4D0B92742e67183C4cBc97bCA92": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "5545419205",
+        "0x090185f2135308bad17527004364ebcc2d37e5f6": "9647083392796326566408720",
+        "0x865377367054516e17014ccded1e7d814edc9ce4": "3010577272310638972321"
+      }
+    },
+    "0xcd585be7DE1641Bac08f371F187355CDa9Eef2D8": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "2279661849"
+      }
+    },
+    "0x5bfF1A68663ff91b0650327D83D4230Cd00023Ad": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "79002001"
+      }
+    },
+    "0xCdbe2929B64DFF847B993202bEba275fB960d859": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "40559098"
+      }
+    },
+    "0x0321C740551D9024Eb8589Ac5c4ec8c19164c653": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "75239898"
+      }
+    },
+    "0x763EB6E4B8304b86111986AfcEdB866789eF08CD": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "909654388"
+      }
+    },
+    "0x975793c7A6a077221aCa4E4FB9B7f9A46378463a": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "29325577"
+      }
+    },
+    "0x5aD30fcA5A031c850b817f6F4dE1EE2D713EF850": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "15582266874"
+      }
+    }
+  }
+}

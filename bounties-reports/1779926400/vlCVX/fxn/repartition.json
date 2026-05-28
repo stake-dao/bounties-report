@@ -1,0 +1,77 @@
+{
+  "proposalId": "0x70934959ca518081965a4dece75dfb8af61607b897c0b5cc5129576124aaf58f",
+  "snapshotBlock": 25139894,
+  "distribution": {
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "387866462",
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "5492010939622473667"
+      }
+    },
+    "0x938CC8D098aDE035D88A0842EF408076594706D0": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "6930683"
+      }
+    },
+    "0xb3983cDdBa4B127960A4cDD531AB989264509e23": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "33246992"
+      }
+    },
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "21508533145695075123"
+      }
+    },
+    "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "391386062874718018"
+      }
+    },
+    "0x13cbd624Af484c4C695ff0E1d0B7e125d45F2C76": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "11415118449799003"
+      }
+    },
+    "0x97CE0101A307a79eC9959D82DB1D8ADBa9FbEE4D": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "6316528205302191298"
+      }
+    },
+    "0x3bDb6119802EF01EAb4E2A74BEDB5e0227BeD49A": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "10388650713881630"
+      }
+    },
+    "0x99A269F0ee634cfba22f96Ab4B1fd4fB1871AbD1": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "155766890009965316"
+      }
+    },
+    "0x48DE880869EaE3FF014260A5c2FadeB11018B495": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "63649228456080957"
+      }
+    },
+    "0xD8eE0915dAbbB956498e30690d86A1274445B88E": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "4491861536647032"
+      }
+    },
+    "0xc9Cb54F65469Aba8AE45c67E1355cf1fF213FE33": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "708431053021718"
+      }
+    },
+    "0xFf6FAf21b2812ee1db1bF2C3f02a7FA7b8F6ADc8": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "6185878792478780"
+      }
+    },
+    "0xCdbe2929B64DFF847B993202bEba275fB960d859": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "92944514131535181"
+      }
+    }
+  }
+}
