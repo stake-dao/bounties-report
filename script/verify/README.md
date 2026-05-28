@@ -41,9 +41,9 @@ pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol bounties
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol spectra
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol frax
 
-# Override models
-pnpm tsx script/verify/aiVerify.ts --model claude-haiku-4-5
-pnpm tsx script/verify/aiVerify.ts --models claude-haiku-4-5,gpt-5.4-mini,minimax-m2.5-free
+# Override models (defaults: claude-opus-4-7, gpt-5.5, minimax-m2.7)
+pnpm tsx script/verify/aiVerify.ts --model claude-opus-4-7
+pnpm tsx script/verify/aiVerify.ts --models claude-opus-4-7,gpt-5.5,minimax-m2.7
 
 # Model comparison without consensus reporting
 pnpm tsx script/verify/compareModels.ts --timestamp 1771459200 --protocol vlCVX

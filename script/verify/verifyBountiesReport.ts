@@ -50,7 +50,7 @@ const REPORTS_DIR = path.join(__dirname, "../../bounties-reports");
 const WEEKLY_DIR = path.join(__dirname, "../../weekly-bounties");
 const WEEK = 604800;
 
-const PROTOCOLS = ["curve", "balancer", "frax", "fxn"] as const;
+const PROTOCOLS = ["curve", "frax", "fxn"] as const;
 type Protocol = (typeof PROTOCOLS)[number];
 
 const BOT_MARKET = "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF" as const;

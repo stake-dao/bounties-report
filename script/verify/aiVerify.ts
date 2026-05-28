@@ -25,9 +25,9 @@ import type { LLMClient } from "../utils/llmClient";
 dotenv.config();
 
 const DEFAULT_MODELS = [
-  "claude-haiku-4-5",
-  "gpt-5.4-mini",
-  "minimax-m2.5-free",
+  "claude-opus-4-7",
+  "gpt-5.5",
+  "minimax-m2.7",
 ];
 
 const VERDICT_ICON: Record<string, string> = { pass: "✅", warning: "⚠️ ", fail: "❌" };

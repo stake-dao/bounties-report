@@ -207,8 +207,13 @@ Root gauge note: Curve L2 gauges (rootGauge on Arbitrum/Base) are resolved to th
 - ❌  "gauge in claimed_bounties but NOT in CSV" → CRITICAL: bounty claimed on-chain but not distributed
 - ❌  "frax.csv missing" when frax has claimed bounties → CRITICAL
 - ❌  "sdInTotal mismatch > 0.5%" → CRITICAL: swap amounts don't reconcile with CSV
-Only frax is in scope here — curve/balancer/fxn are deliberately excluded from the sdFXS gate.`,
-  vlCVX: `CSV mismatch triage for vlCVX:
+Only frax is in scope here — curve/fxn are deliberately excluded from the sdFXS gate.`,
+  vlCVX: `Distribution timing for vlCVX (Curve+FXN):
+- Thursday run = VOTERS distribution. Forwarder slices are NOT yet included; "forwarder missing", "fwd=0", "parquet off-by-one", or a 1-row delta between parquet/RPC counts driven by forwarders is EXPECTED, not anomalous. Do NOT WARN on it.
+- Tuesday run = DELEGATORS distribution. Forwarders join here; parquet and RPC counts (incl. fwd splits) must reconcile.
+Infer day-of-week from the "Week:" header date and apply the rule above before flagging any forwarder-related drift.
+
+CSV mismatch triage for vlCVX:
 1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
 2. CSV diff≠0 + token IS in merkle  → WARNING only: known cause — isWrapped=true bounties on Arbitrum/Base votemarket-v2 produce unwrapped tokens that bypass the CSV generator. Funds reached delegators correctly.
 When you see a CSV mismatch, check whether the script output mentions the token appearing in merkle claims. If merkle claim count for that token is non-zero, classify as warning not fail.
@@ -234,11 +239,14 @@ Week: ${timestamp} (${date})  |  Protocol: ${protocol}
 Analyze the verification script outputs below. Each script tests a different aspect of the distribution pipeline. You must:
 1. Read each script's output and determine if it passed
 2. Cross-validate numbers BETWEEN scripts (e.g., delegator counts from parquet vs RPC should be consistent)
-3. Flag anything anomalous even if the script itself passed (counts outside baseline range, unexpected patterns)
+3. Flag anything anomalous even if the script itself passed (cross-script inconsistencies, unexpected patterns, missing data)
 4. Classify your confidence in the overall result
 
-## BASELINE EXPECTATIONS (typical healthy week)
-- vlCVX: 200–300 merkle claims, 30–50 tokens, 280–350 delegators, zero-VP filtered: 50–100
+## BASELINE EXPECTATIONS (typical healthy week — informational, NOT a hard band)
+The numbers below describe the typical operating range; they organically drift up over time as the protocol grows. Counts within or slightly above this range are EXPECTED and must NOT be flagged as warnings on size alone.
+- vlCVX: ~200–400 merkle claims, ~30–60 tokens, ~250–500 delegators, zero-VP filtered: ~50–150
+- A delegator count up to ~1.5× the upper bound = organic growth, not anomalous
+- Only WARN on size if the count is below the lower bound (potential data loss) or more than ~2× the upper bound (potential duplicate run)
 - CSV diff should be exactly 0 for all tokens
 - Cumulative merkle: prev + this_week amounts (diff < 1e-9 relative is acceptable BigInt rounding)
 - Group split (fwd + nfwd) must be exact (0 diff)
@@ -276,8 +284,8 @@ Respond with ONLY a raw JSON object (no markdown, no text outside JSON):
 ## FIELD RULES
 
 confidence:
-- 0.95–1.0: all checks pass, cross-checks consistent, counts within baseline ranges
-- 0.7–0.94: minor anomalies (e.g., unusual count delta) but no failures
+- 0.95–1.0: all checks pass and cross-checks consistent (counts within or slightly above baseline counts as healthy)
+- 0.7–0.94: minor anomalies (cross-script inconsistency, unexpected pattern) but no failures
 - <0.7: uncertain — ambiguous outputs, mixed signals
 
 issues:
@@ -356,7 +364,7 @@ export async function analyze(
     cross_check_notes?: string[];
     chain_status?: Record<string, Verdict>;
     week_context?: "A" | "B" | "unknown";
-  }>(prompt, fallback, { maxTokens: 2048, timeout: 90_000 });
+  }>(prompt, fallback, { maxTokens: 4096, timeout: 180_000 });
 
   if (error) console.warn(`  ⚠️  LLM error (${client.model}): ${error}`);
 
