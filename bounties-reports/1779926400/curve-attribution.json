@@ -1,0 +1,74 @@
+{
+  "protocol": "curve",
+  "period": 1779926400,
+  "aggregator": "0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+  "totals": {
+    "sdInTotal": 0,
+    "sdAssigned": 0,
+    "wethInTotal": 0,
+    "wethOutTotal": 0
+  },
+  "dropped": {
+    "tokensNotSwapped": [
+      "0xdd468a1ddc392dcdbef6db6e34e89aa338f9f186",
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "0x04acaf8d2865c0714f79da09645c13fd2888977f",
+      "0xf4c13d631450de6b12a19829e37c8e2826891dc4",
+      "0x741bd193b6b40f8703d2e116fd1965421f290f58",
+      "0x501ebf66d76a96d4fb26ccead42957653e16b8b8",
+      "0x01791f726b4103694969820be083196cc7c045ff",
+      "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b",
+      "0x090185f2135308bad17527004364ebcc2d37e5f6",
+      "0x865377367054516e17014ccded1e7d814edc9ce4",
+      "0xe5020a6d073a794b6e7f05678707de47986fb0b6"
+    ],
+    "wethNotSwapped": true
+  },
+  "perToken": {
+    "0xdd468a1ddc392dcdbef6db6e34e89aa338f9f186": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x04acaf8d2865c0714f79da09645c13fd2888977f": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0xf4c13d631450de6b12a19829e37c8e2826891dc4": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x741bd193b6b40f8703d2e116fd1965421f290f58": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x501ebf66d76a96d4fb26ccead42957653e16b8b8": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x01791f726b4103694969820be083196cc7c045ff": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x090185f2135308bad17527004364ebcc2d37e5f6": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0x865377367054516e17014ccded1e7d814edc9ce4": {
+      "mappedWeth": 0,
+      "sd": 0
+    },
+    "0xe5020a6d073a794b6e7f05678707de47986fb0b6": {
+      "mappedWeth": 0,
+      "sd": 0
+    }
+  },
+  "txs": []
+}
