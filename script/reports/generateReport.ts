@@ -22,7 +22,7 @@ import {
   BOTMARKET,
 } from "../utils/reportUtils";
 import { getClient } from "../utils/getClients";
-import { ALL_MIGHT } from "../utils/reportUtils";
+import { ALL_MIGHT_V2 } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT, DELEGATION_RECIPIENT } from "../utils/constants";
 import processReport from "./processReport";
 import { debug, sampleArray, isDebugEnabled } from "../utils/logger";
@@ -532,14 +532,14 @@ async function main() {
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
-    ALL_MIGHT
+    ALL_MIGHT_V2
   );
   const swapOut = await fetchSwapOutEvents(
     1,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
-    ALL_MIGHT
+    ALL_MIGHT_V2
   );
   if (isDebugEnabled()) {
     debug("[swaps] fetched", {
@@ -888,7 +888,7 @@ async function main() {
           tx as `0x${string}`,
           includedTokens,
           wethAddr,
-          ALL_MIGHT
+          ALL_MIGHT_V2
         );
       } catch (e) {
         // Ignore mapping errors and continue
@@ -1018,7 +1018,7 @@ async function main() {
           tx as `0x${string}`,
           includedTokens,
           wethAddr,
-          ALL_MIGHT
+          ALL_MIGHT_V2
         );
       } catch (e) {
         continue;
@@ -1322,7 +1322,7 @@ async function main() {
           tx as `0x${string}`,
           includedTokens,
           wethAddr,
-          ALL_MIGHT
+          ALL_MIGHT_V2
         );
       } catch (e) {
         // On decode issues, still attribute native share and include native in/out in sidecar
@@ -1461,7 +1461,7 @@ async function main() {
     const sidecar = {
       protocol,
       period: currentPeriod,
-      aggregator: ALL_MIGHT,
+      aggregator: ALL_MIGHT_V2,
       totals: {
         sdInTotal,
         sdAssigned: sdAssignedCalculated,
