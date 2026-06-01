@@ -15,6 +15,7 @@ import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 // Removed unused price utils imports
 import {
+	ALL_MIGHT_V2,
 	CRV_ADDRESS,
 	WETH_ADDRESS,
 	mapTokenSwapsToOutToken,
@@ -328,7 +329,7 @@ async function getProtocolShares(
 			vmTxHashes[0],
 			vmTokens,
 			WETH_ADDRESS,
-			"0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+			ALL_MIGHT_V2,
 		);
 		vmTokenToWeth = normalizeMap(rawVmTokenToWeth);
 
@@ -337,7 +338,7 @@ async function getProtocolShares(
 			vmTxHashes[0],
 			new Set([WETH_ADDRESS.toLowerCase(), CRV_ADDRESS.toLowerCase()]),
 			CRVUSD,
-			"0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+			ALL_MIGHT_V2,
 		);
 		vmTokenToCrvUSD = normalizeMap(rawVmTokenToCrvUSD);
 	}
@@ -348,7 +349,7 @@ async function getProtocolShares(
 			votiumTxHashes[0],
 			votiumTokens,
 			WETH_ADDRESS,
-			"0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+			ALL_MIGHT_V2,
 		);
 		votiumTokenToWeth = normalizeMap(rawVotiumTokenToWeth);
 
@@ -357,7 +358,7 @@ async function getProtocolShares(
 			votiumTxHashes[0],
 			new Set([WETH_ADDRESS.toLowerCase(), CRV_ADDRESS.toLowerCase()]),
 			CRVUSD,
-			"0x0000000a3Fc396B89e4c11841B39D9dff85a5D05",
+			ALL_MIGHT_V2,
 		);
 		votiumTokenToCrvUSD = normalizeMap(rawVotiumTokenToCrvUSD);
 	}
