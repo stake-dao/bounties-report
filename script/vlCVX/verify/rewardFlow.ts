@@ -283,14 +283,19 @@ function verifyForwardersCRVUSD(timestamp: number): { allOk: boolean; results: s
     return { allOk: false, results };
   }
 
-  let currTotal = 0n;
-  let prevTotal = 0n;
-  for (const c of Object.values(currMerkle.claims || {}) as any[]) {
-    currTotal += BigInt(c.tokens?.[SCRVUSD]?.amount ?? 0);
-  }
-  for (const c of Object.values(prevMerkle.claims || {}) as any[]) {
-    prevTotal += BigInt(c.tokens?.[SCRVUSD]?.amount ?? 0);
-  }
+  // Merkle token keys are checksummed; SCRVUSD const is lowercase — match case-insensitively.
+  const sumScrvUsd = (claims: Record<string, any>): bigint => {
+    let total = 0n;
+    for (const c of Object.values(claims || {}) as any[]) {
+      for (const [token, data] of Object.entries(c.tokens || {})) {
+        if (token.toLowerCase() === SCRVUSD) total += BigInt((data as any)?.amount ?? 0);
+      }
+    }
+    return total;
+  };
+
+  const currTotal = sumScrvUsd(currMerkle.claims);
+  const prevTotal = sumScrvUsd(prevMerkle.claims);
 
   const weeklyAdd = currTotal - prevTotal;
   const ok = weeklyAdd > 0n;
