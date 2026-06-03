@@ -54,6 +54,9 @@ export interface SdTokensMerkleResult {
       recipients: number;
     };
   };
+  // Weekly rewards earned by the delegation address, keyed by token, before
+  // being split across delegators. Used to compute the delegation APR.
+  delegationRewards: { [tokenAddress: string]: number };
 }
 
 /**
@@ -397,6 +400,7 @@ export async function generateSdTokensMerkle(
   
   return {
     merkleData,
-    statistics
+    statistics,
+    delegationRewards: delegationRewards || {},
   };
 }

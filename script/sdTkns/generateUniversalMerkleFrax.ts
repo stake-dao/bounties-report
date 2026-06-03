@@ -19,6 +19,8 @@ import { Distribution } from "../interfaces/Distribution";
 import { distributionVerifier } from "../utils/merkle/distributionVerifier";
 import { fetchLastProposalsIds } from "../utils/snapshot";
 import { generateMerkleTree } from "../shared/merkle/generateMerkleTree";
+import { fetchGlobalTotalVp } from "../utils/envioClient";
+import { computeSdFxsDelegationAPR } from "../utils/merkle/delegationApr";
 
 dotenv.config();
 
@@ -79,7 +81,43 @@ async function main() {
     }
     
     console.log("\nThis week's distribution generated");
-    
+
+    // Step 3b: Compute and persist the sdFXS delegation APR.
+    // sdFXS moved to the Universal Merkle, so the APR is no longer produced by
+    // generateMerkle.ts (which skips SDFXS_SPACE). Mirror the legacy formula:
+    // annualize the delegation's weekly sdFXS rewards over total sdFXS voting power.
+    const delegationSdFxsRewards = Object.entries(weekResult.delegationRewards).find(
+      ([token]) => token.toLowerCase() === FRAXTAL_SD_FXS.toLowerCase()
+    )?.[1] ?? 0;
+    const sdFXSTotalVp = await fetchGlobalTotalVp("sdfxs");
+    const delegationAPR = computeSdFxsDelegationAPR(delegationSdFxsRewards, sdFXSTotalVp);
+    console.log(
+      `sdFXS delegation APR: ${delegationAPR.toFixed(4)}% ` +
+        `(rewards: ${delegationSdFxsRewards}, totalVp: ${sdFXSTotalVp})`
+    );
+
+    // Merge into the period's delegationsAPRs.json without clobbering other
+    // protocols (same read-merge-write pattern as Spectra).
+    const aprPath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "bounties-reports",
+      currentPeriodTimestamp.toString(),
+      "delegationsAPRs.json"
+    );
+    let delegationAPRs: Record<string, number> = {};
+    if (fs.existsSync(aprPath)) {
+      delegationAPRs = JSON.parse(fs.readFileSync(aprPath, "utf-8"));
+    }
+    if (delegationAPR > 0) {
+      delegationAPRs[SDFXS_SPACE] = delegationAPR;
+      fs.mkdirSync(path.dirname(aprPath), { recursive: true });
+      fs.writeFileSync(aprPath, JSON.stringify(delegationAPRs));
+    } else {
+      console.warn("sdFXS delegation APR is 0, leaving delegationsAPRs.json unchanged");
+    }
+
     // Step 4: Create cumulative merkle data by adding this week to previous total
     const cumulativeClaims: any = {};
     
