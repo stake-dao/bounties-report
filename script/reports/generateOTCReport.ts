@@ -21,7 +21,7 @@ import {
   fetchAllTokenInfos,
 } from "../utils/reportUtils";
 import { getClient } from "../utils/getClients";
-import { ALL_MIGHT, OTC_REGISTRY } from "../utils/reportUtils";
+import { ALL_MIGHT_V2, OTC_REGISTRY } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import processOTCReport from "./processOTCReport";
@@ -278,14 +278,14 @@ async function main() {
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
-    ALL_MIGHT
+    ALL_MIGHT_V2
   );
   const swapOut = await fetchSwapOutEvents(
     1,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
-    ALL_MIGHT
+    ALL_MIGHT_V2
   );
 
   const vlcvxRecipientSwapsIn = await fetchSwapInEvents(
