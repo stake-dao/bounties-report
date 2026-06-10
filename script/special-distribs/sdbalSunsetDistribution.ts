@@ -43,6 +43,10 @@ import { getClient } from "../utils/getClients";
 // ---------------------------------------------------------------------------
 
 const SNAPSHOT_BLOCK = 25035662; // Balancer BIP-920 snapshot block (May 8 2026 18:00 UTC)
+// sdBAL deploy block (Etherscan getcontractcreation). Wrappers holding sdBAL
+// necessarily postdate it, so it also bounds wrapper Transfer replays; the
+// replay-vs-totalSupply reconciliation hard-fails if any transfer were missed.
+const SDBAL_DEPLOY_BLOCK = 14_847_930;
 const ETH_CHAIN_ID_NUM = Number(ETH_CHAIN_ID);
 const USDC = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
 const ZERO_ADDR: Address = "0x0000000000000000000000000000000000000000";
@@ -115,31 +119,27 @@ async function phase1Snapshot(): Promise<BalanceMap> {
 
   console.log(`Phase 1 — snapshot sdBAL holders @ block ${SNAPSHOT_BLOCK}`);
 
-  // sdBAL creation block: unknown, scan from 0 with 10k chunk pagination
-  // (getLogsByAddressesAndTopics handles chunking).
   const logs = await explorer.getLogsByAddressesAndTopics(
     [SD_BAL],
-    0,
+    SDBAL_DEPLOY_BLOCK,
     SNAPSHOT_BLOCK,
     { "0": TRANSFER_TOPIC },
     ETH_CHAIN_ID_NUM,
   );
   console.log(`  fetched ${logs.result.length} Transfer events`);
 
-  const bal = new Map<string, bigint>();
+  // Logs only DISCOVER the candidate address set; balances are read onchain via
+  // balanceOf at the snapshot block. Explorer APIs can silently drop logs
+  // (makeRequest falls back to {result: []} after retries) — replay-derived
+  // balances would inherit the gap, balanceOf cannot. A dropped log can still
+  // hide a holder entirely, which the sum==totalSupply invariant below catches.
+  const candidates = new Set<string>();
   for (const log of logs.result) {
-    const from = getAddress(`0x${log.topics[1].slice(26)}`);
-    const to = getAddress(`0x${log.topics[2].slice(26)}`);
-    const amount = BigInt(log.data);
-    if (from !== ZERO_ADDR) bal.set(from, (bal.get(from) ?? 0n) - amount);
-    bal.set(to, (bal.get(to) ?? 0n) + amount);
+    candidates.add(getAddress(`0x${log.topics[1].slice(26)}`));
+    candidates.add(getAddress(`0x${log.topics[2].slice(26)}`));
   }
-
-  for (const [addr, b] of bal) {
-    if (b < 0n) {
-      throw new Error(`Negative balance ${addr}: ${b.toString()} — log decoding bug`);
-    }
-  }
+  candidates.delete(ZERO_ADDR);
+  console.log(`  candidate addresses: ${candidates.size}`);
 
   const totalSupply = await client.readContract({
     address: SD_BAL,
@@ -150,19 +150,28 @@ async function phase1Snapshot(): Promise<BalanceMap> {
 
   const balances: BalanceMap = {};
   let sum = 0n;
-  for (const [addr, b] of bal) {
-    if (b === 0n) continue;
-    if (addr === ZERO_ADDR) continue;
-    if (addr === getAddress(SD_BAL)) continue; // contract self-balance never expected
-    balances[addr] = b.toString();
-    sum += b;
+  const addrs = [...candidates];
+  for (let i = 0; i < addrs.length; i += 25) {
+    const chunk = addrs.slice(i, i + 25);
+    const bals = await Promise.all(chunk.map((a) =>
+      client.readContract({
+        address: SD_BAL, abi: ERC20_ABI as any, functionName: "balanceOf", args: [a],
+        blockNumber: BigInt(SNAPSHOT_BLOCK),
+      }) as Promise<bigint>,
+    ));
+    chunk.forEach((a, j) => {
+      if (bals[j] === 0n) return;
+      if (a === getAddress(SD_BAL)) return; // contract self-balance never expected
+      balances[a] = bals[j].toString();
+      sum += bals[j];
+    });
   }
 
   console.log(`  holders with positive balance: ${Object.keys(balances).length}`);
   console.log(`  Σ balances : ${sum.toString()}`);
   console.log(`  totalSupply: ${totalSupply.toString()}`);
   if (sum !== totalSupply) {
-    throw new Error(`Σ holder balances (${sum}) != totalSupply (${totalSupply}) — invariant break`);
+    throw new Error(`Σ holder balances (${sum}) != totalSupply (${totalSupply}) — holder missing from candidate set (dropped logs?)`);
   }
 
   writeJson(path.join(OUT_DIR, "holders_raw.json"), {
@@ -439,24 +448,21 @@ async function expandWrapper(
   }
   visited = new Set([...visited, key]);
 
-  // Replay Transfer logs to derive per-holder wrapper balances at `block`.
+  // Transfer logs only DISCOVER candidate holders; per-holder wrapper balances
+  // are read onchain via balanceOf at `block` (immune to silently-dropped logs).
   const explorer = createBlockchainExplorerUtils();
   const logs = await explorer.getLogsByAddressesAndTopics(
-    [wrapper], 0, block, { "0": TRANSFER_TOPIC }, ETH_CHAIN_ID_NUM,
+    [wrapper], SDBAL_DEPLOY_BLOCK, block, { "0": TRANSFER_TOPIC }, ETH_CHAIN_ID_NUM,
   );
-  const bal = new Map<string, bigint>();
+  const candidates = new Set<string>();
   for (const log of logs.result) {
-    const from = getAddress(`0x${log.topics[1].slice(26)}`);
-    const to = getAddress(`0x${log.topics[2].slice(26)}`);
-    const amount = BigInt(log.data);
-    if (from !== ZERO_ADDR) bal.set(from, (bal.get(from) ?? 0n) - amount);
-    bal.set(to, (bal.get(to) ?? 0n) + amount);
+    candidates.add(getAddress(`0x${log.topics[1].slice(26)}`));
+    candidates.add(getAddress(`0x${log.topics[2].slice(26)}`));
   }
+  candidates.delete(ZERO_ADDR);
+  candidates.delete(getAddress(wrapper));
 
-  // Denominator: onchain totalSupply() at `block`, NOT the replay sum.
-  // Burns deposit into ZERO_ADDR in the replay model, which would inflate a naive
-  // replay-sum denominator and dilute real holders. The contract's totalSupply()
-  // is the authoritative supply that excludes burns by definition.
+  // Denominator: onchain totalSupply() at `block` — authoritative, excludes burns.
   const wrapperTotalSupply = await client.readContract({
     address: wrapper, abi: ERC20_ABI as any, functionName: "totalSupply",
     blockNumber: BigInt(block),
@@ -465,20 +471,30 @@ async function expandWrapper(
     throw new Error(`Wrapper ${wrapper} totalSupply==0 at block ${block}`);
   }
 
-  // Reconcile replay vs onchain (excluding zero addr and self).
-  const replaySum = [...bal.entries()].reduce(
-    (acc, [a, v]) => acc + (v > 0n && a !== ZERO_ADDR && a !== wrapper ? v : 0n),
-    0n,
-  );
-  if (replaySum !== wrapperTotalSupply) {
+  const bal = new Map<string, bigint>();
+  const candAddrs = [...candidates];
+  for (let i = 0; i < candAddrs.length; i += 25) {
+    const chunk = candAddrs.slice(i, i + 25);
+    const bals = await Promise.all(chunk.map((a) =>
+      client.readContract({
+        address: wrapper, abi: ERC20_ABI as any, functionName: "balanceOf", args: [a],
+        blockNumber: BigInt(block),
+      }) as Promise<bigint>,
+    ));
+    chunk.forEach((a, j) => { if (bals[j] > 0n) bal.set(a, bals[j]); });
+  }
+
+  // Reconcile: a dropped log can still hide a holder from the candidate set.
+  const holderSum = [...bal.values()].reduce((acc, v) => acc + v, 0n);
+  if (holderSum !== wrapperTotalSupply) {
     throw new Error(
-      `Wrapper ${wrapper} replay (${replaySum}) != onchain totalSupply (${wrapperTotalSupply}) — log range or rebase token; manual review`,
+      `Wrapper ${wrapper} Σ balanceOf over candidates (${holderSum}) != totalSupply (${wrapperTotalSupply}) — holder missing from candidate set (dropped logs?) or rebase token; manual review`,
     );
   }
 
   const beneficiaries: BalanceMap = {};
   let assigned = 0n;
-  const positive = [...bal.entries()].filter(([a, b]) => b > 0n && a !== ZERO_ADDR && a !== wrapper);
+  const positive = [...bal.entries()];
 
   for (const [holder, wrapperBal] of positive) {
     const sub = (wrapperBal * totalSdBal) / wrapperTotalSupply;
