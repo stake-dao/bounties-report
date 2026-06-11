@@ -166,13 +166,19 @@ per beneficiary, vesting sdBAL-gauge tokens. Routed to each contract's onchain
 5. **Post-snapshot claims** — stash claimants and Vester beneficiaries can still
    claim/withdraw sdBAL after the snapshot; amounts here are fixed at block 25035662
    (inherent to any snapshot distribution).
-6. **$1 payout floor** — pot confirmed at **38,055.351773 USDC**
-   ([BIP-920](https://forum.balancer.fi/t/bip-920-vebal-compensation-airdrop/7025):
-   500k USDC to veBAL holders, locker share 38,055.35 — not yet received onchain as of
-   2026-06-11). A URD claim costs ~$0.5-2 gas, so sub-$1 leaves would never rationally
-   be claimed. `payouts.json` is computed with `--min-usdc 1000000`: 102 recipients,
-   90 sub-$1 claimers dropped, their 15.41 USDC redistributed pro-rata. Raising to $5
-   would drop 27 more recipients holding ~$62. Set `--min-usdc 0` to disable.
+6. **$1 payout floor** — pot **received**: 38,055.182232 USDC at block 25109104
+   ([tx 0xeffea8a0…](https://etherscan.io/tx/0xeffea8a0e72039450fed07187b621e5072e52531a577c7c7d73132e5d1e69484),
+   Balancer DAO → Stake DAO protocol Safe
+   [0xb0552b68…](https://etherscan.io/address/0xb0552b6860ce5c0202976db056b5e3cc4f9cc765);
+   0.17 USDC less than the
+   [BIP-920](https://forum.balancer.fi/t/bip-920-vebal-compensation-airdrop/7025)
+   forum figure — onchain amount is authoritative). A URD claim costs ~$0.5-2 gas, so
+   sub-$1 leaves would never rationally be claimed. `payouts.json` is computed with
+   `--usdc 38055182232 --min-usdc 1000000`: 102 recipients, 90 sub-$1 claimers
+   dropped, their 15.41 USDC redistributed pro-rata. Raising the floor to $5 would
+   drop 27 more recipients holding ~$62. Set `--min-usdc 0` to disable.
+   Note for phase 6: the USDC sits at the protocol Safe `0xb0552b68…` — that Safe
+   funds the URD top-up (or transfers to the Safe that imports the bundle).
 
 ## Verification trail
 
