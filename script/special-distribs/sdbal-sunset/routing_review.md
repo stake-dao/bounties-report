@@ -150,12 +150,23 @@ per beneficiary, vesting sdBAL-gauge tokens. Routed to each contract's onchain
 
 ## Open decisions for sign-off
 
-1. **veBAL locker stake** (~0.275%) — the current sdB vault has no strategy set and all
-   its BPT idle, so the locker's Balancer-gauge stake is not mechanically attributable
-   to vault users (gauge-deposit history shows mixed entrypoints, incl. a direct
-   4,202-BPT deposit from stakedao.eth). Currently → governance. If the team attributes
-   it to a user product, switch to expanding SD gauge
-   [0x76fB1951…](https://etherscan.io/address/0x76fB1951F3395031B3ec703a16567ab92E792770) holders.
+1. **veBAL locker stake** (~0.275%) — **resolved by onchain ledger; governance routing
+   stands.** Replaying every BPT transfer through the sdB vault over its lifetime:
+   users deposited 123,195.1878 BPT and withdrew 122,277.2859 → net user liability
+   **917.9019 BPT, equal to the vault's idle BPT at the snapshot to the wei**. Vault
+   users are therefore fully paid by the vault expansion; none of the locker's
+   1,155.95-BPT gauge stake is theirs. The stake itself decomposes exactly: direct
+   deposits routed through the locker late in its life
+   (4,202.17 from [stakedao.eth](https://etherscan.io/address/0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063)
+   + 23.12 from three small direct depositors) minus 3,069.34 of protocol withdrawals
+   (to a Stake DAO ops EOA
+   [0x4334703b…](https://etherscan.io/address/0x4334703b0b74e2045926f82f4158a103fce1df4f)
+   and stakedao.eth) = 1,155.95 ✓. Caveat worth ~$2.09 total: the three direct
+   depositors ([0x07c2d0e2…](https://etherscan.io/address/0x07c2d0e24530199e2c9a15bfed4496d8e3798003)
+   $0.08, [0x4fe93ebc…](https://etherscan.io/address/0x4fe93ebc4ce6ae4f81601cc7ce7139023919e003)
+   $1.20, [0x53a385d4…](https://etherscan.io/address/0x53a385d47d3a011539ec377f53acb410f53ff97d)
+   $0.81) arguably own their slices; two are below the $1 floor anyway. Routed to
+   governance with the rest — forward manually if desired.
 2. **Convergence** (~0.46% combined) — currently → CVG Treasury Safe. Alternative:
    enumerate CVG sdBAL staking-position NFTs (service
    [0xAf5b3f4A…](https://etherscan.io/address/0xAf5b3f4A0b4dc334dB7137E5584E0e971E5e4962))
