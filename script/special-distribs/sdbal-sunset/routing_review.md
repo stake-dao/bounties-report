@@ -13,6 +13,14 @@ from the [URD](https://etherscan.io/address/0x6D98023de9AdeEE661E922F58f5c2ff086
 an EOA, a Gnosis Safe, or an explicitly reviewed leaf. Result: **206 final
 beneficiaries**, every reconciliation exact to the wei.
 
+> **Team decision (2026-06-11): only sdBAL gauge stakers are compensated.** Pool
+> sdBAL, the merkle stash, direct sdBAL holders and dust are not. `payouts.json` is
+> computed with `--source 0x3E8C…d859` (the gauge's expansion entry): the full
+> 38,055.182232 USDC goes pro-rata over the gauge's 81 expanded beneficiaries
+> (Σ basis = 377,016.0538 gauge sdBAL exact) → **65 recipients** after the $1 floor
+> (15 dropped, $5.19 redistributed). The expansion map below is kept as the
+> identification record for all 48 contract holders.
+
 ## Where the supply sits and how it expands
 
 ```
@@ -149,6 +157,11 @@ per beneficiary, vesting sdBAL-gauge tokens. Routed to each contract's onchain
   recoverable by a future root update.
 
 ## Open decisions for sign-off
+
+> With the gauge-only basis, items 1, 3 and 4 below are **moot** (the locker stake,
+> router dust and stash residue are outside the gauge branch and receive nothing).
+> Still open: item 2 (Convergence — SdtBlackHole *is* a gauge staker) and the $1
+> floor (item 6).
 
 1. **veBAL locker stake** (~0.275%) — **resolved by onchain ledger; governance routing
    stands.** Replaying every BPT transfer through the sdB vault over its lifetime:

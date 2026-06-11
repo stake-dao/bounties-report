@@ -99,6 +99,7 @@ interface Payouts {
   minPayout: string;        // raw USDC floor applied ("0" = none)
   droppedRecipients: number; // recipients removed by the floor
   droppedValue: string;      // their USDC, redistributed pro-rata to the rest
+  basis: string;             // "all-holders" or the expansion source the pot is restricted to
 }
 
 interface MerkleClaim {
@@ -1005,7 +1006,11 @@ async function expandStash(
 // Phase 4 — Pro-rata USDC payouts
 // ---------------------------------------------------------------------------
 
-function phase4Payouts(usdcReceivedStr: string, minPayout: bigint = 0n): Payouts {
+// `sourceFilter`: when set (an expansion source address, e.g. the sdBAL gauge), the
+// whole pot is distributed pro-rata over THAT entry's beneficiaries only — team
+// decision 2026-06-11: rewards are for gauge stakers; pool sdBAL, merkle stash and
+// direct holders are not compensated.
+function phase4Payouts(usdcReceivedStr: string, minPayout: bigint = 0n, sourceFilter?: string): Payouts {
   ensureOut();
   const report = readJson<ExpansionReport>(path.join(OUT_DIR, "holders_expanded.json"));
   if (report.unknownContracts.length > 0) {
@@ -1017,7 +1022,19 @@ function phase4Payouts(usdcReceivedStr: string, minPayout: bigint = 0n): Payouts
     }
   }
 
-  const totalSupply = BigInt(report.totalSupply);
+  let basis = "all-holders";
+  let balances = report.finalBalances;
+  let denominator = BigInt(report.totalSupply);
+  if (sourceFilter) {
+    const entry = report.expanded.find((e) => getAddress(e.source) === getAddress(sourceFilter));
+    if (!entry) throw new Error(`--source ${sourceFilter} not found among expanded entries`);
+    balances = entry.beneficiaries;
+    denominator = Object.values(entry.beneficiaries).reduce((s, v) => s + BigInt(v), 0n);
+    basis = getAddress(sourceFilter);
+    console.log(`  basis: ${basis} (${entry.reason}) — ${Object.keys(balances).length} beneficiaries, Σ ${denominator}`);
+  }
+
+  const totalSupply = denominator;
   const usdcReceived = BigInt(usdcReceivedStr);
 
   const perAddress: { [a: string]: string } = {};
@@ -1025,7 +1042,7 @@ function phase4Payouts(usdcReceivedStr: string, minPayout: bigint = 0n): Payouts
   let topAddr = "";
   let topShare = 0n;
 
-  for (const [a, balStr] of Object.entries(report.finalBalances)) {
+  for (const [a, balStr] of Object.entries(balances)) {
     const bal = BigInt(balStr);
     const amount = (bal * usdcReceived) / totalSupply;
     if (amount <= 0n) continue;
@@ -1057,6 +1074,7 @@ function phase4Payouts(usdcReceivedStr: string, minPayout: bigint = 0n): Payouts
     minPayout: minPayout.toString(),
     droppedRecipients: droppedCount,
     droppedValue: droppedValue.toString(),
+    basis,
   };
   writeJson(path.join(OUT_DIR, "payouts.json"), out);
   console.log(`Phase 4 — payouts`);
@@ -1583,6 +1601,7 @@ async function main() {
   const phase = arg("phase") ?? "all";
   const usdc = arg("usdc"); // raw uint USDC amount received by locker (decimals=6)
   const minUsdc = BigInt(arg("min-usdc") ?? "0"); // raw uint payout floor; below = dropped + redistributed
+  const source = arg("source"); // restrict the pot to one expansion entry's beneficiaries (e.g. the sdBAL gauge)
 
   switch (phase) {
     case "1":   await phase1Snapshot(); break;
@@ -1590,7 +1609,7 @@ async function main() {
     case "3":   await phase3Expand(); break;
     case "4":
       if (!usdc) throw new Error("--usdc required for phase 4 (uint, USDC 6 decimals)");
-      phase4Payouts(usdc, minUsdc); break;
+      phase4Payouts(usdc, minUsdc, source); break;
     case "5":   phase5Merge(); break;
     case "6": {
       const topupAmount = arg("topup-amount");
@@ -1607,7 +1626,7 @@ async function main() {
         console.log("Skipping phase 4-7 — pass --usdc <amount> once Balancer airdrop tx lands.");
         return;
       }
-      phase4Payouts(usdc, minUsdc);
+      phase4Payouts(usdc, minUsdc, source);
       // Pre-merge gate: verify all read-only artifacts before mutating extra_merkle.
       await preMergeVerify();
       // Mutate.

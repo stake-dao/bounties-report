@@ -40,7 +40,7 @@ Phased CLI — run sequentially; each phase reads the previous phase's output fr
 pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 1            # snapshot holders
 pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 2            # classify EOA vs contract
 pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 3            # auto-route contracts (probes interfaces; halts on unknown)
-pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 4 --usdc N [--min-usdc M]  # pro-rata payouts (N = uint USDC received; M = optional floor, sub-floor payouts redistributed pro-rata)
+pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 4 --usdc N [--min-usdc M] [--source 0x…]  # pro-rata payouts (N = uint USDC received; M = optional floor, sub-floor redistributed; --source restricts the pot to one expansion entry's beneficiaries — per team decision the sdBAL gauge)
 pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 5            # merge cumulative URD merkle (preserves prior leaves)
 pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 6            # Safe tx bundles: submitRoot + acceptRoot
 pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase verify       # invariant gate (run before submitRoot)
