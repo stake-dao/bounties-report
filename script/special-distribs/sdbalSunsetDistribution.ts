@@ -96,6 +96,9 @@ interface Payouts {
   usdcReceived: string;
   perAddress: { [address: string]: string };
   dustReassignedTo: string;
+  minPayout: string;        // raw USDC floor applied ("0" = none)
+  droppedRecipients: number; // recipients removed by the floor
+  droppedValue: string;      // their USDC, redistributed pro-rata to the rest
 }
 
 interface MerkleClaim {
@@ -1002,7 +1005,7 @@ async function expandStash(
 // Phase 4 — Pro-rata USDC payouts
 // ---------------------------------------------------------------------------
 
-function phase4Payouts(usdcReceivedStr: string): Payouts {
+function phase4Payouts(usdcReceivedStr: string, minPayout: bigint = 0n): Payouts {
   ensureOut();
   const report = readJson<ExpansionReport>(path.join(OUT_DIR, "holders_expanded.json"));
   if (report.unknownContracts.length > 0) {
@@ -1040,18 +1043,62 @@ function phase4Payouts(usdcReceivedStr: string): Payouts {
     throw new Error(`Payout reconciliation failed: assigned=${assigned} usdcReceived=${usdcReceived}`);
   }
 
+  const { kept, droppedCount, droppedValue } = applyMinPayout(perAddress, minPayout);
+  const keptSum = Object.values(kept).reduce((s, v) => s + BigInt(v), 0n);
+  if (keptSum !== usdcReceived) {
+    throw new Error(`Min-payout reconciliation failed: kept=${keptSum} usdcReceived=${usdcReceived}`);
+  }
+
   const out: Payouts = {
     block: report.block,
     usdcReceived: usdcReceived.toString(),
-    perAddress,
+    perAddress: kept,
     dustReassignedTo: topAddr,
+    minPayout: minPayout.toString(),
+    droppedRecipients: droppedCount,
+    droppedValue: droppedValue.toString(),
   };
   writeJson(path.join(OUT_DIR, "payouts.json"), out);
   console.log(`Phase 4 — payouts`);
-  console.log(`  recipients : ${Object.keys(perAddress).length}`);
+  console.log(`  recipients : ${Object.keys(kept).length}`);
   console.log(`  USDC total : ${formatUnits(usdcReceived, 6)} USDC`);
   console.log(`  dust to    : ${topAddr}`);
+  if (minPayout > 0n) {
+    console.log(`  floor      : ${formatUnits(minPayout, 6)} USDC — dropped ${droppedCount} recipients (${formatUnits(droppedValue, 6)} USDC redistributed pro-rata)`);
+  }
   return out;
+}
+
+// Drop payouts below `min` and redistribute their total pro-rata over the kept
+// recipients (by amount), dust to the largest. Sub-floor claims cost more in gas
+// than they pay out and would just strand USDC at the URD.
+export function applyMinPayout(
+  perAddress: { [a: string]: string },
+  min: bigint,
+): { kept: { [a: string]: string }; droppedCount: number; droppedValue: bigint } {
+  if (min <= 0n) return { kept: perAddress, droppedCount: 0, droppedValue: 0n };
+  const kept: { [a: string]: string } = {};
+  let droppedCount = 0;
+  let droppedValue = 0n;
+  let keptSum = 0n;
+  for (const [a, v] of Object.entries(perAddress)) {
+    const amt = BigInt(v);
+    if (amt < min) { droppedCount++; droppedValue += amt; continue; }
+    kept[a] = v;
+    keptSum += amt;
+  }
+  if (droppedValue === 0n) return { kept, droppedCount, droppedValue };
+  if (keptSum === 0n) {
+    throw new Error(`Min payout ${min} drops every recipient — floor too high`);
+  }
+  let redistributed = 0n;
+  for (const [a, v] of Object.entries(kept)) {
+    const extra = (BigInt(v) * droppedValue) / keptSum;
+    kept[a] = (BigInt(v) + extra).toString();
+    redistributed += extra;
+  }
+  assignDust(kept, droppedValue - redistributed);
+  return { kept, droppedCount, droppedValue };
 }
 
 // ---------------------------------------------------------------------------
@@ -1535,6 +1582,7 @@ function readJson<T>(p: string): T {
 async function main() {
   const phase = arg("phase") ?? "all";
   const usdc = arg("usdc"); // raw uint USDC amount received by locker (decimals=6)
+  const minUsdc = BigInt(arg("min-usdc") ?? "0"); // raw uint payout floor; below = dropped + redistributed
 
   switch (phase) {
     case "1":   await phase1Snapshot(); break;
@@ -1542,7 +1590,7 @@ async function main() {
     case "3":   await phase3Expand(); break;
     case "4":
       if (!usdc) throw new Error("--usdc required for phase 4 (uint, USDC 6 decimals)");
-      phase4Payouts(usdc); break;
+      phase4Payouts(usdc, minUsdc); break;
     case "5":   phase5Merge(); break;
     case "6": {
       const topupAmount = arg("topup-amount");
@@ -1559,7 +1607,7 @@ async function main() {
         console.log("Skipping phase 4-7 — pass --usdc <amount> once Balancer airdrop tx lands.");
         return;
       }
-      phase4Payouts(usdc);
+      phase4Payouts(usdc, minUsdc);
       // Pre-merge gate: verify all read-only artifacts before mutating extra_merkle.
       await preMergeVerify();
       // Mutate.

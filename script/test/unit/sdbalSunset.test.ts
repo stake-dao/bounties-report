@@ -5,7 +5,7 @@
  * distribution — totals must reconcile exactly at each level.
  */
 import { describe, it, expect } from "vitest";
-import { proRataSplit, assignDust } from "../../special-distribs/sdbalSunsetDistribution";
+import { proRataSplit, assignDust, applyMinPayout } from "../../special-distribs/sdbalSunsetDistribution";
 
 const A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const B = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -78,5 +78,37 @@ describe("assignDust", () => {
     const beneficiaries = { [A]: "100" };
     assignDust(beneficiaries, 0n);
     expect(beneficiaries[A]).toBe("100");
+  });
+});
+
+describe("applyMinPayout", () => {
+  it("drops sub-floor recipients and preserves the total exactly", () => {
+    const perAddress = { [A]: "10000000", [B]: "5000000", [C]: "999999" };
+    const total = 10000000n + 5000000n + 999999n;
+    const { kept, droppedCount, droppedValue } = applyMinPayout(perAddress, 1000000n);
+    expect(droppedCount).toBe(1);
+    expect(droppedValue).toBe(999999n);
+    expect(Object.keys(kept)).toEqual([A, B]);
+    const sum = Object.values(kept).reduce((s, v) => s + BigInt(v), 0n);
+    expect(sum).toBe(total);
+  });
+
+  it("redistributes proportionally (larger recipient gets more of the dropped value)", () => {
+    const perAddress = { [A]: "30000000", [B]: "10000000", [C]: "100" };
+    const { kept } = applyMinPayout(perAddress, 1000000n);
+    const extraA = BigInt(kept[A]) - 30000000n;
+    const extraB = BigInt(kept[B]) - 10000000n;
+    expect(extraA).toBeGreaterThan(extraB * 2n); // ≈ 3x, plus dust lands on A
+  });
+
+  it("is identity for zero floor", () => {
+    const perAddress = { [A]: "1", [B]: "2" };
+    const { kept, droppedCount } = applyMinPayout(perAddress, 0n);
+    expect(kept).toBe(perAddress);
+    expect(droppedCount).toBe(0);
+  });
+
+  it("throws when the floor drops everyone", () => {
+    expect(() => applyMinPayout({ [A]: "5" }, 10n)).toThrow(/floor too high/);
   });
 });
