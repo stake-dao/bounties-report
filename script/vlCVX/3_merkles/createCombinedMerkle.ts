@@ -11,6 +11,7 @@ import { MerkleData } from "../../interfaces/MerkleData";
 import { CVX_SPACE, WEEK } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
+import { applyShare, splitPoolByShares } from "../../utils/merkle/splitPoolByShares";
 import { fetchLastProposalsIds } from "../../utils/snapshot";
 
 // Round current UTC time down to the nearest week for the current period
@@ -274,8 +275,9 @@ function processChain(
           );
         } else {
           const total = BigInt(totalStr as string);
-          delegationPool[token] = BigInt(
-            Math.floor(Number(total) * totalNonForwardersShare)
+          delegationPool[token] = applyShare(
+            total,
+            delegationSummary.totalNonForwardersShare
           );
         }
       }
@@ -291,23 +293,18 @@ function processChain(
 
     // Distribute rewards from the delegation pool based on each address's share
     if (totalNonForwardersShare > 0 && delegationSummary.nonForwarders) {
-      for (const [address, shareStr] of Object.entries(
-        delegationSummary.nonForwarders
-      )) {
-        const share = parseFloat(shareStr as string);
-        const rewardsForAddress: { [token: string]: bigint } = {};
-        for (const [token, pool] of Object.entries(delegationPool)) {
-          const reward = BigInt(Math.floor(share * Number(pool)));
-          rewardsForAddress[token] = reward;
-        }
-        const addr = address.toLowerCase();
-        if (combined[addr]) {
-          for (const [token, reward] of Object.entries(rewardsForAddress)) {
-            combined[addr].tokens[token] =
-              (combined[addr].tokens[token] || 0n) + reward;
+      for (const [token, pool] of Object.entries(delegationPool)) {
+        const rewards = splitPoolByShares(
+          pool,
+          delegationSummary.nonForwarders
+        );
+        for (const [address, reward] of Object.entries(rewards)) {
+          const addr = address.toLowerCase();
+          if (!combined[addr]) {
+            combined[addr] = { tokens: {} };
           }
-        } else {
-          combined[addr] = { tokens: rewardsForAddress };
+          combined[addr].tokens[token] =
+            (combined[addr].tokens[token] || 0n) + reward;
         }
       }
     }
