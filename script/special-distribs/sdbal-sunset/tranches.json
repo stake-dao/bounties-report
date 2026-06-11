@@ -1,0 +1,11 @@
+[
+  {
+    "trancheId": 1,
+    "appliedAt": 1781180393,
+    "payoutHash": "0x8983dba18e4892529e74832a00c5eaacf2d26b4d0e87cdf7724a8841db284236",
+    "priorRoot": "0xc8432faea512a70570f7c159df14e73cedaae6bbf804ef12b60a734e2a2f49dd",
+    "newRoot": "0xb643af14f55c5284f020aaaf872e0dd0a9b45628611e3374faa0c9804496e0ba",
+    "usdcAdded": "38055182232",
+    "recipients": 65
+  }
+]

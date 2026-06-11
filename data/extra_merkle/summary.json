@@ -1,22 +1,32 @@
 {
-  "timestamp": 1755012470,
-  "merkleRoot": "0x23d0e6c656b7b80dff539691de048abd48b633ed174859db42dd0e1dc5dbed3d",
-  "totalRecipients": 36,
+  "timestamp": 1781180393,
+  "merkleRoot": "0xb643af14f55c5284f020aaaf872e0dd0a9b45628611e3374faa0c9804496e0ba",
+  "totalRecipients": 274,
   "tokens": [
     {
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "totalAmount": "883549000000000000000000",
+      "recipients": 170
+    },
+    {
+      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
+      "totalAmount": "12062913797701615024517",
+      "recipients": 35
+    },
+    {
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "totalAmount": "38055182232",
+      "recipients": 65
+    },
+    {
       "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",
-      "totalAmount": "18354920531635856428",
-      "recipients": 1
+      "totalAmount": "991980226501137316731",
+      "recipients": 26
     },
     {
       "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
       "totalAmount": "1538681889969713464122",
       "recipients": 25
-    },
-    {
-      "token": "0x1a88Df1cFe15Af22B3c4c783D4e6F7F9e0C1885d",
-      "totalAmount": "2261909623617267110403",
-      "recipients": 24
     },
     {
       "token": "0x44f49ff0da2498bCb1D3Dc7C0f999578F67FD8C6",
