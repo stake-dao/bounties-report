@@ -1,7 +1,7 @@
 {
-  "timestamp": 1781180393,
-  "merkleRoot": "0xb643af14f55c5284f020aaaf872e0dd0a9b45628611e3374faa0c9804496e0ba",
-  "totalRecipients": 274,
+  "timestamp": 1781535687,
+  "merkleRoot": "0x0f3815975a85b8dc719b30059005562ad508c251e51d8a3af7b3f031faac22e9",
+  "totalRecipients": 260,
   "tokens": [
     {
       "token": "0x01791F726B4103694969820be083196cC7c045fF",
@@ -15,8 +15,8 @@
     },
     {
       "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      "totalAmount": "38055182232",
-      "recipients": 65
+      "totalAmount": "32346182232",
+      "recipients": 48
     },
     {
       "token": "0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb",

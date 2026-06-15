@@ -252,8 +252,8 @@ const ERC20_ABI = [
   { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
 ] as const;
 
-// Per-deployment overrides. Every entry is an explicit, human-reviewed decision —
-// identification evidence in script/special-distribs/sdbal-sunset/routing_review.md.
+// Per-deployment overrides. Every entry is an explicit, human-reviewed decision
+// (identification evidence verified onchain at the snapshot block).
 // "leaf" pays the address itself (URD claims are permissionless; funds land at the
 // leaf address — for contracts without a sweep path that strands the USDC, which is
 // accepted for dust; flagged per-entry).
