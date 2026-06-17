@@ -8,7 +8,8 @@ balance. Only gauge stakers are paid — the pool, the merkle stash, direct hold
 dust are not; their share is absorbed into the gauge split (so gauge stakers receive the
 entire net pot).
 
-**Fee:** Stake DAO's 15% fee (**5,709.000000 USDC**) was already taken
+**Fee:** Stake DAO's fee (**5,709.000000 USDC**, a flat round amount = **15.0019%**;
+an exact 15% would be 5,708.277335) was already taken
 ([tx 0xad9ce210…](https://etherscan.io/tx/0xad9ce210ee03703bdba422bb16e21f5083a87b736419c3d58e898927188d003a),
 protocol Safe → stakedao.eth). Attribution is on the **net** pot.
 
@@ -17,12 +18,12 @@ protocol Safe → stakedao.eth). Attribution is on the **net** pot.
 | | |
 |---|---|
 | Gross pot received | 38,055.182232 USDC ([funding tx 0xeffea8a0…](https://etherscan.io/tx/0xeffea8a0e72039450fed07187b621e5072e52531a577c7c7d73132e5d1e69484)) |
-| Fee taken (15%) | 5,709.000000 USDC → stakedao.eth ([fee tx 0xad9ce210…](https://etherscan.io/tx/0xad9ce210ee03703bdba422bb16e21f5083a87b736419c3d58e898927188d003a)) |
+| Fee taken (15.0019%, flat round amount) | 5,709.000000 USDC → stakedao.eth ([fee tx 0xad9ce210…](https://etherscan.io/tx/0xad9ce210ee03703bdba422bb16e21f5083a87b736419c3d58e898927188d003a)) |
 | **Net pot distributed** | **32,346.182232 USDC** (`32346182232` uint, 6 decimals) |
 | Snapshot block | **25035662** (2026-05-08 18:00 UTC, BIP-920 vote start) |
-| Basis | sdBAL gauge — split pro-rata over the gauge's 81 expanded stakers (Σ 377,016.0538 gauge sdBAL) |
-| Payout floor | **$10** — nothing under $10 attributed; 32 sub-$10 stakers dropped, their 81.453504 USDC redistributed pro-rata to the rest |
-| **Recipients** | **48** (after floor) |
+| Basis | sdBAL gauge — split pro-rata over the gauge's 81 expanded stakers (Σ 377,016.0538 gauge sdBAL). 1 dust staker (`0x166f54…`, 1.1e-11 sdBAL) rounds to $0 and gets no leaf, leaving 80 with a positive share |
+| Payout floor | **$10** — nothing under $10 attributed; of the 80 with a positive share, 32 sub-$10 stakers dropped, their 81.453504 USDC redistributed pro-rata to the rest |
+| **Recipients** | **48** (81 stakers − 1 zero-share − 32 sub-$10) |
 | Distribution channel | URD extra merkle, cumulative — prior leaves preserved |
 | New merkle root | `0x0f3815975a85b8dc719b30059005562ad508c251e51d8a3af7b3f031faac22e9` |
 | Prior root | `0xc8432faea512a70570f7c159df14e73cedaae6bbf804ef12b60a734e2a2f49dd` |
@@ -98,4 +99,6 @@ Amounts in USDC. Type marks known protocol allocations; blank = ordinary gauge s
 ## Dropped by the $10 floor
 
 32 sub-$10 gauge stakers were excluded; their combined 81.453504 USDC was redistributed
-pro-rata across the 48 recipients above.
+pro-rata across the 48 recipients above. A 33rd staker (`0x166f54…`, 1.1e-11 sdBAL) never
+reached the floor: its pro-rata share floor-divides to $0, so the pure pro-rata step drops
+it before the floor is applied. Reconciliation: 81 stakers = 48 paid + 32 floored + 1 zero-share.
