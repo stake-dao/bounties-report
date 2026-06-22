@@ -53,12 +53,12 @@
                     {
                         "step": 1,
                         "date": "02-06-2026",
-                        "distributed": "12:29"
+                        "distributed": "12:21"
                     },
                     {
                         "step": 2,
                         "date": "09-06-2026",
-                        "distributed": "08:35"
+                        "distributed": "08:07"
                     }
                 ]
             },
@@ -75,7 +75,7 @@
                     {
                         "step": 1,
                         "date": "16-06-2026",
-                        "distributed": "09:24"
+                        "distributed": "09:54"
                     },
                     {
                         "step": 2,
