@@ -5,23 +5,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x8adee8ec6e9554f2d8a7595139ca8975f0dcc761f50c2a927c7ab8956525e907",
-                        "start": "11-06-2026 02:00",
-                        "end": "16-06-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "23-06-2026",
-                        "distributed": ""
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0xf2244e350d088e65639c42d17a496674e8a40a64bdf3e204ebd85ac63b4cea42",
                         "start": "18-06-2026 02:00",
                         "end": "23-06-2026 14:00"
@@ -34,9 +17,26 @@
                         "distributed": ""
                     }
                 ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xf411f51a85fb2343ba5e3041dd8dcec159bdb9efab15d08bdde86fdcdc229d60",
+                        "start": "25-06-2026 02:00",
+                        "end": "30-06-2026 14:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "07-07-2026",
+                        "distributed": ""
+                    }
+                ]
             }
         ],
-        "currentRoundId": 2
+        "currentRoundId": 1
     },
     "general": {
         "rounds": [
@@ -53,12 +53,12 @@
                     {
                         "step": 1,
                         "date": "16-06-2026",
-                        "distributed": "09:24"
+                        "distributed": "09:54"
                     },
                     {
                         "step": 2,
                         "date": "23-06-2026",
-                        "distributed": "10:16"
+                        "distributed": "10:24"
                     }
                 ]
             },
