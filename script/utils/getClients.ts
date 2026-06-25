@@ -1,5 +1,5 @@
 import { createPublicClient, http, PublicClient } from "viem";
-import { getAvailableEndpoints } from "./rpcConfig";
+import { getAvailableEndpoints, getRouteMeshUrl } from "./rpcConfig";
 import { CHAINS_BY_ID } from "./chains";
 
 const clientCache = new Map<string, PublicClient>();
@@ -46,6 +46,31 @@ export async function getClient(chainId: number, skipCache: boolean = false): Pr
   const chain = CHAINS_BY_ID[chainId];
   if (!chain) {
     throw new Error(`Chain ${chainId} not configured in CHAINS_BY_ID`);
+  }
+
+  // RouteMesh is the preferred provider when configured. getClient() otherwise
+  // picks the lowest-latency endpoint, which can select a public node that is
+  // fast for eth_blockNumber but fails on heavy/historical calls. Forcing
+  // RouteMesh first (when healthy) avoids that; we fall back to the latency
+  // race below only if RouteMesh is unreachable.
+  const routeMeshUrl = getRouteMeshUrl(chainId);
+  if (routeMeshUrl) {
+    const latency = await testRpcEndpoint(routeMeshUrl, chainId);
+    if (latency !== Infinity) {
+      const client = createPublicClient({
+        chain,
+        transport: http(routeMeshUrl, {
+          retryCount: 5,
+          retryDelay: 1000,
+          timeout: 30000,
+        }),
+      });
+      clientCache.set(cacheKey, client);
+      return client;
+    }
+    console.warn(
+      `[RPC] RouteMesh unreachable for chain ${chainId}, falling back to public endpoints`
+    );
   }
 
   // Get RPC endpoints from rpcConfig.ts

@@ -7,6 +7,7 @@ dotenv.config();
 import { type PublicClient, getAddress } from "viem";
 import { http, createPublicClient } from "viem";
 import { mainnet } from "../../utils/chains";
+import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 import type { MerkleData } from "../../interfaces/MerkleData";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
 import { CRVUSD, CVX_SPACE, SCRVUSD } from "../../utils/constants";
@@ -481,7 +482,7 @@ async function processForwarders() {
 	// Create a public viem client for mainnet (using an RPC URL from .env if provided)
 	const publicClient = createPublicClient({
 		chain: mainnet,
-		transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
+		transport: http(getPrimaryRpcUrl(1)),
 	});
 
 	// Fetch the current block number

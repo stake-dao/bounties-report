@@ -22,6 +22,18 @@ export interface ChainRpcConfig {
   endpoints: RpcEndpoint[];
 }
 
+// RouteMesh is a load-balanced RPC routing layer. When ROUTEMESH_API_KEY is set
+// it becomes the preferred (priority 0) endpoint for every chain, with the
+// public/keyed endpoints below kept only as a fallback if RouteMesh is down.
+const ROUTEMESH_BASE_URL = "https://lb.routeme.sh/rpc";
+
+export function getRouteMeshUrl(chainId: number): string | null {
+  const apiKey = process.env.ROUTEMESH_API_KEY;
+  if (!apiKey) return null;
+  if (!RPC_CONFIGS[chainId]) return null;
+  return `${ROUTEMESH_BASE_URL}/${chainId}/${apiKey}`;
+}
+
 // Utility to inject API keys into endpoint URLs
 function injectApiKey(url: string, apiKeys: Record<string, string | undefined>): string {
   if (url.includes("{ALCHEMY_API_KEY}")) {
@@ -260,7 +272,7 @@ export function getAvailableEndpoints(chainId: number): RpcEndpoint[] {
     INFURA_API_KEY: process.env.INFURA_API_KEY,
   };
 
-  return config.endpoints
+  const endpoints = config.endpoints
     .filter((endpoint) => {
       if (endpoint.requiresApiKey) {
         if (endpoint.url.includes("{ALCHEMY_API_KEY}") && !apiKeys.ALCHEMY_API_KEY) return false;
@@ -273,6 +285,14 @@ export function getAvailableEndpoints(chainId: number): RpcEndpoint[] {
       url: injectApiKey(endpoint.url, apiKeys),
     }))
     .sort((a, b) => a.priority - b.priority);
+
+  // Prefer RouteMesh when configured: prepend it as the top-priority endpoint.
+  const routeMeshUrl = getRouteMeshUrl(chainId);
+  if (routeMeshUrl) {
+    return [{ url: routeMeshUrl, priority: 0 }, ...endpoints];
+  }
+
+  return endpoints;
 }
 
 // Get the primary (highest priority) RPC URL for a chain

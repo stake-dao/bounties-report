@@ -55,6 +55,7 @@ jobs:
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           BOTS_ENVIO_GRAPHQL_URL_WORKER: ${{ secrets.BOTS_ENVIO_GRAPHQL_URL_WORKER }}
 
       # ── sdFXS merkle ──
@@ -64,6 +65,7 @@ jobs:
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           BOTS_ENVIO_GRAPHQL_URL_WORKER: ${{ secrets.BOTS_ENVIO_GRAPHQL_URL_WORKER }}
 
       # ── Commit after merkle ──
@@ -157,6 +159,7 @@ jobs:
         run: pnpm tsx script/helpers/getRoundMetadata.ts
         env:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       - name: Commit publish
         if: inputs.step == 'publish'

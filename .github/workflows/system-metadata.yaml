@@ -40,6 +40,7 @@ jobs:
         run: pnpm tsx script/helpers/getRoundMetadata.ts
         env:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       - name: Rebase on latest main before auto-commit
         run: git pull --rebase --autostash origin main
