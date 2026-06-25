@@ -1,4 +1,5 @@
 import { createPublicClient, http } from "viem";
+import { getPrimaryRpcUrl } from "../utils/rpcConfig";
 import {
   associateGaugesPerId,
   getProposal,
@@ -25,7 +26,7 @@ import { getBlockNumberByTimestamp } from "../utils/chainUtils";
 // Set up the public client for blockchain interactions
 const client = createPublicClient({
   chain: mainnet,
-  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
+  transport: http(getPrimaryRpcUrl(1)),
 });
 
 /**

@@ -5,6 +5,7 @@ import {
 	erc20Abi,
 } from "viem";
 import { mainnet, base, arbitrum } from "../utils/chains";
+import { getPrimaryRpcUrl } from "../utils/rpcConfig";
 import * as moment from "moment";
 import {
 	getProposal,
@@ -52,14 +53,14 @@ type CvxCSVType = Record<
 
 const publicClient = createPublicClient({
 	chain: mainnet,
-	transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
+	transport: http(getPrimaryRpcUrl(1)),
 });
 
 // Chain configurations
 const CHAIN_CONFIGS: Record<number, { chain: any; name: string; rpcUrl: string }> = {
-	1: { chain: mainnet, name: "ethereum", rpcUrl: process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://ethereum-rpc.publicnode.com" },
-	8453: { chain: base, name: "base", rpcUrl: "https://base.publicnode.com" },
-	42161: { chain: arbitrum, name: "arbitrum", rpcUrl: "https://arbitrum-one.publicnode.com" },
+	1: { chain: mainnet, name: "ethereum", rpcUrl: getPrimaryRpcUrl(1) },
+	8453: { chain: base, name: "base", rpcUrl: getPrimaryRpcUrl(8453) },
+	42161: { chain: arbitrum, name: "arbitrum", rpcUrl: getPrimaryRpcUrl(42161) },
 };
 
 async function getTokenDecimals(

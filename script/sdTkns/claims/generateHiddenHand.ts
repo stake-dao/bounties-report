@@ -4,13 +4,14 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "../../utils/chains";
+import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 import { ClaimsTelegramLogger } from "./claimsTelegramLogger";
 
 const WEEK = 604800;
 
 const ethereumClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http(getPrimaryRpcUrl(1)),
 });
 
 function customReplacer(key: string, value: any) {

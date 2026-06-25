@@ -3,6 +3,7 @@ import path from "path";
 import { parse } from "csv-parse/sync";
 import { createPublicClient, http, formatUnits } from "viem";
 import { mainnet, bsc } from "../../utils/chains";
+import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 import {
   BOTMARKETS,
   SPACES_TOKENS,
@@ -16,12 +17,12 @@ const currentPeriodTimestamp = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
 
 const ethereumClient = createPublicClient({
   chain: mainnet,
-  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
+  transport: http(getPrimaryRpcUrl(1)),
 });
 
 const bscClient = createPublicClient({
   chain: bsc,
-  transport: http("https://bsc-dataseed.bnbchain.org"),
+  transport: http(getPrimaryRpcUrl(56)),
 });
 
 interface ProtocolData {

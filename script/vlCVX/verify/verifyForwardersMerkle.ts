@@ -6,6 +6,7 @@ import { getAddress, createPublicClient, http } from "viem";
 import { getSCRVUsdTransfer } from "../utils";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
 import { mainnet } from "../../utils/chains";
+import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 
 const SCRVUSD = "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367";
 const FEE_RECIPIENT = getAddress("0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063");
@@ -53,9 +54,7 @@ function buildClaimMap(m: any): Record<string, bigint> {
   const publicClient = createPublicClient({
     chain: mainnet,
     transport: http(
-      process.env.WEB3_ALCHEMY_API_KEY
-        ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}`
-        : "https://rpc.flashbots.net"
+      getPrimaryRpcUrl(1)
     ),
   });
   const currentBlock = Number(await publicClient.getBlockNumber());

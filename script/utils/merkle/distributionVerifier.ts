@@ -21,6 +21,7 @@ import {
 } from "../constants";
 import { verifyVlCVXDistribution } from "../vlCVXDistributionVerifier";
 import { getTokenByAddress } from "../tokenService";
+import { getPrimaryRpcUrl } from "../rpcConfig";
 import fs from "fs";
 import path from "path";
 const merkleAbi = [
@@ -130,12 +131,9 @@ export const getAllTokensInfos = async (
     client = await getClient(chainId);
   } catch (error) {
     console.warn(`Failed to get client for chain ${chainId}, using fallback RPC`);
-    const fallbackRpc = chain.id === 1 
-      ? "https://ethereum-rpc.publicnode.com"
-      : "https://rpc.ankr.com/eth";
     client = createPublicClient({
       chain,
-      transport: http(fallbackRpc, {
+      transport: http(getPrimaryRpcUrl(chain.id), {
         retryCount: 3,
         retryDelay: 1000,
         timeout: 30000,
@@ -286,7 +284,7 @@ export const distributionVerifier = async (
         console.warn(`Failed to get Ethereum client, using fallback RPC`);
         ethereumClient = createPublicClient({
           chain: merkleChain,
-          transport: http("https://ethereum-rpc.publicnode.com", {
+          transport: http(getPrimaryRpcUrl(1), {
             retryCount: 3,
             retryDelay: 1000,
             timeout: 30000,
@@ -431,19 +429,16 @@ const compareMerkleData = async (
   } catch (error) {
     console.warn(`Failed to get client for chain ${chain.id}, using fallback RPC`);
     // Use a reliable public RPC as fallback
-    const fallbackRpc = chain.id === 1 
-      ? "https://ethereum-rpc.publicnode.com"
-      : chain.rpcUrls.default.http[0];
     client = createPublicClient({
       chain,
-      transport: http(fallbackRpc, {
+      transport: http(getPrimaryRpcUrl(chain.id), {
         retryCount: 3,
         retryDelay: 1000,
         timeout: 30000,
       }),
     });
   }
-  
+
   if (!client) {
     throw new Error(`Failed to create client for chain ${chain.id}`);
   }

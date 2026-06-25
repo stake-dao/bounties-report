@@ -7,6 +7,7 @@ import {
   decodeAbiParameters,
 } from "viem";
 import { mainnet } from "../utils/chains";
+import { getPrimaryRpcUrl } from "../utils/rpcConfig";
 import * as moment from "moment";
 import {
   getVoters,
@@ -59,7 +60,7 @@ type CvxCSVType = Record<
 
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http(process.env.WEB3_ALCHEMY_API_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${process.env.WEB3_ALCHEMY_API_KEY}` : "https://rpc.flashbots.net"),
+  transport: http(getPrimaryRpcUrl(1)),
 });
 
 async function getTokenPrices(

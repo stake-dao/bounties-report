@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "../../utils/chains";
+import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 import {
   BALANCER_STAKE_DAO_LOCKER,
   FXN_STAKE_DAO_LOCKER,
@@ -15,7 +16,7 @@ const WEEK = 604800;
 
 const ethereumClient = createPublicClient({
   chain: mainnet,
-  transport: http("https://rpc.flashbots.net"),
+  transport: http(getPrimaryRpcUrl(1)),
 });
 
 // Helper function to convert array to object with numeric string keys
