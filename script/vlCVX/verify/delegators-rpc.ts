@@ -129,30 +129,49 @@ async function fetchDelegationEvents(
   const events: DelegationEvent[] = [];
   const BATCH_SIZE = 45000n;
 
-  let currentFrom = fromBlock;
-  let batchCount = 0;
+  // A provider can reject a getLogs window either because it returned too many
+  // results OR because the block range itself exceeds the provider's limit.
+  // Both are recoverable by querying a smaller range, so treat them the same.
+  const isRangeLimitError = (error: any): boolean => {
+    const msg = (error?.message || "").toLowerCase();
+    return (
+      msg.includes("query returned more than") ||
+      msg.includes("block range") ||
+      msg.includes("too large") ||
+      msg.includes("limited to") ||
+      msg.includes("response size exceeded") ||
+      error?.code === -32005 ||
+      error?.code === -32600 ||
+      error?.code === -32602
+    );
+  };
 
-  while (currentFrom <= toBlock) {
-    const currentTo = currentFrom + BATCH_SIZE > toBlock ? toBlock : currentFrom + BATCH_SIZE;
-    batchCount++;
+  // Fetch Set+Clear logs for a block range. On a range-limit error, split the
+  // window in half and recurse until it fits. Returns the events instead of
+  // pushing them, so a rate-limit retry of the outer batch can never
+  // double-count partially-fetched logs.
+  const fetchRange = async (from: bigint, to: bigint): Promise<DelegationEvent[]> => {
+    try {
+      const [setLogs, clearLogs] = await Promise.all([
+        client.getLogs({
+          address: getAddress(DELEGATE_REGISTRY),
+          event: SET_DELEGATE_EVENT,
+          args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
+          fromBlock: from,
+          toBlock: to,
+        }),
+        client.getLogs({
+          address: getAddress(DELEGATE_REGISTRY),
+          event: CLEAR_DELEGATE_EVENT,
+          args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
+          fromBlock: from,
+          toBlock: to,
+        }),
+      ]);
 
-    const fetchBatch = async (from: bigint, to: bigint) => {
-      const setLogs = await client.getLogs({
-        address: getAddress(DELEGATE_REGISTRY),
-        event: SET_DELEGATE_EVENT,
-        args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
-        fromBlock: from,
-        toBlock: to,
-      });
-      const clearLogs = await client.getLogs({
-        address: getAddress(DELEGATE_REGISTRY),
-        event: CLEAR_DELEGATE_EVENT,
-        args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
-        fromBlock: from,
-        toBlock: to,
-      });
+      const out: DelegationEvent[] = [];
       for (const log of setLogs) {
-        events.push({
+        out.push({
           delegator: (log.args as any).delegator.toLowerCase(),
           space: (log.args as any).id,
           delegate: (log.args as any).delegate.toLowerCase(),
@@ -161,7 +180,7 @@ async function fetchDelegationEvents(
         });
       }
       for (const log of clearLogs) {
-        events.push({
+        out.push({
           delegator: (log.args as any).delegator.toLowerCase(),
           space: (log.args as any).id,
           delegate: (log.args as any).delegate.toLowerCase(),
@@ -169,12 +188,31 @@ async function fetchDelegationEvents(
           eventType: "Clear",
         });
       }
-    };
+      return out;
+    } catch (error: any) {
+      if (isRangeLimitError(error) && to > from) {
+        const mid = from + (to - from) / 2n;
+        console.log(`  Range ${from}-${to} rejected, splitting at ${mid}...`);
+        const [left, right] = [
+          await fetchRange(from, mid),
+          await fetchRange(mid + 1n, to),
+        ];
+        return [...left, ...right];
+      }
+      throw error;
+    }
+  };
 
-    const MAX_RETRIES = 3;
+  let currentFrom = fromBlock;
+  let batchCount = 0;
+  const MAX_RETRIES = 3;
+
+  while (currentFrom <= toBlock) {
+    const currentTo = currentFrom + BATCH_SIZE > toBlock ? toBlock : currentFrom + BATCH_SIZE;
+    batchCount++;
 
     try {
-      await fetchBatch(currentFrom, currentTo);
+      events.push(...(await fetchRange(currentFrom, currentTo)));
 
       if (batchCount % 5 === 0) {
         console.log(`  Processed ${batchCount} batches, ${events.length} events found so far...`);
@@ -182,18 +220,13 @@ async function fetchDelegationEvents(
 
       currentFrom = currentTo + 1n;
     } catch (error: any) {
-      if (error.message?.includes("query returned more than") || error.code === -32005) {
-        console.log(`  Batch too large, reducing size...`);
-        const smallerTo = currentFrom + BATCH_SIZE / 10n > toBlock ? toBlock : currentFrom + BATCH_SIZE / 10n;
-        await fetchBatch(currentFrom, smallerTo);
-        currentFrom = smallerTo + 1n;
-      } else if (error.message?.includes("429") || error.message?.includes("rate") || error.code === 429) {
+      if (error.message?.includes("429") || error.message?.includes("rate") || error.code === 429) {
         let retried = false;
         for (let r = 1; r <= MAX_RETRIES; r++) {
           console.log(`  Rate limited, retry ${r}/${MAX_RETRIES} in ${r * 2}s...`);
           await new Promise((resolve) => setTimeout(resolve, r * 2000));
           try {
-            await fetchBatch(currentFrom, currentTo);
+            events.push(...(await fetchRange(currentFrom, currentTo)));
             currentFrom = currentTo + 1n;
             retried = true;
             break;
