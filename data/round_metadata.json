@@ -17,53 +17,13 @@
                         "distributed": ""
                     }
                 ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
-                        "id": "0x78c0adfd8106d0660ff540441574ed04b59c0678bf1af5dddb736129526c01d3",
-                        "start": "02-07-2026 02:00",
-                        "end": "07-07-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "14-07-2026",
-                        "distributed": ""
-                    }
-                ]
             }
-        ],
-        "currentRoundId": 1
+        ]
     },
     "general": {
         "rounds": [
             {
                 "id": 1,
-                "proposals": [
-                    {
-                        "id": "0x83209a7df835f428a9c844974d6d8139a973e157093aebd586a584d1fb8d82dd",
-                        "start": "04-06-2026 02:00",
-                        "end": "09-06-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "16-06-2026",
-                        "distributed": "09:54"
-                    },
-                    {
-                        "step": 2,
-                        "date": "23-06-2026",
-                        "distributed": "10:24"
-                    }
-                ]
-            },
-            {
-                "id": 2,
                 "proposals": [
                     {
                         "id": "0x03af288336416a9b2f835e79835a1d343ebb635de4c908030e86fe2f965d56bb",
@@ -81,6 +41,28 @@
                         "step": 2,
                         "date": "07-07-2026",
                         "distributed": "10:21"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0x9f52d0572d4b2e3acfe3b766ec489700074beca90b348f0c22c1e2f9791dc237",
+                        "start": "02-07-2026 02:00",
+                        "end": "07-07-2026 14:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "14-07-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "21-07-2026",
+                        "distributed": ""
                     }
                 ]
             }
