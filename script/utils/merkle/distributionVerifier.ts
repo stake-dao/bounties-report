@@ -7,6 +7,7 @@ import {
 } from "viem";
 import { DistributionRow } from "../../interfaces/DistributionRow";
 import { MerkleData } from "../../interfaces/MerkleData";
+import { Proposal } from "../types";
 import { formatAddress } from "../address";
 import {
   proposalInformationLogger,
@@ -254,8 +255,12 @@ export const distributionVerifier = async (
   distribution: { [address: string]: { tokens: { [token: string]: bigint } } },
   proposalId?: string,
   merkleType?: "forwarders" | "combined",
+  // Pre-fetched proposal + votes (vlCVX on-chain source). When provided, the
+  // Snapshot lookups by proposalId below are skipped — the default path used
+  // by the other spaces (sdTkns, Spectra…) is untouched.
+  override?: { proposal: Proposal; votes: { voter: string }[] },
 ): Promise<DistributionRow[]> => {
-  if (!proposalId) {
+  if (!proposalId && !override) {
     throw new Error("distributionVerifier: proposalId is required");
   }
 
@@ -308,7 +313,7 @@ export const distributionVerifier = async (
         functionName: "currentEpoch",
       });
 
-      const proposal = await getProposal(proposalId);
+      const proposal = override?.proposal ?? (await getProposal(proposalId!));
       const proposalStartTimestamp = proposal.start;
 
       console.log(
@@ -341,10 +346,11 @@ export const distributionVerifier = async (
   const tokenInfos = await getAllTokensInfos(tokenAddresses, merkleChain);
 
   // --- Get proposal & votes ---
-  const activeProposal = await getProposal(proposalId);
+  const activeProposal =
+    override?.proposal ?? (await getProposal(proposalId!));
   console.log(activeProposal);
   console.log(space);
-  const votes = await getVoters(activeProposal.id);
+  const votes = override?.votes ?? (await getVoters(activeProposal.id));
   const logPath = setupLogging(activeProposal.id);
   const log = (message: string) => {
     fs.appendFileSync(logPath, `${message}\n`);

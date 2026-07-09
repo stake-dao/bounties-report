@@ -7,7 +7,15 @@ import {
   DELEGATION_ADDRESS,
   getClient,
   VOTIUM_FORWARDER_REGISTRY,
+  VLCVX_VOTE_SOURCE,
+  VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  CVX_GAUGE_VOTE_PLATFORM_CURVE,
 } from "../../utils/constants";
+import {
+  getOnChainProposal,
+  getOnChainVoters,
+  getOnChainVotingPower,
+} from "../../utils/gaugeVotePlatform";
 import { getGaugesInfos } from "../../utils/reportUtils";
 import {
   getBlockNumberByTimestamp,
@@ -107,9 +115,28 @@ async function getAllForwarders(
   const forwarders: Forwarder[] = [];
   const forwarderAddressSet = new Set<string>();
 
-  // 1. Get ALL voters from the proposal
-  const voters = await getVoters(proposalId);
-  const proposal = await getProposal(proposalId);
+  // 1. Get ALL voters from the proposal (Snapshot or on-chain source).
+  // The forwarder detection is curve-scoped: the on-chain proposal comes from
+  // the CurveGaugeVoting platform.
+  let voters: any[];
+  let proposal: any;
+  if (VLCVX_VOTE_SOURCE === "onchain") {
+    const client = await getClient(1);
+    proposal = await getOnChainProposal(
+      CVX_GAUGE_VOTE_PLATFORM_CURVE,
+      space,
+      client
+    );
+    voters = await getOnChainVoters(
+      CVX_GAUGE_VOTE_PLATFORM_CURVE,
+      Number(proposal.id),
+      proposal,
+      client
+    );
+  } else {
+    voters = await getVoters(proposalId);
+    proposal = await getProposal(proposalId);
+  }
 
   // Handle delegators who delegated to The Union
   const unionDelegatorsList = [
@@ -188,13 +215,29 @@ async function getAllForwarders(
   let additionalVotingPowers: Record<string, number> = {};
   if (additionalAddresses.length > 0) {
     try {
-      additionalVotingPowers = await getVotingPower(proposal, additionalAddresses, "1");
+      if (VLCVX_VOTE_SOURCE === "onchain") {
+        const client = await getClient(1);
+        additionalVotingPowers = await getOnChainVotingPower(
+          Number(proposal.snapshot), // vlCVX epoch
+          additionalAddresses,
+          client
+        );
+      } else {
+        additionalVotingPowers = await getVotingPower(proposal, additionalAddresses, "1");
+      }
     } catch (error) {
       // Silent fail - will use 0 VP
     }
   }
 
   // 7. Process results and identify forwarders
+  // The delegation voter itself must not be counted as a direct-voter — its
+  // address depends on the vote source (remapped on-chain)
+  const delegationAddressLower = (
+    VLCVX_VOTE_SOURCE === "onchain"
+      ? VLCVX_ONCHAIN_DELEGATION_ADDRESS
+      : DELEGATION_ADDRESS
+  ).toLowerCase();
   for (let index = 0; index < allAddressesToCheck.length; index++) {
     const address = allAddressesToCheck[index];
     const forwardedTo = allForwardedStatuses[index]?.toLowerCase();
@@ -206,7 +249,7 @@ async function getAllForwarders(
       const vote = voterMap.get(addrLower);
       const isDelegator = delegatorSet.has(addrLower);
       const isFromIndex = index >= voterAddresses.length;
-      const isDirectVoter = !isDelegator && addrLower !== DELEGATION_ADDRESS.toLowerCase();
+      const isDirectVoter = !isDelegator && addrLower !== delegationAddressLower;
 
       let type: "delegator" | "direct-voter";
       let votingPower = vote ? vote.vp : 0;
@@ -1087,27 +1130,55 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
     console.log(`Epoch: ${currentEpoch} (${new Date(Number(currentEpoch) * 1000).toLocaleDateString('en-GB')})`);
 
-    // Get Curve proposal for reference
-    const curveProposalIds = await fetchLastProposalsIdsCurrentPeriod(
-      [CVX_SPACE],
-      now,
-      "^(?!FXN ).*Gauge Weight for Week of"
-    );
-    const curveProposalId = curveProposalIds[CVX_SPACE];
-    const curveProposal = await getProposal(curveProposalId);
+    // Get Curve proposal for reference (Snapshot or on-chain source)
+    let curveProposalId: string;
+    let curveProposal: any;
+    if (VLCVX_VOTE_SOURCE === "onchain") {
+      console.warn(
+        "⚠️  VLCVX_VOTE_SOURCE=onchain: forwarder detection reads the on-chain " +
+          "proposal, but the Votium bribes matching below still relies on the " +
+          "Snapshot proposal choices — pending Votium's own migration (D6)."
+      );
+      const client = await getClient(1);
+      curveProposal = await getOnChainProposal(
+        CVX_GAUGE_VOTE_PLATFORM_CURVE,
+        CVX_SPACE,
+        client
+      );
+      curveProposalId = curveProposal.id;
+    } else {
+      const curveProposalIds = await fetchLastProposalsIdsCurrentPeriod(
+        [CVX_SPACE],
+        now,
+        "^(?!FXN ).*Gauge Weight for Week of"
+      );
+      curveProposalId = curveProposalIds[CVX_SPACE];
+      curveProposal = await getProposal(curveProposalId);
+    }
 
     // Get block for snapshot
     let blockSnapshotEnd: number;
-    try {
-      const proposalSnapshotBlock = parseInt(curveProposal.snapshot);
-      if (!isNaN(proposalSnapshotBlock) && proposalSnapshotBlock > 0) {
-        blockSnapshotEnd = proposalSnapshotBlock;
-      } else {
-        blockSnapshotEnd = await getBlockNumberByTimestamp(curveProposal.end, "after", 1);
+    if (VLCVX_VOTE_SOURCE === "onchain") {
+      // On-chain, proposal.snapshot is a vlCVX epoch number, NOT a block —
+      // always resolve the forwarder-check block from the proposal end
+      // timestamp (same convention as the repartition path)
+      blockSnapshotEnd = await getBlockNumberByTimestamp(
+        curveProposal.end,
+        "after",
+        1
+      );
+    } else {
+      try {
+        const proposalSnapshotBlock = parseInt(curveProposal.snapshot);
+        if (!isNaN(proposalSnapshotBlock) && proposalSnapshotBlock > 0) {
+          blockSnapshotEnd = proposalSnapshotBlock;
+        } else {
+          blockSnapshotEnd = await getBlockNumberByTimestamp(curveProposal.end, "after", 1);
+        }
+      } catch (error) {
+        const latestBlock = await ethereumClient.getBlockNumber();
+        blockSnapshotEnd = Number(latestBlock) - 50400;
       }
-    } catch (error) {
-      const latestBlock = await ethereumClient.getBlockNumber();
-      blockSnapshotEnd = Number(latestBlock) - 50400;
     }
 
     // Get all forwarders (delegators + direct voters)

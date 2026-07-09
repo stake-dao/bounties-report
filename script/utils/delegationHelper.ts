@@ -2,8 +2,18 @@ import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
 import { getBlockNumberByTimestamp } from "./chainUtils";
 import { processAllDelegators } from "./cacheUtils";
-import { getClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
+import {
+  getClient,
+  DELEGATION_ADDRESS,
+  VOTIUM_FORWARDER_REGISTRY,
+  CVX_SPACE,
+  VLCVX_VOTE_SOURCE,
+  VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  CVX_GAUGE_DELEGATION,
+} from "./constants";
 import { getVotingPower } from "./snapshot";
+import { getOnChainVotingPower } from "./gaugeVotePlatform";
+import { getOnChainDelegators } from "./onChainDelegation";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
 import { verifyDelegators, fetchDelegatorsWithFallback } from "./delegationAPIUtils";
@@ -151,6 +161,39 @@ export const fetchDelegatorData = async (
   options: { verify?: boolean; useFallback?: boolean } = {}
 ): Promise<DelegatorDataAugmented | null> => {
   const { verify = false, useFallback = false } = options;
+
+  // vlCVX on-chain source: delegators + VP come from the Convex GaugeDelegation
+  // and vlCVX contracts. Other spaces (and the default snapshot mode) keep the
+  // parquet/score-API path below untouched.
+  if (space === CVX_SPACE && VLCVX_VOTE_SOURCE === "onchain") {
+    const epoch = Number(proposal.snapshot);
+    if (!Number.isInteger(epoch) || epoch <= 0 || epoch > 100_000) {
+      throw new Error(
+        `fetchDelegatorData: on-chain mode expects proposal.snapshot to be a ` +
+          `vlCVX epoch, got "${proposal.snapshot}" (looks like a block number — ` +
+          `was a Snapshot proposal passed while VLCVX_VOTE_SOURCE=onchain?)`
+      );
+    }
+    const client = await getClient(1);
+    const onChainDelegators = await getOnChainDelegators(
+      CVX_GAUGE_DELEGATION,
+      VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+      epoch,
+      client
+    );
+    if (onChainDelegators.length === 0) return null;
+
+    const votingPowers = await getOnChainVotingPower(
+      epoch,
+      onChainDelegators,
+      client
+    );
+    const totalVotingPower = Object.values(votingPowers).reduce(
+      (acc, vp) => acc + vp,
+      0
+    );
+    return { delegators: onChainDelegators, votingPowers, totalVotingPower };
+  }
 
   let delegators: string[];
 

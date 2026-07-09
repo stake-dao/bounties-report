@@ -10,7 +10,18 @@ import { mainnet } from "../../utils/chains";
 import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 import type { MerkleData } from "../../interfaces/MerkleData";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
-import { CRVUSD, CVX_SPACE, SCRVUSD } from "../../utils/constants";
+import {
+	CRVUSD,
+	CVX_SPACE,
+	SCRVUSD,
+	VLCVX_VOTE_SOURCE,
+	CVX_GAUGE_VOTE_PLATFORM_CURVE,
+} from "../../utils/constants";
+import {
+	getOnChainProposal,
+	getOnChainVoters,
+} from "../../utils/gaugeVotePlatform";
+import { getClient } from "../../utils/getClients";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
@@ -692,25 +703,53 @@ async function processForwarders() {
 	const filter = "^(?!FXN ).*Gauge Weight for Week of";
 	const now = Math.floor(Date.now() / 1000);
 	try {
-		// Find the proposal ID used for verifying distribution
-		const proposalIdPerSpace = await fetchLastProposalsIds(
-			[CVX_SPACE],
-			now,
-			filter,
-		);
-		const proposalId = proposalIdPerSpace[CVX_SPACE];
-		console.log("Running verifier with proposalId:", proposalId);
+		if (VLCVX_VOTE_SOURCE === "onchain") {
+			const client = await getClient(1);
+			const proposal = await getOnChainProposal(
+				CVX_GAUGE_VOTE_PLATFORM_CURVE,
+				CVX_SPACE,
+				client,
+			);
+			const votes = await getOnChainVoters(
+				CVX_GAUGE_VOTE_PLATFORM_CURVE,
+				Number(proposal.id),
+				proposal,
+				client,
+			);
+			console.log("Running verifier with on-chain proposalId:", proposal.id);
 
-		distributionVerifier(
-			CVX_SPACE,
-			mainnet,
-			"0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380", // Target contract
-			newMerkleData,
-			previousMerkleData,
-			currentDistribution.distribution,
-			proposalId,
-			"forwarders",
-		);
+			distributionVerifier(
+				CVX_SPACE,
+				mainnet,
+				"0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380", // Target contract
+				newMerkleData,
+				previousMerkleData,
+				currentDistribution.distribution,
+				proposal.id,
+				"forwarders",
+				{ proposal, votes },
+			);
+		} else {
+			// Find the proposal ID used for verifying distribution
+			const proposalIdPerSpace = await fetchLastProposalsIds(
+				[CVX_SPACE],
+				now,
+				filter,
+			);
+			const proposalId = proposalIdPerSpace[CVX_SPACE];
+			console.log("Running verifier with proposalId:", proposalId);
+
+			distributionVerifier(
+				CVX_SPACE,
+				mainnet,
+				"0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380", // Target contract
+				newMerkleData,
+				previousMerkleData,
+				currentDistribution.distribution,
+				proposalId,
+				"forwarders",
+			);
+		}
 	} catch (error) {
 		console.error("Error running distribution verifier:", error);
 	}
