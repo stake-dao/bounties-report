@@ -7,7 +7,6 @@ import {
   DELEGATION_ADDRESS,
   VOTIUM_FORWARDER_REGISTRY,
   CVX_SPACE,
-  VLCVX_VOTE_SOURCE,
   VLCVX_ONCHAIN_DELEGATION_ADDRESS,
   CVX_GAUGE_DELEGATION,
 } from "./constants";
@@ -162,16 +161,16 @@ export const fetchDelegatorData = async (
 ): Promise<DelegatorDataAugmented | null> => {
   const { verify = false, useFallback = false } = options;
 
-  // vlCVX on-chain source: delegators + VP come from the Convex GaugeDelegation
-  // and vlCVX contracts. Other spaces (and the default snapshot mode) keep the
-  // parquet/score-API path below untouched.
-  if (space === CVX_SPACE && VLCVX_VOTE_SOURCE === "onchain") {
+  // vlCVX is on-chain: delegators + VP come from the Convex GaugeDelegation
+  // and vlCVX contracts. The other spaces keep the parquet/score-API path
+  // below untouched.
+  if (space === CVX_SPACE) {
     const epoch = Number(proposal.snapshot);
     if (!Number.isInteger(epoch) || epoch <= 0 || epoch > 100_000) {
       throw new Error(
-        `fetchDelegatorData: on-chain mode expects proposal.snapshot to be a ` +
-          `vlCVX epoch, got "${proposal.snapshot}" (looks like a block number — ` +
-          `was a Snapshot proposal passed while VLCVX_VOTE_SOURCE=onchain?)`
+        `fetchDelegatorData: cvx.eth is read on-chain and expects ` +
+          `proposal.snapshot to be a vlCVX epoch, got "${proposal.snapshot}" ` +
+          `(looks like a block number — was a legacy Snapshot proposal passed?)`
       );
     }
     const client = await getClient(1);

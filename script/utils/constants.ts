@@ -50,12 +50,6 @@ export const CVX_GAUGE_DELEGATION =
 export const CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH = 25478184;
 export const VLCVX_ADDRESS = "0x72a19342e8F1838460eBFCCEf09F6585e32db86E";
 
-// Cutover flag: vlCVX repartition reads votes/delegations from Snapshot (legacy)
-// or from the Convex Voting Platform contracts. Defaults to snapshot until Convex
-// stops posting "Gauge Weight for Week of" proposals on cvx.eth.
-export const VLCVX_VOTE_SOURCE: "snapshot" | "onchain" =
-  process.env.VLCVX_VOTE_SOURCE === "onchain" ? "onchain" : "snapshot";
-
 // Networks
 export const ETHEREUM = "ethereum";
 export const ETH_CHAIN_ID = "1";

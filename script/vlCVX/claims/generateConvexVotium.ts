@@ -4,10 +4,8 @@ import path from "path";
 import {
   CVX_SPACE,
   VOTIUM_FORWARDER,
-  DELEGATION_ADDRESS,
   getClient,
   VOTIUM_FORWARDER_REGISTRY,
-  VLCVX_VOTE_SOURCE,
   VLCVX_ONCHAIN_DELEGATION_ADDRESS,
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
 } from "../../utils/constants";
@@ -26,7 +24,6 @@ import {
   fetchLastProposalsIdsCurrentPeriod,
   getProposal,
   getVoters,
-  getVotingPower,
 } from "../../utils/snapshot";
 import { getAllCurveGauges } from "../../utils/curveApi";
 import {
@@ -115,28 +112,20 @@ async function getAllForwarders(
   const forwarders: Forwarder[] = [];
   const forwarderAddressSet = new Set<string>();
 
-  // 1. Get ALL voters from the proposal (Snapshot or on-chain source).
-  // The forwarder detection is curve-scoped: the on-chain proposal comes from
-  // the CurveGaugeVoting platform.
-  let voters: any[];
-  let proposal: any;
-  if (VLCVX_VOTE_SOURCE === "onchain") {
-    const client = await getClient(1);
-    proposal = await getOnChainProposal(
-      CVX_GAUGE_VOTE_PLATFORM_CURVE,
-      space,
-      client
-    );
-    voters = await getOnChainVoters(
-      CVX_GAUGE_VOTE_PLATFORM_CURVE,
-      Number(proposal.id),
-      proposal,
-      client
-    );
-  } else {
-    voters = await getVoters(proposalId);
-    proposal = await getProposal(proposalId);
-  }
+  // 1. Get ALL voters from the on-chain proposal. The forwarder detection is
+  // curve-scoped: the proposal comes from the CurveGaugeVoting platform.
+  const client = await getClient(1);
+  const proposal = await getOnChainProposal(
+    CVX_GAUGE_VOTE_PLATFORM_CURVE,
+    space,
+    client
+  );
+  const voters = await getOnChainVoters(
+    CVX_GAUGE_VOTE_PLATFORM_CURVE,
+    Number(proposal.id),
+    proposal,
+    client
+  );
 
   // Handle delegators who delegated to The Union
   const unionDelegatorsList = [
@@ -215,29 +204,21 @@ async function getAllForwarders(
   let additionalVotingPowers: Record<string, number> = {};
   if (additionalAddresses.length > 0) {
     try {
-      if (VLCVX_VOTE_SOURCE === "onchain") {
-        const client = await getClient(1);
-        additionalVotingPowers = await getOnChainVotingPower(
-          Number(proposal.snapshot), // vlCVX epoch
-          additionalAddresses,
-          client
-        );
-      } else {
-        additionalVotingPowers = await getVotingPower(proposal, additionalAddresses, "1");
-      }
+      additionalVotingPowers = await getOnChainVotingPower(
+        Number(proposal.snapshot), // vlCVX epoch
+        additionalAddresses,
+        client
+      );
     } catch (error) {
       // Silent fail - will use 0 VP
     }
   }
 
   // 7. Process results and identify forwarders
-  // The delegation voter itself must not be counted as a direct-voter — its
-  // address depends on the vote source (remapped on-chain)
-  const delegationAddressLower = (
-    VLCVX_VOTE_SOURCE === "onchain"
-      ? VLCVX_ONCHAIN_DELEGATION_ADDRESS
-      : DELEGATION_ADDRESS
-  ).toLowerCase();
+  // The delegation voter itself must not be counted as a direct-voter
+  // (on-chain, the seed remapped StakeDAO's delegate to this address)
+  const delegationAddressLower =
+    VLCVX_ONCHAIN_DELEGATION_ADDRESS.toLowerCase();
   for (let index = 0; index < allAddressesToCheck.length; index++) {
     const address = allAddressesToCheck[index];
     const forwardedTo = allForwardedStatuses[index]?.toLowerCase();
@@ -1130,56 +1111,27 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
     console.log(`Epoch: ${currentEpoch} (${new Date(Number(currentEpoch) * 1000).toLocaleDateString('en-GB')})`);
 
-    // Get Curve proposal for reference (Snapshot or on-chain source)
-    let curveProposalId: string;
-    let curveProposal: any;
-    if (VLCVX_VOTE_SOURCE === "onchain") {
-      console.warn(
-        "⚠️  VLCVX_VOTE_SOURCE=onchain: forwarder detection reads the on-chain " +
-          "proposal, but the Votium bribes matching below still relies on the " +
-          "Snapshot proposal choices — pending Votium's own migration (D6)."
-      );
-      const client = await getClient(1);
-      curveProposal = await getOnChainProposal(
-        CVX_GAUGE_VOTE_PLATFORM_CURVE,
-        CVX_SPACE,
-        client
-      );
-      curveProposalId = curveProposal.id;
-    } else {
-      const curveProposalIds = await fetchLastProposalsIdsCurrentPeriod(
-        [CVX_SPACE],
-        now,
-        "^(?!FXN ).*Gauge Weight for Week of"
-      );
-      curveProposalId = curveProposalIds[CVX_SPACE];
-      curveProposal = await getProposal(curveProposalId);
-    }
+    // Get Curve proposal for reference (on-chain)
+    console.warn(
+      "⚠️  Forwarder detection reads the on-chain proposal, but the Votium " +
+        "bribes matching below still relies on the Snapshot proposal choices " +
+        "— pending Votium's own migration (D6)."
+    );
+    const curveProposal = await getOnChainProposal(
+      CVX_GAUGE_VOTE_PLATFORM_CURVE,
+      CVX_SPACE,
+      ethereumClient
+    );
+    const curveProposalId = curveProposal.id;
 
-    // Get block for snapshot
-    let blockSnapshotEnd: number;
-    if (VLCVX_VOTE_SOURCE === "onchain") {
-      // On-chain, proposal.snapshot is a vlCVX epoch number, NOT a block —
-      // always resolve the forwarder-check block from the proposal end
-      // timestamp (same convention as the repartition path)
-      blockSnapshotEnd = await getBlockNumberByTimestamp(
-        curveProposal.end,
-        "after",
-        1
-      );
-    } else {
-      try {
-        const proposalSnapshotBlock = parseInt(curveProposal.snapshot);
-        if (!isNaN(proposalSnapshotBlock) && proposalSnapshotBlock > 0) {
-          blockSnapshotEnd = proposalSnapshotBlock;
-        } else {
-          blockSnapshotEnd = await getBlockNumberByTimestamp(curveProposal.end, "after", 1);
-        }
-      } catch (error) {
-        const latestBlock = await ethereumClient.getBlockNumber();
-        blockSnapshotEnd = Number(latestBlock) - 50400;
-      }
-    }
+    // Get block for the forwarder check: on-chain, proposal.snapshot is a
+    // vlCVX epoch number, NOT a block — resolve from the proposal end
+    // timestamp (same convention as the repartition path)
+    const blockSnapshotEnd = await getBlockNumberByTimestamp(
+      curveProposal.end,
+      "after",
+      1
+    );
 
     // Get all forwarders (delegators + direct voters)
     console.log("Fetching forwarders...");

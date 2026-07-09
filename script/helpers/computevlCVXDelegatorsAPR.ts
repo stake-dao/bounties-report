@@ -7,21 +7,12 @@ import {
 import { mainnet, base, arbitrum } from "../utils/chains";
 import { getPrimaryRpcUrl } from "../utils/rpcConfig";
 import * as moment from "moment";
-import {
-	getProposal,
-	getVoters,
-	associateGaugesPerId,
-	fetchLastProposalsIds,
-	getVotingPower,
-} from "../utils/snapshot";
 import { getAllCurveGauges } from "../utils/curveApi";
 import {
-	DELEGATION_ADDRESS,
 	CVX_SPACE,
 	WEEK,
 	SCRVUSD,
 	CRVUSD,
-	VLCVX_VOTE_SOURCE,
 	VLCVX_ONCHAIN_DELEGATION_ADDRESS,
 	CVX_GAUGE_VOTE_PLATFORM_CURVE,
 	CVX_GAUGE_DELEGATION,
@@ -38,7 +29,6 @@ import { extractCSV } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
 import { writeFileSync } from "fs";
 import { join } from "path";
-import { processAllDelegators } from "../utils/cacheUtils";
 import { getAllRewardsForDelegators } from "./utils";
 
 import { getSCRVUsdTransfer } from "../vlCVX/utils";
@@ -150,49 +140,26 @@ async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 	const gauges = Object.keys(csvResult);
 	console.log(`Found ${gauges.length} gauges in report`);
 
-	// Fetch last proposal, votes and gauge mapping (Snapshot or on-chain source)
+	// Fetch last on-chain proposal, votes and gauge mapping (curve-only script)
 	const curveGauges = await getAllCurveGauges();
-	// This script is curve-only (Snapshot filter excludes FXN proposals)
-	let proposal: any;
-	let votes: any[];
-	let gaugePerChoiceId: Record<string, { shortName: string; choiceId: number }>;
-	if (VLCVX_VOTE_SOURCE === "onchain") {
-		console.log("Fetching latest on-chain proposal...");
-		const client = await getClient(1);
-		proposal = await getOnChainProposal(
-			CVX_GAUGE_VOTE_PLATFORM_CURVE,
-			CVX_SPACE,
-			client,
-		);
-		console.log("Using on-chain proposal:", proposal.id);
-		votes = await getOnChainVoters(
-			CVX_GAUGE_VOTE_PLATFORM_CURVE,
-			Number(proposal.id),
-			proposal,
-			client,
-		);
-		gaugePerChoiceId = associateGaugesPerIdOnChain(proposal, curveGauges);
-	} else {
-		console.log("Fetching latest proposal...");
-		const filter: string = "^(?!FXN ).*Gauge Weight for Week of";
-		const proposalIdPerSpace = await fetchLastProposalsIds(
-			[CVX_SPACE],
-			now,
-			filter,
-		);
-		const proposalId = proposalIdPerSpace[CVX_SPACE];
-		console.log("Using proposal:", proposalId);
+	console.log("Fetching latest on-chain proposal...");
+	const client = await getClient(1);
+	const proposal = await getOnChainProposal(
+		CVX_GAUGE_VOTE_PLATFORM_CURVE,
+		CVX_SPACE,
+		client,
+	);
+	console.log("Using on-chain proposal:", proposal.id);
+	const votes = await getOnChainVoters(
+		CVX_GAUGE_VOTE_PLATFORM_CURVE,
+		Number(proposal.id),
+		proposal,
+		client,
+	);
+	const gaugePerChoiceId = associateGaugesPerIdOnChain(proposal, curveGauges);
 
-		proposal = await getProposal(proposalId);
-		votes = await getVoters(proposalId);
-		gaugePerChoiceId = associateGaugesPerId(proposal, curveGauges);
-	}
-
-	// On-chain, the seed remapped StakeDAO's delegate to a new address
-	const delegationAddress =
-		VLCVX_VOTE_SOURCE === "onchain"
-			? VLCVX_ONCHAIN_DELEGATION_ADDRESS
-			: DELEGATION_ADDRESS;
+	// The on-chain seed remapped StakeDAO's delegate to a new address
+	const delegationAddress = VLCVX_ONCHAIN_DELEGATION_ADDRESS;
 
 	let totalVotingPower = 0;
 	let delegationVotingPower = 0;
@@ -232,31 +199,19 @@ async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 		}
 	}
 
-	// Get delegators and their voting powers
+	// Get delegators and their voting powers (on-chain, at the proposal epoch)
 	console.log("Fetching delegator data...");
-	let delegators: string[];
-	let delegatorVotingPowers: Record<string, number>;
-	if (VLCVX_VOTE_SOURCE === "onchain") {
-		const client = await getClient(1);
-		delegators = await getOnChainDelegators(
-			CVX_GAUGE_DELEGATION,
-			VLCVX_ONCHAIN_DELEGATION_ADDRESS,
-			Number(proposal.snapshot), // vlCVX epoch
-			client,
-		);
-		delegatorVotingPowers = await getOnChainVotingPower(
-			Number(proposal.snapshot),
-			delegators,
-			client,
-		);
-	} else {
-		delegators = await processAllDelegators(
-			CVX_SPACE,
-			proposal.created,
-			DELEGATION_ADDRESS,
-		);
-		delegatorVotingPowers = await getVotingPower(proposal, delegators);
-	}
+	const delegators = await getOnChainDelegators(
+		CVX_GAUGE_DELEGATION,
+		VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+		Number(proposal.snapshot), // vlCVX epoch
+		client,
+	);
+	const delegatorVotingPowers = await getOnChainVotingPower(
+		Number(proposal.snapshot),
+		delegators,
+		client,
+	);
 
 	// Get Thursday rewards (from getAllRewardsForDelegators)
 	const thursdayRewards = getAllRewardsForDelegators(currentPeriodTimestamp);
