@@ -17,6 +17,23 @@
                         "distributed": ""
                     }
                 ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xba73b74416ffbef67db0c4eb7b553a98d70916206adfa121d7ebfa311d6f6447",
+                        "start": "09-07-2026 02:00",
+                        "end": "14-07-2026 14:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "21-07-2026",
+                        "distributed": ""
+                    }
+                ]
             }
         ]
     },
