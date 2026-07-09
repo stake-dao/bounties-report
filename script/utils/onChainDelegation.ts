@@ -1,4 +1,11 @@
-import { parseAbi, getAddress, keccak256, encodePacked, pad } from "viem";
+import {
+  parseAbi,
+  parseAbiItem,
+  getAddress,
+  keccak256,
+  encodePacked,
+  pad,
+} from "viem";
 import { CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH } from "./constants";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { getOnChainVotingPower } from "./gaugeVotePlatform";
@@ -12,9 +19,82 @@ const delegateSetSignature = "DelegateSet(address,address)";
 const delegateSetHash = keccak256(
   encodePacked(["string"], [delegateSetSignature])
 );
+const DELEGATE_SET_EVENT = parseAbiItem(
+  "event DelegateSet(address indexed user, address indexed delegate)"
+);
 
 // Explorer API chunk size (same convention as cacheUtils delegator fetching)
 const LOGS_CHUNK_SIZE = 50_000;
+
+// Enumerates every user that ever emitted DelegateSet(*, delegateTo), via the
+// explorer API (avoids RPC getLogs range limits on public/free-tier endpoints).
+const fetchDelegateSetUsersViaExplorer = async (
+  delegationContract: string,
+  delegateTo: string,
+  latestBlock: number
+): Promise<Set<string>> => {
+  const explorerUtils = createBlockchainExplorerUtils();
+  const paddedDelegate = pad(getAddress(delegateTo), { size: 32 }).toLowerCase();
+  const users = new Set<string>();
+
+  for (
+    let fromBlock = CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH;
+    fromBlock <= latestBlock;
+    fromBlock += LOGS_CHUNK_SIZE
+  ) {
+    const toBlock = Math.min(fromBlock + LOGS_CHUNK_SIZE - 1, latestBlock);
+    const response = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(delegationContract),
+      fromBlock,
+      toBlock,
+      {
+        "0": delegateSetHash,
+        "2": paddedDelegate, // DelegateSet(user indexed, delegate indexed)
+      },
+      1
+    );
+
+    for (const log of response?.result || []) {
+      // topics[1] = user (indexed address, left-padded to 32 bytes)
+      users.add(("0x" + log.topics[1].slice(26)).toLowerCase());
+    }
+  }
+
+  return users;
+};
+
+// Same enumeration through raw RPC eth_getLogs — needed when reading a fork
+// (e.g. Tenderly virtual testnet): the explorer API only sees real mainnet,
+// while the RPC sees the fork state including delegations made on the fork.
+const fetchDelegateSetUsersViaRpc = async (
+  delegationContract: string,
+  delegateTo: string,
+  latestBlock: number,
+  client: any
+): Promise<Set<string>> => {
+  const users = new Set<string>();
+
+  for (
+    let fromBlock = CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH;
+    fromBlock <= latestBlock;
+    fromBlock += LOGS_CHUNK_SIZE
+  ) {
+    const toBlock = Math.min(fromBlock + LOGS_CHUNK_SIZE - 1, latestBlock);
+    const logs = await client.getLogs({
+      address: delegationContract,
+      event: DELEGATE_SET_EVENT,
+      args: { delegate: getAddress(delegateTo) },
+      fromBlock: BigInt(fromBlock),
+      toBlock: BigInt(toBlock),
+    });
+
+    for (const log of logs) {
+      users.add((log.args.user as string).toLowerCase());
+    }
+  }
+
+  return users;
+};
 
 /**
  * Returns the addresses actively delegating to `delegateTo` at the given vlCVX
@@ -44,36 +124,24 @@ export const getOnChainDelegators = async (
   delegationContract: string,
   delegateTo: string,
   epoch: number,
-  client: any
+  client: any,
+  opts: { logsSource?: "explorer" | "rpc" } = {}
 ): Promise<string[]> => {
-  const explorerUtils = createBlockchainExplorerUtils();
-  const paddedDelegate = pad(getAddress(delegateTo), { size: 32 }).toLowerCase();
-
   const latestBlock = Number(await client.getBlockNumber());
-  const users = new Set<string>();
 
-  for (
-    let fromBlock = CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH;
-    fromBlock <= latestBlock;
-    fromBlock += LOGS_CHUNK_SIZE
-  ) {
-    const toBlock = Math.min(fromBlock + LOGS_CHUNK_SIZE - 1, latestBlock);
-    const response = await explorerUtils.getLogsByAddressAndTopics(
-      getAddress(delegationContract),
-      fromBlock,
-      toBlock,
-      {
-        "0": delegateSetHash,
-        "2": paddedDelegate, // DelegateSet(user indexed, delegate indexed)
-      },
-      1
-    );
-
-    for (const log of response?.result || []) {
-      // topics[1] = user (indexed address, left-padded to 32 bytes)
-      users.add(("0x" + log.topics[1].slice(26)).toLowerCase());
-    }
-  }
+  const users =
+    opts.logsSource === "rpc"
+      ? await fetchDelegateSetUsersViaRpc(
+          delegationContract,
+          delegateTo,
+          latestBlock,
+          client
+        )
+      : await fetchDelegateSetUsersViaExplorer(
+          delegationContract,
+          delegateTo,
+          latestBlock
+        );
 
   const candidates = [...users];
   if (candidates.length === 0) {
