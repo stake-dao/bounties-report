@@ -1,7 +1,9 @@
-import { VOTIUM_FORWARDER } from "../../utils/constants";
+import { VOTIUM_FORWARDER, VLCVX_VOTE_SOURCE } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getVotingPower } from "../../utils/snapshot";
+import { getOnChainVotingPower } from "../../utils/gaugeVotePlatform";
 import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
+import { getClient } from "../../utils/getClients";
 
 export type DelegationDistribution = Record<
   string,
@@ -34,7 +36,19 @@ export const computeStakeDaoDelegation = async (
   delegationDistribution[delegationVoter] = { tokens: { ...tokens } };
 
   // Get voting power for each delegator.
-  const vps = await getVotingPower(proposal, stakeDaoDelegators);
+  // On-chain source: proposal.snapshot is the vlCVX epoch number, and VP comes
+  // from vlCVX.balanceAtEpochOf instead of the Snapshot score API.
+  let vps: Record<string, number>;
+  if (VLCVX_VOTE_SOURCE === "onchain") {
+    const client = await getClient(1);
+    vps = await getOnChainVotingPower(
+      Number(proposal.snapshot),
+      stakeDaoDelegators,
+      client
+    );
+  } else {
+    vps = await getVotingPower(proposal, stakeDaoDelegators);
+  }
   const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
 
   const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.end, "after", 1);
