@@ -108,7 +108,12 @@ const processGaugeProposal = async (
     gaugeType === "curve"
       ? CVX_GAUGE_VOTE_PLATFORM_CURVE
       : CVX_GAUGE_VOTE_PLATFORM_FXN;
-  const proposal = await getOnChainProposal(platform, space, publicClient);
+  // VLCVX_ALLOW_ACTIVE_PROPOSAL=true is a TEST-ONLY escape hatch (fork /
+  // virtual testnet): it skips the endTime+overtime finality guard. Never set
+  // it in production — results read before endTime+600s are not final.
+  const proposal = await getOnChainProposal(platform, space, publicClient, {
+    requireFinal: process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL !== "true",
+  });
   const proposalId = proposal.id;
   console.log(
     `on-chain proposalId ${proposalId} (vlCVX epoch ${proposal.snapshot})`

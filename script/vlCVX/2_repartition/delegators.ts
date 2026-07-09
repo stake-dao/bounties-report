@@ -44,7 +44,13 @@ export const computeStakeDaoDelegation = async (
   );
   const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
 
-  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.end, "after", 1);
+  // TEST-ONLY (fork / virtual testnet, see VLCVX_ALLOW_ACTIVE_PROPOSAL in
+  // 2_repartition/index.ts): an active proposal has no block after its end
+  // yet — approximate the Votium forwarding state with the latest block.
+  const blockSnapshotEnd =
+    process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL === "true"
+      ? Number(await client.getBlockNumber())
+      : await getBlockNumberByTimestamp(proposal.end, "after", 1);
 
   // Get forwarded status for each delegator (via multicall).
   const forwardedArray = await getForwardedDelegators(stakeDaoDelegators, blockSnapshotEnd);
