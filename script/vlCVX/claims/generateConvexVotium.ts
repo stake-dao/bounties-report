@@ -101,27 +101,18 @@ function customReplacer(_key: string, value: any): any {
  */
 async function getAllForwarders(
   space: string,
-  proposalId: string,
+  proposal: any,
+  proposalVoters: any[],
   blockSnapshotEnd: number,
   currentEpoch: number
 ): Promise<Forwarder[]> {
   const forwarders: Forwarder[] = [];
   const forwarderAddressSet = new Set<string>();
 
-  // 1. Get ALL voters from the on-chain proposal. The forwarder detection is
-  // curve-scoped: the proposal comes from the CurveGaugeVoting platform.
-  const client = await getClient(1);
-  const proposal = await getOnChainProposal(
-    CVX_GAUGE_VOTE_PLATFORM_CURVE,
-    space,
-    client
-  );
-  const voters = await getOnChainVoters(
-    CVX_GAUGE_VOTE_PLATFORM_CURVE,
-    Number(proposal.id),
-    proposal,
-    client
-  );
+  // 1. The proposal and its voters are fetched ONCE in main and passed down,
+  // so every step of a run works on the same pinned round (a proposal created
+  // mid-run must not shift later reads). Copy: union delegators get appended.
+  const voters = [...proposalVoters];
 
   // Handle delegators who delegated to The Union
   const unionDelegatorsList = [
@@ -200,6 +191,7 @@ async function getAllForwarders(
   let additionalVotingPowers: Record<string, number> = {};
   if (additionalAddresses.length > 0) {
     try {
+      const client = await getClient(1);
       additionalVotingPowers = await getOnChainVotingPower(
         Number(proposal.snapshot), // vlCVX epoch
         additionalAddresses,
@@ -524,7 +516,8 @@ function computeDelegationShareForGauge(
  */
 async function processGaugeVotes(
   space: string,
-  platform: string,
+  proposal: any,
+  votes: any[],
   gaugeFetcher: () => Promise<any>,
   bribesData: any,
   forwarders: Forwarder[],
@@ -534,28 +527,16 @@ async function processGaugeVotes(
   bribesType: "curve" | "fxn",
   transformGauges = false
 ): Promise<number> {
-  // Fetch the latest on-chain proposal and its votes (active or not — parity
-  // with the previous behavior that took the latest Snapshot proposal)
-  const client = await getClient(1);
-  const proposal = await getOnChainProposal(platform, space, client, {
-    requireFinal: false,
-  });
+  // Proposal and votes are fetched ONCE in main and passed down (pinned round)
   const proposalId = proposal.id;
-  const votes = await getOnChainVoters(
-    platform,
-    Number(proposalId),
-    proposal,
-    client
-  );
-
   console.log(`\nUsing on-chain proposal: ${proposalId} (${votes.length} votes)`);
 
-  // Round-alignment guard: the bribes come from Llama's last COMPLETED Votium
-  // round while the proposal is the latest on-chain one. A mismatch would
-  // compute voted rewards (and the treasury fee downstream) on the wrong
-  // round — fail loudly instead.
-  const bribesRoundEnd = bribesData?.epoch?.end;
-  if (bribesRoundEnd && Math.abs(Number(bribesRoundEnd) - proposal.end) > 3 * 86400) {
+  // Final round-alignment defense (the primary alignment happens at bribes
+  // selection time in fetchBribes): voted rewards and the treasury fee must
+  // never be computed on mismatched rounds.
+  const bribesRoundEnd = Number(bribesData?.epoch?.end);
+  if (Number.isFinite(bribesRoundEnd) && bribesRoundEnd > 0 &&
+      Math.abs(bribesRoundEnd - proposal.end) > 3 * 86400) {
     throw new Error(
       `Votium bribes round (end ${bribesRoundEnd}) does not align with the ` +
         `on-chain proposal ${proposalId} (end ${proposal.end}) for ${bribesType} — ` +
@@ -630,11 +611,19 @@ async function processGaugeVotes(
     // Get bribes for this gauge — match by gauge ADDRESS only. The Llama
     // `choice` field was derived from the Snapshot proposal ordering and has
     // no relation to the on-chain choice indices: matching on it would
-    // produce false positives.
+    // produce false positives. Match against the ROOT/CHILD alias set: the
+    // on-chain choice may be the root gauge while Votium/Llama indexed the
+    // deposit on the child gauge (or vice versa) — a bribe silently dropped
+    // here would understate the treasury fee and the covered-amount
+    // subtraction downstream.
+    const gaugeAliases = new Set(
+      [gaugeAddress, gaugeDetails.gauge, gaugeDetails.rootGauge]
+        .filter(Boolean)
+        .map((a: string) => a.toLowerCase())
+    );
     const gaugeBribes =
-      bribesData?.epoch?.bribes?.filter(
-        (bribe: any) =>
-          bribe.gauge.toLowerCase() === gaugeAddress.toLowerCase()
+      bribesData?.epoch?.bribes?.filter((bribe: any) =>
+        gaugeAliases.has(bribe.gauge.toLowerCase())
       ) || [];
 
     // Aggregate bribes for overall distribution (matching working version)
@@ -774,15 +763,13 @@ function cleanPerAddressOutput(perAddressOutput: any) {
  */
 async function fetchProposalVotesWithAddressBreakdown(
   space: string,
-  platform: string,
+  proposal: any,
+  votes: any[],
   gaugeFetcher: () => Promise<any>,
   forwarders: Forwarder[],
   transformGauges = false
 ) {
-  const client = await getClient(1);
-  const proposal = await getOnChainProposal(platform, space, client, {
-    requireFinal: false,
-  });
+  // Proposal and votes are fetched ONCE in main and passed down (pinned round)
   const proposalId = proposal.id;
 
   let gauges = await gaugeFetcher();
@@ -811,12 +798,6 @@ async function fetchProposalVotesWithAddressBreakdown(
     }
   }
 
-  const votes = await getOnChainVoters(
-    platform,
-    Number(proposalId),
-    proposal,
-    client
-  );
   const forwarderAddresses = new Set(forwarders.map((f) => f.address));
 
   // Build per-address vote breakdown using the forwarders list
@@ -894,7 +875,7 @@ async function fetchProposalVotesWithAddressBreakdown(
 /**
  * Fetch bribes from Llama Airforce with timeout handling
  */
-async function fetchBribes(chain: string) {
+async function fetchBribes(chain: string, targetEnd?: number) {
   try {
     // Add timeout to fetch requests
     const fetchWithTimeout = async (url: string, timeout = 30000) => {
@@ -915,22 +896,40 @@ async function fetchBribes(chain: string) {
     const roundsResponse = await fetchWithTimeout(roundsUrl);
     const roundsData = await roundsResponse.json();
 
-    const lastRoundNumber = roundsData.rounds
-      ? Math.max(...roundsData.rounds) // Use the last completed round # TODO: Fetch correctly , if round is current
-      : null;
-
-    if (!lastRoundNumber) {
+    if (!roundsData.rounds || roundsData.rounds.length === 0) {
       console.warn(`No rounds found for ${chain}`);
       return null;
     }
 
-    console.log(`Fetching bribes for ${chain} round ${lastRoundNumber}`);
+    // Pick the round ALIGNED with the target proposal, not blindly the max:
+    // Llama may already list the currently-active round while we compute the
+    // just-ended one (and vice versa). Walk the most recent rounds and keep
+    // the first whose end is within 3 days of the proposal end.
+    const candidates = [...roundsData.rounds].sort((a, b) => b - a).slice(0, 3);
+    for (const round of candidates) {
+      const bribesUrl = `https://api.llama.airforce/bribes/votium/${chain}/${round}`;
+      const bribesResponse = await fetchWithTimeout(bribesUrl);
+      const bribesData = await bribesResponse.json();
 
-    const bribesUrl = `https://api.llama.airforce/bribes/votium/${chain}/${lastRoundNumber}`;
-    const bribesResponse = await fetchWithTimeout(bribesUrl);
-    const bribesData = await bribesResponse.json();
+      const roundEnd = Number(bribesData?.epoch?.end);
+      if (
+        !targetEnd ||
+        (Number.isFinite(roundEnd) &&
+          roundEnd > 0 &&
+          Math.abs(roundEnd - targetEnd) <= 3 * 86400)
+      ) {
+        console.log(`Fetching bribes for ${chain} round ${round}`);
+        return bribesData;
+      }
+      console.log(
+        `Skipping ${chain} round ${round} (end ${roundEnd}) — not aligned with proposal end ${targetEnd}`
+      );
+    }
 
-    return bribesData;
+    console.warn(
+      `No ${chain} Votium round aligned with proposal end ${targetEnd} among the last ${candidates.length} rounds`
+    );
+    return null;
   } catch (error) {
     console.error(`Error fetching bribes for ${chain}:`, error);
     return null;
@@ -1076,13 +1075,33 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
     console.log(`Epoch: ${currentEpoch} (${new Date(Number(currentEpoch) * 1000).toLocaleDateString('en-GB')})`);
 
-    // Get Curve proposal for reference (on-chain)
+    // TEST-ONLY fork escape hatch (see 2_repartition): allows reading an
+    // active proposal and approximating the forwarder-check block. In
+    // production (unset) finality is enforced: endTime + equalizer overtime.
+    const allowActive = process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL === "true";
+
+    // Get the Curve proposal and its votes ONCE — every downstream step
+    // (forwarders, breakdown, bribes matching) works on this pinned round. A
+    // proposal created mid-run must never shift later reads.
     const curveProposal = await getOnChainProposal(
       CVX_GAUGE_VOTE_PLATFORM_CURVE,
       CVX_SPACE,
+      ethereumClient,
+      { requireFinal: !allowActive }
+    );
+    if (curveProposal.start > Math.floor(Date.now() / 1000)) {
+      throw new Error(
+        `Latest Curve on-chain proposal ${curveProposal.id} has not started yet ` +
+          `(start ${curveProposal.start})`
+      );
+    }
+    const curveProposalId = curveProposal.id;
+    const curveVotes = await getOnChainVoters(
+      CVX_GAUGE_VOTE_PLATFORM_CURVE,
+      Number(curveProposalId),
+      curveProposal,
       ethereumClient
     );
-    const curveProposalId = curveProposal.id;
 
     // Get block for the forwarder check: on-chain, proposal.snapshot is a
     // vlCVX epoch number, NOT a block — resolve from the proposal end
@@ -1099,7 +1118,8 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     console.log("Fetching forwarders...");
     const forwarders = await getAllForwarders(
       CVX_SPACE,
-      curveProposalId,
+      curveProposal,
+      curveVotes,
       blockSnapshotEnd,
       Number(currentEpoch)
     );
@@ -1124,12 +1144,13 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
     // Process Curve votes and bribes
     console.log("Processing Curve gauges...");
-    const curveBribes = await fetchBribes("cvx-crv");
+    const curveBribes = await fetchBribes("cvx-crv", curveProposal.end);
 
     // Process Curve votes to get address breakdown
     const votesCurveResult = await fetchProposalVotesWithAddressBreakdown(
       CVX_SPACE,
-      CVX_GAUGE_VOTE_PLATFORM_CURVE,
+      curveProposal,
+      curveVotes,
       getAllCurveGauges,
       forwarders,
       false
@@ -1140,7 +1161,8 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
     const curveGaugesProcessed = await processGaugeVotes(
       CVX_SPACE,
-      CVX_GAUGE_VOTE_PLATFORM_CURVE,
+      curveProposal,
+      curveVotes,
       getAllCurveGauges,
       curveBribes,
       forwarders,
@@ -1151,17 +1173,37 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       false
     );
 
-    // Process FXN votes and bribes
+    // Process FXN votes and bribes (skipped cleanly while the FXN platform
+    // has no proposal yet — getOnChainProposal throws into this catch)
     console.log("Processing FXN gauges...");
-    const fxnBribes = await fetchBribes("cvx-fxn");
     let fxnGaugesProcessed = 0;
     let fxnAddressBreakdown: any = {};
 
     try {
+      const fxnProposal = await getOnChainProposal(
+        CVX_GAUGE_VOTE_PLATFORM_FXN,
+        CVX_SPACE,
+        ethereumClient,
+        { requireFinal: !allowActive }
+      );
+      if (fxnProposal.start > Math.floor(Date.now() / 1000)) {
+        throw new Error(
+          `Latest FXN on-chain proposal ${fxnProposal.id} has not started yet`
+        );
+      }
+      const fxnVotes = await getOnChainVoters(
+        CVX_GAUGE_VOTE_PLATFORM_FXN,
+        Number(fxnProposal.id),
+        fxnProposal,
+        ethereumClient
+      );
+      const fxnBribes = await fetchBribes("cvx-fxn", fxnProposal.end);
+
       // Process FXN votes to get address breakdown
       const votesFxnResult = await fetchProposalVotesWithAddressBreakdown(
         CVX_SPACE,
-        CVX_GAUGE_VOTE_PLATFORM_FXN,
+        fxnProposal,
+        fxnVotes,
         () => getGaugesInfos("fxn"),
         forwarders,
         true
@@ -1172,7 +1214,8 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
       fxnGaugesProcessed = await processGaugeVotes(
         CVX_SPACE,
-        CVX_GAUGE_VOTE_PLATFORM_FXN,
+        fxnProposal,
+        fxnVotes,
         () => getGaugesInfos("fxn"),
         fxnBribes,
         forwarders,
@@ -1201,6 +1244,14 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     );
     ensureDirExists(periodFolder);
     const outputDir = periodFolder;
+
+    // Invalidate any previous output for this period BEFORE computing: if this
+    // run fails midway, downstream consumers (delegators merkle fee +
+    // votium-covered subtraction) must find NO file — their absent-file path
+    // is safe (fee = 0) — rather than silently consume stale allocations.
+    fs.rmSync(path.join(outputDir, "forwarders_voted_rewards.json"), {
+      force: true,
+    });
 
     // Initialize variables outside try block so they're accessible in summary
     let claimedTokenAmounts: Record<string, bigint> = {};
@@ -1483,10 +1534,22 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       curveVotes: curveAddressBreakdown,
       fxnVotes: fxnAddressBreakdown,
       tokenAllocations: tokenAllocationsWithWei,
+      // Traceability: which pinned round produced this file (extra top-level
+      // key, ignored by the existing consumers)
+      meta: {
+        curveProposalId,
+        curveProposalEnd: curveProposal.end,
+        vlcvxEpoch: Number(curveProposal.snapshot),
+        generatedAt: Math.floor(Date.now() / 1000),
+      },
     };
 
-    // Clean the per-address data
-    const cleanedPerAddressOutput = cleanPerAddressOutput(perAddressOutput);
+    // Clean the per-address data (cleanPerAddressOutput rebuilds the object —
+    // re-attach the meta block afterwards)
+    const cleanedPerAddressOutput = {
+      ...cleanPerAddressOutput(perAddressOutput),
+      meta: perAddressOutput.meta,
+    };
 
     // Save the cleaned per-address data
     const perAddressPath = path.join(
