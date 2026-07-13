@@ -142,7 +142,7 @@ const processGaugeProposal = async (
     );
     stakeDaoDelegators = await getOnChainDelegators(
       CVX_GAUGE_DELEGATION,
-      VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+      delegationAddress,
       Number(proposal.snapshot), // vlCVX epoch
       publicClient
     );

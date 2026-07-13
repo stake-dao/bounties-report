@@ -21,9 +21,11 @@ import {
 	getOnChainProposal,
 	getOnChainVoters,
 	associateGaugesPerIdOnChain,
-	getOnChainVotingPower,
 } from "../utils/gaugeVotePlatform";
-import { getOnChainDelegators } from "../utils/onChainDelegation";
+import {
+	getOnChainDelegators,
+	getDelegatedWeightsAtEpoch,
+} from "../utils/onChainDelegation";
 import { getClient } from "../utils/getClients";
 import { extractCSV } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
@@ -207,7 +209,9 @@ async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 		Number(proposal.snapshot), // vlCVX epoch
 		client,
 	);
-	const delegatorVotingPowers = await getOnChainVotingPower(
+	// Synced delegation weights (userWeightAtEpochOf), NOT raw vlCVX balances
+	const delegatorVotingPowers = await getDelegatedWeightsAtEpoch(
+		CVX_GAUGE_DELEGATION,
 		Number(proposal.snapshot),
 		delegators,
 		client,

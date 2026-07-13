@@ -1,6 +1,6 @@
-import { VOTIUM_FORWARDER } from "../../utils/constants";
+import { VOTIUM_FORWARDER, CVX_GAUGE_DELEGATION } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
-import { getOnChainVotingPower } from "../../utils/gaugeVotePlatform";
+import { getDelegatedWeightsAtEpoch } from "../../utils/onChainDelegation";
 import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
 import { getClient } from "../../utils/getClients";
 
@@ -34,10 +34,13 @@ export const computeStakeDaoDelegation = async (
   // Store the delegation voter's token totals.
   delegationDistribution[delegationVoter] = { tokens: { ...tokens } };
 
-  // Get voting power for each delegator via vlCVX.balanceAtEpochOf
+  // Weight of each delegator via Delegation.userWeightAtEpochOf
   // (proposal.snapshot is the vlCVX epoch number, not a block).
+  // NOT the raw vlCVX balance: the delegate votes with the SYNCED weights, so
+  // un-synced lock increases must not inflate a delegator's share.
   const client = await getClient(1);
-  const vps = await getOnChainVotingPower(
+  const vps = await getDelegatedWeightsAtEpoch(
+    CVX_GAUGE_DELEGATION,
     Number(proposal.snapshot),
     stakeDaoDelegators,
     client

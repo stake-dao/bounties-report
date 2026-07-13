@@ -5,14 +5,15 @@ import {
   keccak256,
   encodePacked,
   pad,
+  formatUnits,
 } from "viem";
 import { CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH } from "./constants";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
-import { getOnChainVotingPower } from "./gaugeVotePlatform";
 
 const DELEGATION_ABI = parseAbi([
   "function getDelegateAtEpoch(address user, uint256 epoch) external view returns (address)",
   "function balanceAtEpochOf(uint256 epoch, address delegate) external view returns (uint256)",
+  "function userWeightAtEpochOf(uint256 epoch, address user) external view returns (uint256)",
 ]);
 
 const delegateSetSignature = "DelegateSet(address,address)";
@@ -178,15 +179,51 @@ export const getOnChainDelegators = async (
 };
 
 /**
+ * Synced delegation weight of each user at a vlCVX epoch, via
+ * Delegation.userWeightAtEpochOf (0.1 vlCVX granularity, returned in wei).
+ *
+ * This is the weight that actually counted in the delegate's platform vote —
+ * use it (NOT the raw vlCVX balance) to split the delegation pool: a user who
+ * increased their lock without a sync() still votes with their OLD weight, so
+ * paying them on their real balance would over-credit them and dilute the
+ * other delegators.
+ *
+ * Keys of the returned record are lowercase.
+ */
+export const getDelegatedWeightsAtEpoch = async (
+  delegationContract: string,
+  epoch: number,
+  addresses: string[],
+  client: any
+): Promise<Record<string, number>> => {
+  if (addresses.length === 0) return {};
+
+  const weights = (await client.multicall({
+    allowFailure: false,
+    contracts: addresses.map((addr) => ({
+      address: delegationContract,
+      abi: DELEGATION_ABI,
+      functionName: "userWeightAtEpochOf",
+      args: [BigInt(epoch), addr],
+    })),
+  })) as bigint[];
+
+  return Object.fromEntries(
+    addresses.map((addr, i) => [
+      addr.toLowerCase(),
+      Number(formatUnits(weights[i], 18)),
+    ])
+  );
+};
+
+/**
  * Cross-checks the enumerated delegators against the delegate's on-chain
- * delegation weight: sum(vlCVX.balanceAtEpochOf(epoch, delegator)) should
- * match GaugeDelegation.balanceAtEpochOf(epoch, delegate) up to the 0.1 vlCVX
- * per-delegator truncation (WEIGHT_DIVISOR = 1e17) plus sync lag (delegation
- * weights are only synced when users vote/relock, so real balances usually run
- * slightly ABOVE the delegate weight — observed +1.3% right after the seed).
- * Only a DEFICIT signals missing delegators, so the hard stop is one-sided:
- * throws when sum VP is >5% BELOW the delegate weight (log scan almost
- * certainly incomplete).
+ * delegation weight: sum(userWeightAtEpochOf(epoch, delegator)) must match
+ * GaugeDelegation.balanceAtEpochOf(epoch, delegate) up to the 0.1 vlCVX
+ * per-delegator truncation (WEIGHT_DIVISOR = 1e17) — both sides are synced
+ * weights, so any real deficit means the DelegateSet log scan missed
+ * delegators (e.g. a failed explorer chunk masked as empty). Throws on a >5%
+ * deficit; warns beyond the truncation tolerance.
  */
 const assertDelegatorsCompleteness = async (
   delegationContract: string,
@@ -204,30 +241,34 @@ const assertDelegatorsCompleteness = async (
   const delegateWeight = Number(delegateWeightWei) / 1e18;
   if (delegateWeight === 0) return; // nothing delegated at this epoch
 
-  const vps = await getOnChainVotingPower(epoch, delegators, client);
-  const sumVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
+  const weights = await getDelegatedWeightsAtEpoch(
+    delegationContract,
+    epoch,
+    delegators,
+    client
+  );
+  const sumWeights = Object.values(weights).reduce((acc, w) => acc + w, 0);
 
-  const deficit = (delegateWeight - sumVp) / delegateWeight;
+  const deficit = (delegateWeight - sumWeights) / delegateWeight;
   const truncationTolerance = 0.1 * delegators.length + 1;
 
   console.log(
     `Delegators completeness check: ${delegators.length} delegators, ` +
-      `sum VP = ${sumVp.toFixed(2)} vlCVX vs delegate weight = ${delegateWeight.toFixed(2)} vlCVX ` +
+      `sum delegated weight = ${sumWeights.toFixed(2)} vlCVX vs delegate weight = ${delegateWeight.toFixed(2)} vlCVX ` +
       `(deficit ${(deficit * 100).toFixed(3)}%)`
   );
 
   if (deficit > 0.05) {
     throw new Error(
-      `Delegators sum VP (${sumVp.toFixed(2)}) is ${(deficit * 100).toFixed(2)}% below ` +
+      `Delegators sum weight (${sumWeights.toFixed(2)}) is ${(deficit * 100).toFixed(2)}% below ` +
         `the on-chain delegate weight (${delegateWeight.toFixed(2)}) at epoch ${epoch} — ` +
         `the DelegateSet log scan is likely incomplete, aborting`
     );
   }
-  if (Math.abs(sumVp - delegateWeight) > truncationTolerance) {
+  if (Math.abs(sumWeights - delegateWeight) > truncationTolerance) {
     console.warn(
-      `Warning: delegators sum VP differs from delegate weight beyond the ` +
-        `truncation tolerance (±${truncationTolerance.toFixed(1)} vlCVX) — sync lag is ` +
-        `expected to run high, but investigate if this grows`
+      `Warning: delegators sum weight differs from delegate weight beyond the ` +
+        `truncation tolerance (±${truncationTolerance.toFixed(1)} vlCVX) — investigate`
     );
   }
 };

@@ -11,8 +11,10 @@ import {
   CVX_GAUGE_DELEGATION,
 } from "./constants";
 import { getVotingPower } from "./snapshot";
-import { getOnChainVotingPower } from "./gaugeVotePlatform";
-import { getOnChainDelegators } from "./onChainDelegation";
+import {
+  getOnChainDelegators,
+  getDelegatedWeightsAtEpoch,
+} from "./onChainDelegation";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
 import { verifyDelegators, fetchDelegatorsWithFallback } from "./delegationAPIUtils";
@@ -182,7 +184,10 @@ export const fetchDelegatorData = async (
     );
     if (onChainDelegators.length === 0) return null;
 
-    const votingPowers = await getOnChainVotingPower(
+    // Synced delegation weights (userWeightAtEpochOf), NOT raw vlCVX balances:
+    // this is the weight that actually counted in the delegate's vote.
+    const votingPowers = await getDelegatedWeightsAtEpoch(
+      CVX_GAUGE_DELEGATION,
       epoch,
       onChainDelegators,
       client
