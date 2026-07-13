@@ -15,7 +15,7 @@ import path from "path";
 import { spawn } from "child_process";
 import { createPublicClient, createWalletClient, http } from "viem";
 import type { Chain, PublicClient, WalletClient } from "viem";
-import { mainnet } from "viem/chains";
+import { base, mainnet } from "viem/chains";
 import { WEEK } from "../utils/constants";
 import type { MerkleData } from "../interfaces/MerkleData";
 
@@ -55,13 +55,13 @@ const CONFIGS: MerkleTestConfig[] = [
   //   distributor: "0xAeB87C92b2E7d3b21fA046Ae1E51E0ebF11A41Af",
   //   merkleRelPath: "sdTkns/sdtkns_merkle_252.json",
   // },
-  // {
-  //   label: "sdSpectra Universal",
-  //   chain: base,
-  //   rpcUrl: "https://mainnet.base.org",
-  //   distributor: "0x665d334388012d17f1d197de72b7b708ffccb67d",
-  //   merkleRelPath: "sdTkns/sdtkns_merkle_8453.json",
-  // },
+  {
+    label: "sdSpectra Universal",
+    chain: base,
+    rpcUrl: "https://base-rpc.publicnode.com",
+    distributor: "0x665d334388012d17f1d197de72b7b708ffccb67d",
+    merkleRelPath: "sdTkns/sdtkns_merkle_8453.json",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -72,6 +72,8 @@ const URD_ABI = [
   { name: "root", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "bytes32" }] },
   { name: "owner", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
   { name: "claimed", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }, { name: "reward", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+  { name: "timelock", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+  { name: "setRoot", type: "function", stateMutability: "nonpayable", inputs: [{ name: "newRoot", type: "bytes32" }, { name: "newIpfsHash", type: "bytes32" }], outputs: [] },
   { name: "submitRoot", type: "function", stateMutability: "nonpayable", inputs: [{ name: "newRoot", type: "bytes32" }, { name: "ipfsHash", type: "bytes32" }], outputs: [] },
   { name: "acceptRoot", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
   { name: "claim", type: "function", stateMutability: "nonpayable", inputs: [{ name: "account", type: "address" }, { name: "reward", type: "address" }, { name: "claimable", type: "uint256" }, { name: "proof", type: "bytes32[]" }], outputs: [] },
@@ -140,24 +142,36 @@ async function testMerkle(
   await jsonRpc("anvil_impersonateAccount", [owner]);
   await jsonRpc("anvil_setBalance", [owner, "0x56BC75E2D63100000"]);
 
-  // Submit + accept new root
-  const submitHash = await walletClient.writeContract({
-    address: cfg.distributor as `0x${string}`,
-    abi: URD_ABI,
-    functionName: "submitRoot",
-    args: [merkle.merkleRoot as `0x${string}`, "0x0000000000000000000000000000000000000000000000000000000000000000"],
-    account: owner,
-  });
-  await publicClient.waitForTransactionReceipt({ hash: submitHash });
+  // Set the new root. The owner can bypass the timelock via setRoot; otherwise
+  // submit, warp past the timelock, and accept.
+  const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
+  const send = async (functionName: "setRoot" | "submitRoot" | "acceptRoot", args: readonly unknown[]) => {
+    const hash = await walletClient.writeContract({
+      address: cfg.distributor as `0x${string}`,
+      abi: URD_ABI,
+      functionName,
+      args: args as never,
+      account: owner,
+    });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error(`${functionName} reverted`);
+  };
 
-  const acceptHash = await walletClient.writeContract({
-    address: cfg.distributor as `0x${string}`,
-    abi: URD_ABI,
-    functionName: "acceptRoot",
-    args: [],
-    account: owner,
-  });
-  await publicClient.waitForTransactionReceipt({ hash: acceptHash });
+  try {
+    await send("setRoot", [merkle.merkleRoot as `0x${string}`, ZERO_HASH]);
+  } catch {
+    const timelock = (await publicClient.readContract({
+      address: cfg.distributor as `0x${string}`,
+      abi: URD_ABI,
+      functionName: "timelock",
+    })) as bigint;
+    await send("submitRoot", [merkle.merkleRoot as `0x${string}`, ZERO_HASH]);
+    if (timelock > 0n) {
+      await jsonRpc("evm_increaseTime", [Number(timelock) + 1]);
+      await jsonRpc("evm_mine", []);
+    }
+    await send("acceptRoot", []);
+  }
 
   // Verify root was set
   const onchainRoot = await publicClient.readContract({
