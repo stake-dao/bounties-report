@@ -24,7 +24,9 @@ import {
   WEEK,
 } from "../../utils/constants";
 import { fetchLastProposalsIds, getProposal, getVoters } from "../../utils/snapshot";
-import { parseAbiItem, getAddress } from "viem";
+import { parseAbiItem, getAddress, createPublicClient, http, PublicClient } from "viem";
+import { getAvailableEndpoints } from "../../utils/rpcConfig";
+import { CHAINS_BY_ID } from "../../utils/chains";
 
 dotenv.config();
 
@@ -115,7 +117,6 @@ async function fetchDelegationEvents(
   spaceBytes32: string,
   toBlock: bigint
 ): Promise<DelegationEvent[]> {
-  const client = await getClient(1);
   const FIRST_STAKEDAO_DELEGATION_BLOCK = 21_000_000n;
   const fromBlock = FIRST_STAKEDAO_DELEGATION_BLOCK > BigInt(DELEGATE_REGISTRY_CREATION_BLOCK_ETH)
     ? FIRST_STAKEDAO_DELEGATION_BLOCK
@@ -126,12 +127,27 @@ async function fetchDelegationEvents(
   console.log(`  Target delegate: ${normalizedDelegate}`);
   console.log(`  Space (bytes32): ${spaceBytes32}`);
 
-  const events: DelegationEvent[] = [];
-  const BATCH_SIZE = 45000n;
+  // Historical getLogs over ~4.4M blocks. Two independent failure modes:
+  //  - the provider caps the window (results or block range) → a smaller range fixes it
+  //  - the provider cannot serve the query at all (no archive access, persistent
+  //    rate limit) → no window is small enough; only another endpoint fixes it
+  // Halving handles the first, endpoint rotation the second.
+  const endpoints = getAvailableEndpoints(1);
+  if (endpoints.length === 0) throw new Error("No RPC endpoints configured for chain 1");
+  const clients: { url: string; client: PublicClient }[] = endpoints.map((e) => ({
+    url: e.url,
+    client: createPublicClient({
+      chain: CHAINS_BY_ID[1],
+      transport: http(e.url, { retryCount: 2, retryDelay: 500, timeout: 30000 }),
+    }),
+  }));
 
-  // A provider can reject a getLogs window either because it returned too many
-  // results OR because the block range itself exceeds the provider's limit.
-  // Both are recoverable by querying a smaller range, so treat them the same.
+  const BATCH_SIZE = 45_000n;
+  // Floor on halving: below this a rejection is the provider refusing the query,
+  // not the window being too wide, so rotate instead of recursing to single blocks.
+  const MIN_RANGE = 1_000n;
+  const MAX_RATE_LIMIT_RETRIES = 5;
+
   const isRangeLimitError = (error: any): boolean => {
     const msg = (error?.message || "").toLowerCase();
     return (
@@ -146,11 +162,20 @@ async function fetchDelegationEvents(
     );
   };
 
-  // Fetch Set+Clear logs for a block range. On a range-limit error, split the
-  // window in half and recurse until it fits. Returns the events instead of
-  // pushing them, so a rate-limit retry of the outer batch can never
-  // double-count partially-fetched logs.
-  const fetchRange = async (from: bigint, to: bigint): Promise<DelegationEvent[]> => {
+  const isRateLimitError = (error: any): boolean => {
+    const msg = (error?.message || "").toLowerCase();
+    return msg.includes("429") || msg.includes("rate") || error?.code === 429;
+  };
+
+  // Fetch Set+Clear logs for a range on one client. On a range-limit error, split
+  // the window and recurse until it fits or hits MIN_RANGE. Returns the events
+  // instead of pushing them, so an outer retry can never double-count a
+  // partially-fetched window.
+  const fetchRange = async (
+    client: PublicClient,
+    from: bigint,
+    to: bigint
+  ): Promise<DelegationEvent[]> => {
     try {
       const [setLogs, clearLogs] = await Promise.all([
         client.getLogs({
@@ -190,49 +215,52 @@ async function fetchDelegationEvents(
       }
       return out;
     } catch (error: any) {
-      if (isRangeLimitError(error) && to > from) {
+      if (isRangeLimitError(error) && to - from > MIN_RANGE) {
         const mid = from + (to - from) / 2n;
         console.log(`  Range ${from}-${to} rejected, splitting at ${mid}...`);
-        const [left, right] = [
-          await fetchRange(from, mid),
-          await fetchRange(mid + 1n, to),
-        ];
+        const left = await fetchRange(client, from, mid);
+        const right = await fetchRange(client, mid + 1n, to);
         return [...left, ...right];
       }
       throw error;
     }
   };
 
+  const events: DelegationEvent[] = [];
+  let clientIdx = 0;
   let currentFrom = fromBlock;
   let batchCount = 0;
-  const MAX_RETRIES = 3;
+  let rateLimitStrikes = 0;
 
   while (currentFrom <= toBlock) {
     const currentTo = currentFrom + BATCH_SIZE > toBlock ? toBlock : currentFrom + BATCH_SIZE;
-    batchCount++;
+    const { url, client } = clients[clientIdx];
 
     try {
-      events.push(...(await fetchRange(currentFrom, currentTo)));
+      const fetched = await fetchRange(client, currentFrom, currentTo);
+      events.push(...fetched);
+      batchCount++;
+      rateLimitStrikes = 0;
 
-      if (batchCount % 5 === 0) {
-        console.log(`  Processed ${batchCount} batches, ${events.length} events found so far...`);
+      if (batchCount % 20 === 0) {
+        console.log(`  Block ${currentTo}/${toBlock}, ${events.length} events found so far...`);
       }
-
       currentFrom = currentTo + 1n;
     } catch (error: any) {
-      if (error.message?.includes("429") || error.message?.includes("rate") || error.code === 429) {
-        let retried = false;
-        for (let r = 1; r <= MAX_RETRIES; r++) {
-          console.log(`  Rate limited, retry ${r}/${MAX_RETRIES} in ${r * 2}s...`);
-          await new Promise((resolve) => setTimeout(resolve, r * 2000));
-          try {
-            events.push(...(await fetchRange(currentFrom, currentTo)));
-            currentFrom = currentTo + 1n;
-            retried = true;
-            break;
-          } catch { /* retry */ }
-        }
-        if (!retried) throw error;
+      if (isRateLimitError(error) && rateLimitStrikes < MAX_RATE_LIMIT_RETRIES) {
+        rateLimitStrikes++;
+        console.log(
+          `  Rate limited on ${url}, retry ${rateLimitStrikes}/${MAX_RATE_LIMIT_RETRIES} in ${rateLimitStrikes * 2}s...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, rateLimitStrikes * 2000));
+      } else if (clientIdx < clients.length - 1) {
+        // Halving already failed down to MIN_RANGE, or the endpoint is rate-limiting
+        // us out of the run: this provider cannot serve the scan. Try the next one.
+        clientIdx++;
+        rateLimitStrikes = 0;
+        console.log(
+          `  ${url} unusable (${String(error.message ?? "").split("\n")[0]}), switching to ${clients[clientIdx].url}`
+        );
       } else {
         throw error;
       }
