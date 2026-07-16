@@ -14,7 +14,15 @@ export const computeNonDelegatorsDistribution = (
 
   Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
     const gaugeInfo = gaugeMapping[gauge.toLowerCase()];
-    if (!gaugeInfo) throw new Error(`Choice ID not found for gauge: ${gauge}`);
+    if (!gaugeInfo) {
+      // On-chain proposals only list gauges that received votes (Snapshot
+      // listed every gauge). A bountied gauge nobody voted for has no votes
+      // to reward — skip it instead of failing the whole round.
+      console.warn(
+        `Skipping gauge absent from the proposal (no vote, no distribution): ${gauge}`
+      );
+      return;
+    }
     const choiceId = gaugeInfo.choiceId;
     let totalVp = 0;
     const voterVps: Record<string, number> = {};
