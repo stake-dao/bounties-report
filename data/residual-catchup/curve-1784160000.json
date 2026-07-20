@@ -1,8 +1,8 @@
 {
   "protocol": "curve",
   "period": 1784160000,
-  "cleanupTxHash": "PENDING",
-  "actualSdReceivedWei": "PENDING",
+  "cleanupTxHash": "0x62323ca127f4fac22fe3f6d152a8e58713dc1ac8fe02a2d0072a92369fdb9ea1",
+  "actualSdReceivedWei": "6112760199386213709625",
   "totalResidualWethWei": "421427045684017553",
   "residualWethByTokenWei": {
     "0x865377367054516e17014CcdED1e7d814EDC9ce4": "301248983624859553",
