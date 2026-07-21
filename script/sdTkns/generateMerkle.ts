@@ -376,7 +376,11 @@ const main = async () => {
 
   // Check if the tokens in the merkle contract plus the new tokens to distribute
   // are at least the total expected (with a small threshold)
-  const isDistributionOk = await checkDistribution(newMerkles, logData);
+  const isDistributionOk = await checkDistribution(
+    newMerkles,
+    logData,
+    currentPeriodTimestamp
+  );
 
   if (!isDistributionOk) {
     throw new Error("Distribution is not ok");
@@ -454,7 +458,8 @@ const main = async () => {
  */
 const checkDistribution = async (
   newMerkles: Merkle[],
-  logData: Record<string, any>
+  logData: Record<string, any>,
+  currentPeriodTimestamp: number
 ): Promise<boolean> => {
   if (!logData || !logData["TotalReported"]) {
     throw new Error("Total reported does not exist in log");
@@ -518,6 +523,42 @@ const checkDistribution = async (
       "0x0000000000000000000000000000000000000000000000000000000000000000"
     ) {
       continue;
+    }
+
+    // Guard against generating a distribution before the token was actually
+    // frozen (re-rooted on-chain) for this period. getAllAccountClaimedSinceLastFreeze,
+    // called earlier in this run, refreshes this cache with the latest known
+    // on-chain MerkleRootUpdated timestamp for the token — if that update still
+    // predates the current period, the freeze for this period hasn't happened
+    // yet and the numbers computed below aren't safe to publish.
+    const freezeCacheFile = path.join(
+      __dirname,
+      "..",
+      "..",
+      "data",
+      "merkle_updates",
+      String(merkle.chainId),
+      (merkle.merkleContract as string).toLowerCase(),
+      `${(merkle.address as string).toLowerCase()}.json`
+    );
+    if (fs.existsSync(freezeCacheFile)) {
+      const { timestamp: lastFreezeTimestamp } = JSON.parse(
+        fs.readFileSync(freezeCacheFile, "utf8")
+      );
+      if (lastFreezeTimestamp < currentPeriodTimestamp) {
+        const daysStale = Math.floor(
+          (currentPeriodTimestamp - lastFreezeTimestamp) / 86400
+        );
+        console.error(
+          `Distribution is not ok for token ${tokenSymbol}: not frozen for period ${currentPeriodTimestamp} yet ` +
+            `(last on-chain MerkleRootUpdated at ${lastFreezeTimestamp}, ${daysStale} day(s) before period start)`
+        );
+        return false;
+      }
+    } else {
+      console.warn(
+        `No cached freeze timestamp found for token ${tokenSymbol} — skipping freeze-freshness check`
+      );
     }
 
     const sdTknBalanceBn = await publicClient.readContract({
