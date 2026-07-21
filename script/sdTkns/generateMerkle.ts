@@ -377,12 +377,16 @@ const main = async () => {
   // Check if the tokens in the merkle contract plus the new tokens to distribute
   // are at least the total expected (with a small threshold)
   //
-  // --log runs are the pre-freeze dry-run (Check action, and the Freeze
-  // action's calldata-generation step) — the on-chain freeze for this period
-  // hasn't happened yet by design, so the freeze-freshness gate below only
-  // applies to the real post-freeze commit run (no --log). See
-  // https://github.com/stake-dao/workflows/blob/main/merkle-distrib-update.md.
-  const isPostFreezeRun = !process.argv.includes("--log");
+  // The Freeze action's "Generate Merkle" step runs THIS SAME script without
+  // --log to produce the file freeze.py reads to build the freeze tx — by
+  // design that happens before any freeze exists for the period, so the
+  // freeze-freshness gate below must not apply there (--log is also used,
+  // separately, for the Check action's own dry runs). It only applies to the
+  // real post-freeze commit run, which the workflow marks explicitly via
+  // --post-freeze. See stake-dao/workflows' bribes-merkle-distrib.yaml
+  // ("Generate Merkle" vs "Generate Merkle and Commit After Freeze" steps)
+  // and merkle-distrib-update.md.
+  const isPostFreezeRun = process.argv.includes("--post-freeze");
   const isDistributionOk = await checkDistribution(
     newMerkles,
     logData,
