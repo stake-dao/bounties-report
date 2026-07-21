@@ -376,7 +376,19 @@ const main = async () => {
 
   // Check if the tokens in the merkle contract plus the new tokens to distribute
   // are at least the total expected (with a small threshold)
-  const isDistributionOk = await checkDistribution(newMerkles, logData);
+  //
+  // --log runs are the pre-freeze dry-run (Check action, and the Freeze
+  // action's calldata-generation step) — the on-chain freeze for this period
+  // hasn't happened yet by design, so the freeze-freshness gate below only
+  // applies to the real post-freeze commit run (no --log). See
+  // https://github.com/stake-dao/workflows/blob/main/merkle-distrib-update.md.
+  const isPostFreezeRun = !process.argv.includes("--log");
+  const isDistributionOk = await checkDistribution(
+    newMerkles,
+    logData,
+    currentPeriodTimestamp,
+    isPostFreezeRun
+  );
 
   if (!isDistributionOk) {
     throw new Error("Distribution is not ok");
@@ -454,7 +466,9 @@ const main = async () => {
  */
 const checkDistribution = async (
   newMerkles: Merkle[],
-  logData: Record<string, any>
+  logData: Record<string, any>,
+  currentPeriodTimestamp: number,
+  isPostFreezeRun: boolean
 ): Promise<boolean> => {
   if (!logData || !logData["TotalReported"]) {
     throw new Error("Total reported does not exist in log");
@@ -518,6 +532,48 @@ const checkDistribution = async (
       "0x0000000000000000000000000000000000000000000000000000000000000000"
     ) {
       continue;
+    }
+
+    // Guard against COMMITTING a distribution before the token was actually
+    // frozen (re-rooted on-chain) for this period. Only applies to the
+    // post-freeze commit run (isPostFreezeRun) — the pre-freeze dry-run
+    // (--log) legitimately generates the merkle before any freeze exists for
+    // this period, e.g. to produce the multiFreeze/multiSet calldata itself.
+    // getAllAccountClaimedSinceLastFreeze, called earlier in this run,
+    // refreshes this cache with the latest known on-chain MerkleRootUpdated
+    // timestamp for the token — if that update still predates the current
+    // period on the post-freeze run, the freeze never landed and the numbers
+    // computed below aren't safe to publish.
+    if (isPostFreezeRun) {
+      const freezeCacheFile = path.join(
+        __dirname,
+        "..",
+        "..",
+        "data",
+        "merkle_updates",
+        String(merkle.chainId),
+        (merkle.merkleContract as string).toLowerCase(),
+        `${(merkle.address as string).toLowerCase()}.json`
+      );
+      if (fs.existsSync(freezeCacheFile)) {
+        const { timestamp: lastFreezeTimestamp } = JSON.parse(
+          fs.readFileSync(freezeCacheFile, "utf8")
+        );
+        if (lastFreezeTimestamp < currentPeriodTimestamp) {
+          const daysStale = Math.floor(
+            (currentPeriodTimestamp - lastFreezeTimestamp) / 86400
+          );
+          console.error(
+            `Distribution is not ok for token ${tokenSymbol}: not frozen for period ${currentPeriodTimestamp} yet ` +
+              `(last on-chain MerkleRootUpdated at ${lastFreezeTimestamp}, ${daysStale} day(s) before period start)`
+          );
+          return false;
+        }
+      } else {
+        console.warn(
+          `No cached freeze timestamp found for token ${tokenSymbol} — skipping freeze-freshness check`
+        );
+      }
     }
 
     const sdTknBalanceBn = await publicClient.readContract({
