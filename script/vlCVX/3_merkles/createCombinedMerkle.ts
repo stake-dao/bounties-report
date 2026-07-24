@@ -8,11 +8,20 @@ import { mainnet } from "../../utils/chains";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { generateMerkleTree, mergeMerkleData } from "../../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../../interfaces/MerkleData";
-import { CVX_SPACE, WEEK } from "../../utils/constants";
+import {
+  CVX_SPACE,
+  WEEK,
+  CVX_GAUGE_VOTE_PLATFORM_CURVE,
+  CVX_GAUGE_VOTE_PLATFORM_FXN,
+} from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import { applyShare, splitPoolByShares } from "../../utils/merkle/splitPoolByShares";
-import { fetchLastProposalsIds } from "../../utils/snapshot";
+import {
+  getOnChainProposal,
+  getOnChainVoters,
+} from "../../utils/gaugeVotePlatform";
+import { getClient } from "../../utils/getClients";
 
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
@@ -499,19 +508,20 @@ function processChain(
     );
   }
 
-  const filter =
-    gaugeType === "fxn"
-      ? "^FXN.*Gauge Weight for Week of"
-      : "^(?!FXN ).*Gauge Weight for Week of";
-  const now = Math.floor(Date.now() / 1000);
   (async () => {
-    const proposalIdPerSpace = await fetchLastProposalsIds(
-      [CVX_SPACE],
-      now,
-      filter
+    const platform =
+      gaugeType === "fxn"
+        ? CVX_GAUGE_VOTE_PLATFORM_FXN
+        : CVX_GAUGE_VOTE_PLATFORM_CURVE;
+    const client = await getClient(1);
+    const proposal = await getOnChainProposal(platform, CVX_SPACE, client);
+    const votes = await getOnChainVoters(
+      platform,
+      Number(proposal.id),
+      proposal,
+      client
     );
-    const proposalId = proposalIdPerSpace[CVX_SPACE];
-    console.log("proposalId", proposalId);
+    console.log("on-chain proposalId", proposal.id);
     distributionVerifier(
       CVX_SPACE,
       mainnet,
@@ -519,7 +529,9 @@ function processChain(
       newMerkleData,
       previousMerkleData,
       currentDistribution.distribution,
-      proposalId
+      proposal.id,
+      undefined,
+      { proposal, votes }
     );
   })().catch(console.error);
 }

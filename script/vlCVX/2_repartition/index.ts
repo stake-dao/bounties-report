@@ -4,19 +4,21 @@ import path from "path";
 import {
   CVX_SPACE,
   WEEK,
-  DELEGATION_ADDRESS,
   CVX_FXN_SPACE,
+  VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  CVX_GAUGE_VOTE_PLATFORM_CURVE,
+  CVX_GAUGE_VOTE_PLATFORM_FXN,
+  CVX_GAUGE_DELEGATION,
 } from "../../utils/constants";
 import {
-  associateGaugesPerId,
-  fetchLastProposalsIds,
-  getProposal,
-  getVoters,
-} from "../../utils/snapshot";
+  getOnChainProposal,
+  getOnChainVoters,
+  associateGaugesPerIdOnChain,
+} from "../../utils/gaugeVotePlatform";
+import { getOnChainDelegators } from "../../utils/onChainDelegation";
 import { extractCSV } from "../../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../../utils/curveApi";
-import { processAllDelegators } from "../../utils/cacheUtils";
 import {
   computeStakeDaoDelegation,
   computeDelegationSummary,
@@ -90,28 +92,7 @@ const processGaugeProposal = async (
   }, {} as Record<string, bigint>);
   console.log("Total rewards per token in CSV:", totalPerToken);
 
-  console.log("Fetching proposal and votes...");
-  // Set the filter depending on the gaugeType.
-  // For fxn proposals, assume they start with "FXN", while for vlCVX, filter them out.
-  const filter =
-    gaugeType === "fxn"
-      ? "^FXN.*Gauge Weight for Week of"
-      : "^(?!FXN ).*Gauge Weight for Week of";
-
-  const proposalIdPerSpace = await fetchLastProposalsIds([space], now, filter);
-  const proposalId = proposalIdPerSpace[space];
-  console.log("proposalId", proposalId);
-
-  const proposal = await getProposal(proposalId);
-
-  // Get snapshot block timestamp
-  const publicClient = await getClient(1); // Use getClient to get a reliable Ethereum mainnet client
-  const block = await (publicClient as any).getBlock({
-    blockNumber: BigInt(proposal.snapshot),
-  });
-  const snapshotBlockTimestamp = block.timestamp;
-
-  // If FXN
+  // If FXN, normalize gauge entries before mapping
   if (gaugeType === "fxn") {
     gauges = gauges.map((gauge: any) => ({
       ...gauge,
@@ -120,13 +101,38 @@ const processGaugeProposal = async (
     }));
   }
 
-  const gaugeMapping = associateGaugesPerId(proposal, gauges);
-  let votes = await getVoters(proposalId);
+  console.log("Fetching on-chain proposal and votes...");
+  const publicClient = await getClient(1); // Use getClient to get a reliable Ethereum mainnet client
+
+  const platform =
+    gaugeType === "curve"
+      ? CVX_GAUGE_VOTE_PLATFORM_CURVE
+      : CVX_GAUGE_VOTE_PLATFORM_FXN;
+  // VLCVX_ALLOW_ACTIVE_PROPOSAL=true is a TEST-ONLY escape hatch (fork /
+  // virtual testnet): it skips the endTime+overtime finality guard. Never set
+  // it in production — results read before endTime+600s are not final.
+  const proposal = await getOnChainProposal(platform, space, publicClient, {
+    requireFinal: process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL !== "true",
+  });
+  const proposalId = proposal.id;
+  console.log(
+    `on-chain proposalId ${proposalId} (vlCVX epoch ${proposal.snapshot})`
+  );
+  const gaugeMapping = associateGaugesPerIdOnChain(proposal, gauges);
+  const votes = await getOnChainVoters(
+    platform,
+    Number(proposalId),
+    proposal,
+    publicClient
+  );
 
   // --- 2) Process StakeDAO Delegators ---
   console.log("Fetching StakeDAO delegators...");
+  // The on-chain seed remapped StakeDAO's delegate to a new address; the
+  // legacy Snapshot delegate (0x52ea58f4…) has zero on-chain weight.
+  const delegationAddress = VLCVX_ONCHAIN_DELEGATION_ADDRESS;
   const isDelegationAddressVoter = votes.some(
-    (voter) => voter.voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
+    (voter) => voter.voter.toLowerCase() === delegationAddress.toLowerCase()
   );
 
   let stakeDaoDelegators: string[] = [];
@@ -134,10 +140,11 @@ const processGaugeProposal = async (
     console.log(
       "Delegation address is among voters; fetching StakeDAO delegators..."
     );
-    stakeDaoDelegators = await processAllDelegators(
-      space,
-      Number(snapshotBlockTimestamp),
-      DELEGATION_ADDRESS
+    stakeDaoDelegators = await getOnChainDelegators(
+      CVX_GAUGE_DELEGATION,
+      delegationAddress,
+      Number(proposal.snapshot), // vlCVX epoch
+      publicClient
     );
     // Remove any delegator who voted directly.
     for (const delegator of stakeDaoDelegators) {
@@ -170,7 +177,7 @@ const processGaugeProposal = async (
     for (const [voter, { tokens }] of Object.entries(
       nonDelegatorsDistribution
     )) {
-      if (voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
+      if (voter.toLowerCase() === delegationAddress.toLowerCase()) {
         delegationDistribution = await computeStakeDaoDelegation(
           proposal,
           stakeDaoDelegators,

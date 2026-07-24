@@ -36,6 +36,20 @@ export const DELEGATE_REGISTRY_CREATION_BLOCK_ETH = 11225329;
 export const DELEGATE_REGISTRY_CREATION_BLOCK_BSC = 10963355;
 export const DELEGATE_REGISTRY_CREATION_BLOCK_BASE = 17894724;
 
+// Convex Voting Platform (on-chain, deployed 2026-07-07) — vlCVX Snapshot → on-chain migration
+// The on-chain seed remapped StakeDAO's delegate: DELEGATION_ADDRESS (Snapshot, above)
+// has ZERO on-chain weight — on-chain reads must use this address instead.
+export const VLCVX_ONCHAIN_DELEGATION_ADDRESS =
+  "0xbB06fEFB8f23A7c60C93fe20464DB6687C51955f";
+export const CVX_GAUGE_VOTE_PLATFORM_CURVE =
+  "0x21F304a9DF75E087A035B4c5792bD4e6BB7AF8aF"; // CurveGaugeVoting
+export const CVX_GAUGE_VOTE_PLATFORM_FXN =
+  "0xC3701a7696Cd41a4E3e107B8A7b897A3aFB4c50a"; // FxGaugeVoting
+export const CVX_GAUGE_DELEGATION =
+  "0xb8270eef1319173dE9f5033FED442F638ff1607d"; // GaugeDelegation (NOT the DaoDelegation)
+export const CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH = 25478184;
+export const VLCVX_ADDRESS = "0x72a19342e8F1838460eBFCCEf09F6585e32db86E";
+
 // Networks
 export const ETHEREUM = "ethereum";
 export const ETH_CHAIN_ID = "1";

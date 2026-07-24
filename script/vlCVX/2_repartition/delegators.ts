@@ -1,7 +1,8 @@
-import { VOTIUM_FORWARDER } from "../../utils/constants";
+import { VOTIUM_FORWARDER, CVX_GAUGE_DELEGATION } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
-import { getVotingPower } from "../../utils/snapshot";
+import { getDelegatedWeightsAtEpoch } from "../../utils/onChainDelegation";
 import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
+import { getClient } from "../../utils/getClients";
 
 export type DelegationDistribution = Record<
   string,
@@ -33,11 +34,26 @@ export const computeStakeDaoDelegation = async (
   // Store the delegation voter's token totals.
   delegationDistribution[delegationVoter] = { tokens: { ...tokens } };
 
-  // Get voting power for each delegator.
-  const vps = await getVotingPower(proposal, stakeDaoDelegators);
+  // Weight of each delegator via Delegation.userWeightAtEpochOf
+  // (proposal.snapshot is the vlCVX epoch number, not a block).
+  // NOT the raw vlCVX balance: the delegate votes with the SYNCED weights, so
+  // un-synced lock increases must not inflate a delegator's share.
+  const client = await getClient(1);
+  const vps = await getDelegatedWeightsAtEpoch(
+    CVX_GAUGE_DELEGATION,
+    Number(proposal.snapshot),
+    stakeDaoDelegators,
+    client
+  );
   const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
 
-  const blockSnapshotEnd = await getBlockNumberByTimestamp(proposal.end, "after", 1);
+  // TEST-ONLY (fork / virtual testnet, see VLCVX_ALLOW_ACTIVE_PROPOSAL in
+  // 2_repartition/index.ts): an active proposal has no block after its end
+  // yet — approximate the Votium forwarding state with the latest block.
+  const blockSnapshotEnd =
+    process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL === "true"
+      ? Number(await client.getBlockNumber())
+      : await getBlockNumberByTimestamp(proposal.end, "after", 1);
 
   // Get forwarded status for each delegator (via multicall).
   const forwardedArray = await getForwardedDelegators(stakeDaoDelegators, blockSnapshotEnd);

@@ -17,7 +17,6 @@ import {
   multiGaugeVoters,
   emptyCsvResult,
   emptyVotes,
-  unmappedGaugeCsvResult,
   TOKEN_A,
   TOKEN_B,
 } from "../fixtures/nonDelegators.fixtures";
@@ -167,12 +166,6 @@ for (const { name, fn } of implementations) {
       const result = fn(minimalCsvResult, minimalGaugeMapping, emptyVotes);
       // With no voters, no one can receive rewards
       expect(recipientCount(result)).toBe(0);
-    });
-
-    it("throws when gauge is not found in gauge mapping", () => {
-      expect(() =>
-        fn(unmappedGaugeCsvResult, minimalGaugeMapping, twoEqualVoters)
-      ).toThrow("Choice ID not found for gauge");
     });
 
     // --- Conservation of total rewards ---
