@@ -3,8 +3,8 @@
   "period": 1784764800,
   "aggregator": "0xDBd24b092f686b12650EC1450e3A7138F714506c",
   "totals": {
-    "sdInTotal": 66.13645636071253,
-    "sdAssigned": 66.13645636071251,
+    "sdInTotal": 69.84847858035377,
+    "sdAssigned": 69.84847858035376,
     "wethInTotal": 0.374833196988987,
     "wethOutTotal": 0.35330045499473905
   },
@@ -48,5 +48,23 @@
         "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": 8.232616679338667e-15
       }
     }
-  ]
+  ],
+  "cleanupTransactions": [
+    {
+      "tx": "0xd4f3011072e8c9da2a962003bcdd6769c2536c2384f4d8a4a162cd230c1da7ef",
+      "sdReceived": 3.712022219641247,
+      "perTokenSd": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 2.1435188551153703,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 1.5685033645258772
+      },
+      "residualWethConsumed": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0.012434149295438669,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0.009098592698809227
+      }
+    }
+  ],
+  "residualWethByToken": {
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 0,
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": 0
+  }
 }

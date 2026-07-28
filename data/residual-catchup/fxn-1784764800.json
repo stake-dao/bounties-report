@@ -1,0 +1,11 @@
+{
+  "protocol": "fxn",
+  "period": 1784764800,
+  "cleanupTxHash": "0xd4f3011072e8c9da2a962003bcdd6769c2536c2384f4d8a4a162cd230c1da7ef",
+  "actualSdReceivedWei": "3712022219641247310",
+  "totalResidualWethWei": "21532741994247895",
+  "residualWethByTokenWei": {
+    "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF": "12434149295438669",
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": "9098592698809226"
+  }
+}
