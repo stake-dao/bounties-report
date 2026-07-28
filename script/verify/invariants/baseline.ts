@@ -31,9 +31,11 @@ export async function resolveBaseline(
   client: PublicClient,
   currentTimestamp: number,
   reportsRoot: string,
-  violations: Violation[]
+  violations: Violation[],
+  /** One block per chain for the whole run — pinned by the caller so all
+   * artifacts on a chain are checked against a single consistent snapshot. */
+  pinnedBlock: bigint
 ): Promise<BaselineResolution> {
-  const pinnedBlock = await client.getBlockNumber();
   const activeRoot = (
     await client.readContract({
       address: spec.distributor,

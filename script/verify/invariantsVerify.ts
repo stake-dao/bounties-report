@@ -25,7 +25,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import { getClient } from "../utils/getClients";
-import { WEEK } from "../utils/constants";
+import { parseCliArgs } from "./invariants/cli";
 import { loadArtifact } from "./invariants/artifact";
 import { resolveBaseline } from "./invariants/baseline";
 import {
@@ -74,22 +74,8 @@ const VLCVX_SPECS: ArtifactSpec[] = [
 /** Chains whose artifact may legitimately be absent for a given week. */
 const OPTIONAL_CHAINS = new Set([8453, 42161]);
 
-function parseArgs() {
-  const argv = process.argv.slice(2);
-  const get = (flag: string): string | undefined => {
-    const i = argv.indexOf(flag);
-    return i >= 0 ? argv[i + 1] : undefined;
-  };
-  const now = Math.floor(Date.now() / 1000);
-  return {
-    timestamp: parseInt(get("--timestamp") ?? String(Math.floor(now / WEEK) * WEEK), 10),
-    target: (get("--target") ?? "both") as "voters" | "delegators" | "both",
-    jsonOut: get("--json"),
-  };
-}
-
 async function main() {
-  const { timestamp, target, jsonOut } = parseArgs();
+  const { timestamp, target, jsonOut } = parseCliArgs(process.argv.slice(2));
   const violations: Violation[] = [];
   const report: InvariantReport = {
     timestamp,
@@ -107,6 +93,10 @@ async function main() {
 
   // Per-spec deltas kept for the cross-merkle exclusivity check on mainnet.
   const mainnetDeltas: Partial<Record<"voters" | "delegators", PairMap>> = {};
+  // One pinned block per chain for the whole run: every root() and claimed()
+  // read on a chain uses the same consistent snapshot.
+  const pinnedBlockByChain = new Map<number, bigint>();
+  let verifiedArtifacts = 0;
 
   for (const spec of specs) {
     const absPath = path.join(REPORTS_ROOT, String(timestamp), spec.relPath);
@@ -120,15 +110,22 @@ async function main() {
     console.log(`\n▶ ${label} — ${absPath}`);
     const artifact = loadArtifact(spec, absPath, violations);
     if (!artifact) continue;
+    verifiedArtifacts++;
     console.log(`   leaves: ${[...artifact.pairs.values()].reduce((n, t) => n + t.size, 0)} | declared root ${artifact.declaredRoot.slice(0, 10)}… | recomputed ${artifact.computedRoot === artifact.declaredRoot ? "✅ match" : "❌ MISMATCH"}`);
 
     const client = await getClient(spec.chainId);
+    let pinnedBlock = pinnedBlockByChain.get(spec.chainId);
+    if (pinnedBlock === undefined) {
+      pinnedBlock = await client.getBlockNumber();
+      pinnedBlockByChain.set(spec.chainId, pinnedBlock);
+    }
     const baseline = await resolveBaseline(
       spec,
       client,
       timestamp,
       REPORTS_ROOT,
-      violations
+      violations,
+      pinnedBlock
     );
     report.pinnedBlocks[`${spec.chainId}`] = baseline.pinnedBlock.toString();
     console.log(`   active root ${baseline.activeRoot.slice(0, 10)}… @ block ${baseline.pinnedBlock} → baseline ${baseline.artifactPath ?? "UNRESOLVED"}`);
@@ -175,6 +172,13 @@ async function main() {
     console.log(
       "\n⚠️  exclusivity check skipped: need both mainnet artifacts in the same run"
     );
+  }
+
+  if (verifiedArtifacts === 0) {
+    console.error(
+      "\n❌ no artifact was verified for this epoch/target — refusing to pass an empty run"
+    );
+    process.exit(1);
   }
 
   const waivers = loadWaivers(

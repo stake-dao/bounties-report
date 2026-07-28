@@ -112,6 +112,79 @@ describe("invariants: structural", () => {
     const text = `{"a":{"x":1},"b":{"x":2}}`;
     expect(findDuplicateKeys(text)).toHaveLength(0);
   });
+
+  it("detects duplicates hidden behind unicode escape spellings", () => {
+    // "a" decodes to "a": JSON.parse merges them, the scanner must too.
+    const text = `{"a":1,"\\u0061":2}`;
+    expect(findDuplicateKeys(text)).toHaveLength(1);
+  });
+});
+
+describe("invariants: CLI argument validation", () => {
+  it("rejects unknown --target values instead of passing an empty run", async () => {
+    const { parseTarget } = await import("../../verify/invariants/cli");
+    expect(() => parseTarget("voter")).toThrow(/invalid --target/);
+    expect(parseTarget("voters")).toBe("voters");
+    expect(parseTarget(undefined)).toBe("both");
+  });
+});
+
+describe("invariants: waiver capping", () => {
+  it("never waives a violation lacking a quantified deficit", async () => {
+    const { applyWaivers } = await import("../../verify/invariants/waivers");
+    const violation: Violation = {
+      invariant: "EXCL_DELTA_OVERLAP",
+      severity: "CRITICAL",
+      target: "voters",
+      chainId: 1,
+      subject: `${T1} / ${T2}`,
+      detail: "test",
+      // deficit intentionally absent
+    };
+    const { active, waived } = applyWaivers([violation], [
+      {
+        invariant: "EXCL_DELTA_OVERLAP",
+        chainId: 1,
+        target: "voters",
+        account: T1,
+        token: T2,
+        maxDeficit: "999999999999999999999999",
+        reason: "should not apply",
+        addedBy: "test",
+        addedAt: "2026-07-28",
+      },
+    ]);
+    expect(waived).toHaveLength(0);
+    expect(active).toHaveLength(1);
+  });
+
+  it("re-fires when the measured deficit exceeds the waiver cap", async () => {
+    const { applyWaivers } = await import("../../verify/invariants/waivers");
+    const base = {
+      invariant: "PRESERVE_BELOW_CLAIMED" as const,
+      severity: "CRITICAL" as const,
+      target: "voters" as const,
+      chainId: 1,
+      subject: `${T1} / ${T2}`,
+      detail: "test",
+    };
+    const waiver = {
+      invariant: "PRESERVE_BELOW_CLAIMED" as const,
+      chainId: 1,
+      target: "voters" as const,
+      account: T1,
+      token: T2,
+      maxDeficit: "100",
+      reason: "capped",
+      addedBy: "test",
+      addedAt: "2026-07-28",
+    };
+    const under = applyWaivers([{ ...base, deficit: 100n }], [waiver]);
+    expect(under.waived).toHaveLength(1);
+    const over = applyWaivers([{ ...base, deficit: 101n }], [waiver]);
+    expect(over.active).toHaveLength(1);
+    expect(over.waived).toHaveLength(0);
+  });
 });
 
 describe("invariants: cumulative preservation", () => {

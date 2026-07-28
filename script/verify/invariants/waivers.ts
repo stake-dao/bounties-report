@@ -65,7 +65,9 @@ export function applyWaivers(
   const waived: WaiverSplit["waived"] = [];
 
   for (const v of violations) {
-    if (NON_WAIVABLE.has(v.invariant)) {
+    // A violation without a quantified deficit can never be waived: the cap
+    // in `maxDeficit` would be meaningless and the waiver unbounded.
+    if (NON_WAIVABLE.has(v.invariant) || v.deficit === undefined) {
       active.push(v);
       continue;
     }
@@ -78,7 +80,7 @@ export function applyWaivers(
         pair.length === 2 &&
         getAddress(pair[0]) === w.account &&
         getAddress(pair[1]) === w.token &&
-        (v.deficit === undefined || v.deficit <= BigInt(w.maxDeficit))
+        v.deficit! <= BigInt(w.maxDeficit)
     );
     if (match) waived.push({ violation: v, waiver: match });
     else active.push(v);

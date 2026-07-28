@@ -23,7 +23,8 @@ export function findDuplicateKeys(text: string): DuplicateKey[] {
   let pendingKey: string | null = null;
 
   const readString = (): string => {
-    // text[i] === '"' on entry; returns decoded-enough key (raw escapes kept).
+    // text[i] === '"' on entry; returns the DECODED string so that escape
+    // spellings (e.g. "\\u0061" vs "a") cannot evade duplicate detection.
     const start = ++i;
     while (i < n) {
       const c = text.charCodeAt(i);
@@ -31,9 +32,13 @@ export function findDuplicateKeys(text: string): DuplicateKey[] {
       else if (c === 0x22 /* " */) break;
       else i++;
     }
-    const s = text.slice(start, i);
+    const raw = text.slice(start, i);
     i++; // consume closing quote
-    return s;
+    try {
+      return JSON.parse(`"${raw}"`) as string;
+    } catch {
+      return raw; // malformed escape — JSON.parse of the doc will throw anyway
+    }
   };
 
   while (i < n) {

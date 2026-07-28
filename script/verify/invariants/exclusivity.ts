@@ -42,6 +42,9 @@ export function checkDeltaExclusivity(
     for (const [token, voterDelta] of tokens) {
       const delegatorDelta = delegatorTokens.get(token);
       if (delegatorDelta !== undefined) {
+        // Conservative double-payment bound: the whole larger side could be
+        // the wrongly-bucketed amount. Used to cap any waiver.
+        const deficit = voterDelta > delegatorDelta ? voterDelta : delegatorDelta;
         violations.push({
           invariant: "EXCL_DELTA_OVERLAP",
           severity: "CRITICAL",
@@ -51,6 +54,7 @@ export function checkDeltaExclusivity(
           detail:
             `address receives the same token in BOTH merkles this epoch: ` +
             `voters delta=${voterDelta}, delegators delta=${delegatorDelta} (double payment)`,
+          deficit,
         });
       }
     }
