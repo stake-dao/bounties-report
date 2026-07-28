@@ -1,0 +1,35 @@
+[
+  {
+    "invariant": "PRESERVE_BELOW_CLAIMED",
+    "chainId": 1,
+    "target": "voters",
+    "account": "0xb82bE987cF6f25d0F040Ca4567e3dacb4b92Aa91",
+    "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+    "maxDeficit": "2766325253733474816",
+    "reason": "Round 95 over-claim recovery (May 2026 repaired distribution, see script/vlCVX/fix_may_distrib). Cumulative amount intentionally held below claimed until the over-payment is recovered. TO CONFIRM before merge.",
+    "addedBy": "ENG-2055 initial import",
+    "addedAt": "2026-07-28"
+  },
+  {
+    "invariant": "PRESERVE_BELOW_CLAIMED",
+    "chainId": 8453,
+    "target": "voters",
+    "account": "0x41D7E3dA4678ac1f5B7f607c9f6f2140b87AdC7c",
+    "token": "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415",
+    "maxDeficit": "1065757834198779625472",
+    "reason": "Round 95 over-claim recovery (May 2026 repaired distribution, see script/vlCVX/fix_may_distrib). TO CONFIRM before merge.",
+    "addedBy": "ENG-2055 initial import",
+    "addedAt": "2026-07-28"
+  },
+  {
+    "invariant": "PRESERVE_BELOW_CLAIMED",
+    "chainId": 8453,
+    "target": "voters",
+    "account": "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A",
+    "token": "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415",
+    "maxDeficit": "3167005851339531744139",
+    "reason": "Round 95 over-claim recovery (May 2026 repaired distribution, see script/vlCVX/fix_may_distrib). TO CONFIRM before merge.",
+    "addedBy": "ENG-2055 initial import",
+    "addedAt": "2026-07-28"
+  }
+]

@@ -29,6 +29,8 @@ export interface ScriptResult {
   label: string;
   output: string;
   exitCode: number;
+  /** Deterministic gate script: a non-zero exit fails the verdict outright. */
+  gate?: boolean;
 }
 
 export interface VerificationResult {
@@ -91,10 +93,21 @@ interface VerifyScript {
   args: (timestamp: number) => string[];
   protocols: Protocol[];
   note?: string;
+  /** Deterministic gate: non-zero exit fails the whole verification
+   *  immediately and models are never queried (fail fast, no LLM cost). */
+  gate?: boolean;
 }
 
 const SCRIPTS: VerifyScript[] = [
   // ── vlCVX ───────────────────────────────────────────────────
+  {
+    // Runs FIRST: exact BigInt invariants vs on-chain state (ENG-2055).
+    label: "vlCVX Deterministic Invariants",
+    path: "script/verify/invariantsVerify.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlCVX", "all"],
+    gate: true,
+  },
   {
     label: "vlCVX Distribution Verification",
     path: "script/vlCVX/verify/distribution.ts",
@@ -185,6 +198,7 @@ export function runScripts(timestamp: number, protocol: Protocol): ScriptResult[
       console.log(`  → ${s.path}${s.note ? ` [${s.note}]` : ""}`);
       const r = spawnScript(s.path, s.args(timestamp));
       r.label = s.label;
+      r.gate = s.gate;
       return r;
     });
 }
@@ -231,6 +245,17 @@ function buildPrompt(timestamp: number, protocol: Protocol, scripts: ScriptResul
     .map((s) => `────────── ${s.label} (exit ${s.exitCode}) ──────────\n${s.output}`)
     .join("\n\n");
 
+  // When a deterministic gate ran (and passed — failures never reach the
+  // models), pin its guarantees so models spend judgment on semantics only.
+  const gateContext = scripts.some((s) => s.gate)
+    ? `
+## DETERMINISTIC GROUND TRUTH
+The "vlCVX Deterministic Invariants" script proves — with exact BigInt math against on-chain state at a pinned block — merkle root integrity, per-leaf proof validity, cumulative preservation (no entitlement shrinks or disappears while unclaimed), and voters/delegators delta-exclusivity. Its exit 0 in this run means these properties are PROVEN. Do NOT re-verify, re-litigate, or emit warnings about them.
+Lines marked "🟡 waived" in its output are known, repo-reviewed exceptions (e.g. Round 95 over-claim recovery) — do not flag them as issues.
+Spend your judgment on what deterministic math cannot check: whether the INPUTS were correct (repartition vs actual vote outcomes, delegator classification, claims completeness vs claimed bounties), cross-script consistency, and week-over-week anomalies.
+`
+    : "";
+
   const basePrompt = `You are a DeFi protocol engineer reviewing automated distribution verification for Stake DAO bounty distributions.
 
 Week: ${timestamp} (${date})  |  Protocol: ${protocol}
@@ -265,6 +290,7 @@ After reading all outputs, verify:
 - If Week B detected (same proposalId as prev week): delegator set must be identical to previous week
 - If CSV diff ≠ 0: check if Reward Flow mentions the token in merkle claims (present → warning only; absent → fail)
 
+${gateContext}
 ## SCRIPT OUTPUTS
 ${sections}
 
@@ -470,6 +496,25 @@ export async function verifyWithConsensus(
   const allScriptsPass = scripts.every((s) => s.exitCode === 0);
 
   console.log(`  scripts: ${scripts.map((s) => `${s.label}(${s.exitCode})`).join(", ")}`);
+
+  // Deterministic gates are the hard floor: when one fails there is nothing
+  // for a model to weigh — fail immediately and skip the LLM round entirely.
+  const failedGates = scripts.filter((s) => s.gate && s.exitCode !== 0);
+  if (failedGates.length > 0) {
+    const labels = failedGates.map((g) => g.label).join(", ");
+    console.log(`  ❌ deterministic gate failed (${labels}) — models not queried`);
+    return {
+      verdict: "fail",
+      summary: `Deterministic invariants gate failed: ${labels}`,
+      issues: failedGates.map(
+        (g) => `${g.label} exited ${g.exitCode} — see script output for violations`
+      ),
+      scripts,
+      modelVerdicts: [],
+      consensusMethod: "script-only",
+    };
+  }
+
   console.log(`  → querying ${clients.length} models in parallel…`);
 
   const LLM_UNAVAILABLE_MARKER = "LLM analysis unavailable";
