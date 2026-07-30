@@ -247,6 +247,22 @@
       "amount": "1198607031185393626479",
       "rewardToken": "0x2A8e1E676Ec238d8A992307B495b45B3fEAa5e86",
       "isWrapped": true
+    },
+    "31": {
+      "chainId": 8453,
+      "bountyId": "108",
+      "gauge": "0x1211B5cB09Ba1aDa8F11de757d5a13C5CA407162",
+      "amount": "251004796396944692541",
+      "rewardToken": "0xe5020A6d073a794B6E7f05678707dE47986Fb0b6",
+      "isWrapped": false
+    },
+    "32": {
+      "chainId": 8453,
+      "bountyId": "109",
+      "gauge": "0x92106DCFa053A8283213a062735649cbf0e718A2",
+      "amount": "1122551035",
+      "rewardToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "isWrapped": false
     }
   },
   "balancer": {},
