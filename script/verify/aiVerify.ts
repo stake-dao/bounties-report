@@ -6,7 +6,7 @@
  * if all scripts pass but every LLM is down, the pipeline still passes.
  *
  * Usage:
- *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|bounties|spectra|frax|all] [--models m1,m2] [--deep]
+ *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|bounties|spectra|frax|all] [--target voters|delegators|both] [--models m1,m2] [--deep]
  *
  * Env:
  *   OPENCODE_ZEN_API_KEY  (required)
@@ -21,6 +21,7 @@ import { sendConsensusReport } from "./telegramReport";
 import { WEEK, CVX_SPACE } from "../utils/constants";
 import { fetchLastProposalsIds } from "../utils/snapshot";
 import type { LLMClient } from "../utils/llmClient";
+import { parseTarget, type Target as InvariantTarget } from "./invariants/cli";
 
 dotenv.config();
 
@@ -101,6 +102,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   let timestamp: number | undefined;
   let protocol: Protocol = "all";
+  let invariantTarget: InvariantTarget = "both";
   let modelIds = DEFAULT_MODELS;
 
   for (let i = 0; i < args.length; i++) {
@@ -108,6 +110,8 @@ async function main(): Promise<void> {
       timestamp = parseInt(args[++i], 10);
     } else if (args[i] === "--protocol" && args[i + 1]) {
       protocol = args[++i] as Protocol;
+    } else if (args[i] === "--target" && args[i + 1]) {
+      invariantTarget = parseTarget(args[++i]);
     } else if (args[i] === "--models" && args[i + 1]) {
       modelIds = args[++i].split(",").map((m) => m.trim());
     } else if (args[i] === "--model" && args[i + 1]) {
@@ -119,6 +123,7 @@ Usage: pnpm tsx script/verify/aiVerify.ts [options]
 Options:
   --timestamp <ts>       Week epoch (default: current week)
   --protocol  <p>        vlCVX | bounties | spectra | frax | all  (default: all)
+  --target    <t>        vlCVX invariant target: voters | delegators | both (default: both)
   --models    <m1,m2>    Comma-separated model IDs (default: ${DEFAULT_MODELS.join(",")})
   --model     <m>        Single model (shorthand for --models with one)
   --deep                 Include RPC/parquet delegation checks (implicit)
@@ -144,7 +149,7 @@ Options:
   const metadata = await fetchMetadata(timestamp, protocols);
 
   for (const p of protocols) {
-    const result = await verifyWithConsensus(clients, timestamp, p);
+    const result = await verifyWithConsensus(clients, timestamp, p, invariantTarget);
     await sendConsensusReport(result, timestamp, p, metadata);
 
     const icon = VERDICT_ICON[result.verdict] ?? "❓";

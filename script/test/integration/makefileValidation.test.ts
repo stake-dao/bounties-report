@@ -146,6 +146,33 @@ describe("Consolidated GitHub Actions workflows", () => {
     expect(content).toContain("- publish");
   });
 
+  it("scopes voters merkle verification to voters invariants", () => {
+    const content = fs.readFileSync(
+      path.join(workflowDir, "vlcvx-distribution.yaml"),
+      "utf-8"
+    );
+    const votersVerifyStep = content.match(
+      /- name: AI verify distribution \(voters\)([\s\S]*?)(?=\n {6}- name:|\n {4}[A-Za-z]|\s*$)/
+    )?.[0];
+
+    expect(votersVerifyStep).toContain(
+      "if: inputs.type == 'voters' && inputs.step == 'merkle'"
+    );
+    expect(votersVerifyStep).toContain(
+      "--protocol vlCVX --target voters"
+    );
+  });
+
+  it("keeps the post-delegators AI gate on the both-target default", () => {
+    const content = fs.readFileSync(
+      path.join(workflowDir, "ai-verify-vlcvx.yaml"),
+      "utf-8"
+    );
+
+    expect(content).toContain("--protocol vlCVX --deep");
+    expect(content).not.toContain("--target");
+  });
+
   it("consolidated workflows should reference automation/distribution.mk", () => {
     const workflowsWithMake = [
       "vlcvx-distribution.yaml",
