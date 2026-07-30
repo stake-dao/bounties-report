@@ -27,6 +27,10 @@ import { fetchLastProposalsIds, getProposal, getVoters } from "../../utils/snaps
 import { parseAbiItem, getAddress, createPublicClient, http, PublicClient } from "viem";
 import { getAvailableEndpoints } from "../../utils/rpcConfig";
 import { CHAINS_BY_ID } from "../../utils/chains";
+import {
+  DelegationEvent,
+  loadDelegationStatesAtSnapshots,
+} from "./delegationState";
 
 dotenv.config();
 
@@ -40,16 +44,6 @@ const SET_DELEGATE_EVENT = parseAbiItem(
 const CLEAR_DELEGATE_EVENT = parseAbiItem(
   "event ClearDelegate(address indexed delegator, bytes32 indexed id, address indexed delegate)"
 );
-
-interface DelegationEvent {
-  delegator: string;
-  space: string; // bytes32
-  delegate: string;
-  blockNumber: bigint;
-  eventType: "Set" | "Clear";
-  timestamp?: number;
-}
-
 
 /**
  * Fetch voting power for multiple addresses using the Snapshot scoring API.
@@ -272,40 +266,6 @@ async function fetchDelegationEvents(
 }
 
 /**
- * Reconstruct delegation state at a specific block
- */
-function reconstructDelegationState(
-  events: DelegationEvent[],
-  atBlock: bigint
-): string[] {
-  // Filter events up to target block and sort by block number
-  const relevantEvents = events
-    .filter((e) => e.blockNumber <= atBlock)
-    .sort((a, b) => Number(a.blockNumber - b.blockNumber));
-
-  // Build state: delegator -> is currently delegating
-  const delegatorState = new Map<string, boolean>();
-
-  for (const event of relevantEvents) {
-    if (event.eventType === "Set") {
-      delegatorState.set(event.delegator, true);
-    } else {
-      delegatorState.set(event.delegator, false);
-    }
-  }
-
-  // Find all active delegators
-  const activeDelegators: string[] = [];
-  for (const [delegator, isDelegating] of delegatorState) {
-    if (isDelegating) {
-      activeDelegators.push(delegator);
-    }
-  }
-
-  return activeDelegators;
-}
-
-/**
  * Read parquet file to compare with RPC data
  */
 async function readParquetDelegators(
@@ -411,26 +371,25 @@ Options:
   const stakeDAODelegateAddress = DELEGATION_ADDRESS;
   console.log(`StakeDAO delegation address: ${stakeDAODelegateAddress}`);
 
+  const space = CVX_SPACE;
+  const spaceBytes32 = formatBytes32String(space);
+  const gaugeContexts: Array<{
+    gaugeType: "curve" | "fxn";
+    proposalId: string;
+    proposal: Awaited<ReturnType<typeof getProposal>>;
+    snapshotBlock: bigint;
+  }> = [];
+
   for (const gt of gaugeTypes) {
-    console.log("\n" + "=".repeat(80));
-    console.log(`Verifying ${gt.toUpperCase()} gauge type`);
-    console.log("=".repeat(80));
-
-    // Both Curve and FXN use the same cvx.eth space for delegation
-    // (only the proposal filter differs - FXN proposals have "FXN" prefix)
-    const space = CVX_SPACE; // Always cvx.eth for both gauge types
-    const spaceBytes32 = formatBytes32String(space);
-    console.log(`Space: ${space} (used for both Curve and FXN delegation)`);
-    console.log(`Space (bytes32): ${spaceBytes32}`);
-
-    // Get proposal to find snapshot block
-    console.log("\nFetching proposal...");
     const filter =
       gt === "fxn"
         ? "^FXN.*Gauge Weight for Week of"
         : "^(?!FXN ).*Gauge Weight for Week of";
-
-    const proposalIdPerSpace = await fetchLastProposalsIds([CVX_SPACE], timestamp + WEEK, filter);
+    const proposalIdPerSpace = await fetchLastProposalsIds(
+      [CVX_SPACE],
+      timestamp + WEEK,
+      filter
+    );
     const proposalId = proposalIdPerSpace[CVX_SPACE];
 
     if (!proposalId) {
@@ -439,7 +398,38 @@ Options:
     }
 
     const proposal = await getProposal(proposalId);
-    const snapshotBlock = BigInt(proposal.snapshot);
+    gaugeContexts.push({
+      gaugeType: gt,
+      proposalId,
+      proposal,
+      snapshotBlock: BigInt(proposal.snapshot),
+    });
+  }
+
+  console.log("\n--- Fetching shared delegations via RPC ---");
+  const rpcDelegatorsByGauge = await loadDelegationStatesAtSnapshots(
+    gaugeContexts.map(({ gaugeType: key, snapshotBlock }) => ({
+      key,
+      snapshotBlock,
+    })),
+    (toBlock) =>
+      fetchDelegationEvents(
+        stakeDAODelegateAddress,
+        spaceBytes32,
+        toBlock
+      )
+  );
+
+  for (const context of gaugeContexts) {
+    const { gaugeType: gt, proposalId, proposal, snapshotBlock } = context;
+    console.log("\n" + "=".repeat(80));
+    console.log(`Verifying ${gt.toUpperCase()} gauge type`);
+    console.log("=".repeat(80));
+
+    // Both Curve and FXN use the same cvx.eth space for delegation
+    // (only the proposal filter differs - FXN proposals have "FXN" prefix)
+    console.log(`Space: ${space} (used for both Curve and FXN delegation)`);
+    console.log(`Space (bytes32): ${spaceBytes32}`);
 
     console.log(`Proposal: ${proposal.title}`);
     console.log(`Proposal ID: ${proposalId}`);
@@ -459,15 +449,11 @@ Options:
     console.log(`Direct voters: ${directVoters.size}`);
 
     // === RPC-based delegation discovery ===
-    console.log("\n--- Fetching delegations via RPC ---");
-
-    const events = await fetchDelegationEvents(
-      stakeDAODelegateAddress,
-      spaceBytes32,
-      snapshotBlock
-    );
-
-    const rpcDelegators = reconstructDelegationState(events, snapshotBlock);
+    console.log("\n--- Reconstructing delegations from shared RPC events ---");
+    const rpcDelegators = rpcDelegatorsByGauge.get(gt);
+    if (!rpcDelegators) {
+      throw new Error(`Missing reconstructed RPC delegators for ${gt}`);
+    }
     console.log(`RPC delegators (raw): ${rpcDelegators.length}`);
 
     // Remove direct voters and delegation address
