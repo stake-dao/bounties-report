@@ -163,6 +163,51 @@ describe("Consolidated GitHub Actions workflows", () => {
     );
   });
 
+  it("resumes voters verification from a complete existing merkle", () => {
+    const content = fs.readFileSync(
+      path.join(workflowDir, "vlcvx-distribution.yaml"),
+      "utf-8"
+    );
+    const findStep = (name: string) => {
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return content.match(
+        new RegExp(
+          ` {6}- name: ${escapedName}[\\s\\S]*?(?=\\n {6}- name:|$)`
+        )
+      )?.[0];
+    };
+
+    const stateStep = findStep("Check voters merkle state");
+    const createStep = findStep("Create merkle (voters)");
+    const commitStep = findStep("Commit merkle voters");
+    const verifyStep = findStep("AI verify distribution (voters)");
+
+    expect(stateStep).toContain("id: voters_merkle_state");
+    expect(stateStep).toContain(
+      "curve/merkle_data_non_delegators.json"
+    );
+    expect(stateStep).toContain(
+      "fxn/merkle_data_non_delegators.json"
+    );
+    expect(stateStep).toContain("vlcvx_merkle.json");
+    expect(stateStep).toContain(
+      'if [ "$EXISTING" -eq "${#MERKLE_FILES[@]}" ]'
+    );
+    expect(stateStep).toContain("skip=true");
+    expect(stateStep).toContain(
+      "FORCE_UPDATE: ${{ inputs.force_merkle && 'true' || 'false' }}"
+    );
+    expect(createStep).toContain(
+      "steps.voters_merkle_state.outputs.skip != 'true'"
+    );
+    expect(commitStep).toContain(
+      "steps.voters_merkle_state.outputs.skip != 'true'"
+    );
+    expect(verifyStep).not.toContain(
+      "steps.voters_merkle_state.outputs.skip"
+    );
+  });
+
   it("keeps the post-delegators AI gate on the both-target default", () => {
     const content = fs.readFileSync(
       path.join(workflowDir, "ai-verify-vlcvx.yaml"),

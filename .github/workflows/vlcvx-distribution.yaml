@@ -108,8 +108,46 @@ jobs:
         with:
           message: "chore: vlCVX delegators-merkle [${{ inputs.dispatch_id }}]"
 
-      - name: Create merkle (voters)
+      - name: Check voters merkle state
+        id: voters_merkle_state
         if: inputs.type == 'voters' && inputs.step == 'merkle'
+        run: |
+          if [ "$FORCE_UPDATE" = "true" ]; then
+            echo "Forced voters merkle regeneration requested."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          PERIOD=$((CURRENT_TIMESTAMP / WEEK * WEEK))
+          MERKLE_FILES=(
+            "bounties-reports/${PERIOD}/vlCVX/curve/merkle_data_non_delegators.json"
+            "bounties-reports/${PERIOD}/vlCVX/fxn/merkle_data_non_delegators.json"
+            "bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle.json"
+          )
+
+          EXISTING=0
+          for FILE in "${MERKLE_FILES[@]}"; do
+            if [ -f "$FILE" ]; then
+              EXISTING=$((EXISTING + 1))
+            fi
+          done
+
+          if [ "$EXISTING" -eq "${#MERKLE_FILES[@]}" ]; then
+            echo "Complete voters merkle artifact set already exists for ${PERIOD}; reusing it."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            if [ "$EXISTING" -gt 0 ]; then
+              echo "Partial voters merkle artifact set found; generation will enforce the existing-file guard."
+            fi
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          FORCE_UPDATE: ${{ inputs.force_merkle && 'true' || 'false' }}
+
+      - name: Create merkle (voters)
+        if: inputs.type == 'voters' && inputs.step == 'merkle' && steps.voters_merkle_state.outputs.skip != 'true'
         run: make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=non-delegators
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -118,7 +156,7 @@ jobs:
           FORCE_UPDATE: ${{ inputs.force_merkle && 'true' || 'false' }}
 
       - name: Commit merkle voters
-        if: inputs.type == 'voters' && inputs.step == 'merkle'
+        if: inputs.type == 'voters' && inputs.step == 'merkle' && steps.voters_merkle_state.outputs.skip != 'true'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX voters-merkle [${{ inputs.dispatch_id }}]"
