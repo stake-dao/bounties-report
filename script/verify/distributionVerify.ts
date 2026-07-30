@@ -13,6 +13,15 @@
 import { spawnSync } from "child_process";
 import * as path from "path";
 import type { LLMClient } from "../utils/llmClient";
+import {
+  buildScriptCommands,
+  sanitizeGateDiagnostic,
+} from "./verificationScripts";
+import type {
+  InvariantTarget,
+  Protocol,
+} from "./verificationScripts";
+export type { Protocol } from "./verificationScripts";
 
 const PROJECT_ROOT = path.join(__dirname, "../../");
 const MAX_BUFFER = 10 * 1024 * 1024;
@@ -20,8 +29,6 @@ const MAX_BUFFER = 10 * 1024 * 1024;
 const SCRIPT_TIMEOUT_MS = 5 * 60 * 1000;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-export type Protocol = "vlCVX" | "bounties" | "spectra" | "frax" | "all";
 
 export type Verdict = "pass" | "fail" | "warning";
 
@@ -84,83 +91,6 @@ export interface ConsensusResult extends VerificationResult {
   consensusMethod: "unanimous" | "majority" | "script-only";
 }
 
-// ── Script registry ───────────────────────────────────────────────────────────
-
-interface VerifyScript {
-  label: string;
-  path: string;
-  /** Return extra CLI args given the week timestamp. */
-  args: (timestamp: number) => string[];
-  protocols: Protocol[];
-  note?: string;
-  /** Deterministic gate: non-zero exit fails the whole verification
-   *  immediately and models are never queried (fail fast, no LLM cost). */
-  gate?: boolean;
-}
-
-const SCRIPTS: VerifyScript[] = [
-  // ── vlCVX ───────────────────────────────────────────────────
-  {
-    // Runs FIRST: exact BigInt invariants vs on-chain state (ENG-2055).
-    label: "vlCVX Deterministic Invariants",
-    path: "script/verify/invariantsVerify.ts",
-    args: (ts) => ["--timestamp", String(ts)],
-    protocols: ["vlCVX", "all"],
-    gate: true,
-  },
-  {
-    label: "vlCVX Distribution Verification",
-    path: "script/vlCVX/verify/distribution.ts",
-    args: (ts) => ["--timestamp", String(ts)],
-    protocols: ["vlCVX", "all"],
-  },
-  {
-    label: "vlCVX Reward Flow Verification",
-    path: "script/vlCVX/verify/rewardFlow.ts",
-    args: (ts) => ["--timestamp", String(ts)],
-    protocols: ["vlCVX", "all"],
-  },
-  {
-    label: "vlCVX Claims Completeness",
-    path: "script/vlCVX/verify/claimsCompleteness.ts",
-    args: (ts) => ["--timestamp", String(ts)],
-    protocols: ["vlCVX", "all"],
-  },
-  {
-    label: "vlCVX parquet delegators",
-    path: "script/vlCVX/verify/verifyDelegators.ts",
-    args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
-    protocols: ["vlCVX", "all"],
-  },
-  {
-    label: "vlCVX RPC delegators",
-    path: "script/vlCVX/verify/delegators-rpc.ts",
-    args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
-    protocols: ["vlCVX", "all"],
-  },
-  // ── bounties report ─────────────────────────────────────────
-  {
-    label: "Bounties Report Verification",
-    path: "script/verify/verifyBountiesReport.ts",
-    args: (ts) => ["--epoch", String(ts)],
-    protocols: ["bounties", "all"],
-  },
-  // ── spectra ─────────────────────────────────────────────────
-  {
-    label: "sdSPECTRA Distribution Verification",
-    path: "script/verify/verifySpectraDistribution.ts",
-    args: (ts) => ["--timestamp", String(ts)],
-    protocols: ["spectra", "all"],
-  },
-  // ── frax (sdFXS — frax slice of the bounties report only) ────
-  {
-    label: "Frax Bounties Verification",
-    path: "script/verify/verifyBountiesReport.ts",
-    args: (ts) => ["--epoch", String(ts), "--only", "frax"],
-    protocols: ["frax"],
-  },
-];
-
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 function spawnScript(relPath: string, args: string[]): ScriptResult {
@@ -191,12 +121,15 @@ function spawnScript(relPath: string, args: string[]): ScriptResult {
  * Run all verification scripts and return their raw outputs.
  * Call this once and reuse `scripts` across multiple model calls.
  */
-export function runScripts(timestamp: number, protocol: Protocol): ScriptResult[] {
-  return SCRIPTS
-    .filter((s) => s.protocols.includes(protocol))
+export function runScripts(
+  timestamp: number,
+  protocol: Protocol,
+  invariantTarget: InvariantTarget = "both"
+): ScriptResult[] {
+  return buildScriptCommands(timestamp, protocol, invariantTarget)
     .map((s) => {
       console.log(`  → ${s.path}${s.note ? ` [${s.note}]` : ""}`);
-      const r = spawnScript(s.path, s.args(timestamp));
+      const r = spawnScript(s.path, s.args);
       r.label = s.label;
       r.gate = s.gate;
       return r;
@@ -250,7 +183,7 @@ function buildPrompt(timestamp: number, protocol: Protocol, scripts: ScriptResul
   const gateContext = scripts.some((s) => s.gate)
     ? `
 ## DETERMINISTIC GROUND TRUTH
-The "vlCVX Deterministic Invariants" script proves — with exact BigInt math against on-chain state at a pinned block — merkle root integrity, per-leaf proof validity, cumulative preservation (no entitlement shrinks or disappears while unclaimed), and voters/delegators delta-exclusivity. Its exit 0 in this run means these properties are PROVEN. Do NOT re-verify, re-litigate, or emit warnings about them.
+The "vlCVX Deterministic Invariants" script proves — with exact BigInt math against on-chain state at a pinned block — merkle root integrity, per-leaf proof validity, and cumulative preservation (no entitlement shrinks or disappears while unclaimed) for every selected artifact. Voters/delegators delta-exclusivity is proven only when both mainnet targets were selected and the script output shows that cross-target check ran. Its exit 0 in this run means only the checks that actually ran are PROVEN. Do NOT re-verify, re-litigate, or emit warnings about them.
 Lines marked "🟡 waived" in its output are known, repo-reviewed exceptions (e.g. Round 95 over-claim recovery) — do not flag them as issues.
 Spend your judgment on what deterministic math cannot check: whether the INPUTS were correct (repartition vs actual vote outcomes, delegator classification, claims completeness vs claimed bounties), cross-script consistency, and week-over-week anomalies.
 `
@@ -413,13 +346,14 @@ export async function analyze(
 export async function verify(
   client: LLMClient,
   timestamp: number,
-  protocol: Protocol = "all"
+  protocol: Protocol = "all",
+  invariantTarget: InvariantTarget = "both"
 ): Promise<VerificationResult> {
   const date = new Date(timestamp * 1000).toISOString().split("T")[0];
 
   console.log(`\n[verify] week ${timestamp} (${date}), protocol=${protocol}, model=${client.model}`);
 
-  const scripts = runScripts(timestamp, protocol);
+  const scripts = runScripts(timestamp, protocol, invariantTarget);
   console.log(`  → analyzing with ${client.model} (${client.provider})`);
   return analyze(client, timestamp, protocol, scripts);
 }
@@ -484,7 +418,8 @@ function resolveConsensus(
 export async function verifyWithConsensus(
   clients: LLMClient[],
   timestamp: number,
-  protocol: Protocol = "all"
+  protocol: Protocol = "all",
+  invariantTarget: InvariantTarget = "both"
 ): Promise<ConsensusResult> {
   const date = new Date(timestamp * 1000).toISOString().split("T")[0];
   const modelNames = clients.map((c) => c.model).join(", ");
@@ -492,7 +427,7 @@ export async function verifyWithConsensus(
   console.log(`\n[verify] week ${timestamp} (${date}), protocol=${protocol}`);
   console.log(`  models: ${modelNames}`);
 
-  const scripts = runScripts(timestamp, protocol);
+  const scripts = runScripts(timestamp, protocol, invariantTarget);
   const allScriptsPass = scripts.every((s) => s.exitCode === 0);
 
   console.log(`  scripts: ${scripts.map((s) => `${s.label}(${s.exitCode})`).join(", ")}`);
@@ -503,6 +438,12 @@ export async function verifyWithConsensus(
   if (failedGates.length > 0) {
     const labels = failedGates.map((g) => g.label).join(", ");
     console.log(`  ❌ deterministic gate failed (${labels}) — models not queried`);
+    for (const gate of failedGates) {
+      const diagnostic = sanitizeGateDiagnostic(gate.output) || "(no output captured)";
+      console.error(
+        `\n  ── ${gate.label} output ──\n${diagnostic}\n  ── end ${gate.label} output ──`
+      );
+    }
     return {
       verdict: "fail",
       summary: `Deterministic invariants gate failed: ${labels}`,
