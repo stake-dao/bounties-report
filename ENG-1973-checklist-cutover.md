@@ -21,7 +21,10 @@
 
 ## Lundi 3/08
 
-- [ ] **Vote du délégué** (bloqueur n°1 — 9,88 M vlCVX) : vérifier que le bot (automation-jobs, PR #917) a voté sur la plateforme Curve **avant mardi 00:00 UTC** :
+- [ ] **Vote du délégué — MANUEL** (bloqueur n°1 — 9,88 M vlCVX) : aucun bot ne vote ; `delegation_reminder.py`
+  (automation-jobs) n'est qu'un filet de sécurité Telegram (alertes H-24 ce soir ~00:00 UTC et H-2 mardi ~22:00 UTC,
+  surveillant les NOUVELLES plateformes depuis PR #952 mergée le 30/07). **Quelqu'un doit voter à la main sur la
+  plateforme Curve avant mardi 00:00 UTC.** Vérifier :
   ```bash
   cast call 0x64D9B5AC386B70af9EDCD20A58cE9262D2EAC278 \
     "getVote(uint256,address)(address[],uint256[],bool,uint256,int256)" \
@@ -82,6 +85,14 @@
 4. Test unitaire du chemin « gauge absent du mapping » supprimé sans remplaçant (`nonDelegators.test.ts`).
 5. `VLCVX_ALLOW_ACTIVE_PROPOSAL` et `RPC_URL_<chainId>` : test-only, aucun garde-fou prod, non documentés hors commentaires.
 6. Env local : `pnpm install --frozen-lockfile` échoue (lockfile v6 vs pnpm 10 ; tsx local 4.21 < ^4.23) — sans impact CI ; à régler sur main un jour.
+
+## Readiness des autres repos (vérifié le 2/08)
+
+| Repo | Verdict | Notes |
+|---|---|---|
+| automation-jobs | ✅ | Nouvelles adresses sur main (PR #952 / ENG-2061, 30/07, + test de pinning). Distribution scripts sans dépendance aux plateformes de vote. ⚠️ `develop` a encore les vieilles adresses ; **PR #917 (ouverte) est stale et réintroduirait les vieilles adresses → rebaser avant merge**. Confirmer que le scheduler externe du reminder tourne sur un build ≥ 30/07. |
+| automation-guard | ✅ | Adresses OK, ENG-2053 mergé, **batch Safe exécuté on-chain** (guard rules live). Non requis pour la semaine. Follow-up : unpause le pipeline Maestro. |
+| backend-monorepo | ⚠️ | **PR #375 pointe les plateformes MORTES** (branche du 16/07, pré-redéploiement) ; aucune branche n'a les nouvelles adresses. À faire : bump `packages/api-v2/app/vlcvx/constants.py`, rebase main, re-vérif sur proposal #0. Non bloquant pour jeudi (analytics read-only, hors chemin de l'argent). |
 
 ## Références
 
