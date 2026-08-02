@@ -41,10 +41,14 @@ export const DELEGATE_REGISTRY_CREATION_BLOCK_BASE = 17894724;
 // has ZERO on-chain weight — on-chain reads must use this address instead.
 export const VLCVX_ONCHAIN_DELEGATION_ADDRESS =
   "0xbB06fEFB8f23A7c60C93fe20464DB6687C51955f";
+// Gauge vote platforms were redeployed 2026-07-25 (weights now ppm 0-1_000_000
+// instead of bps 0-10000; read ABI unchanged). Proposal history restarted at 0:
+// rounds voted before the redeploy live on the old contracts
+// (Curve 0x21F304a9DF75E087A035B4c5792bD4e6BB7AF8aF, FXN 0xC3701a7696Cd41a4E3e107B8A7b897A3aFB4c50a).
 export const CVX_GAUGE_VOTE_PLATFORM_CURVE =
-  "0x21F304a9DF75E087A035B4c5792bD4e6BB7AF8aF"; // CurveGaugeVoting
+  "0x64D9B5AC386B70af9EDCD20A58cE9262D2EAC278"; // CurveGaugeVoting
 export const CVX_GAUGE_VOTE_PLATFORM_FXN =
-  "0xC3701a7696Cd41a4E3e107B8A7b897A3aFB4c50a"; // FxGaugeVoting
+  "0xDcEa673B021f1f431E7D0Ec70a63bF8DcB6d44E6"; // FxGaugeVoting
 export const CVX_GAUGE_DELEGATION =
   "0xb8270eef1319173dE9f5033FED442F638ff1607d"; // GaugeDelegation (NOT the DaoDelegation)
 export const CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH = 25478184;

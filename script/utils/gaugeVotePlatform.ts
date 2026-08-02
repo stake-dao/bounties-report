@@ -128,8 +128,10 @@ export const getOnChainProposal = async (
  * scan, no dedup. getVote then reflects the final state (re-votes overwrite).
  *
  * vp = baseWeight + max(adjustedWeight, 0), in vlCVX (18 decimals).
- * choice keys are 1-indexed positions in proposal.choices, values in percent
- * (on-chain weights are basis points 0-10000 → divided by 100).
+ * choice keys are 1-indexed positions in proposal.choices. Values are the
+ * on-chain weights (ppm, 0-1_000_000 since the 2026-07-25 redeploy) divided
+ * by 100 — only meaningful relative to the voter's other choice values; all
+ * consumers normalize by the per-voter sum.
  */
 export const getOnChainVoters = async (
   gaugeVotePlatformAddress: string,
@@ -179,7 +181,7 @@ export const getOnChainVoters = async (
     for (let j = 0; j < gauges.length; j++) {
       const choiceIndex = proposal.choices.indexOf(gauges[j].toLowerCase());
       if (choiceIndex !== -1) {
-        choice[(choiceIndex + 1).toString()] = Number(weights[j]) / 100; // bps → %
+        choice[(choiceIndex + 1).toString()] = Number(weights[j]) / 100; // ppm / 100 — relative weight
       }
     }
 
