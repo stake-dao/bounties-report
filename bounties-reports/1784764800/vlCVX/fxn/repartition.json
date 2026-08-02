@@ -1,0 +1,77 @@
+{
+  "proposalId": "0x4707c28d8107a52b56bca07a586c36f51d2ecf9312468ad8bb833a7a3b29d067",
+  "snapshotBlock": 25541500,
+  "distribution": {
+    "0x96C68D861aDa016Ed98c30C810879F9df7c64154": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "327904756",
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "2507940505906527909"
+      }
+    },
+    "0x7cfc917d0D16916752Ee65AC73A24ED3f774eA7C": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "112879933"
+      }
+    },
+    "0xb89C066fbD5E88522bd3dDE7A0A5516EF2b44D13": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "18289482"
+      }
+    },
+    "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "11831824"
+      }
+    },
+    "0x4316BA2d21029dCC705edDfde7cCd61F48c7f6eD": {
+      "tokens": {
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "31969915"
+      }
+    },
+    "0x6BBb9B83E6AD112cFaf1c275aCcc885c86262401": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "560842515256898838"
+      }
+    },
+    "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "20322519012052012119"
+      }
+    },
+    "0x99A269F0ee634cfba22f96Ab4B1fd4fB1871AbD1": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "50511476862176263"
+      }
+    },
+    "0xFf6FAf21b2812ee1db1bF2C3f02a7FA7b8F6ADc8": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "2778714176782915"
+      }
+    },
+    "0x97CE0101A307a79eC9959D82DB1D8ADBa9FbEE4D": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "8326912627221638685"
+      }
+    },
+    "0xD8eE0915dAbbB956498e30690d86A1274445B88E": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "7486787712400404"
+      }
+    },
+    "0x3Fb22974f6878655dbc9C20cCfb0A942CdeD9CEc": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "698543482918476"
+      }
+    },
+    "0x15cb2e57B05E1cD8dd7C4a6Ec4a5e5b4d7A56546": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "19547813842021573"
+      }
+    },
+    "0xCdbe2929B64DFF847B993202bEba275fB960d859": {
+      "tokens": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": "57658115804878859"
+      }
+    }
+  }
+}

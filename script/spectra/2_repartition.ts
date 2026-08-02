@@ -8,6 +8,7 @@ import {
 } from "../utils/constants";
 import {
   getLastClosedProposals,
+  getProposal,
   getVoters,
   getVotingPower,
 } from "../utils/snapshot";
@@ -34,8 +35,9 @@ const main = async () => {
   // Fetch proposal and votes
   // Bounties are claimed for the PREVIOUS voting period, so skip the latest closed proposal
   console.log("Fetching proposal and votes...");
-  const proposals = await getLastClosedProposals(SPECTRA_SPACE, 2 + pastWeek);
-  const proposal = proposals[1 + pastWeek];
+  const proposal = process.env.PROPOSAL_ID_OVERRIDE
+    ? await getProposal(process.env.PROPOSAL_ID_OVERRIDE)
+    : (await getLastClosedProposals(SPECTRA_SPACE, 2 + pastWeek))[1 + pastWeek];
   const proposalId = proposal.id;
   console.log("proposalId", proposalId);
 
@@ -215,7 +217,10 @@ const main = async () => {
           const totalVp = Object.values(vps).reduce((acc, vp) => acc + vp, 0);
 
           // Compute the APR
-          if (delegationAddress.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()) {
+          if (
+            delegationAddress.toLowerCase() === DELEGATION_ADDRESS.toLowerCase() &&
+            process.env.BOTS_ENVIO_GRAPHQL_URL_WORKER
+          ) {
             delegationAPR = await getSpectraDelegationAPR(tokens, stakeDaoDelegators);
           }
 

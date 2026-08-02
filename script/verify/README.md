@@ -6,7 +6,8 @@ This directory contains automated verification for weekly distributions and boun
 
 | File | Role |
 |---|---|
-| `distributionVerify.ts` | Script registry, subprocess runner, LLM prompt builder, and consensus helpers |
+| `verificationScripts.ts` | Script registry, argument builder, and safe gate diagnostics |
+| `distributionVerify.ts` | Subprocess runner, LLM prompt builder, and consensus helpers |
 | `aiVerify.ts` | Main CLI for consensus verification and Telegram reporting |
 | `compareModels.ts` | Runs scripts once and compares multiple model verdicts |
 | `verifyBountiesReport.ts` | Verifies report CSVs, attribution files, claimed bounties, and BotMarket allowlist |
@@ -37,6 +38,7 @@ pnpm tsx script/verify/aiVerify.ts
 
 # Specific week/protocol
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol vlCVX
+pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol vlCVX --target voters
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol bounties
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol spectra
 pnpm tsx script/verify/aiVerify.ts --timestamp 1771459200 --protocol frax
@@ -63,6 +65,10 @@ TEST_TELEGRAM_CHAT_ID
 ```
 
 The underlying verification scripts can also be run directly and do not require an LLM key.
+
+The vlCVX invariant target defaults to `both`, which includes voters/delegators
+delta-exclusivity. Target-specific generation jobs can use `--target voters` or
+`--target delegators` when only that artifact exists.
 
 ## Verdicts
 

@@ -24,7 +24,13 @@ import {
   WEEK,
 } from "../../utils/constants";
 import { fetchLastProposalsIds, getProposal, getVoters } from "../../utils/snapshot";
-import { parseAbiItem, getAddress } from "viem";
+import { parseAbiItem, getAddress, createPublicClient, http, PublicClient } from "viem";
+import { getAvailableEndpoints } from "../../utils/rpcConfig";
+import { CHAINS_BY_ID } from "../../utils/chains";
+import {
+  DelegationEvent,
+  loadDelegationStatesAtSnapshots,
+} from "./delegationState";
 
 dotenv.config();
 
@@ -38,16 +44,6 @@ const SET_DELEGATE_EVENT = parseAbiItem(
 const CLEAR_DELEGATE_EVENT = parseAbiItem(
   "event ClearDelegate(address indexed delegator, bytes32 indexed id, address indexed delegate)"
 );
-
-interface DelegationEvent {
-  delegator: string;
-  space: string; // bytes32
-  delegate: string;
-  blockNumber: bigint;
-  eventType: "Set" | "Clear";
-  timestamp?: number;
-}
-
 
 /**
  * Fetch voting power for multiple addresses using the Snapshot scoring API.
@@ -115,7 +111,6 @@ async function fetchDelegationEvents(
   spaceBytes32: string,
   toBlock: bigint
 ): Promise<DelegationEvent[]> {
-  const client = await getClient(1);
   const FIRST_STAKEDAO_DELEGATION_BLOCK = 21_000_000n;
   const fromBlock = FIRST_STAKEDAO_DELEGATION_BLOCK > BigInt(DELEGATE_REGISTRY_CREATION_BLOCK_ETH)
     ? FIRST_STAKEDAO_DELEGATION_BLOCK
@@ -126,33 +121,76 @@ async function fetchDelegationEvents(
   console.log(`  Target delegate: ${normalizedDelegate}`);
   console.log(`  Space (bytes32): ${spaceBytes32}`);
 
-  const events: DelegationEvent[] = [];
-  const BATCH_SIZE = 45000n;
+  // Historical getLogs over ~4.4M blocks. Two independent failure modes:
+  //  - the provider caps the window (results or block range) → a smaller range fixes it
+  //  - the provider cannot serve the query at all (no archive access, persistent
+  //    rate limit) → no window is small enough; only another endpoint fixes it
+  // Halving handles the first, endpoint rotation the second.
+  const endpoints = getAvailableEndpoints(1);
+  if (endpoints.length === 0) throw new Error("No RPC endpoints configured for chain 1");
+  const clients: { url: string; client: PublicClient }[] = endpoints.map((e) => ({
+    url: e.url,
+    client: createPublicClient({
+      chain: CHAINS_BY_ID[1],
+      transport: http(e.url, { retryCount: 2, retryDelay: 500, timeout: 30000 }),
+    }),
+  }));
 
-  let currentFrom = fromBlock;
-  let batchCount = 0;
+  const BATCH_SIZE = 45_000n;
+  // Floor on halving: below this a rejection is the provider refusing the query,
+  // not the window being too wide, so rotate instead of recursing to single blocks.
+  const MIN_RANGE = 1_000n;
+  const MAX_RATE_LIMIT_RETRIES = 5;
 
-  while (currentFrom <= toBlock) {
-    const currentTo = currentFrom + BATCH_SIZE > toBlock ? toBlock : currentFrom + BATCH_SIZE;
-    batchCount++;
+  const isRangeLimitError = (error: any): boolean => {
+    const msg = (error?.message || "").toLowerCase();
+    return (
+      msg.includes("query returned more than") ||
+      msg.includes("block range") ||
+      msg.includes("too large") ||
+      msg.includes("limited to") ||
+      msg.includes("response size exceeded") ||
+      error?.code === -32005 ||
+      error?.code === -32600 ||
+      error?.code === -32602
+    );
+  };
 
-    const fetchBatch = async (from: bigint, to: bigint) => {
-      const setLogs = await client.getLogs({
-        address: getAddress(DELEGATE_REGISTRY),
-        event: SET_DELEGATE_EVENT,
-        args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
-        fromBlock: from,
-        toBlock: to,
-      });
-      const clearLogs = await client.getLogs({
-        address: getAddress(DELEGATE_REGISTRY),
-        event: CLEAR_DELEGATE_EVENT,
-        args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
-        fromBlock: from,
-        toBlock: to,
-      });
+  const isRateLimitError = (error: any): boolean => {
+    const msg = (error?.message || "").toLowerCase();
+    return msg.includes("429") || msg.includes("rate") || error?.code === 429;
+  };
+
+  // Fetch Set+Clear logs for a range on one client. On a range-limit error, split
+  // the window and recurse until it fits or hits MIN_RANGE. Returns the events
+  // instead of pushing them, so an outer retry can never double-count a
+  // partially-fetched window.
+  const fetchRange = async (
+    client: PublicClient,
+    from: bigint,
+    to: bigint
+  ): Promise<DelegationEvent[]> => {
+    try {
+      const [setLogs, clearLogs] = await Promise.all([
+        client.getLogs({
+          address: getAddress(DELEGATE_REGISTRY),
+          event: SET_DELEGATE_EVENT,
+          args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
+          fromBlock: from,
+          toBlock: to,
+        }),
+        client.getLogs({
+          address: getAddress(DELEGATE_REGISTRY),
+          event: CLEAR_DELEGATE_EVENT,
+          args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
+          fromBlock: from,
+          toBlock: to,
+        }),
+      ]);
+
+      const out: DelegationEvent[] = [];
       for (const log of setLogs) {
-        events.push({
+        out.push({
           delegator: (log.args as any).delegator.toLowerCase(),
           space: (log.args as any).id,
           delegate: (log.args as any).delegate.toLowerCase(),
@@ -161,7 +199,7 @@ async function fetchDelegationEvents(
         });
       }
       for (const log of clearLogs) {
-        events.push({
+        out.push({
           delegator: (log.args as any).delegator.toLowerCase(),
           space: (log.args as any).id,
           delegate: (log.args as any).delegate.toLowerCase(),
@@ -169,37 +207,54 @@ async function fetchDelegationEvents(
           eventType: "Clear",
         });
       }
-    };
+      return out;
+    } catch (error: any) {
+      if (isRangeLimitError(error) && to - from > MIN_RANGE) {
+        const mid = from + (to - from) / 2n;
+        console.log(`  Range ${from}-${to} rejected, splitting at ${mid}...`);
+        const left = await fetchRange(client, from, mid);
+        const right = await fetchRange(client, mid + 1n, to);
+        return [...left, ...right];
+      }
+      throw error;
+    }
+  };
 
-    const MAX_RETRIES = 3;
+  const events: DelegationEvent[] = [];
+  let clientIdx = 0;
+  let currentFrom = fromBlock;
+  let batchCount = 0;
+  let rateLimitStrikes = 0;
+
+  while (currentFrom <= toBlock) {
+    const currentTo = currentFrom + BATCH_SIZE > toBlock ? toBlock : currentFrom + BATCH_SIZE;
+    const { url, client } = clients[clientIdx];
 
     try {
-      await fetchBatch(currentFrom, currentTo);
+      const fetched = await fetchRange(client, currentFrom, currentTo);
+      events.push(...fetched);
+      batchCount++;
+      rateLimitStrikes = 0;
 
-      if (batchCount % 5 === 0) {
-        console.log(`  Processed ${batchCount} batches, ${events.length} events found so far...`);
+      if (batchCount % 20 === 0) {
+        console.log(`  Block ${currentTo}/${toBlock}, ${events.length} events found so far...`);
       }
-
       currentFrom = currentTo + 1n;
     } catch (error: any) {
-      if (error.message?.includes("query returned more than") || error.code === -32005) {
-        console.log(`  Batch too large, reducing size...`);
-        const smallerTo = currentFrom + BATCH_SIZE / 10n > toBlock ? toBlock : currentFrom + BATCH_SIZE / 10n;
-        await fetchBatch(currentFrom, smallerTo);
-        currentFrom = smallerTo + 1n;
-      } else if (error.message?.includes("429") || error.message?.includes("rate") || error.code === 429) {
-        let retried = false;
-        for (let r = 1; r <= MAX_RETRIES; r++) {
-          console.log(`  Rate limited, retry ${r}/${MAX_RETRIES} in ${r * 2}s...`);
-          await new Promise((resolve) => setTimeout(resolve, r * 2000));
-          try {
-            await fetchBatch(currentFrom, currentTo);
-            currentFrom = currentTo + 1n;
-            retried = true;
-            break;
-          } catch { /* retry */ }
-        }
-        if (!retried) throw error;
+      if (isRateLimitError(error) && rateLimitStrikes < MAX_RATE_LIMIT_RETRIES) {
+        rateLimitStrikes++;
+        console.log(
+          `  Rate limited on ${url}, retry ${rateLimitStrikes}/${MAX_RATE_LIMIT_RETRIES} in ${rateLimitStrikes * 2}s...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, rateLimitStrikes * 2000));
+      } else if (clientIdx < clients.length - 1) {
+        // Halving already failed down to MIN_RANGE, or the endpoint is rate-limiting
+        // us out of the run: this provider cannot serve the scan. Try the next one.
+        clientIdx++;
+        rateLimitStrikes = 0;
+        console.log(
+          `  ${url} unusable (${String(error.message ?? "").split("\n")[0]}), switching to ${clients[clientIdx].url}`
+        );
       } else {
         throw error;
       }
@@ -208,40 +263,6 @@ async function fetchDelegationEvents(
 
   console.log(`  Found ${events.length} total delegation events`);
   return events;
-}
-
-/**
- * Reconstruct delegation state at a specific block
- */
-function reconstructDelegationState(
-  events: DelegationEvent[],
-  atBlock: bigint
-): string[] {
-  // Filter events up to target block and sort by block number
-  const relevantEvents = events
-    .filter((e) => e.blockNumber <= atBlock)
-    .sort((a, b) => Number(a.blockNumber - b.blockNumber));
-
-  // Build state: delegator -> is currently delegating
-  const delegatorState = new Map<string, boolean>();
-
-  for (const event of relevantEvents) {
-    if (event.eventType === "Set") {
-      delegatorState.set(event.delegator, true);
-    } else {
-      delegatorState.set(event.delegator, false);
-    }
-  }
-
-  // Find all active delegators
-  const activeDelegators: string[] = [];
-  for (const [delegator, isDelegating] of delegatorState) {
-    if (isDelegating) {
-      activeDelegators.push(delegator);
-    }
-  }
-
-  return activeDelegators;
 }
 
 /**
@@ -350,26 +371,25 @@ Options:
   const stakeDAODelegateAddress = DELEGATION_ADDRESS;
   console.log(`StakeDAO delegation address: ${stakeDAODelegateAddress}`);
 
+  const space = CVX_SPACE;
+  const spaceBytes32 = formatBytes32String(space);
+  const gaugeContexts: Array<{
+    gaugeType: "curve" | "fxn";
+    proposalId: string;
+    proposal: Awaited<ReturnType<typeof getProposal>>;
+    snapshotBlock: bigint;
+  }> = [];
+
   for (const gt of gaugeTypes) {
-    console.log("\n" + "=".repeat(80));
-    console.log(`Verifying ${gt.toUpperCase()} gauge type`);
-    console.log("=".repeat(80));
-
-    // Both Curve and FXN use the same cvx.eth space for delegation
-    // (only the proposal filter differs - FXN proposals have "FXN" prefix)
-    const space = CVX_SPACE; // Always cvx.eth for both gauge types
-    const spaceBytes32 = formatBytes32String(space);
-    console.log(`Space: ${space} (used for both Curve and FXN delegation)`);
-    console.log(`Space (bytes32): ${spaceBytes32}`);
-
-    // Get proposal to find snapshot block
-    console.log("\nFetching proposal...");
     const filter =
       gt === "fxn"
         ? "^FXN.*Gauge Weight for Week of"
         : "^(?!FXN ).*Gauge Weight for Week of";
-
-    const proposalIdPerSpace = await fetchLastProposalsIds([CVX_SPACE], timestamp + WEEK, filter);
+    const proposalIdPerSpace = await fetchLastProposalsIds(
+      [CVX_SPACE],
+      timestamp + WEEK,
+      filter
+    );
     const proposalId = proposalIdPerSpace[CVX_SPACE];
 
     if (!proposalId) {
@@ -378,7 +398,38 @@ Options:
     }
 
     const proposal = await getProposal(proposalId);
-    const snapshotBlock = BigInt(proposal.snapshot);
+    gaugeContexts.push({
+      gaugeType: gt,
+      proposalId,
+      proposal,
+      snapshotBlock: BigInt(proposal.snapshot),
+    });
+  }
+
+  console.log("\n--- Fetching shared delegations via RPC ---");
+  const rpcDelegatorsByGauge = await loadDelegationStatesAtSnapshots(
+    gaugeContexts.map(({ gaugeType: key, snapshotBlock }) => ({
+      key,
+      snapshotBlock,
+    })),
+    (toBlock) =>
+      fetchDelegationEvents(
+        stakeDAODelegateAddress,
+        spaceBytes32,
+        toBlock
+      )
+  );
+
+  for (const context of gaugeContexts) {
+    const { gaugeType: gt, proposalId, proposal, snapshotBlock } = context;
+    console.log("\n" + "=".repeat(80));
+    console.log(`Verifying ${gt.toUpperCase()} gauge type`);
+    console.log("=".repeat(80));
+
+    // Both Curve and FXN use the same cvx.eth space for delegation
+    // (only the proposal filter differs - FXN proposals have "FXN" prefix)
+    console.log(`Space: ${space} (used for both Curve and FXN delegation)`);
+    console.log(`Space (bytes32): ${spaceBytes32}`);
 
     console.log(`Proposal: ${proposal.title}`);
     console.log(`Proposal ID: ${proposalId}`);
@@ -398,15 +449,11 @@ Options:
     console.log(`Direct voters: ${directVoters.size}`);
 
     // === RPC-based delegation discovery ===
-    console.log("\n--- Fetching delegations via RPC ---");
-
-    const events = await fetchDelegationEvents(
-      stakeDAODelegateAddress,
-      spaceBytes32,
-      snapshotBlock
-    );
-
-    const rpcDelegators = reconstructDelegationState(events, snapshotBlock);
+    console.log("\n--- Reconstructing delegations from shared RPC events ---");
+    const rpcDelegators = rpcDelegatorsByGauge.get(gt);
+    if (!rpcDelegators) {
+      throw new Error(`Missing reconstructed RPC delegators for ${gt}`);
+    }
     console.log(`RPC delegators (raw): ${rpcDelegators.length}`);
 
     // Remove direct voters and delegation address
