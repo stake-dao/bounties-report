@@ -9,6 +9,7 @@ import {
   VLCVX_ONCHAIN_DELEGATION_ADDRESS,
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
+  WEEK,
 } from "../../utils/constants";
 import {
   getOnChainProposal,
@@ -1080,6 +1081,12 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     // production (unset) finality is enforced: endTime + equalizer overtime.
     const allowActive = process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL === "true";
 
+    // This slot runs the day after the round ends (Wednesday), i.e. BEFORE
+    // the Thursday distribution period that round feeds — pin the proposal to
+    // that upcoming period so a delayed re-run cannot drift onto the next
+    // round once it finalizes.
+    const votiumTargetPeriod = Math.floor(now / WEEK) * WEEK + WEEK;
+
     // Get the Curve proposal and its votes ONCE — every downstream step
     // (forwarders, breakdown, bribes matching) works on this pinned round. A
     // proposal created mid-run must never shift later reads.
@@ -1087,7 +1094,7 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       CVX_GAUGE_VOTE_PLATFORM_CURVE,
       CVX_SPACE,
       ethereumClient,
-      { requireFinal: !allowActive }
+      { requireFinal: !allowActive, targetPeriod: votiumTargetPeriod }
     );
     if (curveProposal.start > Math.floor(Date.now() / 1000)) {
       throw new Error(
@@ -1184,7 +1191,7 @@ export async function generateConvexVotiumBounties(): Promise<void> {
         CVX_GAUGE_VOTE_PLATFORM_FXN,
         CVX_SPACE,
         ethereumClient,
-        { requireFinal: !allowActive }
+        { requireFinal: !allowActive, targetPeriod: votiumTargetPeriod }
       );
       if (fxnProposal.start > Math.floor(Date.now() / 1000)) {
         throw new Error(

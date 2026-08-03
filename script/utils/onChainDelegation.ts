@@ -190,12 +190,12 @@ export const getOnChainDelegators = async (
  *
  * Keys of the returned record are lowercase.
  */
-export const getDelegatedWeightsAtEpoch = async (
+export const getDelegatedWeightsAtEpochRaw = async (
   delegationContract: string,
   epoch: number,
   addresses: string[],
   client: any
-): Promise<Record<string, number>> => {
+): Promise<Record<string, bigint>> => {
   if (addresses.length === 0) return {};
 
   const weights = (await client.multicall({
@@ -209,9 +209,27 @@ export const getDelegatedWeightsAtEpoch = async (
   })) as bigint[];
 
   return Object.fromEntries(
-    addresses.map((addr, i) => [
-      addr.toLowerCase(),
-      Number(formatUnits(weights[i], 18)),
+    addresses.map((addr, i) => [addr.toLowerCase(), weights[i]])
+  );
+};
+
+/** Same as getDelegatedWeightsAtEpochRaw, values converted to Number. */
+export const getDelegatedWeightsAtEpoch = async (
+  delegationContract: string,
+  epoch: number,
+  addresses: string[],
+  client: any
+): Promise<Record<string, number>> => {
+  const raw = await getDelegatedWeightsAtEpochRaw(
+    delegationContract,
+    epoch,
+    addresses,
+    client
+  );
+  return Object.fromEntries(
+    Object.entries(raw).map(([addr, wei]) => [
+      addr,
+      Number(formatUnits(wei, 18)),
     ])
   );
 };
@@ -271,12 +289,14 @@ export const getContributingWeightsAtVote = async (
 
 /**
  * Cross-checks the enumerated delegators against the delegate's on-chain
- * delegation weight: sum(userWeightAtEpochOf(epoch, delegator)) must match
- * GaugeDelegation.balanceAtEpochOf(epoch, delegate) up to the 0.1 vlCVX
- * per-delegator truncation (WEIGHT_DIVISOR = 1e17) — both sides are synced
- * weights, so any real deficit means the DelegateSet log scan missed
- * delegators (e.g. a failed explorer chunk masked as empty). Throws on a >5%
- * deficit; warns beyond the truncation tolerance.
+ * delegation weight: sum(userWeightAtEpochOf(epoch, delegator)) must EXACTLY
+ * equal GaugeDelegation.balanceAtEpochOf(epoch, delegate). The contract
+ * maintains delegateEpochWeights by applying the same packed deltas it writes
+ * to userEpochWeights (sync/_syncUser), so both sides are the identical
+ * accounting and any non-zero wei difference means the delegator set is
+ * wrong: a deficit = the DelegateSet log scan missed delegators (the found
+ * ones would be renormalized and overpaid), an excess = extra/duplicate
+ * delegators. Compared in bigint (no float rounding), throws on any mismatch.
  */
 const assertDelegatorsCompleteness = async (
   delegationContract: string,
@@ -291,37 +311,37 @@ const assertDelegatorsCompleteness = async (
     functionName: "balanceAtEpochOf",
     args: [BigInt(epoch), getAddress(delegateTo)],
   });
-  const delegateWeight = Number(delegateWeightWei) / 1e18;
-  if (delegateWeight === 0) return; // nothing delegated at this epoch
+  if (delegateWeightWei === 0n) return; // nothing delegated at this epoch
 
-  const weights = await getDelegatedWeightsAtEpoch(
+  const weightsWei = await getDelegatedWeightsAtEpochRaw(
     delegationContract,
     epoch,
     delegators,
     client
   );
-  const sumWeights = Object.values(weights).reduce((acc, w) => acc + w, 0);
+  const sumWei = Object.values(weightsWei).reduce((acc, w) => acc + w, 0n);
+  const diffWei = sumWei - delegateWeightWei;
 
-  const deficit = (delegateWeight - sumWeights) / delegateWeight;
-  const truncationTolerance = 0.1 * delegators.length + 1;
-
+  // Percentage only for log readability — the check itself is exact.
+  const deficitPct =
+    Number(formatUnits(delegateWeightWei - sumWei, 18)) /
+    Number(formatUnits(delegateWeightWei, 18));
   console.log(
     `Delegators completeness check: ${delegators.length} delegators, ` +
-      `sum delegated weight = ${sumWeights.toFixed(2)} vlCVX vs delegate weight = ${delegateWeight.toFixed(2)} vlCVX ` +
-      `(deficit ${(deficit * 100).toFixed(3)}%)`
+      `sum delegated weight = ${formatUnits(sumWei, 18)} vlCVX vs delegate weight = ` +
+      `${formatUnits(delegateWeightWei, 18)} vlCVX (deficit ${(deficitPct * 100).toFixed(3)}%)`
   );
 
-  if (deficit > 0.05) {
+  if (diffWei !== 0n) {
     throw new Error(
-      `Delegators sum weight (${sumWeights.toFixed(2)}) is ${(deficit * 100).toFixed(2)}% below ` +
-        `the on-chain delegate weight (${delegateWeight.toFixed(2)}) at epoch ${epoch} — ` +
-        `the DelegateSet log scan is likely incomplete, aborting`
-    );
-  }
-  if (Math.abs(sumWeights - delegateWeight) > truncationTolerance) {
-    console.warn(
-      `Warning: delegators sum weight differs from delegate weight beyond the ` +
-        `truncation tolerance (±${truncationTolerance.toFixed(1)} vlCVX) — investigate`
+      `Delegators sum weight (${formatUnits(sumWei, 18)} vlCVX) does not exactly ` +
+        `match the on-chain delegate weight (${formatUnits(delegateWeightWei, 18)} vlCVX) ` +
+        `at epoch ${epoch} (diff ${formatUnits(diffWei, 18)} vlCVX): ` +
+        (diffWei < 0n
+          ? `the DelegateSet log scan is likely incomplete — the found delegators ` +
+            `would be renormalized and overpaid`
+          : `extra or duplicate delegators were enumerated`) +
+        ` — aborting`
     );
   }
 };

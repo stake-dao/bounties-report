@@ -143,7 +143,10 @@ async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 	const gauges = Object.keys(csvResult);
 	console.log(`Found ${gauges.length} gauges in report`);
 
-	// Fetch last on-chain proposal, votes and gauge mapping (curve-only script)
+	// Fetch the on-chain proposal, votes and gauge mapping (curve-only script).
+	// targetPeriod pins it to the running period (started the previous
+	// Thursday): the Tuesday APR run must read the proposal that Thursday's
+	// repartition distributed, not a round that finalized in between.
 	const curveGauges = await getAllCurveGauges();
 	console.log("Fetching latest on-chain proposal...");
 	const client = await getClient(1);
@@ -151,6 +154,7 @@ async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 		CVX_GAUGE_VOTE_PLATFORM_CURVE,
 		CVX_SPACE,
 		client,
+		{ targetPeriod: currentPeriodTimestamp },
 	);
 	console.log("Using on-chain proposal:", proposal.id);
 	const votes = await getOnChainVoters(

@@ -31,6 +31,7 @@ import {
 } from "../../shared/nonDelegators";
 import { getGaugesInfos } from "../../utils/reportUtils";
 import { getClient } from "../../utils/getClients";
+import { Proposal } from "../../utils/types";
 
 dotenv.config();
 
@@ -39,15 +40,37 @@ type CvxCSVType = Record<
   { rewardAddress: string; rewardAmount: bigint; chainId?: number }[]
 >;
 
-const processGaugeProposal = async (
-  space: string,
-  gaugeType: "curve" | "fxn"
-) => {
-  console.log(`Starting ${gaugeType} repartition generation...`);
+// VLCVX_TARGET_PERIOD overrides the distribution period used to SELECT the
+// on-chain proposal (output files stay in the current period's directory):
+// "next" = the upcoming period, or an explicit WEEK-aligned unix timestamp.
+// Operational use: the pre-cutover dry run executes on Tuesday right after
+// the round finalizes — two days before the Thursday period that round feeds
+// — where the period binding would (correctly) refuse the just-finalized
+// proposal. Unlike VLCVX_ALLOW_ACTIVE_PROPOSAL it does NOT bypass finality:
+// only a real, final proposal can ever be selected.
+const resolveTargetPeriod = (currentPeriodTimestamp: number): number => {
+  const raw = process.env.VLCVX_TARGET_PERIOD;
+  if (!raw) return currentPeriodTimestamp;
+  const target = raw === "next" ? currentPeriodTimestamp + WEEK : Number(raw);
+  if (!Number.isInteger(target) || target % WEEK !== 0) {
+    throw new Error(
+      `Invalid VLCVX_TARGET_PERIOD "${raw}": expected "next" or a WEEK-aligned unix timestamp`
+    );
+  }
+  console.log(
+    `VLCVX_TARGET_PERIOD override: selecting the proposal for period ${target} ` +
+      `(files still written to period ${currentPeriodTimestamp})`
+  );
+  return target;
+};
 
-  // Calculate current "epoch"
-  const now = moment.utc().unix();
-  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+const processGaugeProposal = async (
+  gaugeType: "curve" | "fxn",
+  proposal: Proposal,
+  currentPeriodTimestamp: number,
+  publicClient: any
+): Promise<void> => {
+  console.log(`Starting ${gaugeType} repartition generation...`);
 
   // Check if files already exist
   const dirPath = `bounties-reports/${currentPeriodTimestamp}/vlCVX/${gaugeType}`;
@@ -101,19 +124,11 @@ const processGaugeProposal = async (
     }));
   }
 
-  console.log("Fetching on-chain proposal and votes...");
-  const publicClient = await getClient(1); // Use getClient to get a reliable Ethereum mainnet client
-
+  console.log("Fetching on-chain votes...");
   const platform =
     gaugeType === "curve"
       ? CVX_GAUGE_VOTE_PLATFORM_CURVE
       : CVX_GAUGE_VOTE_PLATFORM_FXN;
-  // VLCVX_ALLOW_ACTIVE_PROPOSAL=true is a TEST-ONLY escape hatch (fork /
-  // virtual testnet): it skips the endTime+overtime finality guard. Never set
-  // it in production — results read before endTime+600s are not final.
-  const proposal = await getOnChainProposal(platform, space, publicClient, {
-    requireFinal: process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL !== "true",
-  });
   const proposalId = proposal.id;
   console.log(
     `on-chain proposalId ${proposalId} (vlCVX epoch ${proposal.snapshot})`
@@ -180,13 +195,25 @@ const processGaugeProposal = async (
       nonDelegatorsDistribution
     )) {
       if (voter.toLowerCase() === delegationAddress.toLowerCase()) {
-        delegationDistribution = await computeStakeDaoDelegation(
-          proposal,
-          stakeDaoDelegators,
-          tokens,
-          voter
-        );
-        delete nonDelegatorsDistribution[voter];
+        const { distribution, delegateOwnTokens } =
+          await computeStakeDaoDelegation(
+            proposal,
+            stakeDaoDelegators,
+            tokens,
+            voter
+          );
+        delegationDistribution = distribution;
+        if (Object.keys(delegateOwnTokens).length > 0) {
+          // Share earned by the delegate's OWN vlCVX (baseWeight): it belongs
+          // to the delegate, not to the delegation pool.
+          console.log(
+            "Delegate voted with own vlCVX — keeping its baseWeight share:",
+            delegateOwnTokens
+          );
+          nonDelegatorsDistribution[voter] = { tokens: delegateOwnTokens };
+        } else {
+          delete nonDelegatorsDistribution[voter];
+        }
         break;
       }
     }
@@ -328,11 +355,59 @@ const processGaugeProposal = async (
 
 // Main entry point that processes both proposal types
 const main = async () => {
-  // Process curve gauge weight proposal
-  await processGaugeProposal(CVX_SPACE, "curve");
+  const now = moment.utc().unix();
+  const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+  const publicClient = await getClient(1);
 
-  // Process fxn gauge weight proposal
-  await processGaugeProposal(CVX_SPACE, "fxn");
+  // VLCVX_ALLOW_ACTIVE_PROPOSAL=true is a TEST-ONLY escape hatch (fork /
+  // virtual testnet): it skips the endTime+overtime finality guard. Never set
+  // it in production — results read before endTime+600s are not final.
+  // targetPeriod pins the proposals to the period being distributed, so a
+  // late retry (FORCE_UPDATE after the next round finalized) cannot silently
+  // switch the vote source of already-published files.
+  const requireFinal = process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL !== "true";
+  const targetPeriod = resolveTargetPeriod(currentPeriodTimestamp);
+
+  // Resolve BOTH platforms' proposals and validate their coherence BEFORE any
+  // file is written — including reruns where one platform's artifacts already
+  // exist (crash-resume): the pair is validated regardless of what is skipped.
+  console.log("Fetching on-chain proposals...");
+  const curveProposal = await getOnChainProposal(
+    CVX_GAUGE_VOTE_PLATFORM_CURVE,
+    CVX_SPACE,
+    publicClient,
+    { requireFinal, targetPeriod }
+  );
+  const fxnProposal = await getOnChainProposal(
+    CVX_GAUGE_VOTE_PLATFORM_FXN,
+    CVX_SPACE,
+    publicClient,
+    { requireFinal, targetPeriod }
+  );
+  if (
+    Number(curveProposal.snapshot) !== Number(fxnProposal.snapshot) ||
+    curveProposal.end !== fxnProposal.end
+  ) {
+    throw new Error(
+      `Round mismatch between gauge platforms: curve proposal ${curveProposal.id} ` +
+        `(vlCVX epoch ${curveProposal.snapshot}, end ${curveProposal.end}) vs ` +
+        `fxn proposal ${fxnProposal.id} (vlCVX epoch ${fxnProposal.snapshot}, ` +
+        `end ${fxnProposal.end}) — refusing to mix rounds`
+    );
+  }
+
+  await processGaugeProposal(
+    "curve",
+    curveProposal,
+    currentPeriodTimestamp,
+    publicClient
+  );
+  await processGaugeProposal(
+    "fxn",
+    fxnProposal,
+    currentPeriodTimestamp,
+    publicClient
+  );
 };
 
 main().catch((error) => {

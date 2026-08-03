@@ -700,10 +700,14 @@ async function processForwarders() {
 	// Attempt to verify distribution on mainnet
 	try {
 		const client = await getClient(1);
+		// Pin the proposal to the running period (started the previous Thursday):
+		// the Tuesday delegators merkle distributes that Thursday's repartition,
+		// and must not drift onto a round that finalized in between.
 		const proposal = await getOnChainProposal(
 			CVX_GAUGE_VOTE_PLATFORM_CURVE,
 			CVX_SPACE,
 			client,
+			{ targetPeriod: currentPeriodTimestamp },
 		);
 		const votes = await getOnChainVoters(
 			CVX_GAUGE_VOTE_PLATFORM_CURVE,

@@ -514,7 +514,11 @@ function processChain(
         ? CVX_GAUGE_VOTE_PLATFORM_FXN
         : CVX_GAUGE_VOTE_PLATFORM_CURVE;
     const client = await getClient(1);
-    const proposal = await getOnChainProposal(platform, CVX_SPACE, client);
+    // Pin the proposal to the period whose merkle was just generated, so a
+    // late re-run cannot verify the next round against this period's files.
+    const proposal = await getOnChainProposal(platform, CVX_SPACE, client, {
+      targetPeriod: currentPeriodTimestamp,
+    });
     const votes = await getOnChainVoters(
       platform,
       Number(proposal.id),

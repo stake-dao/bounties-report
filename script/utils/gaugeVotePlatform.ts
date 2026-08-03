@@ -1,5 +1,5 @@
 import { parseAbi, formatUnits } from "viem";
-import { VLCVX_ADDRESS } from "./constants";
+import { VLCVX_ADDRESS, WEEK } from "./constants";
 import { Proposal } from "./types";
 
 /**
@@ -31,23 +31,37 @@ const VLCVX_ABI = parseAbi([
 const EQUALIZER_OVERTIME = 600;
 
 /**
- * Reads the latest FINALIZED proposal from a GaugeVotePlatform (Curve or FXN)
- * and maps it to the Proposal interface: choices = lowercase gauge addresses,
- * snapshot = vlCVX epoch number.
+ * Reads the FINALIZED proposal to distribute from a GaugeVotePlatform (Curve
+ * or FXN) and maps it to the Proposal interface: choices = lowercase gauge
+ * addresses, snapshot = vlCVX epoch number.
  *
  * Proposals last 2 weeks but the distribution runs weekly: on the second
  * Thursday a fresh (active) proposal may already exist, so "latest" is wrong —
- * we walk back from the newest proposal to the most recent one strictly past
- * endTime + overtime (mirrors the contract's isFinalized, which is strict).
- * Throws if no proposal exists, or none is finalized yet.
+ * we walk back from the newest proposal to the most recent finalized one.
+ * Finality mirrors the contract's isFinalized: endTime > 0 AND strictly past
+ * endTime + overtime. forceEndProposal zeroes startTime/endTime/epoch, so a
+ * force-ended proposal is never distributable.
+ *
+ * opts.targetPeriod (WEEK-aligned start of the distribution period being
+ * computed) pins the selection to that period instead of the current clock:
+ * only proposals already finalized by the period start are eligible, so a
+ * late retry of a past period cannot drift onto the round that finalized in
+ * between. Rounds are biweekly, so a proposal legitimately serves at most two
+ * weekly periods — if the newest eligible proposal ended more than 2 weeks
+ * before the period, it throws instead of silently serving a third week.
+ *
+ * Throws if no proposal exists, or none is eligible.
  * With opts.requireFinal === false (TEST-ONLY fork escape hatch) the newest
- * proposal is returned regardless of finality, as before.
+ * non-force-ended proposal is returned regardless of finality and
+ * targetPeriod is ignored.
  */
 export const getOnChainProposal = async (
   gaugeVotePlatformAddress: string,
   spaceId: string,
   client: any,
-  opts: { requireFinal?: boolean } = { requireFinal: true }
+  opts: { requireFinal?: boolean; targetPeriod?: number } = {
+    requireFinal: true,
+  }
 ): Promise<Proposal> => {
   const count: bigint = await client.readContract({
     address: gaugeVotePlatformAddress,
@@ -64,38 +78,81 @@ export const getOnChainProposal = async (
   let proposalId = Number(count) - 1;
   let proposalData: [bigint, bigint, bigint] | undefined;
 
-  if (opts.requireFinal === false) {
-    proposalData = (await client.readContract({
+  for (let pid = Number(count) - 1; pid >= 0; pid--) {
+    const data = (await client.readContract({
       address: gaugeVotePlatformAddress,
       abi: GAUGE_VOTE_PLATFORM_ABI,
       functionName: "proposals",
-      args: [BigInt(proposalId)],
+      args: [BigInt(pid)],
     })) as [bigint, bigint, bigint];
-  } else {
-    for (let pid = Number(count) - 1; pid >= 0; pid--) {
-      const data = (await client.readContract({
-        address: gaugeVotePlatformAddress,
-        abi: GAUGE_VOTE_PLATFORM_ABI,
-        functionName: "proposals",
-        args: [BigInt(pid)],
-      })) as [bigint, bigint, bigint];
-      if (now > Number(data[1]) + EQUALIZER_OVERTIME) {
-        proposalId = pid;
-        proposalData = data;
-        break;
-      }
+    const endTime = Number(data[1]);
+
+    // forceEndProposal zeroes startTime/endTime/epoch; the contract's own
+    // isFinalized requires endTime > 0 — a force-ended proposal must never
+    // be distributed (its epoch is 0 and its votes are partial).
+    if (endTime === 0) {
       console.log(
-        `Skipping on-chain proposal ${pid}: not finalized (ends at ${Number(
-          data[1]
-        )} + ${EQUALIZER_OVERTIME}s overtime)`
+        `Skipping on-chain proposal ${pid}: force-ended (endTime = 0)`
       );
+      continue;
     }
-    if (!proposalData) {
+
+    if (opts.requireFinal === false) {
+      proposalId = pid;
+      proposalData = data;
+      break;
+    }
+
+    if (now <= endTime + EQUALIZER_OVERTIME) {
+      console.log(
+        `Skipping on-chain proposal ${pid}: not finalized (ends at ${endTime} + ${EQUALIZER_OVERTIME}s overtime)`
+      );
+      continue;
+    }
+
+    if (
+      opts.targetPeriod !== undefined &&
+      endTime + EQUALIZER_OVERTIME > opts.targetPeriod
+    ) {
+      console.log(
+        `Skipping on-chain proposal ${pid}: finalized after the start of ` +
+          `distribution period ${opts.targetPeriod} (ends at ${endTime})`
+      );
+      continue;
+    }
+
+    // Walking newest -> oldest, the first eligible proposal is the answer.
+    // If it ended more than one round (2 weeks) before the period, the round
+    // the period should distribute is missing (never created or force-ended):
+    // refuse to serve the previous round a third week.
+    if (
+      opts.targetPeriod !== undefined &&
+      endTime <= opts.targetPeriod - 2 * WEEK
+    ) {
       throw new Error(
-        `No finalized on-chain proposal on GaugeVotePlatform ${gaugeVotePlatformAddress} ` +
-          `(${count} proposal(s), none past endTime + ${EQUALIZER_OVERTIME}s overtime)`
+        `Stale on-chain proposal on GaugeVotePlatform ${gaugeVotePlatformAddress}: ` +
+          `newest eligible proposal ${pid} ended at ${endTime}, more than 2 weeks ` +
+          `before distribution period ${opts.targetPeriod} — the expected round ` +
+          `is missing, refusing to reuse it`
       );
     }
+
+    proposalId = pid;
+    proposalData = data;
+    break;
+  }
+
+  if (!proposalData) {
+    throw new Error(
+      `No usable on-chain proposal on GaugeVotePlatform ${gaugeVotePlatformAddress} ` +
+        `(${count} proposal(s): force-ended proposals excluded` +
+        (opts.requireFinal === false
+          ? ")"
+          : `, finality = endTime + ${EQUALIZER_OVERTIME}s overtime elapsed` +
+            (opts.targetPeriod !== undefined
+              ? ` before period ${opts.targetPeriod})`
+              : ")"))
+    );
   }
 
   const [startTime, endTime, epoch] = proposalData as [bigint, bigint, bigint];
@@ -196,17 +253,25 @@ export const getOnChainVoters = async (
     const [gauges, weights, voted, baseWeight, adjustedWeight] = result;
     if (!voted) return;
 
-    // Exact signed sum, as applied to gaugeTotal by the contract. The platform
-    // guarantees a voted account never nets <= 0 (votes revert on NoWeight and
-    // every subtraction is bounded by previously added weight) — assert it so
-    // a future break of that invariant fails loudly instead of mispaying.
+    // Exact signed sum, as applied to gaugeTotal by the contract. Every
+    // subtraction is bounded by previously added weight, so a negative net is
+    // a broken contract invariant — fail loudly instead of mispaying. An
+    // EXACT zero is a valid final state (e.g. a delegate whose weight was
+    // entirely removed by delegators voting directly or re-delegating): the
+    // account carries no weight in the tally, skip it.
     const effectiveWeight = baseWeight + adjustedWeight;
-    if (effectiveWeight <= 0n) {
+    if (effectiveWeight < 0n) {
       throw new Error(
-        `getOnChainVoters: voted account ${voters[i]} has non-positive effective weight ` +
+        `getOnChainVoters: voted account ${voters[i]} has negative effective weight ` +
           `(baseWeight=${baseWeight}, adjustedWeight=${adjustedWeight}) — ` +
           `contract invariant broken, refusing to distribute`
       );
+    }
+    if (effectiveWeight === 0n) {
+      console.warn(
+        `getOnChainVoters: voted account ${voters[i]} has zero effective weight — skipping`
+      );
+      return;
     }
     const vp = Number(formatUnits(effectiveWeight, 18));
 
@@ -222,6 +287,33 @@ export const getOnChainVoters = async (
   });
 
   return votes;
+};
+
+/**
+ * Final on-chain vote of a single account on a proposal (getVote), raw wei
+ * values. Used to reconcile the delegation split against the vote the
+ * platform actually applied.
+ */
+export const getVoteOf = async (
+  gaugeVotePlatformAddress: string,
+  proposalId: number,
+  voter: string,
+  client: any
+): Promise<{
+  gauges: string[];
+  weights: bigint[];
+  voted: boolean;
+  baseWeight: bigint;
+  adjustedWeight: bigint;
+}> => {
+  const [gauges, weights, voted, baseWeight, adjustedWeight] =
+    (await client.readContract({
+      address: gaugeVotePlatformAddress,
+      abi: GAUGE_VOTE_PLATFORM_ABI,
+      functionName: "getVote",
+      args: [BigInt(proposalId), voter],
+    })) as [string[], bigint[], boolean, bigint, bigint];
+  return { gauges, weights, voted, baseWeight, adjustedWeight };
 };
 
 /**
