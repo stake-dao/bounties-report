@@ -279,7 +279,9 @@ export const getOnChainVoters = async (
     for (let j = 0; j < gauges.length; j++) {
       const choiceIndex = proposal.choices.indexOf(gauges[j].toLowerCase());
       if (choiceIndex !== -1) {
-        choice[(choiceIndex + 1).toString()] = Number(weights[j]) / 100; // ppm / 100 — relative weight
+        // Sum (not overwrite) in case a gauge ever appears twice in a vote
+        const key = (choiceIndex + 1).toString();
+        choice[key] = (choice[key] || 0) + Number(weights[j]) / 100; // ppm / 100 — relative weight
       }
     }
 
