@@ -89,6 +89,16 @@ const processGaugeProposal = async (
     return;
   }
 
+  // Invalidate previous outputs BEFORE computing: on a re-run where a
+  // computation is skipped (delegate without vote, gauge not voted), a stale
+  // repartition_delegation.json / repartition_<chainId>.json would otherwise
+  // survive and be consumed by the merkle step.
+  for (const file of fs.readdirSync(dirPath)) {
+    if (/^repartition.*\.json$/.test(file)) {
+      fs.rmSync(path.join(dirPath, file), { force: true });
+    }
+  }
+
   // --- 1) Gauge-based distribution (non-delegation) ---
 
   let gauges;
@@ -186,7 +196,12 @@ const processGaugeProposal = async (
   // --- 3) Compute Non-Delegators Distribution ---
   console.log("Computing non-delegators distribution...");
   const nonDelegatorsDistribution: Distribution =
-    computeNonDelegatorsDistribution(csvResult, gaugeMapping, votes);
+    computeNonDelegatorsDistribution(
+      csvResult,
+      gaugeMapping,
+      votes,
+      proposal.choices
+    );
 
   // --- 4) Compute Delegation Distribution & Summary ---
   let delegationDistribution: DelegationDistribution = {};
@@ -384,9 +399,14 @@ const main = async () => {
     publicClient,
     { requireFinal, targetPeriod }
   );
+  // Same round = same vlCVX epoch. End times are operator-supplied per
+  // platform (createProposal takes free timestamps), so exact equality is not
+  // guaranteed on-chain — tolerate small skew; rounds are 2 weeks apart, so
+  // 6h cannot confuse two rounds.
+  const CROSS_PLATFORM_END_TOLERANCE = 6 * 3600;
   if (
     Number(curveProposal.snapshot) !== Number(fxnProposal.snapshot) ||
-    curveProposal.end !== fxnProposal.end
+    Math.abs(curveProposal.end - fxnProposal.end) > CROSS_PLATFORM_END_TOLERANCE
   ) {
     throw new Error(
       `Round mismatch between gauge platforms: curve proposal ${curveProposal.id} ` +

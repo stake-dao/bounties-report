@@ -17,6 +17,7 @@ import {
   multiGaugeVoters,
   emptyCsvResult,
   emptyVotes,
+  unmappedGaugeCsvResult,
   TOKEN_A,
   TOKEN_B,
 } from "../fixtures/nonDelegators.fixtures";
@@ -165,6 +166,43 @@ for (const { name, fn } of implementations) {
     it("returns empty distribution when no voters voted for any gauge", () => {
       const result = fn(minimalCsvResult, minimalGaugeMapping, emptyVotes);
       // With no voters, no one can receive rewards
+      expect(recipientCount(result)).toBe(0);
+    });
+
+    // --- Unmatched gauge (on-chain proposals only list voted gauges) ---
+
+    it("skips a CSV gauge absent from both the mapping and the proposal choices", () => {
+      // The gauge received no votes: skipping is the correct behavior,
+      // nothing to distribute for it.
+      const result = fn(
+        { ...unmappedGaugeCsvResult, ...minimalCsvResult },
+        minimalGaugeMapping,
+        twoEqualVoters,
+        Object.keys(minimalGaugeMapping) // proposal choices without the unmapped gauge
+      );
+      // The mapped gauge still distributes fully; the unvoted one is dropped
+      expect(sumTokenAmounts(result, TOKEN_A)).toBe(BigInt("1000000000000000000"));
+      expect(recipientCount(result)).toBe(2);
+    });
+
+    it("throws when a CSV gauge has on-chain votes but no gauge-list match", () => {
+      const unmappedGauge = Object.keys(unmappedGaugeCsvResult)[0];
+      expect(() =>
+        fn(
+          unmappedGaugeCsvResult,
+          minimalGaugeMapping,
+          twoEqualVoters,
+          [unmappedGauge.toLowerCase()] // present in the proposal = it HAS votes
+        )
+      ).toThrow("no gauge-list match");
+    });
+
+    it("keeps the legacy warn+skip behavior when proposal choices are not provided", () => {
+      const result = fn(
+        unmappedGaugeCsvResult,
+        minimalGaugeMapping,
+        twoEqualVoters
+      );
       expect(recipientCount(result)).toBe(0);
     });
 

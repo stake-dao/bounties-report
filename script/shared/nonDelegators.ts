@@ -8,13 +8,25 @@ export type Distribution = Record<string, { tokens: Record<string, bigint> }>;
 export const computeNonDelegatorsDistribution = (
   csvResult: any,
   gaugeMapping: any,
-  votes: any
+  votes: any,
+  // On-chain proposal choices (lowercase gauge addresses). When provided, a
+  // CSV gauge missing from gaugeMapping is only skippable if it is also
+  // absent from the proposal (= received no votes); a gauge PRESENT in the
+  // proposal but unmatched by the gauge-list mapping has votes to reward,
+  // and skipping it would silently withhold a voted gauge's rewards.
+  proposalChoices?: string[]
 ): Distribution => {
   const distribution: Distribution = {};
 
   Object.entries(csvResult).forEach(([gauge, rewardInfos]) => {
     const gaugeInfo = gaugeMapping[gauge.toLowerCase()];
     if (!gaugeInfo) {
+      if (proposalChoices?.includes(gauge.toLowerCase())) {
+        throw new Error(
+          `Gauge ${gauge} has on-chain votes (present in proposal choices) but no ` +
+            `gauge-list match — refusing to skip a voted gauge's rewards`
+        );
+      }
       // On-chain proposals only list gauges that received votes (Snapshot
       // listed every gauge). A bountied gauge nobody voted for has no votes
       // to reward — skip it instead of failing the whole round.
