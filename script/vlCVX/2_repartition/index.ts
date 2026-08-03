@@ -146,18 +146,20 @@ const processGaugeProposal = async (
       Number(proposal.snapshot), // vlCVX epoch
       publicClient
     );
-    // Remove any delegator who voted directly.
-    for (const delegator of stakeDaoDelegators) {
-      if (
-        votes.some(
-          (voter) => voter.voter.toLowerCase() === delegator.toLowerCase()
-        )
-      ) {
-        console.log("Removing delegator (voted by himself):", delegator);
-        stakeDaoDelegators = stakeDaoDelegators.filter(
-          (d) => d.toLowerCase() !== delegator.toLowerCase()
-        );
-      }
+    // Delegators who voted directly are NOT blanket-removed here: their
+    // contribution to the delegate's vote is resolved per-address by
+    // GaugeVoteHelper.getContributingWeights in computeStakeDaoDelegation —
+    // 0 for a full direct vote, or only the delta that stayed with the
+    // delegate (sync landed between their own vote and the delegate's).
+    const directVoters = stakeDaoDelegators.filter((delegator) =>
+      votes.some((voter) => voter.voter.toLowerCase() === delegator.toLowerCase())
+    );
+    if (directVoters.length > 0) {
+      console.log(
+        `${directVoters.length} delegator(s) also voted directly — contributing ` +
+          `weights resolved on-chain via GaugeVoteHelper:`,
+        directVoters
+      );
     }
     console.log("Final StakeDAO delegators:", stakeDaoDelegators);
   } else {

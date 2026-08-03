@@ -216,6 +216,59 @@ export const getDelegatedWeightsAtEpoch = async (
   );
 };
 
+const GAUGE_VOTE_HELPER_ABI = parseAbi([
+  "function getContributingWeights(uint256 _proposalId, address _delegate, address[] _users, address _gaugePlatform) external view returns (uint256[])",
+]);
+
+// One eth_call does ~5 external reads per user inside the helper — chunk to
+// stay far below provider eth_call gas caps.
+const HELPER_CHUNK_SIZE = 100;
+
+/**
+ * Per-delegator weight AS INCORPORATED IN THE DELEGATE'S VOTE on a given
+ * platform proposal, via GaugeVoteHelper.getContributingWeights.
+ *
+ * Unlike userWeightAtEpochOf (the CURRENT synced table, mutable until the
+ * epoch rolls), the helper replays the platform's sync-nonce accounting:
+ * - delegator synced AFTER the delegate's last vote -> pre-sync weight (the
+ *   increase went to pendingWeightAdjustment and did NOT weigh this round);
+ * - delegator voted directly -> 0, or only the delta that stayed with the
+ *   delegate (synced between their own vote and the delegate's);
+ * - not delegating to `delegateTo` at the proposal epoch -> 0.
+ * Weights must be fetched separately per platform (Curve / FXN): the
+ * delegate's lastVoteSyncNonce differs per proposal.
+ */
+export const getContributingWeightsAtVote = async (
+  helperContract: string,
+  gaugeVotePlatformAddress: string,
+  proposalId: number,
+  delegateTo: string,
+  delegators: string[],
+  client: any
+): Promise<Record<string, number>> => {
+  if (delegators.length === 0) return {};
+
+  const out: Record<string, number> = {};
+  for (let i = 0; i < delegators.length; i += HELPER_CHUNK_SIZE) {
+    const chunk = delegators.slice(i, i + HELPER_CHUNK_SIZE);
+    const weights = (await client.readContract({
+      address: helperContract,
+      abi: GAUGE_VOTE_HELPER_ABI,
+      functionName: "getContributingWeights",
+      args: [
+        BigInt(proposalId),
+        getAddress(delegateTo),
+        chunk.map((a) => getAddress(a)),
+        getAddress(gaugeVotePlatformAddress),
+      ],
+    })) as bigint[];
+    chunk.forEach((addr, j) => {
+      out[addr.toLowerCase()] = Number(formatUnits(weights[j], 18));
+    });
+  }
+  return out;
+};
+
 /**
  * Cross-checks the enumerated delegators against the delegate's on-chain
  * delegation weight: sum(userWeightAtEpochOf(epoch, delegator)) must match

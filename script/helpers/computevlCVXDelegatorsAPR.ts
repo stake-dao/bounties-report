@@ -16,6 +16,7 @@ import {
 	VLCVX_ONCHAIN_DELEGATION_ADDRESS,
 	CVX_GAUGE_VOTE_PLATFORM_CURVE,
 	CVX_GAUGE_DELEGATION,
+	CVX_GAUGE_VOTE_HELPER,
 } from "../utils/constants";
 import {
 	getOnChainProposal,
@@ -24,7 +25,7 @@ import {
 } from "../utils/gaugeVotePlatform";
 import {
 	getOnChainDelegators,
-	getDelegatedWeightsAtEpoch,
+	getContributingWeightsAtVote,
 } from "../utils/onChainDelegation";
 import { getClient } from "../utils/getClients";
 import { extractCSV } from "../utils/utils";
@@ -209,10 +210,13 @@ async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 		Number(proposal.snapshot), // vlCVX epoch
 		client,
 	);
-	// Synced delegation weights (userWeightAtEpochOf), NOT raw vlCVX balances
-	const delegatorVotingPowers = await getDelegatedWeightsAtEpoch(
-		CVX_GAUGE_DELEGATION,
-		Number(proposal.snapshot),
+	// Weight of each delegator AS INCORPORATED IN THE DELEGATE'S VOTE
+	// (GaugeVoteHelper) — not the mutable epoch table, not raw vlCVX balances.
+	const delegatorVotingPowers = await getContributingWeightsAtVote(
+		CVX_GAUGE_VOTE_HELPER,
+		CVX_GAUGE_VOTE_PLATFORM_CURVE,
+		Number(proposal.id),
+		VLCVX_ONCHAIN_DELEGATION_ADDRESS,
 		delegators,
 		client,
 	);

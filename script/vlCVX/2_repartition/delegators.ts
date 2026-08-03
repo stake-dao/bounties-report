@@ -1,6 +1,6 @@
-import { VOTIUM_FORWARDER, CVX_GAUGE_DELEGATION } from "../../utils/constants";
+import { VOTIUM_FORWARDER, CVX_GAUGE_VOTE_HELPER } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
-import { getDelegatedWeightsAtEpoch } from "../../utils/onChainDelegation";
+import { getContributingWeightsAtVote } from "../../utils/onChainDelegation";
 import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
 import { getClient } from "../../utils/getClients";
 
@@ -34,14 +34,18 @@ export const computeStakeDaoDelegation = async (
   // Store the delegation voter's token totals.
   delegationDistribution[delegationVoter] = { tokens: { ...tokens } };
 
-  // Weight of each delegator via Delegation.userWeightAtEpochOf
-  // (proposal.snapshot is the vlCVX epoch number, not a block).
-  // NOT the raw vlCVX balance: the delegate votes with the SYNCED weights, so
-  // un-synced lock increases must not inflate a delegator's share.
+  // Weight of each delegator AS INCORPORATED IN THE DELEGATE'S VOTE, via
+  // GaugeVoteHelper.getContributingWeights (proposal.author = the platform
+  // this proposal lives on, so Curve and FXN resolve independently).
+  // NOT userWeightAtEpochOf: that table stays mutable until the epoch rolls,
+  // so a delegator syncing AFTER the delegate voted would be over-credited.
+  // NOT the raw vlCVX balance either: the delegate votes with synced weights.
   const client = await getClient(1);
-  const vps = await getDelegatedWeightsAtEpoch(
-    CVX_GAUGE_DELEGATION,
-    Number(proposal.snapshot),
+  const vps = await getContributingWeightsAtVote(
+    CVX_GAUGE_VOTE_HELPER,
+    proposal.author,
+    Number(proposal.id),
+    delegationVoter,
     stakeDaoDelegators,
     client
   );

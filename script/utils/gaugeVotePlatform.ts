@@ -31,12 +31,17 @@ const VLCVX_ABI = parseAbi([
 const EQUALIZER_OVERTIME = 600;
 
 /**
- * Reads the latest proposal from a GaugeVotePlatform (Curve or FXN) and maps it
- * to the Proposal interface: choices = lowercase gauge addresses,
+ * Reads the latest FINALIZED proposal from a GaugeVotePlatform (Curve or FXN)
+ * and maps it to the Proposal interface: choices = lowercase gauge addresses,
  * snapshot = vlCVX epoch number.
- * Throws if no proposal exists yet, or (unless opts.requireFinal is false) if
- * the latest one is not past endTime + overtime — the repartition must only run
- * on final results.
+ *
+ * Proposals last 2 weeks but the distribution runs weekly: on the second
+ * Thursday a fresh (active) proposal may already exist, so "latest" is wrong —
+ * we walk back from the newest proposal to the most recent one strictly past
+ * endTime + overtime (mirrors the contract's isFinalized, which is strict).
+ * Throws if no proposal exists, or none is finalized yet.
+ * With opts.requireFinal === false (TEST-ONLY fork escape hatch) the newest
+ * proposal is returned regardless of finality, as before.
  */
 export const getOnChainProposal = async (
   gaugeVotePlatformAddress: string,
@@ -54,35 +59,53 @@ export const getOnChainProposal = async (
       `No on-chain proposal yet on GaugeVotePlatform ${gaugeVotePlatformAddress}`
     );
   }
-  const proposalId = Number(count) - 1;
 
-  const [proposalData, gaugeCount] = await client.multicall({
-    allowFailure: false,
-    contracts: [
-      {
+  const now = Math.floor(Date.now() / 1000);
+  let proposalId = Number(count) - 1;
+  let proposalData: [bigint, bigint, bigint] | undefined;
+
+  if (opts.requireFinal === false) {
+    proposalData = (await client.readContract({
+      address: gaugeVotePlatformAddress,
+      abi: GAUGE_VOTE_PLATFORM_ABI,
+      functionName: "proposals",
+      args: [BigInt(proposalId)],
+    })) as [bigint, bigint, bigint];
+  } else {
+    for (let pid = Number(count) - 1; pid >= 0; pid--) {
+      const data = (await client.readContract({
         address: gaugeVotePlatformAddress,
         abi: GAUGE_VOTE_PLATFORM_ABI,
         functionName: "proposals",
-        args: [BigInt(proposalId)],
-      },
-      {
-        address: gaugeVotePlatformAddress,
-        abi: GAUGE_VOTE_PLATFORM_ABI,
-        functionName: "getGaugeCount",
-        args: [BigInt(proposalId)],
-      },
-    ],
-  });
+        args: [BigInt(pid)],
+      })) as [bigint, bigint, bigint];
+      if (now > Number(data[1]) + EQUALIZER_OVERTIME) {
+        proposalId = pid;
+        proposalData = data;
+        break;
+      }
+      console.log(
+        `Skipping on-chain proposal ${pid}: not finalized (ends at ${Number(
+          data[1]
+        )} + ${EQUALIZER_OVERTIME}s overtime)`
+      );
+    }
+    if (!proposalData) {
+      throw new Error(
+        `No finalized on-chain proposal on GaugeVotePlatform ${gaugeVotePlatformAddress} ` +
+          `(${count} proposal(s), none past endTime + ${EQUALIZER_OVERTIME}s overtime)`
+      );
+    }
+  }
+
   const [startTime, endTime, epoch] = proposalData as [bigint, bigint, bigint];
 
-  const now = Math.floor(Date.now() / 1000);
-  if (opts.requireFinal !== false && now < Number(endTime) + EQUALIZER_OVERTIME) {
-    throw new Error(
-      `On-chain proposal ${proposalId} not final yet (ends at ${Number(
-        endTime
-      )} + ${EQUALIZER_OVERTIME}s equalizer overtime)`
-    );
-  }
+  const gaugeCount: bigint = await client.readContract({
+    address: gaugeVotePlatformAddress,
+    abi: GAUGE_VOTE_PLATFORM_ABI,
+    functionName: "getGaugeCount",
+    args: [BigInt(proposalId)],
+  });
 
   const entries = (await client.multicall({
     allowFailure: false,
@@ -127,7 +150,8 @@ export const getOnChainProposal = async (
  * getVoterCount/getVoterAtIndex enumerate unique voters directly — no event
  * scan, no dedup. getVote then reflects the final state (re-votes overwrite).
  *
- * vp = baseWeight + max(adjustedWeight, 0), in vlCVX (18 decimals).
+ * vp = baseWeight + adjustedWeight (exact signed sum, asserted > 0 for voted
+ * accounts), in vlCVX (18 decimals).
  * choice keys are 1-indexed positions in proposal.choices. Values are the
  * on-chain weights (ppm, 0-1_000_000 since the 2026-07-25 redeploy) divided
  * by 100 — only meaningful relative to the voter's other choice values; all
@@ -172,10 +196,19 @@ export const getOnChainVoters = async (
     const [gauges, weights, voted, baseWeight, adjustedWeight] = result;
     if (!voted) return;
 
-    const effectiveWeight =
-      baseWeight + (adjustedWeight > 0n ? adjustedWeight : 0n);
+    // Exact signed sum, as applied to gaugeTotal by the contract. The platform
+    // guarantees a voted account never nets <= 0 (votes revert on NoWeight and
+    // every subtraction is bounded by previously added weight) — assert it so
+    // a future break of that invariant fails loudly instead of mispaying.
+    const effectiveWeight = baseWeight + adjustedWeight;
+    if (effectiveWeight <= 0n) {
+      throw new Error(
+        `getOnChainVoters: voted account ${voters[i]} has non-positive effective weight ` +
+          `(baseWeight=${baseWeight}, adjustedWeight=${adjustedWeight}) — ` +
+          `contract invariant broken, refusing to distribute`
+      );
+    }
     const vp = Number(formatUnits(effectiveWeight, 18));
-    if (vp === 0) return;
 
     const choice: Record<string, number> = {};
     for (let j = 0; j < gauges.length; j++) {

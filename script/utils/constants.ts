@@ -51,6 +51,8 @@ export const CVX_GAUGE_VOTE_PLATFORM_FXN =
   "0xDcEa673B021f1f431E7D0Ec70a63bF8DcB6d44E6"; // FxGaugeVoting
 export const CVX_GAUGE_DELEGATION =
   "0xb8270eef1319173dE9f5033FED442F638ff1607d"; // GaugeDelegation (NOT the DaoDelegation)
+export const CVX_GAUGE_VOTE_HELPER =
+  "0x76C484F67898EA978aa874dc7B32e648380FB9b1"; // GaugeVoteHelper (read-only contributing weights)
 export const CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH = 25478184;
 export const VLCVX_ADDRESS = "0x72a19342e8F1838460eBFCCEf09F6585e32db86E";
 

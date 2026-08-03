@@ -9,11 +9,12 @@ import {
   CVX_SPACE,
   VLCVX_ONCHAIN_DELEGATION_ADDRESS,
   CVX_GAUGE_DELEGATION,
+  CVX_GAUGE_VOTE_HELPER,
 } from "./constants";
 import { getVotingPower } from "./snapshot";
 import {
   getOnChainDelegators,
-  getDelegatedWeightsAtEpoch,
+  getContributingWeightsAtVote,
 } from "./onChainDelegation";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
@@ -175,6 +176,15 @@ export const fetchDelegatorData = async (
           `(looks like a block number — was a legacy Snapshot proposal passed?)`
       );
     }
+    const proposalId = Number(proposal.id);
+    if (!Number.isInteger(proposalId) || !`${proposal.author}`.startsWith("0x")) {
+      throw new Error(
+        `fetchDelegatorData: cvx.eth expects an on-chain proposal ` +
+          `(numeric id + platform address in author), got id="${proposal.id}" ` +
+          `author="${proposal.author}"`
+      );
+    }
+
     const client = await getClient(1);
     const onChainDelegators = await getOnChainDelegators(
       CVX_GAUGE_DELEGATION,
@@ -184,11 +194,14 @@ export const fetchDelegatorData = async (
     );
     if (onChainDelegators.length === 0) return null;
 
-    // Synced delegation weights (userWeightAtEpochOf), NOT raw vlCVX balances:
-    // this is the weight that actually counted in the delegate's vote.
-    const votingPowers = await getDelegatedWeightsAtEpoch(
-      CVX_GAUGE_DELEGATION,
-      epoch,
+    // Weight of each delegator AS INCORPORATED IN THE DELEGATE'S VOTE on this
+    // platform proposal (GaugeVoteHelper) — not the mutable epoch table, and
+    // not raw vlCVX balances.
+    const votingPowers = await getContributingWeightsAtVote(
+      CVX_GAUGE_VOTE_HELPER,
+      proposal.author,
+      proposalId,
+      VLCVX_ONCHAIN_DELEGATION_ADDRESS,
       onChainDelegators,
       client
     );
