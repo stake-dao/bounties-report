@@ -45,7 +45,10 @@
   ```bash
   git worktree add /tmp/eng1973-final feature/eng-1973-automation-change-votes-logic-from-snapshot-to-on-chain
   cd /tmp/eng1973-final && ln -s <repo>/node_modules node_modules && cp <repo>/.env .env
-  FORCE_UPDATE=true pnpm tsx script/vlCVX/2_repartition/index.ts
+  FORCE_UPDATE=true VLCVX_TARGET_PERIOD=next pnpm tsx script/vlCVX/2_repartition/index.ts
+  # VLCVX_TARGET_PERIOD=next requis: la sélection de proposal est liée à la période de
+  # distribution (fix P1 du 3/08) et la proposal #0 n'est finalisée que POUR la période
+  # du jeudi 6/08 — "next" vise cette période sans bypasser la finalité.
   # attendu: completeness deficit 0.000%, split forwarders/nonForwarders cohérent,
   # gauges skippés = uniquement les bountiés restés à 0 vote après le vote final
   # (pas de RPC_URL_1 ni VLCVX_ALLOW_ACTIVE_PROPOSAL: mainnet réel, proposal finale)
@@ -84,7 +87,9 @@
 
 - [ ] La proposal **#1 devient créable jeudi 13** (epoch pair, `proposeVote()` permissionless — #0 avait été créée à 00:03 UTC). Quel que soit l'ordre création-#1 vs répartition (00:15-01:25), le walk-back doit sélectionner **#0 finalisée** : chercher le log `Skipping on-chain proposal 1: not finalized` si #1 existe déjà.
 - [ ] Distribution normale sur #0 (2e et dernière semaine du round) : nouveaux claims de la semaine 6→13, mêmes votes/parts que le 6/08.
-- [ ] Mar 18/08 : merkle délégateurs correspondant (répartition du 13).
+- [ ] Mar 18/08 : merkle délégateurs correspondant (répartition du 13). Le verifier/APR re-résolvent la proposal :
+  la sélection liée à la période (fix P1 du 3/08) garantit **#0** même si #1 vient de finaliser (mar 18 00:10) —
+  un retry `FORCE_UPDATE` de la répartition du 13 resterait lui aussi sur #0.
 
 ## Régime de croisière (après le 13/08)
 
@@ -100,6 +105,8 @@
 3. **`snapshotAnalyzer.ts` casse pour cvx.eth** avec des proposals Snapshot legacy (garde epoch dans `fetchDelegatorData`) — à migrer ou assumer.
 4. Test unitaire du chemin « gauge absent du mapping » supprimé sans remplaçant (`nonDelegators.test.ts`).
 5. `VLCVX_ALLOW_ACTIVE_PROPOSAL` et `RPC_URL_<chainId>` : test-only, aucun garde-fou prod, non documentés hors commentaires.
+   `VLCVX_TARGET_PERIOD` (ajouté 3/08, repartition uniquement) : override **opérationnel** de la période de sélection
+   de proposal (`next` ou timestamp aligné WEEK) — ne bypasse PAS la finalité ; requis pour le dry-run du mardi.
 6. Env local : `pnpm install --frozen-lockfile` échoue (lockfile v6 vs pnpm 10 ; tsx local 4.21 < ^4.23) — sans impact CI ; à régler sur main un jour.
 
 ## Readiness des autres repos (vérifié le 2/08)
