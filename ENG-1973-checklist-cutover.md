@@ -60,20 +60,36 @@
 - [ ] Filet de sécurité : si pas mergé mardi, **merger avant ce soir** (avant 10:00 UTC si claim Votium réactivé — slot biweekly semaine ISO paire).
 - [ ] Décision équipe : réactivation du flux Votium (`claims.yaml` platform=convex-votium, D6) — en pause depuis février, fee forwarders = 0 tant que `forwarders_voted_rewards.json` est absent.
 
-## Jeudi 6/08 — premier run prod on-chain 🎯
+## Jeudi 6/08 — premier run prod on-chain 🎯 (jalon 1/3)
+
+> Distribution « voters merkle » = voters directs **+ non-forwarders de la délégation** (tokens natifs).
+> La part forwarders (94,8 % du pool délégation) est consignée dans repartition_delegation.json
+> et payée le mardi suivant en sCRVUSD. Proposal utilisée : **#0** (epoch 230).
 
 - [ ] ~00:40 UTC : commit `Update delegation data` (cron indexer).
 - [ ] ~01:20 UTC : commits `convex-votemarket-v2 claims` → `vlCVX report` (cvx.csv/cvx_fxn.csv) → `vlCVX repartition` (+15 s) → `vlCVX voters-merkle` (+2 min).
 - [ ] Dans les logs du run repartition : `on-chain proposalId 0 (vlCVX epoch 230)`, `Delegators completeness … deficit 0.000%`, pas de throw. Les warn `Skipping gauge absent from the proposal` sont normaux pour les gauges restés sans vote.
+- [ ] Logs des fixes Codex : si des délégateurs ont voté en direct, ligne `N delegator(s) also voted directly — contributing weights resolved on-chain via GaugeVoteHelper` (plus de « Removing delegator »).
 - [ ] Côté FXN : proposal #0 traitée aussi (7+ gauges) ; si le délégué n'a pas voté FXN, le log `Delegation address is not among voters; skipping` est attendu (pas de part délégation côté FXN).
 - [ ] `snapshotBlock` des JSON produits = **230** (epoch, plus un numéro de bloc) — vérifier qu'aucun consommateur aval ne casse.
 - [ ] Matin : submitRoot (process_thursday.py, chains 1/42161/8453) ; **12:00 UTC** sweep acceptRoot ; commit `publish-voters` ≥ 12:02.
 - [ ] Réconciliation : total distribué vs CSV — les montants des gauges bountiés sans vote restent dans le wallet de distribution (pas perdus, mais non réalloués automatiquement) → les tracer.
 
-## Dimanche 9/08 → Mardi 11/08
+## Dimanche 9/08 → Mardi 11/08 (jalon 2/3)
 
 - [ ] Dim : swaps VM (6×/4h) ; lun : swaps Votium — dépôts sCRVUSD sur `0x17F5…F380`.
-- [ ] **Mardi 11/08 ~09-10h Paris : PREMIER merkle délégateurs alimenté par le code de la branche** (répartition on-chain du jeudi 6). Vérifier : allocation non vide, 342+ forwarders payés pro-rata des poids synced, somme = pool sCRVUSD, delta FEE_RECIPIENT (0 si Votium toujours en pause), puis submitRoot → acceptRoot 10:00 UTC → publish ≥ 10:36.
+- [ ] **Mardi 11/08 ~09-10h Paris : PREMIER merkle délégateurs alimenté par le code de la branche** (répartition on-chain du jeudi 6, split par **poids contribuants** via GaugeVoteHelper). Vérifier : allocation non vide (`Final crvUSD per token` ≠ `{}` — attention au point `mapTokenSwapsToOutToken` mono-tx), 342+ forwarders payés, somme = pool sCRVUSD, delta FEE_RECIPIENT (0 si Votium toujours en pause), et **somme des parts × poids = vp voté du délégué** (pas la table). Puis submitRoot → acceptRoot 10:00 UTC → publish ≥ 10:36 (+ APRs.json calculé sur poids contribuants).
+
+## Jeudi 13/08 — 2e distribution voters (jalon 3/3 : test réel du fix « proposal finalisée »)
+
+- [ ] La proposal **#1 devient créable jeudi 13** (epoch pair, `proposeVote()` permissionless — #0 avait été créée à 00:03 UTC). Quel que soit l'ordre création-#1 vs répartition (00:15-01:25), le walk-back doit sélectionner **#0 finalisée** : chercher le log `Skipping on-chain proposal 1: not finalized` si #1 existe déjà.
+- [ ] Distribution normale sur #0 (2e et dernière semaine du round) : nouveaux claims de la semaine 6→13, mêmes votes/parts que le 6/08.
+- [ ] Mar 18/08 : merkle délégateurs correspondant (répartition du 13).
+
+## Régime de croisière (après le 13/08)
+
+- [ ] **Jeu 20/08** : première distribution d'un round entièrement post-cutover — proposal **#1** (créée ~13/08, close mar 18/08 00:10, epoch 232). Re-check vote du délégué avant mar 18 00:00 !
+- [ ] **Votium (D6)** si réactivé : slots bihebdo mer 10:00 UTC semaines paires — **mer 5/08** (round 128, si merge + dispatch relancé à temps) sinon **mer 19/08** (round 129). Prérequis : fixes Union hardcodé (HIGH) + clé de période (MEDIUM) dans `generateConvexVotium.ts`.
 
 ---
 
