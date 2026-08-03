@@ -572,7 +572,16 @@ async function processForwarders() {
 		}
 	}
 
-	// Deduct fee from total BEFORE distribution
+	// Deduct fee from total BEFORE distribution. The fee derives from Llama
+	// USD estimates while the pool is actual swap proceeds — they can cross:
+	// a negative remainder would silently produce negative delegator shares.
+	if (feeAmount > totalScrvUsd) {
+		throw new Error(
+			`Votium forwarders fee (${feeAmount} wei sCRVUSD) exceeds the sCRVUSD ` +
+				`received this period (${totalScrvUsd} wei) — USD estimates diverge ` +
+				`from realized proceeds, refusing to distribute`,
+		);
+	}
 	const availableForDistribution = totalScrvUsd - feeAmount;
 	console.log("Total sCRVUSD for delegators distribution (after fee):", availableForDistribution.toString());
 
