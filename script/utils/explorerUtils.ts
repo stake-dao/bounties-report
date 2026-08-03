@@ -50,6 +50,9 @@ class BlockchainExplorerUtils {
   };
 
   private async makeRequest(url: string, retries = 5, delayMs = 10000) {
+    // Never leak the API key if the URL ends up in an error message / logs
+    const redactedUrl = url.replace(/apikey=[^&]*/, "apikey=***");
+    let lastError: string = "unknown error";
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const controller = new AbortController();
@@ -75,10 +78,11 @@ class BlockchainExplorerUtils {
           return { result: [] };
         }
 
+        lastError = String(data.message || data.result || "Unknown error");
         if (attempt < retries - 1) {
           console.warn(
             `ExplorerUtils error (attempt ${attempt + 1}/${retries}):`,
-            data.message || data.result || 'Unknown error',
+            lastError,
             `Chain: ${url.match(/chainid=(\d+)/)?.[1]}`,
             `Status: ${data.status}`
           );
@@ -86,8 +90,8 @@ class BlockchainExplorerUtils {
           continue;
         }
         console.error(`ExplorerUtils: All retries failed. Final response:`, data);
-        return { result: [] };
       } catch (error: any) {
+        lastError = error?.name === "AbortError" ? "timeout" : String(error);
         if (error.name === 'AbortError') {
           console.warn(`Request timed out (attempt ${attempt + 1}/${retries})`);
         } else {
@@ -101,7 +105,13 @@ class BlockchainExplorerUtils {
         continue;
       }
     }
-    return { result: [] };
+    // A chunked caller (getLogsByAddressesAndTopics, ...) aggregates results:
+    // masking a failed request as an empty result would silently produce
+    // PARTIAL totals (e.g. sCRVUSD transfers) that downstream accepts. Fail
+    // the run instead — missing funds are not recovered automatically later.
+    throw new Error(
+      `Explorer API request failed after ${retries} attempts (${lastError}): ${redactedUrl}`
+    );
   }
 
   async getLogsByAddressAndTopics(
