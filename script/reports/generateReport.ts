@@ -19,6 +19,8 @@ import {
   matchWethInWithRewardsOut,
   mapTokenSwapsToOutToken,
   fetchDelegationEvents,
+  isDustSweepTx,
+  distributeSweepSd,
   BOTMARKET,
 } from "../utils/reportUtils";
 import { getClient } from "../utils/getClients";
@@ -694,8 +696,11 @@ async function main() {
 
   // Process swaps and filter out OTC swaps by block number, and delegated tokens
   const swapOTC = processSwapsOTC(swapIn, tokenInfos);
-  let swapInFiltered = processSwaps(swapIn, tokenInfos);
-  let swapOutFiltered = processSwaps(swapOut, tokenInfos);
+  // Scan both directions for BOTMARKET markers so anti-dust sweep blocks
+  // (aggregator -> BOTMARKET sd only, no BOTMARKET input) keep their swap-ins
+  const markerSwaps = [...swapIn, ...swapOut];
+  let swapInFiltered = processSwaps(swapIn, tokenInfos, { markerSwaps });
+  let swapOutFiltered = processSwaps(swapOut, tokenInfos, { markerSwaps });
 
   // Filter out OTC swaps
   swapInFiltered = swapInFiltered.filter(
@@ -957,6 +962,7 @@ async function main() {
     const includedSdByToken: Record<string, number> = {};
 
     const botmarketAddrForWeth = BOTMARKET.toLowerCase();
+    let sweepSdTotal = 0;
 
     for (const tx of txHashes) {
       const inTx = swapInFiltered.filter((e) => e.transactionHash === tx);
@@ -972,6 +978,13 @@ async function main() {
         .reduce((a, b) => a + b.formattedAmount, 0);
 
       if (sdInTx <= 0) continue;
+
+      // Anti-dust sweep: sd minted from WETH residue, no BOTMARKET input.
+      // Collect and re-spread over WETH-contributing tokens after the loop.
+      if (isDustSweepTx(tx, swapIn, swapOut, sdAddr, botmarketAddrForWeth)) {
+        sweepSdTotal += sdInTx;
+        continue;
+      }
 
       const wethBasis = totalWethInTx > 0 ? totalWethInTx : totalWethOutTx;
       const nativeInTx = inTx
@@ -1047,6 +1060,19 @@ async function main() {
         includedSdByToken[wethAddr] =
           (includedSdByToken[wethAddr] || 0) + residualWeth * sdPerWeth;
       }
+    }
+
+    if (sweepSdTotal > 0) {
+      const sweepSpread = distributeSweepSd(
+        includedSdByToken,
+        sweepSdTotal,
+        nativeAddr,
+        wethAddr
+      );
+      for (const [tok, sd] of Object.entries(sweepSpread)) {
+        includedSdByToken[tok] = (includedSdByToken[tok] || 0) + sd;
+      }
+      if (isDebugEnabled()) debug("[dust sweeps] re-spread", { sweepSdTotal, sweepSpread });
     }
 
     if (isDebugEnabled()) debug("[generic per-token sd]", Object.entries(includedSdByToken).map(([k, v]) => ({ token: k, sd: v })));
@@ -1284,9 +1310,11 @@ async function main() {
       nativeOut?: number;
       nativeShareSd?: number;
       wethBasis?: number;
+      sweep?: boolean;
       tokenWeth: Record<string, number>;
       tokenSd: Record<string, number>;
     }> = [];
+    const sweepAttributions: typeof txAttributions = [];
     let sdInTotal = 0;
     let wethInTotal = 0;
     let wethOutTotal = 0;
@@ -1313,6 +1341,32 @@ async function main() {
         wethInTotal += totalWethInTx;
         wethOutTotal += totalWethOutTx;
         sdInTotal += sdInTx;
+      }
+
+      // Anti-dust sweep: record it and fill tokenSd once batch attribution is known
+      if (isDustSweepTx(tx, swapIn, swapOut, sdAddr, BOTMARKET.toLowerCase())) {
+        const nativeInSweep = inTx
+          .filter((ev) => ev.token.toLowerCase() === nativeAddr)
+          .reduce((a, b) => a + b.formattedAmount, 0);
+        const nativeOutSweep = outTx
+          .filter((ev) => ev.token.toLowerCase() === nativeAddr)
+          .reduce((a, b) => a + b.formattedAmount, 0);
+        const sweepEntry = {
+          tx,
+          wethIn: totalWethInTx,
+          wethOut: totalWethOutTx,
+          sdIn: sdInTx,
+          nativeIn: nativeInSweep,
+          nativeOut: nativeOutSweep,
+          nativeShareSd: 0,
+          wethBasis: 0,
+          sweep: true,
+          tokenWeth: {},
+          tokenSd: {} as Record<string, number>,
+        };
+        txAttributions.push(sweepEntry);
+        sweepAttributions.push(sweepEntry);
+        continue;
       }
 
       let tokenToOut: Record<string, bigint> = {};
@@ -1428,6 +1482,22 @@ async function main() {
         tokenWeth,
         tokenSd
       });
+    }
+
+    const sweepSdTotal = sweepAttributions.reduce((s, e) => s + e.sdIn, 0);
+    if (sweepSdTotal > 0) {
+      const sweepSpread = distributeSweepSd(
+        includedSdByToken,
+        sweepSdTotal,
+        nativeAddr,
+        wethAddr
+      );
+      for (const [tok, sd] of Object.entries(sweepSpread)) {
+        includedSdByToken[tok] = (includedSdByToken[tok] || 0) + sd;
+        for (const entry of sweepAttributions) {
+          entry.tokenSd[tok] = (sd * entry.sdIn) / sweepSdTotal;
+        }
+      }
     }
 
     const tokensNotSwapped = Array.from(includedTokens).filter(

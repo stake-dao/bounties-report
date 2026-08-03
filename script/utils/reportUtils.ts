@@ -445,6 +445,9 @@ export async function getGaugeWeight(
  *                                      If not specified, auto-detects BOTMARKET presence on mainnet
  *                  excludedFromAddresses: Array of addresses to exclude from 'from' field
  *                  excludedToAddresses: Array of addresses to exclude from 'to' field
+ *                  markerSwaps: Swap set scanned for the required addresses instead of `swaps`.
+ *                               Pass the in+out union so blocks whose only BOTMARKET touch is in
+ *                               the other direction (e.g. anti-dust sweeps) still qualify.
  */
 export function processSwaps(
   swaps: SwapEvent[],
@@ -453,6 +456,7 @@ export function processSwaps(
     requiredTxAddresses?: string[];
     excludedFromAddresses?: string[];
     excludedToAddresses?: string[];
+    markerSwaps?: SwapEvent[];
   }
 ): ProcessedSwapEvent[] {
   const total = swaps.length;
@@ -466,10 +470,11 @@ export function processSwaps(
 
   const blocksWithRequiredAddresses = new Set<number>();
   let hasRequiredAddresses = false;
+  const markerSource = options?.markerSwaps || swaps;
 
   if (options?.requiredTxAddresses && options.requiredTxAddresses.length > 0) {
     const requiredAddresses = options.requiredTxAddresses.map((addr) => addr.toLowerCase());
-    swaps.forEach((swap) => {
+    markerSource.forEach((swap) => {
       const fromLower = swap.from.toLowerCase();
       const toLower = swap.to.toLowerCase();
       if (requiredAddresses.includes(fromLower) || requiredAddresses.includes(toLower)) {
@@ -478,7 +483,7 @@ export function processSwaps(
       }
     });
   } else {
-    swaps.forEach((swap) => {
+    markerSource.forEach((swap) => {
       if (swap.from.toLowerCase() === BOTMARKET.toLowerCase() || swap.to.toLowerCase() === BOTMARKET.toLowerCase()) {
         hasRequiredAddresses = true;
         blocksWithRequiredAddresses.add(swap.blockNumber);
@@ -543,6 +548,60 @@ export function processSwapsOTC(
     debug("[processSwapsOTC] otc swaps", filtered.length);
   }
   return filtered.map((swap) => formatSwap(swap, tokenInfos));
+}
+
+/**
+ * Detects anti-dust sweep transactions: the bot converts WETH residue sitting in the
+ * aggregator into sdToken and forwards it to BOTMARKET, without any BOTMARKET input.
+ * Regular batches always start with BOTMARKET -> aggregator transfers.
+ */
+export function isDustSweepTx(
+  txHash: string,
+  rawSwapIn: SwapEvent[],
+  rawSwapOut: SwapEvent[],
+  sdTokenAddress: string,
+  botmarketAddress: string
+): boolean {
+  const bot = botmarketAddress.toLowerCase();
+  const sd = sdTokenAddress.toLowerCase();
+  const hasBotmarketInflow = rawSwapIn.some(
+    (e) => e.transactionHash === txHash && e.from.toLowerCase() === bot
+  );
+  if (hasBotmarketInflow) return false;
+  return rawSwapOut.some(
+    (e) =>
+      e.transactionHash === txHash &&
+      e.token.toLowerCase() === sd &&
+      e.to.toLowerCase() === bot
+  );
+}
+
+/**
+ * Spreads sweep sd over the tokens that produced the WETH residue: pro-rata to each
+ * token's already-attributed sd, excluding native (native bounties never route through
+ * WETH). Falls back to WETH when nothing else was attributed.
+ */
+export function distributeSweepSd(
+  sdByToken: Record<string, number>,
+  sweepSd: number,
+  nativeAddress: string,
+  wethAddress: string
+): Record<string, number> {
+  const spread: Record<string, number> = {};
+  if (sweepSd <= 0) return spread;
+  const native = nativeAddress.toLowerCase();
+  const basis = Object.entries(sdByToken).filter(
+    ([token, sd]) => token.toLowerCase() !== native && sd > 0
+  );
+  const basisTotal = basis.reduce((sum, [, sd]) => sum + sd, 0);
+  if (basisTotal <= 0) {
+    spread[wethAddress.toLowerCase()] = sweepSd;
+    return spread;
+  }
+  for (const [token, sd] of basis) {
+    spread[token] = (sd / basisTotal) * sweepSd;
+  }
+  return spread;
 }
 
 /**
