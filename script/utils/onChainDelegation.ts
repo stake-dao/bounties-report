@@ -238,9 +238,15 @@ const GAUGE_VOTE_HELPER_ABI = parseAbi([
   "function getContributingWeights(uint256 _proposalId, address _delegate, address[] _users, address _gaugePlatform) external view returns (uint256[])",
 ]);
 
-// One eth_call does ~5 external reads per user inside the helper — chunk to
-// stay far below provider eth_call gas caps.
-const HELPER_CHUNK_SIZE = 100;
+// The helper replays sync-nonce accounting per user, so this eth_call is
+// compute-heavy server-side. Public gateways shed it under load with
+// "evm timeout" (-32009, observed on mainnet.gateway.tenderly.co) — a
+// NONSTANDARD error code that viem's transport does NOT retry, so one
+// throttled response would kill the whole run. Chunk small, and let
+// readHelperChunk retry with backoff then split before giving up.
+const HELPER_CHUNK_SIZE = 25;
+const HELPER_RETRIES = 3;
+const HELPER_BACKOFF_MS = 2000;
 
 /**
  * Per-delegator weight AS INCORPORATED IN THE DELEGATE'S VOTE on a given
@@ -266,20 +272,48 @@ export const getContributingWeightsAtVote = async (
 ): Promise<Record<string, number>> => {
   if (delegators.length === 0) return {};
 
+  // Retry the chunk with backoff (transient gateway throttling), then split
+  // it in halves (persistent per-call compute cap). A single user still
+  // failing after its own retries throws — a silent 0 weight would quietly
+  // redistribute that delegator's share to the others.
+  const readHelperChunk = async (chunk: string[]): Promise<bigint[]> => {
+    let lastError: any;
+    for (let attempt = 0; attempt < HELPER_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, HELPER_BACKOFF_MS * attempt));
+      }
+      try {
+        return (await client.readContract({
+          address: helperContract,
+          abi: GAUGE_VOTE_HELPER_ABI,
+          functionName: "getContributingWeights",
+          args: [
+            BigInt(proposalId),
+            getAddress(delegateTo),
+            chunk.map((a) => getAddress(a)),
+            getAddress(gaugeVotePlatformAddress),
+          ],
+        })) as bigint[];
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (chunk.length === 1) throw lastError;
+    console.warn(
+      `getContributingWeights failed for a ${chunk.length}-user chunk after ` +
+        `${HELPER_RETRIES} attempts — splitting in halves`
+    );
+    const mid = Math.ceil(chunk.length / 2);
+    return [
+      ...(await readHelperChunk(chunk.slice(0, mid))),
+      ...(await readHelperChunk(chunk.slice(mid))),
+    ];
+  };
+
   const out: Record<string, number> = {};
   for (let i = 0; i < delegators.length; i += HELPER_CHUNK_SIZE) {
     const chunk = delegators.slice(i, i + HELPER_CHUNK_SIZE);
-    const weights = (await client.readContract({
-      address: helperContract,
-      abi: GAUGE_VOTE_HELPER_ABI,
-      functionName: "getContributingWeights",
-      args: [
-        BigInt(proposalId),
-        getAddress(delegateTo),
-        chunk.map((a) => getAddress(a)),
-        getAddress(gaugeVotePlatformAddress),
-      ],
-    })) as bigint[];
+    const weights = await readHelperChunk(chunk);
     chunk.forEach((addr, j) => {
       out[addr.toLowerCase()] = Number(formatUnits(weights[j], 18));
     });

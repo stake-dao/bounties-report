@@ -1,6 +1,23 @@
-import { createPublicClient, http, PublicClient } from "viem";
+import { createPublicClient, fallback, http, PublicClient } from "viem";
 import { getAvailableEndpoints, getRouteMeshUrl } from "./rpcConfig";
 import { CHAINS_BY_ID } from "./chains";
+
+// Fallback transport over up to 3 endpoints (order preserved, no re-ranking).
+// A single-endpoint client dies on NONSTANDARD RPC errors that viem does not
+// retry — e.g. tenderly's "evm timeout" (-32009) shedding heavy calls
+// (GaugeVoteHelper replays, 400+ item multicalls) under load. With fallback,
+// such an error rolls over to the next endpoint instead of killing the run.
+function buildTransport(urls: string[]) {
+  if (urls.length === 1) {
+    return http(urls[0], { retryCount: 5, retryDelay: 1000, timeout: 30000 });
+  }
+  return fallback(
+    urls.map((url) =>
+      http(url, { retryCount: 2, retryDelay: 500, timeout: 30000 })
+    ),
+    { rank: false }
+  );
+}
 
 const clientCache = new Map<string, PublicClient>();
 
@@ -57,13 +74,15 @@ export async function getClient(chainId: number, skipCache: boolean = false): Pr
   if (routeMeshUrl) {
     const latency = await testRpcEndpoint(routeMeshUrl, chainId);
     if (latency !== Infinity) {
+      // RouteMesh first, backed by the first public endpoints: if RouteMesh
+      // sheds a heavy call mid-run, the read rolls over instead of failing.
+      const publicBackups = getAvailableEndpoints(chainId)
+        .map((e) => e.url)
+        .filter((url) => url !== routeMeshUrl)
+        .slice(0, 2);
       const client = createPublicClient({
         chain,
-        transport: http(routeMeshUrl, {
-          retryCount: 5,
-          retryDelay: 1000,
-          timeout: 30000,
-        }),
+        transport: buildTransport([routeMeshUrl, ...publicBackups]),
       });
       clientCache.set(cacheKey, client);
       return client;
@@ -124,17 +143,12 @@ export async function getClient(chainId: number, skipCache: boolean = false): Pr
     });
   }
 
-  const bestEndpoint = workingEndpoints[0];
-
-  // Create client with the fastest endpoint and fallback transport
+  // Fastest endpoint first, next-fastest as fallbacks
   const client = createPublicClient({
     chain,
-    transport: http(bestEndpoint.url, {
-      retryCount: 5,
-      retryDelay: 1000,
-      timeout: 30000,
-      // Removed verbose logging for cleaner output
-    }),
+    transport: buildTransport(
+      workingEndpoints.slice(0, 3).map((e) => e.url)
+    ),
   });
 
   clientCache.set(cacheKey, client);

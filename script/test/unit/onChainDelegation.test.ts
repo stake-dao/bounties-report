@@ -23,7 +23,10 @@ vi.mock("../../utils/explorerUtils", () => ({
   }),
 }));
 
-import { getOnChainDelegators } from "../../utils/onChainDelegation";
+import {
+  getOnChainDelegators,
+  getContributingWeightsAtVote,
+} from "../../utils/onChainDelegation";
 
 const DELEGATION = "0xb8270eef1319173dE9f5033FED442F638ff1607d";
 const DELEGATE = "0xbB06fEFB8f23A7c60C93fe20464DB6687C51955f";
@@ -129,5 +132,113 @@ describe("getOnChainDelegators", () => {
     await expect(
       getOnChainDelegators(DELEGATION, DELEGATE, EPOCH, client)
     ).rejects.toThrow("No DelegateSet events found");
+  });
+});
+
+describe("getContributingWeightsAtVote", () => {
+  const HELPER = "0x76C484F67898EA978aa874dc7B32e648380FB9b1";
+  const PLATFORM = "0x64D9B5AC386B70af9EDCD20A58cE9262D2EAC278";
+  const users = Array.from(
+    { length: 30 },
+    (_, i) => `0x${(i + 1).toString(16).padStart(40, "0")}`
+  );
+
+  it("chunks users (25 per call) and returns lowercase-keyed weights", async () => {
+    const calls: number[] = [];
+    const client = {
+      readContract: async ({ args }: any) => {
+        calls.push(args[2].length);
+        return args[2].map(() => 2n * 10n ** 18n);
+      },
+    };
+
+    const out = await getContributingWeightsAtVote(
+      HELPER,
+      PLATFORM,
+      0,
+      DELEGATE,
+      users,
+      client
+    );
+    expect(calls).toEqual([25, 5]);
+    expect(Object.keys(out)).toHaveLength(30);
+    expect(out[users[0].toLowerCase()]).toBe(2);
+  });
+
+  it("retries a throttled chunk with backoff (nonstandard RPC errors are not retried by viem)", async () => {
+    vi.useFakeTimers();
+    let attempts = 0;
+    const client = {
+      readContract: async ({ args }: any) => {
+        attempts++;
+        if (attempts === 1) throw new Error("evm timeout");
+        return args[2].map(() => 10n ** 18n);
+      },
+    };
+
+    const pending = getContributingWeightsAtVote(
+      HELPER,
+      PLATFORM,
+      0,
+      DELEGATE,
+      users.slice(0, 2),
+      client
+    );
+    await vi.advanceTimersByTimeAsync(10_000);
+    const out = await pending;
+    vi.useRealTimers();
+
+    expect(attempts).toBe(2);
+    expect(Object.keys(out)).toHaveLength(2);
+  });
+
+  it("splits a persistently failing chunk in halves instead of giving up", async () => {
+    vi.useFakeTimers();
+    const client = {
+      readContract: async ({ args }: any) => {
+        const chunk = args[2] as string[];
+        if (chunk.length > 1) throw new Error("evm timeout");
+        return chunk.map(() => 10n ** 18n);
+      },
+    };
+
+    const pending = getContributingWeightsAtVote(
+      HELPER,
+      PLATFORM,
+      0,
+      DELEGATE,
+      users.slice(0, 4),
+      client
+    );
+    await vi.advanceTimersByTimeAsync(120_000);
+    const out = await pending;
+    vi.useRealTimers();
+
+    expect(Object.keys(out)).toHaveLength(4);
+    expect(Object.values(out)).toEqual([1, 1, 1, 1]);
+  });
+
+  it("throws when a single user still fails after retries (no silent zero weight)", async () => {
+    vi.useFakeTimers();
+    const client = {
+      readContract: async () => {
+        throw new Error("evm timeout");
+      },
+    };
+
+    const pending = getContributingWeightsAtVote(
+      HELPER,
+      PLATFORM,
+      0,
+      DELEGATE,
+      [users[0]],
+      client
+    ).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(120_000);
+    const result = await pending;
+    vi.useRealTimers();
+
+    expect(result).toBeInstanceOf(Error);
+    expect(String(result)).toContain("evm timeout");
   });
 });
