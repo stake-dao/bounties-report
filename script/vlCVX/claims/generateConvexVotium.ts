@@ -1292,7 +1292,8 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       );
 
       // Process all votium bounties to get actual claimed amounts
-      for (const bounty of votiumConvexBounties.votiumBounties) {
+      // (fetchVotiumClaimedBounties returns {} when no claim is in range)
+      for (const bounty of votiumConvexBounties.votiumBounties || []) {
         const token = bounty.rewardToken;
         if (!claimedTokenAmounts[token]) {
           claimedTokenAmounts[token] = 0n;
