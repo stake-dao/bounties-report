@@ -29,15 +29,13 @@ import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import { WETH_ADDRESS } from "../../utils/reportUtils";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { getSCRVUsdTransfer } from "../utils";
+import { allocateExact, computeDirectWeights } from "./directForwarderPayouts";
 
 // Number of seconds in one week
 const WEEK = 604800;
 
 // Round current UTC time down to the nearest week to get the current period timestamp
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
-
-// Fee recipient for Votium forwarders fee
-const FEE_RECIPIENT = "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063";
 
 // The directory to which we'll write the bounties reports for this period
 const reportsDir = path.join(
@@ -441,33 +439,26 @@ async function processForwarders() {
 	totalScrvUsd -= BigInt(10 ** 14);
 	console.log("Total sCRVUSD received:", totalScrvUsd.toString());
 
-	// Calculate fee amount FIRST before any distribution
-	let feeAmount = 0n;
-	const forwardersRewardsPath = path.join(
+	// Direct-voter Votium payouts: forwarders_voted_rewards.json lists, per
+	// forwarder that voted by itself, the Votium rewards our forwarder claimed
+	// on its behalf. That money is reserved out of the pooled sCRVUSD FIRST and
+	// paid back individually below (it used to leave the pipeline as a single
+	// aggregate claim to governance, settled out-of-band).
+	let directPool = 0n;
+	let directWeights: Record<string, bigint> = {};
+	const votiumDir = path.join(
 		"weekly-bounties",
 		currentPeriodTimestamp.toString(),
 		"votium",
-		"forwarders_voted_rewards.json",
 	);
+	const forwardersRewardsPath = path.join(votiumDir, "forwarders_voted_rewards.json");
+	const claimedBountiesPath = path.join(votiumDir, "claimed_bounties_convex.json");
 
 	if (fs.existsSync(forwardersRewardsPath)) {
-		console.log("Calculating Votium forwarders fee...");
 		const forwardersData = JSON.parse(fs.readFileSync(forwardersRewardsPath, "utf8"));
+		const { weightsMicros, totalMicros } = computeDirectWeights(forwardersData);
 
-		let totalForwardersUSD = 0;
-
-		// Calculate total USD from all tokenAllocations
-		if (forwardersData.tokenAllocations) {
-			for (const [forwarder, tokens] of Object.entries(forwardersData.tokenAllocations)) {
-				for (const [token, values] of Object.entries(tokens as Record<string, any>)) {
-					if (values.usd) {
-						totalForwardersUSD += values.usd;
-					}
-				}
-			}
-		}
-
-		if (totalForwardersUSD > 0) {
+		if (totalMicros > 0n) {
 			// Get the actual scrvUSD/crvUSD exchange rate from the contract
 			const scrvUsdContract = "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367";
 			const pricePerShareAbi = [
@@ -487,30 +478,61 @@ async function processForwarders() {
 				functionName: "pricePerShare",
 			});
 
-			console.log(`Total Votium forwarders USD value: $${totalForwardersUSD.toFixed(2)}`);
+			console.log(`Total Votium direct-voter USD value: $${(Number(totalMicros) / 1e6).toFixed(2)}`);
 			console.log(`scrvUSD price per share: ${(Number(pricePerShare) / 1e18).toFixed(6)} crvUSD per scrvUSD`);
 
-			// Convert USD to crvUSD (1:1), then to scrvUSD using the price per share
-			// scrvUSD amount = crvUSD amount / pricePerShare
-			const crvUsdAmount = BigInt(Math.floor(totalForwardersUSD * 1e18));
-			feeAmount = (crvUsdAmount * BigInt(1e18)) / pricePerShare;
+			// USD micros -> crvUSD wei (1 crvUSD = $1), then crvUSD -> scrvUSD via
+			// the price per share — exact bigint end to end. The weights below come
+			// from the same micros, so a positive pool always has positive weights.
+			const crvUsdAmount = totalMicros * 10n ** 12n;
+			directPool = (crvUsdAmount * 10n ** 18n) / pricePerShare;
+			directWeights = weightsMicros;
 
-			console.log(`Fee amount: ${(Number(feeAmount) / 1e18).toFixed(6)} scrvUSD`);
+			console.log(`Direct payouts pool: ${(Number(directPool) / 1e18).toFixed(6)} scrvUSD`);
+		}
+	} else if (fs.existsSync(claimedBountiesPath)) {
+		// The claim run writes claimed_bounties_convex.json before
+		// forwarders_voted_rewards.json: claims without the forwarders file is
+		// the partial state a mid-run crash leaves behind, and distributing in
+		// that state would silently hand the direct voters' money to the
+		// delegation pool. (During a Votium pause neither file exists and the
+		// run proceeds normally with no direct payouts.)
+		let claimed: any;
+		try {
+			claimed = JSON.parse(fs.readFileSync(claimedBountiesPath, "utf8"));
+		} catch (error) {
+			throw new Error(
+				`Votium claimed bounties file ${claimedBountiesPath} is unreadable ` +
+					`(${error}) while ${forwardersRewardsPath} is missing — refusing to ` +
+					"distribute in this partial state. Re-run the Votium claim script first.",
+			);
+		}
+		const hasClaims =
+			Object.keys(claimed?.curve ?? {}).length > 0 ||
+			Object.keys(claimed?.fxn ?? {}).length > 0;
+		if (hasClaims) {
+			throw new Error(
+				`Votium claims exist for period ${currentPeriodTimestamp} but ` +
+					`${forwardersRewardsPath} is missing — distributing now would ` +
+					"socialize the direct voters' rewards into the delegation pool. " +
+					"Re-run the Votium claim script first.",
+			);
 		}
 	}
 
-	// Deduct fee from total BEFORE distribution. The fee derives from Llama
-	// USD estimates while the pool is actual swap proceeds — they can cross:
-	// a negative remainder would silently produce negative delegator shares.
-	if (feeAmount > totalScrvUsd) {
+	// Reserve the direct pool BEFORE the delegation distribution. The pool
+	// derives from Llama USD estimates while totalScrvUsd is actual swap
+	// proceeds — they can cross: a negative remainder would silently produce
+	// negative delegator shares.
+	if (directPool > totalScrvUsd) {
 		throw new Error(
-			`Votium forwarders fee (${feeAmount} wei sCRVUSD) exceeds the sCRVUSD ` +
+			`Votium direct payouts (${directPool} wei sCRVUSD) exceed the sCRVUSD ` +
 				`received this period (${totalScrvUsd} wei) — USD estimates diverge ` +
 				`from realized proceeds, refusing to distribute`,
 		);
 	}
-	const availableForDistribution = totalScrvUsd - feeAmount;
-	console.log("Total sCRVUSD for delegators distribution (after fee):", availableForDistribution.toString());
+	const availableForDistribution = totalScrvUsd - directPool;
+	console.log("Total sCRVUSD for delegators distribution (after direct payouts):", availableForDistribution.toString());
 
 	const protocolShares = await getProtocolShares(
 		publicClient,
@@ -558,20 +580,26 @@ async function processForwarders() {
 	// Then add all fxn distributions (summing where needed)
 	mergeDistributions(fxnCombined, combined);
 
-	// Add the pre-calculated fee allocation to the fee recipient
-	if (feeAmount > 0n) {
-		const feeRecipient = getAddress(FEE_RECIPIENT);
-
-		// Add or update the fee recipient's allocation
-		if (!combined[feeRecipient]) {
-			combined[feeRecipient] = { tokens: {} };
+	// Pay each direct-voter forwarder individually (replaces the old aggregate
+	// governance claim). Keys on both sides are EIP-55 checksummed (computeShares
+	// and computeDirectWeights both use getAddress), so a mixed address —
+	// delegation forwarder on one platform, direct voter on the other — is
+	// summed into a single entry here. generateMerkleTree overwrites amounts on
+	// key collisions, so collisions must not survive past this merge.
+	if (directPool > 0n) {
+		const directPayouts = allocateExact(directPool, directWeights);
+		const directDistribution: {
+			[address: string]: { tokens: { [token: string]: bigint } };
+		} = {};
+		for (const [address, amount] of Object.entries(directPayouts)) {
+			directDistribution[address] = { tokens: { [SCRVUSD]: amount } };
 		}
+		mergeDistributions(directDistribution, combined);
 
-		// Add scrvUSD allocation
-		combined[feeRecipient].tokens[SCRVUSD] =
-			(combined[feeRecipient].tokens[SCRVUSD] || 0n) + feeAmount;
-
-		console.log(`\nAdding fee allocation: ${(Number(feeAmount) / 1e18).toFixed(6)} scrvUSD to ${feeRecipient}`);
+		console.log(
+			`\nDirect Votium payouts: ${Object.keys(directPayouts).length} forwarders, ` +
+				`${(Number(directPool) / 1e18).toFixed(6)} scrvUSD`,
+		);
 	}
 
 	// Load previous Merkle data for forwarders from the PREVIOUS PERIOD's archived file.

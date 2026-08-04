@@ -7,6 +7,7 @@ import { getSCRVUsdTransfer } from "../utils";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
 import { mainnet } from "../../utils/chains";
 import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
+import { computeDirectWeights } from "../3_merkles/directForwarderPayouts";
 
 const SCRVUSD = "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367";
 const FEE_RECIPIENT = getAddress("0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063");
@@ -170,15 +171,57 @@ function buildClaimMap(m: any): Record<string, bigint> {
     console.log(`  outliers (>1e-4 rel diff): ${bad} ${bad === 0 ? "✅" : "⚠"}`);
   }
 
+  // Direct Votium payouts replaced the aggregate fee claim: the legacy fee
+  // recipient must not receive anything new, ever.
   const feeDelta = deltas[lc(FEE_RECIPIENT)] || 0n;
-  console.log("\n=== Fee recipient ===");
+  console.log("\n=== Legacy fee recipient (must stay at zero) ===");
   console.log("Address:", FEE_RECIPIENT);
-  console.log("Delta this week:", (Number(feeDelta) / 1e18).toFixed(6), "sCRVUSD");
+  console.log(
+    "Delta this week:",
+    (Number(feeDelta) / 1e18).toFixed(6),
+    "sCRVUSD",
+    feeDelta === 0n ? "✅" : "❌ direct payouts should have replaced the fee",
+  );
 
-  const votiumDir = path.join("weekly-bounties", String(periodTs), "votium");
-  const hasVotium = fs.existsSync(votiumDir);
-  console.log("Votium data exists:", hasVotium ? "yes" : "no (fee should be 0)");
-  if (!hasVotium) {
+  const fwdPath = path.join("weekly-bounties", String(periodTs), "votium", "forwarders_voted_rewards.json");
+  if (fs.existsSync(fwdPath)) {
+    const { weightsMicros, totalMicros } = computeDirectWeights(
+      JSON.parse(fs.readFileSync(fwdPath, "utf8")),
+    );
+    console.log("\n=== Direct Votium payouts ===");
+    console.log(
+      "Recipients with weight:", Object.keys(weightsMicros).length,
+      "| total USD:", (Number(totalMicros) / 1e6).toFixed(2),
+    );
+    // Per recipient: direct component = merkle delta minus the (approximate)
+    // delegation share, then check proportionality against the USD weights.
+    let directSum = 0n;
+    let unpaid = 0;
+    const ratios: number[] = [];
+    for (const [addr, weight] of Object.entries(weightsMicros)) {
+      const a = lc(addr);
+      const cSh = curveLcKeys[a] ? parseFloat(curveFwd[curveLcKeys[a]]) : 0;
+      const fSh = fxnLcKeys[a] ? parseFloat(fxnFwd[fxnLcKeys[a]]) : 0;
+      const delegationExpected =
+        BigInt(Math.floor(cSh * curveAlloc)) + BigInt(Math.floor(fSh * fxnAlloc));
+      const directPart = (deltas[a] || 0n) - delegationExpected;
+      directSum += directPart;
+      if (directPart <= 0n) unpaid++;
+      else ratios.push(Number(directPart) / Number(weight));
+    }
+    console.log("Sum of direct components:", (Number(directSum) / 1e18).toFixed(6), "sCRVUSD");
+    console.log("Recipients with no direct payout:", unpaid, unpaid === 0 ? "✅" : "❌");
+    if (ratios.length > 1) {
+      const min = Math.min(...ratios);
+      const max = Math.max(...ratios);
+      const mean = ratios.reduce((s, x) => s + x, 0) / ratios.length;
+      const relSpread = mean > 0 ? (max - min) / mean : 0;
+      console.log(
+        `Direct/weight rel spread: ${(relSpread * 100).toFixed(4)}% ${relSpread < 1e-3 ? "✅ proportional" : "⚠ inconsistent (delegation share is approximated for mixed addresses)"}`,
+      );
+    }
+  } else {
+    console.log("\nVotium data exists: no (no direct payouts expected)");
     console.log("Fee=0 expected:", feeDelta === 0n ? "✅" : `❌ unexpected fee ${feeDelta}`);
   }
 })().catch(e => { console.error(e); process.exit(1); });
