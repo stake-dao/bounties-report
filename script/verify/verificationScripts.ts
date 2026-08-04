@@ -40,10 +40,16 @@ const SCRIPTS: VerifyScript[] = [
     protocols: ["vlCVX", "all"],
   },
   {
+    // Gate: on the Tuesday delegators run its forwarders check enforces
+    // weeklyAdd > 0 — a zero addition must halt the pipeline, not reach the
+    // models (2026-08-04: judges voted past it citing the Thursday exemption).
+    // Safe on Thursday runs: the check self-skips while the delegators merkle
+    // for the period does not exist yet.
     label: "vlCVX Reward Flow Verification",
     path: "script/vlCVX/verify/rewardFlow.ts",
     args: (ts) => ["--timestamp", String(ts)],
     protocols: ["vlCVX", "all"],
+    gate: true,
   },
   {
     label: "vlCVX Claims Completeness",
