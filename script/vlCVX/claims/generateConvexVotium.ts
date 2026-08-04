@@ -100,7 +100,7 @@ function customReplacer(_key: string, value: any): any {
  * 2. Checking voters/delegators for forwarding status
  * 3. Merging both sources
  */
-async function getAllForwarders(
+export async function getAllForwarders(
   space: string,
   proposal: any,
   proposalVoters: any[],
@@ -127,7 +127,10 @@ async function getAllForwarders(
     voters.push({ voter: delegator.address, vp: delegator.vp });
   }
 
-  // 2. Get delegation data to identify who are delegators
+  // 2. Get delegation data only to identify who are StakeDAO delegators.
+  // `votingPowers` contains the GaugeVoteHelper contributing weights of the
+  // delegate vote; that VP belongs to the repartition_delegation pipeline and
+  // must never replace a wallet's own vote VP in this Votium pipeline.
   const delegatorData = await fetchDelegatorData(space, proposal);
   const delegatorSet = new Set<string>();
 
@@ -222,17 +225,17 @@ async function getAllForwarders(
       const isDirectVoter = !isDelegator && addrLower !== delegationAddressLower;
 
       let type: "delegator" | "direct-voter";
-      let votingPower = vote ? vote.vp : 0;
+      let votingPower = vote?.vp ?? 0;
 
       if (isFromIndex && !vote) {
-        votingPower = additionalVotingPowers[address] || additionalVotingPowers[addrLower] || 0;
+        votingPower =
+          additionalVotingPowers[address] ??
+          additionalVotingPowers[addrLower] ??
+          0;
       }
 
       if (isDelegator) {
         type = "delegator";
-        if (delegatorData?.votingPowers) {
-          votingPower = delegatorData.votingPowers[address] || delegatorData.votingPowers[addrLower] || votingPower;
-        }
       } else if (isDirectVoter) {
         type = "direct-voter";
       } else {
@@ -244,7 +247,9 @@ async function getAllForwarders(
       forwarders.push({
         address: addrLower,
         type,
-        votingPower: isUnionDelegator ? unionDelegatorsMap.get(addrLower) || votingPower : votingPower,
+        votingPower: isUnionDelegator
+          ? unionDelegatorsMap.get(addrLower) ?? votingPower
+          : votingPower,
         delegatedTo: isUnionDelegator ? THE_UNION_ADDRESS : undefined,
         isUnionDelegator,
       });
@@ -1121,9 +1126,13 @@ export async function generateConvexVotiumBounties(): Promise<void> {
         ? Number(await ethereumClient.getBlockNumber())
         : await getBlockNumberByTimestamp(curveProposal.end, "after", 1);
 
-    // Get all forwarders (delegators + direct voters)
-    console.log("Fetching forwarders...");
-    const forwarders = await getAllForwarders(
+    // Get all forwarders (delegators + direct voters). Forwarder lists are
+    // PER PLATFORM: a wallet's direct effective VP, its choices and its
+    // forwarding status can differ between Curve and FXN. StakeDAO delegate
+    // contributing weights are intentionally excluded here: they are paid by
+    // the separate repartition_delegation pipeline.
+    console.log("Fetching Curve forwarders...");
+    const curveForwarders = await getAllForwarders(
       CVX_SPACE,
       curveProposal,
       curveVotes,
@@ -1131,7 +1140,7 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       Number(currentEpoch)
     );
 
-    if (forwarders.length === 0) {
+    if (curveForwarders.length === 0) {
       console.warn("No forwarders found!");
       return;
     }
@@ -1144,7 +1153,7 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     > = {};
     const matchingBribesAggregated: any = {};
 
-    forwarders.forEach((f) => {
+    curveForwarders.forEach((f) => {
       tokenAllocations[f.address] = {};
       perAddressTokenAllocations[f.address] = {};
     });
@@ -1159,7 +1168,7 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       curveProposal,
       curveVotes,
       getAllCurveGauges,
-      forwarders,
+      curveForwarders,
       false
     );
     const curveAddressBreakdown = votesCurveResult
@@ -1172,19 +1181,21 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       curveVotes,
       getAllCurveGauges,
       curveBribes,
-      forwarders,
+      curveForwarders,
       tokenAllocations,
       perAddressTokenAllocations,
       matchingBribesAggregated,
       "curve",
       false
     );
+    console.log(`Processed ${curveGaugesProcessed} Curve gauges with bribes`);
 
     // Process FXN votes and bribes (skipped cleanly while the FXN platform
     // has no proposal yet — getOnChainProposal throws into this catch)
     console.log("Processing FXN gauges...");
     let fxnGaugesProcessed = 0;
     let fxnAddressBreakdown: any = {};
+    let fxnForwarders: Forwarder[] = [];
 
     try {
       const fxnProposal = await getOnChainProposal(
@@ -1206,13 +1217,39 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       );
       const fxnBribes = await fetchBribes("cvx-fxn", fxnProposal.end);
 
+      // FXN forwarders must be resolved from the FXN proposal itself. The end
+      // block is platform-specific even though both platforms currently share
+      // the same schedule, and a direct voter's effective VP can differ.
+      const fxnBlockSnapshotEnd = allowActive
+        ? Number(await ethereumClient.getBlockNumber())
+        : await getBlockNumberByTimestamp(fxnProposal.end, "after", 1);
+
+      console.log("Fetching FXN forwarders...");
+      fxnForwarders = await getAllForwarders(
+        CVX_SPACE,
+        fxnProposal,
+        fxnVotes,
+        fxnBlockSnapshotEnd,
+        Number(currentEpoch)
+      );
+
+      // A forwarder may exist on FXN only (e.g. delegated after the Curve
+      // carve-out): allocation maps must cover the union of both lists —
+      // processGaugeVotes assumes perAddressTokenAllocations[addr] exists.
+      fxnForwarders.forEach((f) => {
+        if (!tokenAllocations[f.address]) tokenAllocations[f.address] = {};
+        if (!perAddressTokenAllocations[f.address]) {
+          perAddressTokenAllocations[f.address] = {};
+        }
+      });
+
       // Process FXN votes to get address breakdown
       const votesFxnResult = await fetchProposalVotesWithAddressBreakdown(
         CVX_SPACE,
         fxnProposal,
         fxnVotes,
         () => getGaugesInfos("fxn"),
-        forwarders,
+        fxnForwarders,
         true
       );
       fxnAddressBreakdown = votesFxnResult
@@ -1225,13 +1262,14 @@ export async function generateConvexVotiumBounties(): Promise<void> {
         fxnVotes,
         () => getGaugesInfos("fxn"),
         fxnBribes,
-        forwarders,
+        fxnForwarders,
         tokenAllocations,
         perAddressTokenAllocations,
         matchingBribesAggregated,
         "fxn",
         true
       );
+      console.log(`Processed ${fxnGaugesProcessed} FXN gauges with bribes`);
     } catch (error) {
       console.error("Error processing FXN gauges:", error);
     }
@@ -1593,10 +1631,16 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     console.log("SUMMARY");
     console.log("=".repeat(60));
     
-    const delegatorCount = forwarders.filter((f) => f.type === "delegator").length;
-    const directVoterCount = forwarders.filter((f) => f.type === "direct-voter").length;
-    
-    console.log(`Forwarders: ${forwarders.length} (${delegatorCount} delegators, ${directVoterCount} direct voters)`);
+    // Union of the two per-platform lists (an address may forward on both)
+    const forwardersByAddress = new Map<string, Forwarder>();
+    for (const f of [...curveForwarders, ...fxnForwarders]) {
+      if (!forwardersByAddress.has(f.address)) forwardersByAddress.set(f.address, f);
+    }
+    const allForwarders = [...forwardersByAddress.values()];
+    const delegatorCount = allForwarders.filter((f) => f.type === "delegator").length;
+    const directVoterCount = allForwarders.filter((f) => f.type === "direct-voter").length;
+
+    console.log(`Forwarders: ${allForwarders.length} (${delegatorCount} delegators, ${directVoterCount} direct voters)`);
     console.log(`Claimed tokens: ${Object.keys(claimedTokenAmounts).length}`);
     console.log(`Total claimed: $${totalClaimedUsd.toFixed(2)}`);
     console.log(`Total distributed: $${totalDistributedUsd.toFixed(2)}`);
