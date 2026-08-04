@@ -26,6 +26,7 @@ import { bsc, mainnet } from "../utils/chains";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { processAllDelegators } from "./cacheUtils";
 import { getBlockNumberByTimestamp } from "./chainUtils";
+import { getAvailableEndpoints } from "./rpcConfig";
 import {
   canComputeSdFxsVotingPower,
   getSdFxsVotingPower,
@@ -524,6 +525,11 @@ export const addVotersFromAutoVoter = async (
   }
 
   const endBlock = await getBlockNumberByTimestamp(proposal.end, "before", mainnet.id);
+  if (!endBlock) {
+    throw new Error(
+      "Unable to resolve proposal end block for auto voter weights"
+    );
+  }
 
   // Get all delegators until proposal creation
   const delegators = await processAllDelegators(
@@ -531,9 +537,6 @@ export const addVotersFromAutoVoter = async (
     proposal.created,
     AUTO_VOTER_DELEGATION_ADDRESS
   );
-
-  // Fetch delegators weight registered in the auto voter contract
-  const publicClient = await getClient(1);
 
   // Compute delegators voting power at the proposal timestamp
   const votersVp: Record<string, number> = {};
@@ -586,21 +589,51 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
-  const results = await publicClient.multicall({
-    contracts: delegatorAddresses.map((delegatorAddress) => {
-      return {
-        address: AUTO_VOTER_CONTRACT as any,
-        abi: VOTER_ABI as any,
-        functionName: "get",
-        args: [delegatorAddress, space],
-      };
-    }),
-    blockNumber: endBlock as any,
+  const contracts = delegatorAddresses.map((delegatorAddress) => {
+    return {
+      address: AUTO_VOTER_CONTRACT as any,
+      abi: VOTER_ABI as any,
+      functionName: "get",
+      args: [delegatorAddress, space],
+    };
   });
 
-  if (results.some((r) => r.status === "failure")) {
+  // The registrations must be read at the proposal end block — a bigint, as
+  // viem silently ignores a JS number blockNumber and reads latest state,
+  // missing registrations changed after the vote closed. Historical eth_call
+  // needs archive state, which the latency-raced client may not serve, so
+  // fall back through the priority-ordered endpoints until one does.
+  let results: any[] | null = null;
+  let lastError: unknown = null;
+  const clientFactories = [
+    () => getClient(1),
+    ...getAvailableEndpoints(1).map(
+      (endpoint) => async () =>
+        createPublicClient({
+          chain: mainnet,
+          transport: http(endpoint.url, { timeout: 30000 }),
+        })
+    ),
+  ];
+  for (const makeClient of clientFactories) {
+    try {
+      const client = await makeClient();
+      const attempt = await client.multicall({
+        contracts,
+        blockNumber: BigInt(endBlock),
+      });
+      if (attempt.every((r) => r.status === "success")) {
+        results = attempt;
+        break;
+      }
+      lastError = attempt.find((r) => r.status === "failure")?.error;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!results) {
     throw new Error(
-      "Error when fetching auto voter weights : " + JSON.stringify(results)
+      "Error when fetching auto voter weights : " + String(lastError)
     );
   }
 
