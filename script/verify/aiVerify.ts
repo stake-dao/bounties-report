@@ -6,7 +6,7 @@
  * if all scripts pass but every LLM is down, the pipeline still passes.
  *
  * Usage:
- *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|bounties|spectra|frax|all] [--target voters|delegators|both] [--models m1,m2] [--deep]
+ *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|bounties|spectra|frax|all] [--target voters|delegators|both] [--run-type voters|delegators] [--models m1,m2] [--deep]
  *
  * Env:
  *   OPENCODE_ZEN_API_KEY  (required)
@@ -15,7 +15,7 @@
 import * as dotenv from "dotenv";
 import { spawnSync } from "child_process";
 import * as path from "path";
-import { verifyWithConsensus, Protocol, ConsensusResult, VerifyMetadata } from "./distributionVerify";
+import { verifyWithConsensus, Protocol, ConsensusResult, VerifyMetadata, RunType } from "./distributionVerify";
 import { createZenClient, ZEN_DEFAULT_MODEL } from "../utils/openCodeZen";
 import { sendConsensusReport } from "./telegramReport";
 import { WEEK, CVX_SPACE } from "../utils/constants";
@@ -103,6 +103,7 @@ async function main(): Promise<void> {
   let timestamp: number | undefined;
   let protocol: Protocol = "all";
   let invariantTarget: InvariantTarget = "both";
+  let runType: RunType | undefined;
   let modelIds = DEFAULT_MODELS;
 
   for (let i = 0; i < args.length; i++) {
@@ -112,6 +113,13 @@ async function main(): Promise<void> {
       protocol = args[++i] as Protocol;
     } else if (args[i] === "--target" && args[i + 1]) {
       invariantTarget = parseTarget(args[++i]);
+    } else if (args[i] === "--run-type" && args[i + 1]) {
+      const v = args[++i];
+      if (v !== "voters" && v !== "delegators") {
+        console.error(`Invalid --run-type: ${v} (expected voters|delegators)`);
+        process.exit(1);
+      }
+      runType = v;
     } else if (args[i] === "--models" && args[i + 1]) {
       modelIds = args[++i].split(",").map((m) => m.trim());
     } else if (args[i] === "--model" && args[i + 1]) {
@@ -124,6 +132,8 @@ Options:
   --timestamp <ts>       Week epoch (default: current week)
   --protocol  <p>        vlCVX | bounties | spectra | frax | all  (default: all)
   --target    <t>        vlCVX invariant target: voters | delegators | both (default: both)
+  --run-type  <r>        Which pipeline run dispatched this verify: voters | delegators
+                         (authoritative run context for the models; default: infer from dates)
   --models    <m1,m2>    Comma-separated model IDs (default: ${DEFAULT_MODELS.join(",")})
   --model     <m>        Single model (shorthand for --models with one)
   --deep                 Include RPC/parquet delegation checks (implicit)
@@ -149,7 +159,7 @@ Options:
   const metadata = await fetchMetadata(timestamp, protocols);
 
   for (const p of protocols) {
-    const result = await verifyWithConsensus(clients, timestamp, p, invariantTarget);
+    const result = await verifyWithConsensus(clients, timestamp, p, invariantTarget, runType);
     await sendConsensusReport(result, timestamp, p, metadata);
 
     const icon = VERDICT_ICON[result.verdict] ?? "❓";

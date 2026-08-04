@@ -32,6 +32,10 @@ const SCRIPT_TIMEOUT_MS = 5 * 60 * 1000;
 
 export type Verdict = "pass" | "fail" | "warning";
 
+/** Which distribution run dispatched this verification (authoritative,
+ *  supplied by the pipeline — replaces day-of-week inference in prompts). */
+export type RunType = "voters" | "delegators";
+
 export interface ScriptResult {
   label: string;
   output: string;
@@ -158,7 +162,7 @@ Only frax is in scope here — curve/fxn are deliberately excluded from the sdFX
   vlCVX: `Distribution timing for vlCVX (Curve+FXN):
 - Thursday run = VOTERS distribution. Forwarder slices are NOT yet included; "forwarder missing", "fwd=0", "parquet off-by-one", or a 1-row delta between parquet/RPC counts driven by forwarders is EXPECTED, not anomalous. Do NOT WARN on it.
 - Tuesday run = DELEGATORS distribution. Forwarders join here; parquet and RPC counts (incl. fwd splits) must reconcile.
-Infer day-of-week from the "Week:" header date and apply the rule above before flagging any forwarder-related drift.
+If a RUN CONTEXT block names the run, apply its rule directly; only when it is absent infer day-of-week from the "Week:" header date. Apply the rule above before flagging any forwarder-related drift.
 
 CSV mismatch triage for vlCVX:
 1. CSV diff≠0 + token NOT in merkle → CRITICAL FAIL: funds computed but never distributed.
@@ -172,11 +176,23 @@ Base-file triage for vlCVX:
 /**
  * Build the LLM prompt from collected script outputs.
  */
-function buildPrompt(timestamp: number, protocol: Protocol, scripts: ScriptResult[]): string {
+function buildPrompt(
+  timestamp: number,
+  protocol: Protocol,
+  scripts: ScriptResult[],
+  runType?: RunType
+): string {
   const date = new Date(timestamp * 1000).toISOString().split("T")[0];
   const sections = scripts
     .map((s) => `────────── ${s.label} (exit ${s.exitCode}) ──────────\n${s.output}`)
     .join("\n\n");
+
+  const runContext = runType
+    ? `
+## RUN CONTEXT
+This is the ${runType === "delegators" ? "TUESDAY DELEGATORS" : "THURSDAY VOTERS"} run — authoritative, provided by the dispatching pipeline. Apply the ${runType} rules directly; do NOT infer the run day from dates.
+`
+    : "";
 
   // When a deterministic gate ran (and passed — failures never reach the
   // models), pin its guarantees so models spend judgment on semantics only.
@@ -192,7 +208,7 @@ Spend your judgment on what deterministic math cannot check: whether the INPUTS 
   const basePrompt = `You are a DeFi protocol engineer reviewing automated distribution verification for Stake DAO bounty distributions.
 
 Week: ${timestamp} (${date})  |  Protocol: ${protocol}
-
+${runContext}
 ## YOUR TASK
 Analyze the verification script outputs below. Each script tests a different aspect of the distribution pipeline. You must:
 1. Read each script's output and determine if it passed
@@ -302,7 +318,8 @@ export async function analyze(
   client: LLMClient,
   timestamp: number,
   protocol: Protocol,
-  scripts: ScriptResult[]
+  scripts: ScriptResult[],
+  runType?: RunType
 ): Promise<VerificationResult> {
   const allOk = scripts.every((s) => s.exitCode === 0);
   const fallback = {
@@ -313,7 +330,7 @@ export async function analyze(
     issues: allOk ? [] : ["See raw script output for details"],
   };
 
-  const prompt = buildPrompt(timestamp, protocol, scripts);
+  const prompt = buildPrompt(timestamp, protocol, scripts, runType);
   const { result: parsed, error } = await client.analyzeJson<{
     verdict: Verdict;
     summary: string;
@@ -419,12 +436,13 @@ export async function verifyWithConsensus(
   clients: LLMClient[],
   timestamp: number,
   protocol: Protocol = "all",
-  invariantTarget: InvariantTarget = "both"
+  invariantTarget: InvariantTarget = "both",
+  runType?: RunType
 ): Promise<ConsensusResult> {
   const date = new Date(timestamp * 1000).toISOString().split("T")[0];
   const modelNames = clients.map((c) => c.model).join(", ");
 
-  console.log(`\n[verify] week ${timestamp} (${date}), protocol=${protocol}`);
+  console.log(`\n[verify] week ${timestamp} (${date}), protocol=${protocol}${runType ? `, run=${runType}` : ""}`);
   console.log(`  models: ${modelNames}`);
 
   const scripts = runScripts(timestamp, protocol, invariantTarget);
@@ -446,7 +464,7 @@ export async function verifyWithConsensus(
     }
     return {
       verdict: "fail",
-      summary: `Deterministic invariants gate failed: ${labels}`,
+      summary: `Deterministic gate failed: ${labels}`,
       issues: failedGates.map(
         (g) => `${g.label} exited ${g.exitCode} — see script output for violations`
       ),
@@ -464,7 +482,7 @@ export async function verifyWithConsensus(
     clients.map(async (client): Promise<ModelVerdict> => {
       const t0 = Date.now();
       try {
-        const result = await analyze(client, timestamp, protocol, scripts);
+        const result = await analyze(client, timestamp, protocol, scripts, runType);
         const llmFailed = result.summary.includes(LLM_UNAVAILABLE_MARKER);
         if (llmFailed) {
           return {
