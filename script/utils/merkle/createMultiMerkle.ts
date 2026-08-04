@@ -358,6 +358,23 @@ export const createMultiMerkle = async (
     }
   }
 
+  // TEMPORARY — remove after the 23/7-5/8 round's last distribution.
+  // Week A of this round stranded the YB gauge rewards (USDT+crvUSD +
+  // USDC+crvUSD) in the merkle contract: their sole voter's auto-voter
+  // registration was read at the wrong block (fixed in #170). Same vote,
+  // same sole voter — repay within the round. Keyed to the round's proposal
+  // id so it can never fire for another round.
+  const WEEK_A_YB_REPAYMENT = {
+    proposalId:
+      "0x79d8a5b7e4ae963d8c980c4ab4adfcdbe0e39e3b5677cf4a33c1da53e5ff7049",
+    user: "0xe4f02accc88a3000f11afec71c04896127a3aeb5",
+    amount: 8078.312182,
+  };
+  if (ids.includes(WEEK_A_YB_REPAYMENT.proposalId)) {
+    userRewards[WEEK_A_YB_REPAYMENT.user] =
+      (userRewards[WEEK_A_YB_REPAYMENT.user] || 0) + WEEK_A_YB_REPAYMENT.amount;
+  }
+
   // Determine which token to distribute:
   // - Use overrideTokenAddress for raw tokens (e.g., CRV instead of sdCRV)
   // - Otherwise use the default sdToken for the space
