@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       type:
-        description: 'Distribution type (informational; same vlCVX verification runs for both)'
+        description: 'Distribution type — passed to the verifier as authoritative run context (--run-type); deterministic checks still run for both'
         required: true
         type: choice
         options:
@@ -47,15 +47,21 @@ jobs:
 
       - name: AI verify vlCVX distribution
         run: |
-          if [ -n "${{ inputs.epoch }}" ]; then
-            PERIOD="${{ inputs.epoch }}"
+          if [ -n "$EPOCH_INPUT" ]; then
+            if ! [[ "$EPOCH_INPUT" =~ ^[0-9]+$ ]]; then
+              echo "::error::epoch must be a unix timestamp: $EPOCH_INPUT"
+              exit 1
+            fi
+            PERIOD="$EPOCH_INPUT"
           else
             WEEK=604800
             PERIOD=$(( $(date +%s) / WEEK * WEEK ))
           fi
-          echo "Type=${{ inputs.type }} Period=$PERIOD"
-          pnpm tsx script/verify/aiVerify.ts --timestamp $PERIOD --protocol vlCVX --deep
+          echo "Type=$RUN_TYPE Period=$PERIOD"
+          pnpm tsx script/verify/aiVerify.ts --timestamp "$PERIOD" --protocol vlCVX --deep --run-type "$RUN_TYPE"
         env:
+          EPOCH_INPUT: ${{ inputs.epoch }}
+          RUN_TYPE: ${{ inputs.type }}
           OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}

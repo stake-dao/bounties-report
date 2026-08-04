@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 import * as moment from "moment";
 dotenv.config();
 
-import { type PublicClient, getAddress } from "viem";
+import { type PublicClient, getAddress, pad } from "viem";
 import { http, createPublicClient } from "viem";
 import { mainnet } from "../../utils/chains";
 import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
@@ -15,6 +15,7 @@ import {
 	CVX_SPACE,
 	SCRVUSD,
 	CVX_GAUGE_VOTE_PLATFORM_CURVE,
+	VLCVX_DELEGATORS_MERKLE,
 } from "../../utils/constants";
 import {
 	getOnChainProposal,
@@ -25,13 +26,7 @@ import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 // Removed unused price utils imports
-import {
-	ALL_MIGHT_V2,
-	CRV_ADDRESS,
-	WETH_ADDRESS,
-	mapTokenSwapsToOutToken,
-	mergeTokenMaps,
-} from "../../utils/reportUtils";
+import { WETH_ADDRESS } from "../../utils/reportUtils";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { getSCRVUsdTransfer } from "../utils";
 
@@ -143,17 +138,6 @@ async function getProtocolShares(
 		console.log("No FXN delegation file found, allocating all to Curve");
 	}
 
-	// --- Helper for Normalizing Keys ---
-	const normalizeMap = (
-		map: Record<string, bigint>,
-	): Record<string, bigint> => {
-		const normalized: Record<string, bigint> = {};
-		for (const [token, amt] of Object.entries(map)) {
-			normalized[token.toLowerCase()] = amt;
-		}
-		return normalized;
-	};
-
 	// --- Initialize Delegation Maps (Normalize Keys) ---
 	const totalCurveVM: { [token: string]: bigint } = {};
 	const totalFxnVM: { [token: string]: bigint } = {};
@@ -254,158 +238,7 @@ async function getProtocolShares(
 		totalFxnTokens[token] = (totalFxnTokens[token] || 0n) + amount;
 	}
 
-	// --- Separate Tx Hashes for Votium vs. VM ---
-	const TRANSFER_TOPIC =
-		"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-	const PADDED_VOTIUM_DELEGATION_ADDRESS =
-		"0x000000000000000000000000ae86a3993d13c8d77ab77dbb8ccdb9b7bc18cd09";
-
-	const votiumTxHashes: string[] = [];
-	const vmTxHashes: string[] = [];
-
-	// Skip this part if no txHashes
-	if (txHashes.length > 0) {
-		for (const txHash of txHashes) {
-			let receipt;
-			let retries = 0;
-			const maxRetries = 10;
-
-			while (retries < maxRetries) {
-				try {
-					receipt = await publicClient.getTransactionReceipt({
-						hash: txHash as `0x${string}`,
-					});
-					break;
-				} catch (error: any) {
-					if (retries === maxRetries - 1) throw error;
-
-					// Check if it's a receipt not found error
-					if (error.name === 'TransactionReceiptNotFoundError' ||
-						(error.message && error.message.includes('could not be found'))) {
-						console.warn(`Receipt not found for ${txHash}, retrying (${retries + 1}/${maxRetries})...`);
-						await new Promise(resolve => setTimeout(resolve, 2000 * (retries + 1)));
-						retries++;
-					} else {
-						throw error;
-					}
-				}
-			}
-
-			if (!receipt) {
-				throw new Error(`Failed to fetch receipt for ${txHash}`);
-			}
-
-			const isVotium = receipt.logs.some((log) => {
-				if (
-					!log.topics ||
-					!log.topics[0] ||
-					log.topics[0].toLowerCase() !== TRANSFER_TOPIC.toLowerCase()
-				)
-					return false;
-				return (
-					(log.topics[1] as string).toLowerCase() ===
-					PADDED_VOTIUM_DELEGATION_ADDRESS
-				);
-			});
-			if (isVotium) {
-				votiumTxHashes.push(txHash);
-			} else {
-				vmTxHashes.push(txHash);
-			}
-		}
-	}
-
-	// --- Prepare Token Sets (Exclude CRV) ---
-	const vmTokens = new Set([
-		...Object.keys(totalCurveVM),
-		...Object.keys(totalFxnVM),
-	]);
-	const votiumTokens = new Set([
-		...Object.keys(totalCurveVotium),
-		...Object.keys(totalFxnVotium),
-	]);
-	vmTokens.delete(CRV_ADDRESS.toLowerCase());
-	votiumTokens.delete(CRV_ADDRESS.toLowerCase());
-
-	// --- Map Tokens to WETH and CRVUSD ---
-	let vmTokenToWeth: Record<string, bigint> = {};
-	let votiumTokenToWeth: Record<string, bigint> = {};
-	let vmTokenToCrvUSD: Record<string, bigint> = {};
-	let votiumTokenToCrvUSD: Record<string, bigint> = {};
-
-	if (vmTxHashes.length > 0) {
-		const rawVmTokenToWeth = await mapTokenSwapsToOutToken(
-			publicClient,
-			vmTxHashes[0],
-			vmTokens,
-			WETH_ADDRESS,
-			ALL_MIGHT_V2,
-		);
-		vmTokenToWeth = normalizeMap(rawVmTokenToWeth);
-
-		const rawVmTokenToCrvUSD = await mapTokenSwapsToOutToken(
-			publicClient,
-			vmTxHashes[0],
-			new Set([WETH_ADDRESS.toLowerCase(), CRV_ADDRESS.toLowerCase()]),
-			CRVUSD,
-			ALL_MIGHT_V2,
-		);
-		vmTokenToCrvUSD = normalizeMap(rawVmTokenToCrvUSD);
-	}
-
-	if (votiumTxHashes.length > 0) {
-		const rawVotiumTokenToWeth = await mapTokenSwapsToOutToken(
-			publicClient,
-			votiumTxHashes[0],
-			votiumTokens,
-			WETH_ADDRESS,
-			ALL_MIGHT_V2,
-		);
-		votiumTokenToWeth = normalizeMap(rawVotiumTokenToWeth);
-
-		const rawVotiumTokenToCrvUSD = await mapTokenSwapsToOutToken(
-			publicClient,
-			votiumTxHashes[0],
-			new Set([WETH_ADDRESS.toLowerCase(), CRV_ADDRESS.toLowerCase()]),
-			CRVUSD,
-			ALL_MIGHT_V2,
-		);
-		votiumTokenToCrvUSD = normalizeMap(rawVotiumTokenToCrvUSD);
-	}
-
-	const tokenToWeth = mergeTokenMaps(vmTokenToWeth, votiumTokenToWeth);
-	const tokenToCrvUSD = mergeTokenMaps(vmTokenToCrvUSD, votiumTokenToCrvUSD);
-
-	// --- Compute Totals for Non-CRV Tokens ---
-	const totalWETH = Object.entries(tokenToWeth)
-		.filter(([token]) => token.toLowerCase() !== CRV_ADDRESS.toLowerCase())
-		.reduce((acc, [_, amt]) => acc + amt, 0n);
-	const totalCrvUSDNonCRV = Object.entries(tokenToCrvUSD)
-		.filter(([token]) => token.toLowerCase() !== CRV_ADDRESS.toLowerCase())
-		.reduce((acc, [_, amt]) => acc + amt, 0n);
-
-	// --- Build Final crvUSD Mapping ---
-	const finalTokenCrvUSD: Record<string, bigint> = {};
-	const allTokens = new Set([
-		...Object.keys(tokenToWeth),
-		...Object.keys(tokenToCrvUSD),
-	]);
-	for (const token of allTokens) {
-		const tokenLower = token.toLowerCase();
-		if (tokenLower === CRV_ADDRESS.toLowerCase()) {
-			finalTokenCrvUSD[tokenLower] = tokenToCrvUSD[tokenLower] || 0n;
-		} else {
-			const wethAmt = tokenToWeth[tokenLower] || 0n;
-			const directCrvUSD = tokenToCrvUSD[tokenLower] || 0n;
-			const proportion =
-				totalWETH > 0n ? (wethAmt * totalCrvUSDNonCRV) / totalWETH : 0n;
-			finalTokenCrvUSD[tokenLower] = directCrvUSD + proportion;
-		}
-	}
-	delete finalTokenCrvUSD[WETH_ADDRESS.toLowerCase()];
-	console.log("Final crvUSD per token:", finalTokenCrvUSD);
-
-	// If no FXN delegation, return all to Curve
+	// If no FXN delegation, everything belongs to Curve — no split needed.
 	if (!hasFxnDelegation) {
 		return {
 			curveCrvUsdAmount: totalScrvUsd,
@@ -413,18 +246,112 @@ async function getProtocolShares(
 		};
 	}
 
-	// --- Calculate Protocol-Specific crvUSD Amounts ---
+	// --- Attribute each deposit tx's minted sCRVUSD to Curve/FXN ---
+	// Each swap tx moves reward tokens out of the VM/Votium source, swaps them
+	// (the route varies: legacy ALL_MIGHT token→WETH→crvUSD hops, ALL_MIGHT_V2 +
+	// aggregator since Aug 2026) and mints sCRVUSD to the distributor within the
+	// same tx. Tracing individual swap legs is route-dependent and silently
+	// breaks on executor migrations, so instead split each tx's minted sCRVUSD
+	// by the protocol weights of the reward tokens moved in that tx. Swap
+	// batches are built per protocol, so in practice a tx is 100% Curve or FXN.
+	const TRANSFER_TOPIC =
+		"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+	const PADDED_DISTRIBUTOR = pad(VLCVX_DELEGATORS_MERKLE as `0x${string}`, {
+		size: 32,
+	}).toLowerCase();
+	const scrvUsdLower = SCRVUSD.toLowerCase();
+	const excludedTokens = new Set([
+		scrvUsdLower,
+		CRVUSD.toLowerCase(),
+		WETH_ADDRESS.toLowerCase(),
+	]);
+
 	let curveCrvUsdAmount = 0n;
 	let fxnCrvUsdAmount = 0n;
-	for (const [token, crvUsdAmount] of Object.entries(finalTokenCrvUSD)) {
-		const curveAmount = totalCurveTokens[token] || 0n;
-		const fxnAmount = totalFxnTokens[token] || 0n;
-		const totalAmount = curveAmount + fxnAmount;
-		if (totalAmount > 0n) {
-			curveCrvUsdAmount += (curveAmount * crvUsdAmount) / totalAmount;
-			fxnCrvUsdAmount += (fxnAmount * crvUsdAmount) / totalAmount;
+
+	for (const txHash of txHashes) {
+		let receipt;
+		let retries = 0;
+		const maxRetries = 10;
+
+		while (retries < maxRetries) {
+			try {
+				receipt = await publicClient.getTransactionReceipt({
+					hash: txHash as `0x${string}`,
+				});
+				break;
+			} catch (error: any) {
+				if (retries === maxRetries - 1) throw error;
+
+				// Check if it's a receipt not found error
+				if (error.name === 'TransactionReceiptNotFoundError' ||
+					(error.message && error.message.includes('could not be found'))) {
+					console.warn(`Receipt not found for ${txHash}, retrying (${retries + 1}/${maxRetries})...`);
+					await new Promise(resolve => setTimeout(resolve, 2000 * (retries + 1)));
+					retries++;
+				} else {
+					throw error;
+				}
+			}
 		}
+
+		if (!receipt) {
+			throw new Error(`Failed to fetch receipt for ${txHash}`);
+		}
+
+		let mintedToDistributor = 0n;
+		const inputTokens = new Set<string>();
+		for (const log of receipt.logs) {
+			if (
+				!log.topics ||
+				!log.topics[0] ||
+				log.topics[0].toLowerCase() !== TRANSFER_TOPIC ||
+				log.topics.length < 3
+			)
+				continue;
+			const token = log.address.toLowerCase();
+			if (
+				token === scrvUsdLower &&
+				(log.topics[2] as string).toLowerCase() === PADDED_DISTRIBUTOR
+			) {
+				mintedToDistributor += BigInt(log.data);
+			} else if (
+				!excludedTokens.has(token) &&
+				(totalCurveTokens[token] !== undefined ||
+					totalFxnTokens[token] !== undefined)
+			) {
+				inputTokens.add(token);
+			}
+		}
+		if (mintedToDistributor === 0n) continue;
+
+		let curveWeight = 0n;
+		let fxnWeight = 0n;
+		for (const token of inputTokens) {
+			curveWeight += totalCurveTokens[token] || 0n;
+			fxnWeight += totalFxnTokens[token] || 0n;
+		}
+		const totalWeight = curveWeight + fxnWeight;
+		// Unattributable deposit (e.g. a WETH-only leg): skip — the final
+		// normalization spreads it pro-rata across both protocols.
+		if (totalWeight === 0n) continue;
+
+		const curvePart = (mintedToDistributor * curveWeight) / totalWeight;
+		curveCrvUsdAmount += curvePart;
+		fxnCrvUsdAmount += mintedToDistributor - curvePart;
 	}
+
+	// Never write a silent zero distribution while sCRVUSD actually arrived:
+	// fail the run so the pipeline halts before set-root.
+	if (totalScrvUsd > 0n && curveCrvUsdAmount + fxnCrvUsdAmount === 0n) {
+		throw new Error(
+			`Protocol split attributed 0 of ${totalScrvUsd} sCRVUSD across ${txHashes.length} deposit tx(s) — refusing to write an empty distribution. Did the swap route change?`,
+		);
+	}
+
+	console.log(
+		`Protocol split: curve=${curveCrvUsdAmount} fxn=${fxnCrvUsdAmount} (total on-chain: ${totalScrvUsd})`,
+	);
 
 	// Normalize with totalScrvUsd
 	const computedTotal = curveCrvUsdAmount + fxnCrvUsdAmount;
