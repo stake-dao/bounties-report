@@ -216,7 +216,10 @@ export const createMultiMerkle = async (
         totalVP += (voter.vp * ratio) / 100;
       }
 
-      if (!foundVotersForGauge) {
+      // totalVP === 0 covers gauges whose only choice-map entries carry
+      // weight 0 (a user re-registered away) or belong to vp-less voters:
+      // the split loop below would assign nothing, stranding the rewards.
+      if (!foundVotersForGauge || totalVP === 0) {
         nonFoundGauges[gaugeAddress] = {
           index: index,
           amount: sdTknRewardAmount,
