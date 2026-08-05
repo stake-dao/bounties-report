@@ -17,6 +17,16 @@ vi.mock("../../utils/forwarderCacheUtils", () => ({
   processAllForwarders: mocks.processAllForwarders,
 }));
 
+const delegationMocks = vi.hoisted(() => ({
+  getDelegatesAtEpoch: vi.fn(),
+  getContributingWeightsAtVote: vi.fn(),
+}));
+
+vi.mock("../../utils/onChainDelegation", () => ({
+  getDelegatesAtEpoch: delegationMocks.getDelegatesAtEpoch,
+  getContributingWeightsAtVote: delegationMocks.getContributingWeightsAtVote,
+}));
+
 vi.mock("../../utils/gaugeVotePlatform", () => ({
   getOnChainProposal: vi.fn(),
   getOnChainVoters: vi.fn(),
@@ -40,8 +50,13 @@ const PROPOSAL = {
   snapshot: 230,
 };
 
+const THE_UNION = "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49";
+
 beforeEach(() => {
   vi.clearAllMocks();
+
+  delegationMocks.getDelegatesAtEpoch.mockResolvedValue({});
+  delegationMocks.getContributingWeightsAtVote.mockResolvedValue({});
 
   mocks.fetchDelegatorData.mockResolvedValue({
     delegators: [USER],
@@ -125,6 +140,44 @@ describe("getAllForwarders voting-power source", () => {
     );
 
     expect(forwarders[0].votingPower).toBe(0);
+  });
+
+  it("prices a Union delegator's slice at its contributing weight, not raw VP", async () => {
+    mocks.fetchDelegatorData.mockResolvedValue(null);
+    mocks.processAllForwarders.mockResolvedValue([USER]);
+    mocks.getOnChainVotingPower.mockResolvedValue({ [USER]: 7_374 });
+    delegationMocks.getDelegatesAtEpoch.mockResolvedValue({
+      [USER]: THE_UNION.toLowerCase(),
+    });
+    delegationMocks.getContributingWeightsAtVote.mockResolvedValue({
+      [USER]: 6_900,
+    });
+
+    const forwarders = await getAllForwarders(
+      "cvx.eth",
+      PROPOSAL,
+      [],
+      123_456,
+      1_000
+    );
+
+    expect(delegationMocks.getContributingWeightsAtVote).toHaveBeenCalledWith(
+      expect.any(String),
+      PROPOSAL.author,
+      PROPOSAL.id,
+      THE_UNION,
+      [USER],
+      expect.anything()
+    );
+    expect(forwarders).toEqual([
+      expect.objectContaining({
+        address: USER,
+        isUnionDelegator: true,
+        delegatedTo: THE_UNION,
+        votingPower: 7_374,
+        unionContributingWeight: 6_900,
+      }),
+    ]);
   });
 
   it("keeps a non-delegator direct voter on their own vote VP", async () => {

@@ -1,7 +1,7 @@
 include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
-.PHONY: all setup install-deps run-weekly clean
+.PHONY: all setup install-deps run-weekly get-forwarders clean
 
 # Define the default target
 .DEFAULT_GOAL := all
@@ -18,6 +18,10 @@ install-deps:
 get-delegators: setup install-deps
 	@echo "Running vlCVX delegation data collection..."
 	@$(PNPM) tsx script/indexer/delegators.ts
+
+get-forwarders: setup install-deps
+	@echo "Running Votium forwarders indexing..."
+	@$(PNPM) tsx script/indexer/forwarders.ts
 
 commit-and-push:
 	@echo "Committing and pushing changes..."
