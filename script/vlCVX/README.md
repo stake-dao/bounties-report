@@ -20,6 +20,54 @@ The vlCVX pipeline distributes Convex voting rewards to direct voters, Stake DAO
 
 On-chain swaps, root submission, and final publish are handled outside these scripts by automation jobs and the `vlCVX: Distribution` workflow.
 
+## Votium forwarders money flow
+
+Votium claims all users registered behind Stake DAO's forwarder through one
+aggregate leaf. `claims/generateConvexVotium.ts` reconstructs the per-address
+attribution and writes both files consumed by the Tuesday Merkle:
+
+- `claimed_bounties_convex.json` contains the tokens actually claimed;
+- `forwarders_voted_rewards.json` contains each user's `{ amountWei, usd }`
+  attribution.
+
+`3_merkles/createDelegatorsMerkle.ts` pays those users in sCRVUSD before
+splitting the remaining pool among Stake DAO delegators. A user who both votes
+through Votium and contributes to the Stake DAO delegation receives both
+allocations; the Merkle merge sums them. A `direct-voter` forwarded its Votium
+claim to Stake DAO but did not contribute voting power to the Stake DAO
+delegate: it earns only what its OWN vote earned. A wallet that delegates
+elsewhere (for example, to The Union) earns nothing here — votes cast by
+another delegate belong to that delegate's own pipeline, and Votium attributes
+rewards to voters, so such a wallet's rewards never enter our claim.
+
+The payout path is deliberately strict:
+
+- the attribution file is ignored when absent and rejected when its matching
+  claimed-bounties file is absent;
+- reward symbols must resolve to canonical Ethereum token addresses;
+- only entries with a positive claimed `amountWei` are payable, and allocated
+  token totals cannot exceed the claimed totals;
+- each token is capped by the aggregate amount actually claimed, split by the
+  original USD weights, and valued again from the final `amountWei`;
+- realized USD values are rounded down to six decimals and converted to
+  sCRVUSD at the vault's current `pricePerShare` with bigint arithmetic;
+- payouts below $1 stay in the delegators pool;
+- if requested payouts exceed the available sCRVUSD, every payout is capped
+  pro rata so the shared pool cannot be over-allocated;
+- the merkle step refuses to run when bounties were claimed but the
+  attribution file is missing, so a crashed generation cannot silently fold
+  forwarder value into the delegators pool.
+
+The applied payouts and the `pricePerShare` used are recorded in
+`bounties-reports/<period>/vlCVX/votium_forwarder_payouts.json`;
+`verify/verifyForwardersMerkle.ts` reads that artifact to check exact
+per-address merkle deltas.
+
+Token pricing can still differ from realized swap proceeds. Missing identities
+or prices fail the generation instead of emitting a partial attribution. The
+pool cap remains the final protection, and any unallocated remainder goes to
+the delegators distribution.
+
 ## Commands
 
 ```bash
