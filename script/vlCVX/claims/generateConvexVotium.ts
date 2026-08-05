@@ -9,11 +9,15 @@ import {
   VLCVX_ONCHAIN_DELEGATION_ADDRESS,
   DELEGATION_ADDRESS,
   CVX_GAUGE_DELEGATION,
+  CVX_GAUGE_VOTE_HELPER,
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
   WEEK,
 } from "../../utils/constants";
-import { getDelegatesAtEpoch } from "../../utils/onChainDelegation";
+import {
+  getContributingWeightsAtVote,
+  getDelegatesAtEpoch,
+} from "../../utils/onChainDelegation";
 import {
   getOnChainProposal,
   getOnChainVoters,
@@ -51,6 +55,9 @@ interface Forwarder {
   votingPower: number;
   delegatedTo?: string; // e.g. The Union — resolved on-chain at the epoch
   isUnionDelegator?: boolean;
+  // Weight actually incorporated in The Union's vote on THIS proposal
+  // (GaugeVoteHelper): 0 when the wallet voted directly or synced late.
+  unionContributingWeight?: number;
 }
 
 interface TokenAllocation {
@@ -214,6 +221,25 @@ export async function getAllForwarders(
   );
   const theUnionLower = THE_UNION_ADDRESS.toLowerCase();
 
+  // A union delegator's slice of The Union's vote is its weight AS COUNTED in
+  // that vote on this platform proposal — not its raw vlCVX balance. The
+  // helper replays sync-nonce accounting: a wallet that voted directly or
+  // synced after The Union's vote contributes less (usually 0).
+  const unionDelegatorAddresses = forwarderAddresses.filter(
+    (address) => delegateOf[address.toLowerCase()] === theUnionLower
+  );
+  const unionContributingWeights =
+    unionDelegatorAddresses.length > 0
+      ? await getContributingWeightsAtVote(
+          CVX_GAUGE_VOTE_HELPER,
+          proposal.author,
+          Number(proposal.id),
+          THE_UNION_ADDRESS,
+          unionDelegatorAddresses,
+          client
+        )
+      : {};
+
   const forwarders: Forwarder[] = forwarderAddresses.map((address) => {
     const addrLower = address.toLowerCase();
     const vote = voteByAddress.get(addrLower);
@@ -230,6 +256,9 @@ export async function getAllForwarders(
       votingPower,
       delegatedTo: isUnionDelegator ? THE_UNION_ADDRESS : undefined,
       isUnionDelegator,
+      unionContributingWeight: isUnionDelegator
+        ? unionContributingWeights[addrLower] ?? 0
+        : undefined,
     };
   });
 
@@ -252,7 +281,7 @@ function computeVoteSharesForGauge(
   // Create a map of Union delegators for quick lookup
   const unionDelegators = new Map<string, Forwarder>();
   forwarders.forEach((f) => {
-    if (f.isUnionDelegator) {
+    if (f.isUnionDelegator && (f.unionContributingWeight ?? 0) > 0) {
       unionDelegators.set(f.address, f);
     }
   });
@@ -291,15 +320,14 @@ function computeVoteSharesForGauge(
           });
 
           if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
-            const effectiveVp = (delegator.votingPower * gaugeChoiceValue) / vpChoiceSum;
+            const effectiveVp =
+              ((delegator.unionContributingWeight ?? 0) * gaugeChoiceValue) /
+              vpChoiceSum;
             voterVp.set(delegator.address, (voterVp.get(delegator.address) || 0) + effectiveVp);
           }
         });
         return;
       }
-
-      // Skip Union delegators in regular vote processing
-      if (unionDelegators.has(voter)) return;
 
       // Regular forwarder processing
       if (forwarderAddresses.has(voter)) {
@@ -400,7 +428,7 @@ function computeDelegationShareForGauge(
   // Create a map of Union delegators
   const unionDelegators = new Map<string, Forwarder>();
   forwarders.forEach((f) => {
-    if (f.isUnionDelegator) {
+    if (f.isUnionDelegator && (f.unionContributingWeight ?? 0) > 0) {
       unionDelegators.set(f.address, f);
     }
   });
@@ -445,16 +473,14 @@ function computeDelegationShareForGauge(
 
           if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
             const effectiveVp =
-              (delegator.votingPower * gaugeChoiceValue) / vpChoiceSum;
+              ((delegator.unionContributingWeight ?? 0) * gaugeChoiceValue) /
+              vpChoiceSum;
             totalEffectiveVp += effectiveVp;
             delegationEffectiveVp += effectiveVp;
           }
         });
         return; // Don't count The Union's vote itself
       }
-
-      // Skip Union delegators in regular processing
-      if (unionDelegators.has(voter)) return;
 
       // Regular vote processing
       let vpChoiceSum = 0;
@@ -786,7 +812,10 @@ async function fetchProposalVotesWithAddressBreakdown(
 
   // Use the isUnionDelegator flag to identify Union delegators
   for (const forwarder of forwarders) {
-    if (forwarder.isUnionDelegator) {
+    if (
+      forwarder.isUnionDelegator &&
+      (forwarder.unionContributingWeight ?? 0) > 0
+    ) {
       unionDelegators.set(forwarder.address.toLowerCase(), forwarder);
     }
   }
