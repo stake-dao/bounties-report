@@ -179,6 +179,37 @@ export const getOnChainDelegators = async (
 };
 
 /**
+ * Delegate of each user at a vlCVX epoch, via Delegation.getDelegateAtEpoch
+ * (zero address when not delegating). Reverse of getOnChainDelegators: use it
+ * to resolve where a KNOWN set of wallets delegates, without enumerating a
+ * delegate's full delegator set.
+ *
+ * Keys and values of the returned record are lowercase.
+ */
+export const getDelegatesAtEpoch = async (
+  delegationContract: string,
+  epoch: number,
+  addresses: string[],
+  client: any
+): Promise<Record<string, string>> => {
+  if (addresses.length === 0) return {};
+
+  const delegates = (await client.multicall({
+    allowFailure: false,
+    contracts: addresses.map((addr) => ({
+      address: delegationContract,
+      abi: DELEGATION_ABI,
+      functionName: "getDelegateAtEpoch",
+      args: [addr, BigInt(epoch)],
+    })),
+  })) as string[];
+
+  return Object.fromEntries(
+    addresses.map((addr, i) => [addr.toLowerCase(), delegates[i].toLowerCase()])
+  );
+};
+
+/**
  * Synced delegation weight of each user at a vlCVX epoch, via
  * Delegation.userWeightAtEpochOf (0.1 vlCVX granularity, returned in wei).
  *

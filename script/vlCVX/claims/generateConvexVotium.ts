@@ -8,10 +8,12 @@ import {
   VOTIUM_FORWARDER_REGISTRY,
   VLCVX_ONCHAIN_DELEGATION_ADDRESS,
   DELEGATION_ADDRESS,
+  CVX_GAUGE_DELEGATION,
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
   WEEK,
 } from "../../utils/constants";
+import { getDelegatesAtEpoch } from "../../utils/onChainDelegation";
 import {
   getOnChainProposal,
   getOnChainVoters,
@@ -47,6 +49,8 @@ interface Forwarder {
   address: string;
   type: "delegator" | "direct-voter";
   votingPower: number;
+  delegatedTo?: string; // e.g. The Union — resolved on-chain at the epoch
+  isUnionDelegator?: boolean;
 }
 
 interface TokenAllocation {
@@ -121,10 +125,12 @@ function customReplacer(_key: string, value: any): any {
  *    never the delegate contributing weights, which belong to the
  *    repartition_delegation pipeline.
  *
- * Only wallets that cast a vote themselves earn voted rewards downstream. A
- * hardcoded list of "delegators of The Union" used to be appended here with a
- * fixed voting power, which credited votes to wallets that never cast one —
- * votes cast by another delegate belong to that delegate's own pipeline.
+ * Votium attributes rewards to each underlying wallet even behind a delegate
+ * (that is what its forward registry exists for), so a wallet delegating to
+ * The Union while forwarding to us earns its slice of The Union's vote here.
+ * Membership is resolved on-chain at the epoch — a hardcoded list used to
+ * pin it (with fixed VP), and one listed wallet had moved its delegation to
+ * StakeDAO, getting paid twice for the same vlCVX.
  */
 export async function getAllForwarders(
   space: string,
@@ -187,17 +193,26 @@ export async function getAllForwarders(
     (delegatorData?.delegators ?? []).map((delegator) => delegator.toLowerCase())
   );
 
+  const epoch = Number(proposal.snapshot); // vlCVX epoch
+  const client = await getClient(1);
   const nonVoters = forwarderAddresses.filter(
     (address) => !voteByAddress.has(address.toLowerCase())
   );
   const onChainVotingPowers =
     nonVoters.length > 0
-      ? await getOnChainVotingPower(
-          Number(proposal.snapshot), // vlCVX epoch
-          nonVoters,
-          await getClient(1)
-        )
+      ? await getOnChainVotingPower(epoch, nonVoters, client)
       : {};
+
+  // Union membership is a per-wallet reverse lookup on the same delegation
+  // contract the delegator set comes from: one delegate per wallet per epoch,
+  // so a StakeDAO delegator can never also be a Union delegator.
+  const delegateOf = await getDelegatesAtEpoch(
+    CVX_GAUGE_DELEGATION,
+    epoch,
+    forwarderAddresses,
+    client
+  );
+  const theUnionLower = THE_UNION_ADDRESS.toLowerCase();
 
   const forwarders: Forwarder[] = forwarderAddresses.map((address) => {
     const addrLower = address.toLowerCase();
@@ -205,6 +220,7 @@ export async function getAllForwarders(
     const votingPower = vote
       ? vote.vp ?? 0
       : onChainVotingPowers[address] ?? onChainVotingPowers[addrLower] ?? 0;
+    const isUnionDelegator = delegateOf[addrLower] === theUnionLower;
 
     return {
       address: addrLower,
@@ -212,6 +228,8 @@ export async function getAllForwarders(
         ? ("delegator" as const)
         : ("direct-voter" as const),
       votingPower,
+      delegatedTo: isUnionDelegator ? THE_UNION_ADDRESS : undefined,
+      isUnionDelegator,
     };
   });
 
@@ -231,16 +249,59 @@ function computeVoteSharesForGauge(
   const forwarderAddresses = new Set(forwarders.map((f) => f.address));
   const forwarderMap = new Map(forwarders.map((f) => [f.address, f]));
 
+  // Create a map of Union delegators for quick lookup
+  const unionDelegators = new Map<string, Forwarder>();
+  forwarders.forEach((f) => {
+    if (f.isUnionDelegator) {
+      unionDelegators.set(f.address, f);
+    }
+  });
+
   const voterVp = new Map<string, number>();
+
+  // Find The Union's vote for this gauge
+  let unionVoteChoice: any = null;
+  const unionVote = votes.find(
+    (v) => v.voter.toLowerCase() === THE_UNION_ADDRESS.toLowerCase()
+  );
+  if (unionVote && unionVote.choice && unionVote.choice[gaugeChoiceId] !== undefined) {
+    unionVoteChoice = unionVote.choice;
+  }
 
   // Calculate effective VP for each forwarder on this gauge
   votes.forEach((vote) => {
     if (vote.choice && vote.choice[gaugeChoiceId] !== undefined) {
       const voter = vote.voter.toLowerCase();
 
-      // Only a wallet that cast this vote itself AND forwards its Votium
-      // rewards to us earns a share of this gauge's bribes. Votes cast by
-      // another delegate (The Union) belong to that delegate's own pipeline.
+      // Skip if not a forwarder AND not The Union
+      if (!forwarderAddresses.has(voter) && voter !== THE_UNION_ADDRESS.toLowerCase()) return;
+
+      // Handle Union delegators separately
+      if (voter === THE_UNION_ADDRESS.toLowerCase() && unionDelegators.size > 0) {
+        unionDelegators.forEach((delegator) => {
+          let vpChoiceSum = 0;
+          let gaugeChoiceValue = 0;
+
+          Object.keys(unionVoteChoice).forEach((choiceId) => {
+            const val = unionVoteChoice[choiceId];
+            vpChoiceSum += val;
+            if (parseInt(choiceId) === gaugeChoiceId) {
+              gaugeChoiceValue = val;
+            }
+          });
+
+          if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
+            const effectiveVp = (delegator.votingPower * gaugeChoiceValue) / vpChoiceSum;
+            voterVp.set(delegator.address, (voterVp.get(delegator.address) || 0) + effectiveVp);
+          }
+        });
+        return;
+      }
+
+      // Skip Union delegators in regular vote processing
+      if (unionDelegators.has(voter)) return;
+
+      // Regular forwarder processing
       if (forwarderAddresses.has(voter)) {
         let vpChoiceSum = 0;
         let gaugeChoiceValue = 0;
@@ -336,19 +397,64 @@ function computeDelegationShareForGauge(
   const forwarderAddresses = new Set(forwarders.map((f) => f.address));
   const forwarderMap = new Map(forwarders.map((f) => [f.address, f]));
 
+  // Create a map of Union delegators
+  const unionDelegators = new Map<string, Forwarder>();
+  forwarders.forEach((f) => {
+    if (f.isUnionDelegator) {
+      unionDelegators.set(f.address, f);
+    }
+  });
+
   let totalEffectiveVp = 0;
   let delegationEffectiveVp = 0;
+
+  // Find The Union's vote
+  const unionVote = votes.find(
+    (v) => v.voter.toLowerCase() === THE_UNION_ADDRESS.toLowerCase()
+  );
+  let unionChoice: any = null;
+  if (
+    unionVote &&
+    unionVote.choice &&
+    unionVote.choice[gaugeChoiceId] !== undefined
+  ) {
+    unionChoice = unionVote.choice;
+  }
 
   votes.forEach((vote) => {
     if (vote.choice && vote.choice[gaugeChoiceId] !== undefined) {
       const voter = vote.voter.toLowerCase();
 
-      // The Union's own vote has always been kept out of both sides of this
-      // ratio — keep it that way. The exclusion used to be conditional on the
-      // hardcoded Union-delegator list being non-empty, so dropping that list
-      // alone would have let The Union's full weight into the denominator and
-      // silently shrunk the delegation share on every gauge it voted.
-      if (voter === THE_UNION_ADDRESS.toLowerCase()) return;
+      // Handle Union vote separately
+      if (
+        voter === THE_UNION_ADDRESS.toLowerCase() &&
+        unionDelegators.size > 0
+      ) {
+        // Calculate effective VP for Union delegators
+        unionDelegators.forEach((delegator) => {
+          let vpChoiceSum = 0;
+          let gaugeChoiceValue = 0;
+
+          Object.keys(unionChoice).forEach((choiceId) => {
+            const val = unionChoice[choiceId];
+            vpChoiceSum += val;
+            if (parseInt(choiceId) === gaugeChoiceId) {
+              gaugeChoiceValue = val;
+            }
+          });
+
+          if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
+            const effectiveVp =
+              (delegator.votingPower * gaugeChoiceValue) / vpChoiceSum;
+            totalEffectiveVp += effectiveVp;
+            delegationEffectiveVp += effectiveVp;
+          }
+        });
+        return; // Don't count The Union's vote itself
+      }
+
+      // Skip Union delegators in regular processing
+      if (unionDelegators.has(voter)) return;
 
       // Regular vote processing
       let vpChoiceSum = 0;
@@ -675,6 +781,18 @@ async function fetchProposalVotesWithAddressBreakdown(
     addressBreakdown[forwarder.address] = [];
   });
 
+  // Create a map to track Union delegators (those who delegated to The Union)
+  const unionDelegators = new Map<string, Forwarder>();
+
+  // Use the isUnionDelegator flag to identify Union delegators
+  for (const forwarder of forwarders) {
+    if (forwarder.isUnionDelegator) {
+      unionDelegators.set(forwarder.address.toLowerCase(), forwarder);
+    }
+  }
+
+
+
   const processedVotes = votes.map((vote: any) => {
     let choicesWithInfos: any = {};
     if (vote.choice && typeof vote.choice === "object") {
@@ -690,8 +808,23 @@ async function fetchProposalVotesWithAddressBreakdown(
           };
           const voter = vote.voter.toLowerCase();
 
-          // A vote is only ever credited to the wallet that cast it.
-          if (forwarderAddresses.has(voter)) {
+          // Check if this is The Union's vote
+          if (voter === THE_UNION_ADDRESS.toLowerCase()) {
+            // Distribute The Union's votes to delegators who delegated to them
+            for (const [delegatorAddress] of unionDelegators) {
+              if (forwarderAddresses.has(delegatorAddress)) {
+                // Add the vote to the delegator's breakdown
+                addressBreakdown[delegatorAddress].push({
+                  proposalId,
+                  gauge: gaugeMappingWithInfos[gaugeKey].gauge,
+                  choiceId: gaugeMappingWithInfos[gaugeKey].choiceId,
+                  weight: vote.choice[choiceId],
+                  viaUnion: true, // Mark that this came via The Union
+                });
+              }
+            }
+          } else if (forwarderAddresses.has(voter)) {
+            // Regular forwarder vote
             addressBreakdown[voter].push({
               proposalId,
               gauge: gaugeMappingWithInfos[gaugeKey].gauge,

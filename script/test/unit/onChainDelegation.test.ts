@@ -25,6 +25,7 @@ vi.mock("../../utils/explorerUtils", () => ({
 
 import {
   getOnChainDelegators,
+  getDelegatesAtEpoch,
   getContributingWeightsAtVote,
 } from "../../utils/onChainDelegation";
 
@@ -132,6 +133,32 @@ describe("getOnChainDelegators", () => {
     await expect(
       getOnChainDelegators(DELEGATION, DELEGATE, EPOCH, client)
     ).rejects.toThrow("No DelegateSet events found");
+  });
+});
+
+describe("getDelegatesAtEpoch", () => {
+  it("maps each address to its lowercase delegate at the epoch", async () => {
+    const client = makeClient(
+      {
+        [USER_1]: DELEGATE,
+        [USER_2]: "0x0000000000000000000000000000000000000000",
+      },
+      {},
+      0n
+    );
+
+    expect(
+      await getDelegatesAtEpoch(DELEGATION, EPOCH, [USER_1, USER_2], client)
+    ).toEqual({
+      [USER_1]: DELEGATE.toLowerCase(),
+      [USER_2]: "0x0000000000000000000000000000000000000000",
+    });
+  });
+
+  it("returns an empty record for an empty address list", async () => {
+    expect(
+      await getDelegatesAtEpoch(DELEGATION, EPOCH, [], makeClient({}, {}, 0n))
+    ).toEqual({});
   });
 });
 

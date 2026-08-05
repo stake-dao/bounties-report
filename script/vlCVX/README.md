@@ -35,10 +35,11 @@ splitting the remaining pool among Stake DAO delegators. A user who both votes
 through Votium and contributes to the Stake DAO delegation receives both
 allocations; the Merkle merge sums them. A `direct-voter` forwarded its Votium
 claim to Stake DAO but did not contribute voting power to the Stake DAO
-delegate: it earns only what its OWN vote earned. A wallet that delegates
-elsewhere (for example, to The Union) earns nothing here — votes cast by
-another delegate belong to that delegate's own pipeline, and Votium attributes
-rewards to voters, so such a wallet's rewards never enter our claim.
+delegate. It may have voted itself, or delegated elsewhere (for example, to
+The Union): Votium attributes rewards to each underlying wallet even behind a
+delegate, so a Union delegator forwarding to us earns its on-chain slice of
+The Union's vote. Union membership is resolved on-chain at the round's epoch,
+never from a hardcoded list.
 
 The payout path is deliberately strict:
 

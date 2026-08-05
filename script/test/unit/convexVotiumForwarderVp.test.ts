@@ -17,6 +17,11 @@ vi.mock("../../utils/forwarderCacheUtils", () => ({
   processAllForwarders: mocks.processAllForwarders,
 }));
 
+vi.mock("../../utils/onChainDelegation", () => ({
+  // No union delegation in these fixtures — membership is exercised live.
+  getDelegatesAtEpoch: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock("../../utils/gaugeVotePlatform", () => ({
   getOnChainProposal: vi.fn(),
   getOnChainVoters: vi.fn(),
