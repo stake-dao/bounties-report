@@ -281,7 +281,7 @@ const HELPER_BACKOFF_MS = 2000;
 
 /**
  * Per-delegator weight AS INCORPORATED IN THE DELEGATE'S VOTE on a given
- * platform proposal, via GaugeVoteHelper.getContributingWeights.
+ * platform proposal, via GaugeVoteHelper.getContributingWeights — raw wei.
  *
  * Unlike userWeightAtEpochOf (the CURRENT synced table, mutable until the
  * epoch rolls), the helper replays the platform's sync-nonce accounting:
@@ -292,15 +292,17 @@ const HELPER_BACKOFF_MS = 2000;
  * - not delegating to `delegateTo` at the proposal epoch -> 0.
  * Weights must be fetched separately per platform (Curve / FXN): the
  * delegate's lastVoteSyncNonce differs per proposal.
+ *
+ * Keys of the returned record are lowercase.
  */
-export const getContributingWeightsAtVote = async (
+export const getContributingWeightsAtVoteRaw = async (
   helperContract: string,
   gaugeVotePlatformAddress: string,
   proposalId: number,
   delegateTo: string,
   delegators: string[],
   client: any
-): Promise<Record<string, number>> => {
+): Promise<Record<string, bigint>> => {
   if (delegators.length === 0) return {};
 
   // Retry the chunk with backoff (transient gateway throttling), then split
@@ -341,15 +343,37 @@ export const getContributingWeightsAtVote = async (
     ];
   };
 
-  const out: Record<string, number> = {};
+  const out: Record<string, bigint> = {};
   for (let i = 0; i < delegators.length; i += HELPER_CHUNK_SIZE) {
     const chunk = delegators.slice(i, i + HELPER_CHUNK_SIZE);
     const weights = await readHelperChunk(chunk);
     chunk.forEach((addr, j) => {
-      out[addr.toLowerCase()] = Number(formatUnits(weights[j], 18));
+      out[addr.toLowerCase()] = weights[j];
     });
   }
   return out;
+};
+
+/** Same as getContributingWeightsAtVoteRaw, values converted to Number. */
+export const getContributingWeightsAtVote = async (
+  helperContract: string,
+  gaugeVotePlatformAddress: string,
+  proposalId: number,
+  delegateTo: string,
+  delegators: string[],
+  client: any
+): Promise<Record<string, number>> => {
+  const raw = await getContributingWeightsAtVoteRaw(
+    helperContract,
+    gaugeVotePlatformAddress,
+    proposalId,
+    delegateTo,
+    delegators,
+    client
+  );
+  return Object.fromEntries(
+    Object.entries(raw).map(([addr, wei]) => [addr, Number(formatUnits(wei, 18))])
+  );
 };
 
 /**

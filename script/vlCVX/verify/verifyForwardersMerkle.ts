@@ -179,48 +179,59 @@ function buildClaimMap(m: any): Record<string, bigint> {
     adjustedDeltas[addr] = (adjustedDeltas[addr] || 0n) - amount;
   }
 
-  function verifyGroup(label: string, addrs: string[], lcKeys: Record<string, string>, shares: Record<string, string>) {
-    if (addrs.length === 0) return 0;
-    const ratios: number[] = [];
-    let totalDelta = 0n;
-    let totalShare = 0;
-    let zeroAlloc = 0;
-    for (const a of addrs) {
-      const sh = parseFloat(shares[lcKeys[a]]);
-      const d = adjustedDeltas[a] || 0n;
-      totalDelta += d;
-      totalShare += sh;
-      if (d === 0n && sh > 0) zeroAlloc++;
-      if (sh > 0) ratios.push(Number(d) / sh);
-    }
-    if (ratios.length === 0) return 0;
-    const min = Math.min(...ratios);
-    const max = Math.max(...ratios);
-    const mean = ratios.reduce((s, x) => s + x, 0) / ratios.length;
-    const relSpread = mean > 0 ? (max - min) / mean : 0;
-    console.log(`\n[${label}] addrs=${addrs.length} sumShare=${totalShare.toFixed(6)} sumDelta=${(Number(totalDelta) / 1e18).toFixed(6)}`);
-    console.log(`  delta/share min=${(min / 1e18).toFixed(6)} max=${(max / 1e18).toFixed(6)} mean=${(mean / 1e18).toFixed(6)}`);
-    console.log(`  rel spread=${(relSpread * 100).toFixed(4)}% ${relSpread < 1e-4 ? "✅ proportional" : "⚠ inconsistent"}`);
-    console.log(`  zero-delta despite share>0: ${zeroAlloc} ${zeroAlloc === 0 ? "✅" : "⚠"}`);
-    return mean;
+  // Per-address check against the split breakdown createDelegatorsMerkle
+  // wrote: every wallet's delegator delta (net of Votium payouts) must equal
+  // the artifact's total EXACTLY, and no wallet may have moved outside it.
+  const breakdownPath = path.join(reportsDir, "delegators_split_breakdown.json");
+  if (!fs.existsSync(breakdownPath)) {
+    console.log(
+      "\n⚠️  No delegators_split_breakdown.json for this period — per-address " +
+        "delegator deltas cannot be verified (artifact is written by " +
+        "createDelegatorsMerkle since the on-chain cutover).",
+    );
+    return;
   }
 
-  const curveAlloc = verifyGroup("Only-Curve forwarders", onlyCurve, curveLcKeys, curveFwd);
-  const fxnAlloc = fxnDeleg ? verifyGroup("Only-FXN forwarders", onlyFxn, fxnLcKeys, fxnFwd) : 0;
-
-  if (overlap.length) {
-    console.log(`\n[Overlap (Curve+FXN)] addrs=${overlap.length}`);
-    let bad = 0;
-    for (const a of overlap) {
-      const cSh = parseFloat(curveFwd[curveLcKeys[a]]);
-      const fSh = parseFloat(fxnFwd[fxnLcKeys[a]]);
-      const expected = BigInt(Math.floor(cSh * curveAlloc)) + BigInt(Math.floor(fSh * fxnAlloc));
-      const actual = adjustedDeltas[a] || 0n;
-      const diff = actual - expected;
-      const rel = expected > 0n ? Math.abs(Number(diff)) / Number(expected) : 0;
-      if (rel > 1e-4) bad++;
-    }
-    console.log(`  outliers (>1e-4 rel diff): ${bad} ${bad === 0 ? "✅" : "⚠"}`);
+  const breakdown = JSON.parse(fs.readFileSync(breakdownPath, "utf8"));
+  const expected: Record<string, bigint> = {};
+  for (const [addr, row] of Object.entries(
+    (breakdown.perWallet || {}) as Record<string, { total: string }>
+  )) {
+    expected[lc(addr)] = BigInt(row.total);
   }
+
+  console.log("\n=== Split breakdown ===");
+  console.log("Artifact:", breakdownPath);
+  console.log("Mode:", breakdown.mode);
+  if (breakdown.pricesUsd) {
+    console.log("Price vector used:", JSON.stringify(breakdown.pricesUsd));
+  }
+
+  let mismatches = 0;
+  for (const [addr, exp] of Object.entries(expected)) {
+    const actual = adjustedDeltas[addr] || 0n;
+    if (actual !== exp) {
+      mismatches++;
+      if (mismatches <= 10) {
+        console.log(
+          `  ❌ ${addr}: delegator delta ${(Number(actual) / 1e18).toFixed(6)} != expected ${(Number(exp) / 1e18).toFixed(6)}`
+        );
+      }
+    }
+  }
+  let unexpected = 0;
+  for (const [addr, d] of Object.entries(adjustedDeltas)) {
+    if (d !== 0n && expected[addr] === undefined) {
+      unexpected++;
+      if (unexpected <= 10) {
+        console.log(
+          `  ❌ ${addr}: nonzero delegator delta ${(Number(d) / 1e18).toFixed(6)} but absent from breakdown`
+        );
+      }
+    }
+  }
+  console.log(
+    `Per-address check: ${mismatches === 0 && unexpected === 0 ? "✅ all match" : `❌ ${mismatches} mismatch(es), ${unexpected} unexplained`}`
+  );
 
 })().catch(e => { console.error(e); process.exit(1); });
