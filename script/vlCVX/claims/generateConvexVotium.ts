@@ -1027,7 +1027,9 @@ async function fetchAndProcessClaimedBounties(
 /**
  * Main function to generate Convex Votium bounties
  */
-export async function generateConvexVotiumBounties(): Promise<void> {
+export async function generateConvexVotiumBounties(
+  pastWeek: number = 0
+): Promise<void> {
   try {
     console.log("\nGenerating Convex Votium Bounties...");
 
@@ -1051,7 +1053,13 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       functionName: "currentEpoch",
     });
 
-    const now = Math.floor(Date.now() / 1000);
+    // Catch-up support (PAST_WEEK=N): re-target the run N weeks back, as if
+    // it had run in its normal Wednesday slot of that week. Only the period
+    // targeting shifts; proposal-start sanity checks keep real time.
+    const now = Math.floor(Date.now() / 1000) - pastWeek * WEEK;
+    if (pastWeek > 0) {
+      console.log(`PAST_WEEK=${pastWeek}: targeting period of ${pastWeek} week(s) ago`);
+    }
     /*
     // If we are on an even week, take the prev round epoch
     if (!isOddWeek(now)) {
@@ -1511,7 +1519,8 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
 // Run if called directly
 if (require.main === module) {
-  generateConvexVotiumBounties()
+  const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
+  generateConvexVotiumBounties(pastWeek)
     .then(() => process.exit(0))
     .catch((error) => {
       console.error(error);
