@@ -75,7 +75,7 @@ devDependencies:
     version: 4.23.9
   vitest:
     specifier: ^4.0.18
-    version: 4.1.10(vite@8.2.0)
+    version: 4.1.10(vite@8.2.1)
 
 packages:
 
@@ -924,7 +924,7 @@ packages:
       tinyrainbow: 3.1.1
     dev: true
 
-  /@vitest/mocker@4.1.10(vite@8.2.0):
+  /@vitest/mocker@4.1.10(vite@8.2.1):
     resolution: {integrity: sha512-v0xaezt+DKEmKfaxg133ldzADrwLGd7Ze1MfQQTYfvs8OqZIwbxyxaYURivwV7sWy5fqn3rH5uOrSp07bp44Ow==}
     peerDependencies:
       msw: ^2.4.9
@@ -938,7 +938,7 @@ packages:
       '@vitest/spy': 4.1.10
       estree-walker: 3.0.3
       magic-string: 0.30.21
-      vite: 8.2.0(tsx@4.23.9)
+      vite: 8.2.1(tsx@4.23.9)
     dev: true
 
   /@vitest/pretty-format@4.1.10:
@@ -2039,8 +2039,8 @@ packages:
       - zod
     dev: false
 
-  /vite@8.2.0(tsx@4.23.9):
-    resolution: {integrity: sha512-pn+CFpM0lwDeKwmOq1ZaBK/9sjorZcgqxki6MbY/jPEVd9vichIlmlD4HmQ5wdP5EgqQCFRaACBxMC7uEGc6lQ==}
+  /vite@8.2.1(tsx@4.23.9):
+    resolution: {integrity: sha512-EU/eS7BH3XROHh2YnBefjM6DBKA6ZeMZEYQbj7NLWg5wHYlhB8B/Mayd5XsgWq+NFYccDOTemRpdETWR6Ka/lw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -2092,7 +2092,7 @@ packages:
       fsevents: 2.3.3
     dev: true
 
-  /vitest@4.1.10(vite@8.2.0):
+  /vitest@4.1.10(vite@8.2.1):
     resolution: {integrity: sha512-R9jUTe5S4Qb0HCd4TNqpC7oGcrMssMRGXLW80ubjWsW9VH5GF8y1Y0SFLY9AbqSk6nt0PnOx4H4WNJYZ13GUPw==}
     engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
     hasBin: true
@@ -2134,7 +2134,7 @@ packages:
         optional: true
     dependencies:
       '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(vite@8.2.0)
+      '@vitest/mocker': 4.1.10(vite@8.2.1)
       '@vitest/pretty-format': 4.1.10
       '@vitest/runner': 4.1.10
       '@vitest/snapshot': 4.1.10
@@ -2151,7 +2151,7 @@ packages:
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 8.2.0(tsx@4.23.9)
+      vite: 8.2.1(tsx@4.23.9)
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
       - msw
