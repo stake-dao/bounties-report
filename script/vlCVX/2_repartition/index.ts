@@ -6,6 +6,7 @@ import {
   WEEK,
   CVX_FXN_SPACE,
   VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  DELEGATION_ADDRESS,
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
   CVX_GAUGE_DELEGATION,
@@ -154,21 +155,27 @@ const processGaugeProposal = async (
 
   // --- 2) Process StakeDAO Delegators ---
   console.log("Fetching StakeDAO delegators...");
-  // The on-chain seed remapped StakeDAO's delegate to a new address; the
-  // legacy Snapshot delegate (0x52ea58f4…) has zero on-chain weight.
-  const delegationAddress = VLCVX_ONCHAIN_DELEGATION_ADDRESS;
-  const isDelegationAddressVoter = votes.some(
-    (voter) => voter.voter.toLowerCase() === delegationAddress.toLowerCase()
-  );
-
-  let stakeDaoDelegators: string[] = [];
-  if (isDelegationAddressVoter) {
-    console.log(
-      "Delegation address is among voters; fetching StakeDAO delegators..."
+  // Two StakeDAO delegate wallets can cast a delegation vote: the on-chain
+  // delegation voter (the seed's remap target) and the legacy Snapshot
+  // delegate (0x52ea58f4…), which still carries weight from delegators who
+  // never re-delegated (4,368 vlCVX at epoch 230). Each delegate vote is
+  // split among ITS OWN delegators; the sets are disjoint (one delegate per
+  // wallet per epoch).
+  const delegationAddresses = [
+    VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+    DELEGATION_ADDRESS,
+  ];
+  const delegatorsByDelegate: Record<string, string[]> = {};
+  for (const delegate of delegationAddresses) {
+    const isVoter = votes.some(
+      (voter) => voter.voter.toLowerCase() === delegate.toLowerCase()
     );
-    stakeDaoDelegators = await getOnChainDelegators(
+    if (!isVoter) continue;
+
+    console.log(`Delegate ${delegate} is among voters; fetching its delegators...`);
+    const delegators = await getOnChainDelegators(
       CVX_GAUGE_DELEGATION,
-      delegationAddress,
+      delegate,
       Number(proposal.snapshot), // vlCVX epoch
       publicClient
     );
@@ -177,7 +184,7 @@ const processGaugeProposal = async (
     // GaugeVoteHelper.getContributingWeights in computeStakeDaoDelegation —
     // 0 for a full direct vote, or only the delta that stayed with the
     // delegate (sync landed between their own vote and the delegate's).
-    const directVoters = stakeDaoDelegators.filter((delegator) =>
+    const directVoters = delegators.filter((delegator) =>
       votes.some((voter) => voter.voter.toLowerCase() === delegator.toLowerCase())
     );
     if (directVoters.length > 0) {
@@ -187,10 +194,12 @@ const processGaugeProposal = async (
         directVoters
       );
     }
-    console.log("Final StakeDAO delegators:", stakeDaoDelegators);
-  } else {
+    delegatorsByDelegate[delegate.toLowerCase()] = delegators;
+    console.log(`Final delegators of ${delegate}: ${delegators.length}`);
+  }
+  if (Object.keys(delegatorsByDelegate).length === 0) {
     console.log(
-      "Delegation address is not among voters; skipping StakeDAO delegators computation"
+      "No delegation address among voters; skipping StakeDAO delegators computation"
     );
   }
 
@@ -205,34 +214,32 @@ const processGaugeProposal = async (
     );
 
   // --- 4) Compute Delegation Distribution & Summary ---
-  let delegationDistribution: DelegationDistribution = {};
-  if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
-    for (const [voter, { tokens }] of Object.entries(
-      nonDelegatorsDistribution
-    )) {
-      if (voter.toLowerCase() === delegationAddress.toLowerCase()) {
-        const { distribution, delegateOwnTokens } =
-          await computeStakeDaoDelegation(
-            proposal,
-            stakeDaoDelegators,
-            tokens,
-            voter,
-            publicClient
-          );
-        delegationDistribution = distribution;
-        if (Object.keys(delegateOwnTokens).length > 0) {
-          // Share earned by the delegate's OWN vlCVX (baseWeight): it belongs
-          // to the delegate, not to the delegation pool.
-          console.log(
-            "Delegate voted with own vlCVX — keeping its baseWeight share:",
-            delegateOwnTokens
-          );
-          nonDelegatorsDistribution[voter] = { tokens: delegateOwnTokens };
-        } else {
-          delete nonDelegatorsDistribution[voter];
-        }
-        break;
-      }
+  const delegationDistribution: DelegationDistribution = {};
+  for (const [voter, { tokens }] of Object.entries(nonDelegatorsDistribution)) {
+    const delegators = delegatorsByDelegate[voter.toLowerCase()];
+    if (!delegators || delegators.length === 0) continue;
+
+    const { distribution, delegateOwnTokens } = await computeStakeDaoDelegation(
+      proposal,
+      delegators,
+      tokens,
+      voter,
+      publicClient
+    );
+    // Disjoint delegator sets: plain assignment cannot collide.
+    for (const [delegator, entry] of Object.entries(distribution)) {
+      delegationDistribution[delegator] = entry;
+    }
+    if (Object.keys(delegateOwnTokens).length > 0) {
+      // Share earned by the delegate's OWN vlCVX (baseWeight): it belongs
+      // to the delegate, not to the delegation pool.
+      console.log(
+        `Delegate ${voter} voted with own vlCVX — keeping its baseWeight share:`,
+        delegateOwnTokens
+      );
+      nonDelegatorsDistribution[voter] = { tokens: delegateOwnTokens };
+    } else {
+      delete nonDelegatorsDistribution[voter];
     }
   }
 

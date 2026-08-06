@@ -19,7 +19,12 @@ import { verifyWithConsensus, Protocol, ConsensusResult, VerifyMetadata, RunType
 import { createZenClient, ZEN_DEFAULT_MODEL } from "../utils/openCodeZen";
 import { sendConsensusReport } from "./telegramReport";
 import { WEEK, CVX_SPACE } from "../utils/constants";
-import { fetchLastProposalsIds } from "../utils/snapshot";
+import { getOnChainProposal } from "../utils/gaugeVotePlatform";
+import { getClient } from "../utils/getClients";
+import {
+  CVX_GAUGE_VOTE_PLATFORM_CURVE,
+  CVX_GAUGE_VOTE_PLATFORM_FXN,
+} from "../utils/constants";
 import type { LLMClient } from "../utils/llmClient";
 import { parseTarget, type Target as InvariantTarget } from "./invariants/cli";
 
@@ -57,16 +62,11 @@ function printModelTable(result: ConsensusResult): void {
   }
 }
 
-interface SnapshotQuery {
-  label: string;
-  space: string;
-  filter: string;
-  protocols: Protocol[];
-}
-
-const SNAPSHOT_QUERIES: SnapshotQuery[] = [
-  { label: "vlCVX Curve", space: CVX_SPACE, filter: "^(?!FXN ).*Gauge Weight for Week of", protocols: ["vlCVX", "all"] },
-  { label: "vlCVX FXN", space: CVX_SPACE, filter: "^FXN.*Gauge Weight for Week of", protocols: ["vlCVX", "all"] },
+// vlCVX gauge votes moved on-chain (ENG-1973): reference the platform
+// proposal, not a legacy Snapshot hash.
+const ONCHAIN_QUERIES: { label: string; platform: string; protocols: Protocol[] }[] = [
+  { label: "vlCVX Curve", platform: CVX_GAUGE_VOTE_PLATFORM_CURVE, protocols: ["vlCVX", "all"] },
+  { label: "vlCVX FXN", platform: CVX_GAUGE_VOTE_PLATFORM_FXN, protocols: ["vlCVX", "all"] },
 ];
 
 async function fetchMetadata(timestamp: number, protocols: Protocol[]): Promise<VerifyMetadata> {
@@ -78,20 +78,25 @@ async function fetchMetadata(timestamp: number, protocols: Protocol[]): Promise<
   });
   if (gitResult.status === 0) meta.commitSha = gitResult.stdout.trim();
 
-  const queries = SNAPSHOT_QUERIES.filter((q) => protocols.some((p) => q.protocols.includes(p)));
+  const queries = ONCHAIN_QUERIES.filter((q) => protocols.some((p) => q.protocols.includes(p)));
 
   if (queries.length > 0) {
     try {
+      const client = await getClient(1);
       const proposals: VerifyMetadata["snapshotProposals"] = [];
       for (const q of queries) {
-        const result = await fetchLastProposalsIds([q.space], timestamp + WEEK, q.filter);
-        if (result[q.space]) {
-          proposals.push({ label: q.label, space: q.space, proposalId: result[q.space] });
-        }
+        const proposal = await getOnChainProposal(q.platform, CVX_SPACE, client, {
+          targetPeriod: timestamp,
+        });
+        proposals.push({
+          label: q.label,
+          space: CVX_SPACE,
+          proposalId: `On-chain gauge vote #${proposal.id} (vlCVX epoch ${proposal.snapshot})`,
+        });
       }
       if (proposals.length > 0) meta.snapshotProposals = proposals;
     } catch (err) {
-      console.warn(`  ⚠️  Snapshot proposal fetch failed: ${err}`);
+      console.warn(`  ⚠️  On-chain proposal fetch failed: ${err}`);
     }
   }
 
