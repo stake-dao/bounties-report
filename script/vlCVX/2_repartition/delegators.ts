@@ -42,6 +42,7 @@ export const computeStakeDaoDelegation = async (
 ): Promise<{
   distribution: DelegationDistribution;
   delegateOwnTokens: Record<string, bigint>;
+  totalDelegatedVp: number;
 }> => {
   const delegationDistribution: DelegationDistribution = {};
 
@@ -163,7 +164,11 @@ export const computeStakeDaoDelegation = async (
       };
     }
   });
-  return { distribution: delegationDistribution, delegateOwnTokens };
+  return {
+    distribution: delegationDistribution,
+    delegateOwnTokens,
+    totalDelegatedVp: totalVp,
+  };
 };
 
 /**

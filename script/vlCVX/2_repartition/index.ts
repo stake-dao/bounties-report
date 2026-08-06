@@ -10,17 +10,13 @@ import {
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
   CVX_GAUGE_DELEGATION,
-  CVX_GAUGE_VOTE_HELPER,
 } from "../../utils/constants";
 import {
   getOnChainProposal,
   getOnChainVoters,
   associateGaugesPerIdOnChain,
 } from "../../utils/gaugeVotePlatform";
-import {
-  getContributingWeightsAtVote,
-  getOnChainDelegators,
-} from "../../utils/onChainDelegation";
+import { getOnChainDelegators } from "../../utils/onChainDelegation";
 import { extractCSV } from "../../utils/utils";
 import * as moment from "moment";
 import { getAllCurveGauges } from "../../utils/curveApi";
@@ -207,101 +203,91 @@ const processGaugeProposal = async (
       proposal.choices
     );
 
-  // --- 3b) Split the legacy delegate's vote to its own delegators ---
-  // The legacy Snapshot delegation wallet still carries delegated weight
-  // (delegators who never re-delegated; 4,368 vlCVX at epoch 230) and casts
-  // its own on-chain vote. The delegation file's schema holds ONE share
-  // basis and ONE token-total entry, so a second delegate's differently
-  // mixed pool cannot ride it: split its tokens per contributing weight and
-  // pay them DIRECTLY through the voters merkle instead.
-  const legacyKey = Object.keys(nonDelegatorsDistribution).find(
-    (voter) => voter.toLowerCase() === DELEGATION_ADDRESS.toLowerCase()
-  );
-  if (legacyKey) {
-    const legacyTokens = nonDelegatorsDistribution[legacyKey].tokens;
-    const legacyDelegators = await getOnChainDelegators(
-      CVX_GAUGE_DELEGATION,
-      DELEGATION_ADDRESS,
-      Number(proposal.snapshot),
-      publicClient
-    );
-    const weights = await getContributingWeightsAtVote(
-      CVX_GAUGE_VOTE_HELPER,
-      proposal.author,
-      Number(proposalId),
-      DELEGATION_ADDRESS,
-      legacyDelegators,
-      publicClient
-    );
-    const recipients = legacyDelegators
-      .map((address) => address.toLowerCase())
-      .filter((address) => (weights[address] ?? 0) > 0)
-      .sort();
-    const totalWeight = recipients.reduce(
-      (sum, address) => sum + weights[address],
-      0
-    );
-    if (recipients.length === 0 || totalWeight <= 0) {
-      throw new Error(
-        "Legacy delegation wallet voted but no delegator contributing weight " +
-          "was found — refusing to strand or misroute its rewards"
-      );
-    }
-    const totalWeightScaled = BigInt(Math.round(totalWeight * 1e9));
-    for (const [token, amount] of Object.entries(legacyTokens)) {
-      let distributed = 0n;
-      recipients.forEach((address, index) => {
-        const amt =
-          index === recipients.length - 1
-            ? amount - distributed
-            : (amount * BigInt(Math.round(weights[address] * 1e9))) /
-              totalWeightScaled;
-        distributed += amt;
-        if (amt === 0n) return;
-        if (!nonDelegatorsDistribution[address]) {
-          nonDelegatorsDistribution[address] = { tokens: {} };
-        }
-        nonDelegatorsDistribution[address].tokens[token] =
-          (nonDelegatorsDistribution[address].tokens[token] ?? 0n) + amt;
-      });
-    }
-    delete nonDelegatorsDistribution[legacyKey];
-    console.log(
-      `Legacy delegate's vote split directly to ${recipients.length} delegator(s):`,
-      recipients
-    );
-  }
-
   // --- 4) Compute Delegation Distribution & Summary ---
-  let delegationDistribution: DelegationDistribution = {};
-  if (isDelegationAddressVoter && stakeDaoDelegators.length > 0) {
-    for (const [voter, { tokens }] of Object.entries(
-      nonDelegatorsDistribution
-    )) {
-      if (voter.toLowerCase() === delegationAddress.toLowerCase()) {
-        const { distribution, delegateOwnTokens } =
-          await computeStakeDaoDelegation(
-            proposal,
-            stakeDaoDelegators,
-            tokens,
-            voter,
+  // Both StakeDAO delegate wallets can cast a delegation vote: the on-chain
+  // delegation voter and the legacy Snapshot delegate (0x52ea58f4…), which
+  // still carries weight from delegators who never re-delegated. Each
+  // delegate's pool and delegator weights are computed EXACTLY per delegate,
+  // then merged onto a combined-VP share basis (the summary schema holds one
+  // basis and one token-total map). A forwarding delegator of either wallet
+  // therefore lands in the Tuesday sCRVUSD flow like any other.
+  const delegationDistribution: DelegationDistribution = {};
+  const mergedPoolTokens: Record<string, bigint> = {};
+  const delegatorWeights: Record<
+    string,
+    { vp: number; forwarder: boolean }
+  > = {};
+  let combinedVp = 0;
+
+  for (const delegate of [delegationAddress, DELEGATION_ADDRESS]) {
+    const key = Object.keys(nonDelegatorsDistribution).find(
+      (voter) => voter.toLowerCase() === delegate.toLowerCase()
+    );
+    if (!key) continue;
+
+    const delegators =
+      delegate === delegationAddress
+        ? stakeDaoDelegators
+        : await getOnChainDelegators(
+            CVX_GAUGE_DELEGATION,
+            delegate,
+            Number(proposal.snapshot),
             publicClient
           );
-        delegationDistribution = distribution;
-        if (Object.keys(delegateOwnTokens).length > 0) {
-          // Share earned by the delegate's OWN vlCVX (baseWeight): it belongs
-          // to the delegate, not to the delegation pool.
-          console.log(
-            "Delegate voted with own vlCVX — keeping its baseWeight share:",
-            delegateOwnTokens
-          );
-          nonDelegatorsDistribution[voter] = { tokens: delegateOwnTokens };
-        } else {
-          delete nonDelegatorsDistribution[voter];
+    if (delegators.length === 0) continue;
+
+    const { distribution, delegateOwnTokens, totalDelegatedVp } =
+      await computeStakeDaoDelegation(
+        proposal,
+        delegators,
+        nonDelegatorsDistribution[key].tokens,
+        key,
+        publicClient
+      );
+
+    for (const [address, data] of Object.entries(distribution)) {
+      if ("tokens" in data) {
+        for (const [token, amount] of Object.entries(data.tokens)) {
+          mergedPoolTokens[token] = (mergedPoolTokens[token] ?? 0n) + amount;
         }
-        break;
+      } else {
+        const addr = address.toLowerCase();
+        const vp = parseFloat(data.share) * totalDelegatedVp;
+        const existing = delegatorWeights[addr] ?? { vp: 0, forwarder: false };
+        delegatorWeights[addr] = {
+          vp: existing.vp + vp,
+          forwarder:
+            existing.forwarder || parseFloat(data.shareForwarders) > 0,
+        };
       }
     }
+    combinedVp += totalDelegatedVp;
+
+    if (Object.keys(delegateOwnTokens).length > 0) {
+      // Share earned by the delegate's OWN vlCVX (baseWeight): it belongs
+      // to the delegate, not to the delegation pool.
+      console.log(
+        `Delegate ${key} voted with own vlCVX — keeping its baseWeight share:`,
+        delegateOwnTokens
+      );
+      nonDelegatorsDistribution[key] = { tokens: delegateOwnTokens };
+    } else {
+      delete nonDelegatorsDistribution[key];
+    }
+  }
+
+  if (combinedVp > 0) {
+    for (const [address, { vp, forwarder }] of Object.entries(
+      delegatorWeights
+    )) {
+      const share = (vp / combinedVp).toString();
+      delegationDistribution[address] = {
+        share,
+        shareNonForwarders: forwarder ? "0" : share,
+        shareForwarders: forwarder ? share : "0",
+      };
+    }
+    delegationDistribution[delegationAddress] = { tokens: mergedPoolTokens };
   }
 
   const delegationSummary: DelegationSummary = computeDelegationSummary(
