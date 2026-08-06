@@ -10,8 +10,6 @@ import {
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
   CVX_GAUGE_DELEGATION,
-  STAKE_DAO_DELEGATION_ADDRESSES,
-  KNOWN_EXTERNAL_DELEGATE_VOTERS,
 } from "../../utils/constants";
 import {
   getOnChainProposal,
@@ -156,91 +154,39 @@ const processGaugeProposal = async (
   );
 
 
-  // Defense against the next unknown delegation wallet: any voter that
-  // carries material delegated weight but is neither one of OUR delegation
-  // wallets nor a known external delegate would be paid as a plain voter —
-  // exactly how the legacy wallet slipped through. Warn loudly so it gets
-  // classified deliberately.
-  const recognizedDelegates = new Set(
-    [...STAKE_DAO_DELEGATION_ADDRESSES, ...KNOWN_EXTERNAL_DELEGATE_VOTERS].map(
-      (address) => address.toLowerCase()
-    )
-  );
-  const unrecognizedVoters = votes.filter(
-    (voter) => !recognizedDelegates.has(voter.voter.toLowerCase())
-  );
-  if (unrecognizedVoters.length > 0) {
-    const delegatedWeights = (await publicClient.multicall({
-      allowFailure: false,
-      contracts: unrecognizedVoters.map((voter) => ({
-        address: CVX_GAUGE_DELEGATION as `0x${string}`,
-        abi: [
-          {
-            inputs: [
-              { name: "epoch", type: "uint256" },
-              { name: "delegate", type: "address" },
-            ],
-            name: "balanceAtEpochOf",
-            outputs: [{ name: "", type: "uint256" }],
-            stateMutability: "view",
-            type: "function",
-          },
-        ] as const,
-        functionName: "balanceAtEpochOf",
-        args: [BigInt(proposal.snapshot), voter.voter],
-      })),
-    })) as bigint[];
-    unrecognizedVoters.forEach((voter, index) => {
-      if (delegatedWeights[index] > 10n ** 18n) {
-        console.warn(
-          `⚠️  Voter ${voter.voter} carries ${delegatedWeights[index]} wei of ` +
-            `delegated weight but is not a recognized delegation wallet — its ` +
-            `delegators earn nothing through this repartition. If it is ours, ` +
-            `add it to STAKE_DAO_DELEGATION_ADDRESSES.`
-        );
-      }
-    });
-  }
-
-  // --- 2) Process StakeDAO Delegators ---
-  console.log("Fetching StakeDAO delegators...");
+  // --- 2) Derive delegate voters on-chain ---
+  // Any voter carrying delegated weight at the epoch is a delegate: its vote
+  // is split among ITS delegators. Nothing is declared in a list — a new
+  // delegation wallet (ours or a third party's) is handled the round it
+  // first votes, and its baseWeight share stays with the delegate itself.
   const delegationAddress = VLCVX_ONCHAIN_DELEGATION_ADDRESS;
-  const isDelegationAddressVoter = votes.some(
-    (voter) => voter.voter.toLowerCase() === delegationAddress.toLowerCase()
+  const delegatedWeights = (await publicClient.multicall({
+    allowFailure: false,
+    contracts: votes.map((voter) => ({
+      address: CVX_GAUGE_DELEGATION as `0x${string}`,
+      abi: [
+        {
+          inputs: [
+            { name: "epoch", type: "uint256" },
+            { name: "delegate", type: "address" },
+          ],
+          name: "balanceAtEpochOf",
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ] as const,
+      functionName: "balanceAtEpochOf",
+      args: [BigInt(proposal.snapshot), voter.voter],
+    })),
+  })) as bigint[];
+  const delegateVoters = votes
+    .filter((_, index) => delegatedWeights[index] > 0n)
+    .map((voter) => voter.voter);
+  console.log(
+    `Delegate voters (on-chain delegated weight > 0): ${delegateVoters.length}`,
+    delegateVoters
   );
-
-  let stakeDaoDelegators: string[] = [];
-  if (isDelegationAddressVoter) {
-    console.log(
-      "Delegation address is among voters; fetching StakeDAO delegators..."
-    );
-    stakeDaoDelegators = await getOnChainDelegators(
-      CVX_GAUGE_DELEGATION,
-      delegationAddress,
-      Number(proposal.snapshot), // vlCVX epoch
-      publicClient
-    );
-    // Delegators who voted directly are NOT blanket-removed here: their
-    // contribution to the delegate's vote is resolved per-address by
-    // GaugeVoteHelper.getContributingWeights in computeStakeDaoDelegation —
-    // 0 for a full direct vote, or only the delta that stayed with the
-    // delegate (sync landed between their own vote and the delegate's).
-    const directVoters = stakeDaoDelegators.filter((delegator) =>
-      votes.some((voter) => voter.voter.toLowerCase() === delegator.toLowerCase())
-    );
-    if (directVoters.length > 0) {
-      console.log(
-        `${directVoters.length} delegator(s) also voted directly — contributing ` +
-          `weights resolved on-chain via GaugeVoteHelper:`,
-        directVoters
-      );
-    }
-    console.log("Final StakeDAO delegators:", stakeDaoDelegators.length);
-  } else {
-    console.log(
-      "Delegation address is not among voters; skipping StakeDAO delegators computation"
-    );
-  }
 
   // --- 3) Compute Non-Delegators Distribution ---
   console.log("Computing non-delegators distribution...");
@@ -253,13 +199,13 @@ const processGaugeProposal = async (
     );
 
   // --- 4) Compute Delegation Distribution & Summary ---
-  // Both StakeDAO delegate wallets can cast a delegation vote: the on-chain
-  // delegation voter and the legacy Snapshot delegate (0x52ea58f4…), which
-  // still carries weight from delegators who never re-delegated. Each
-  // delegate's pool and delegator weights are computed EXACTLY per delegate,
-  // then merged onto a combined-VP share basis (the summary schema holds one
-  // basis and one token-total map). A forwarding delegator of either wallet
-  // therefore lands in the Tuesday sCRVUSD flow like any other.
+  // Every delegate voter's pool and delegator weights are computed EXACTLY
+  // per delegate, then merged onto a combined-VP share basis (the summary
+  // schema holds one basis and one token-total map). Routing is per
+  // delegator: forwarding to Stake DAO's Votium forwarder → Tuesday sCRVUSD;
+  // otherwise raw tokens with the non-forwarders. Intra-group token-mix
+  // exactness across pools is a known approximation (follow-up: per-token
+  // proceeds split).
   const delegationDistribution: DelegationDistribution = {};
   const mergedPoolTokens: Record<string, bigint> = {};
   const delegatorWeights: Record<
@@ -268,21 +214,18 @@ const processGaugeProposal = async (
   > = {};
   let combinedVp = 0;
 
-  for (const delegate of STAKE_DAO_DELEGATION_ADDRESSES) {
+  for (const delegate of delegateVoters) {
     const key = Object.keys(nonDelegatorsDistribution).find(
       (voter) => voter.toLowerCase() === delegate.toLowerCase()
     );
     if (!key) continue;
 
-    const delegators =
-      delegate === delegationAddress
-        ? stakeDaoDelegators
-        : await getOnChainDelegators(
-            CVX_GAUGE_DELEGATION,
-            delegate,
-            Number(proposal.snapshot),
-            publicClient
-          );
+    const delegators = await getOnChainDelegators(
+      CVX_GAUGE_DELEGATION,
+      delegate,
+      Number(proposal.snapshot),
+      publicClient
+    );
     if (delegators.length === 0) continue;
 
     const { distribution, delegateOwnTokens, totalDelegatedVp } =
