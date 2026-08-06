@@ -2,14 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import * as dotenv from "dotenv";
 dotenv.config();
-import { getAddress, createPublicClient, http } from "viem";
+import { createPublicClient, http } from "viem";
 import { getSCRVUsdTransfer } from "../utils";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
 import { mainnet } from "../../utils/chains";
 import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 
 const SCRVUSD = "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367";
-const FEE_RECIPIENT = getAddress("0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063");
 
 const periodTs = parseInt(process.argv[2] || "1777507200", 10);
 const reportsDir = path.join("bounties-reports", String(periodTs), "vlCVX");
@@ -126,6 +125,60 @@ function buildClaimMap(m: any): Record<string, bigint> {
   console.log("FXN forwarders:  ", fxnAddrs.length, "| only-fxn:  ", onlyFxn.length);
   console.log("Overlap (both):  ", overlap.length);
 
+  // Votium forwarder payouts are carved off the pool before the delegator
+  // split. Verify them against the artifact written by createDelegatorsMerkle,
+  // then subtract them so the proportionality checks below see pure delegator
+  // shares (a delegator who also received a Votium payout is not an outlier).
+  const payoutsPath = path.join(reportsDir, "votium_forwarder_payouts.json");
+  const votiumPayouts: Record<string, bigint> = {};
+  let votiumExpectedTotal = 0n;
+  if (fs.existsSync(payoutsPath)) {
+    const artifact = JSON.parse(fs.readFileSync(payoutsPath, "utf8"));
+    for (const [addr, amount] of Object.entries(artifact.payouts || {})) {
+      votiumPayouts[lc(addr)] = BigInt(amount as string);
+      votiumExpectedTotal += BigInt(amount as string);
+    }
+  }
+
+  console.log("\n=== Votium forwarder payouts ===");
+  console.log("Artifact:", fs.existsSync(payoutsPath) ? payoutsPath : "absent → expecting no payouts");
+  console.log("Expected total:", (Number(votiumExpectedTotal) / 1e18).toFixed(6), "sCRVUSD");
+  let payoutMismatches = 0;
+  for (const [addr, expected] of Object.entries(votiumPayouts)) {
+    const d = deltas[addr] || 0n;
+    const alsoDelegator = addr in curveLcKeys || addr in fxnLcKeys;
+    const ok = alsoDelegator ? d >= expected : d === expected;
+    if (!ok) {
+      payoutMismatches++;
+      console.log(`  ❌ ${addr}: delta ${(Number(d) / 1e18).toFixed(6)} vs expected ${alsoDelegator ? ">=" : "=="} ${(Number(expected) / 1e18).toFixed(6)}`);
+    }
+  }
+  if (Object.keys(votiumPayouts).length > 0) {
+    console.log(`Per-address payouts: ${payoutMismatches === 0 ? "✅ all covered" : `❌ ${payoutMismatches} mismatch(es)`}`);
+  }
+  const attributionPath = path.join("weekly-bounties", String(periodTs), "votium", "forwarders_voted_rewards.json");
+  if (!fs.existsSync(payoutsPath) && fs.existsSync(attributionPath)) {
+    const attribution = JSON.parse(fs.readFileSync(attributionPath, "utf8"));
+    const attributed = Object.keys(attribution.tokenAllocations || {}).length;
+    if (attributed > 0) {
+      console.log(`⚠ attribution file lists ${attributed} forwarder(s) but no payout artifact was written`);
+    }
+  }
+
+  // Individual payouts replaced the aggregate fee claim: the legacy fee
+  // recipient must not receive anything new, ever.
+  const LEGACY_FEE_RECIPIENT = "0xf930ebbd05ef8b25b1797b9b2109ddc9b0d43063";
+  const feeDelta = deltas[LEGACY_FEE_RECIPIENT] || 0n;
+  console.log(
+    `Legacy fee recipient delta: ${(Number(feeDelta) / 1e18).toFixed(6)} sCRVUSD ` +
+      (feeDelta === 0n ? "✅" : "❌ individual payouts should have replaced the fee")
+  );
+
+  const adjustedDeltas: Record<string, bigint> = { ...deltas };
+  for (const [addr, amount] of Object.entries(votiumPayouts)) {
+    adjustedDeltas[addr] = (adjustedDeltas[addr] || 0n) - amount;
+  }
+
   function verifyGroup(label: string, addrs: string[], lcKeys: Record<string, string>, shares: Record<string, string>) {
     if (addrs.length === 0) return 0;
     const ratios: number[] = [];
@@ -134,7 +187,7 @@ function buildClaimMap(m: any): Record<string, bigint> {
     let zeroAlloc = 0;
     for (const a of addrs) {
       const sh = parseFloat(shares[lcKeys[a]]);
-      const d = deltas[a] || 0n;
+      const d = adjustedDeltas[a] || 0n;
       totalDelta += d;
       totalShare += sh;
       if (d === 0n && sh > 0) zeroAlloc++;
@@ -162,7 +215,7 @@ function buildClaimMap(m: any): Record<string, bigint> {
       const cSh = parseFloat(curveFwd[curveLcKeys[a]]);
       const fSh = parseFloat(fxnFwd[fxnLcKeys[a]]);
       const expected = BigInt(Math.floor(cSh * curveAlloc)) + BigInt(Math.floor(fSh * fxnAlloc));
-      const actual = deltas[a] || 0n;
+      const actual = adjustedDeltas[a] || 0n;
       const diff = actual - expected;
       const rel = expected > 0n ? Math.abs(Number(diff)) / Number(expected) : 0;
       if (rel > 1e-4) bad++;
@@ -170,15 +223,4 @@ function buildClaimMap(m: any): Record<string, bigint> {
     console.log(`  outliers (>1e-4 rel diff): ${bad} ${bad === 0 ? "✅" : "⚠"}`);
   }
 
-  const feeDelta = deltas[lc(FEE_RECIPIENT)] || 0n;
-  console.log("\n=== Fee recipient ===");
-  console.log("Address:", FEE_RECIPIENT);
-  console.log("Delta this week:", (Number(feeDelta) / 1e18).toFixed(6), "sCRVUSD");
-
-  const votiumDir = path.join("weekly-bounties", String(periodTs), "votium");
-  const hasVotium = fs.existsSync(votiumDir);
-  console.log("Votium data exists:", hasVotium ? "yes" : "no (fee should be 0)");
-  if (!hasVotium) {
-    console.log("Fee=0 expected:", feeDelta === 0n ? "✅" : `❌ unexpected fee ${feeDelta}`);
-  }
 })().catch(e => { console.error(e); process.exit(1); });

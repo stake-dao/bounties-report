@@ -34,3 +34,12 @@ script/test/snapshots/golden/
 # vlcvx-diagnose runtime cache (regenerated each run)
 data/votium-rounds-cache.json
 script/vlCVX/recovery_apr21_doubling/fork_simulation_report.json
+
+# Local fork/vnet test scripts (kept locally, never pushed)
+*.tmp.ts
+
+# vpBreakdown verify tool output (ad-hoc, must not ride along pipeline commits)
+bounties-reports/*/vlCVX/vp_breakdown.json
+
+# Local forecast archive for round 128 (dry-run inputs/outputs kept for comparison)
+.forecast-round128/

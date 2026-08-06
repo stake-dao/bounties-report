@@ -4,22 +4,31 @@ import path from "path";
 import {
   CVX_SPACE,
   VOTIUM_FORWARDER,
-  DELEGATION_ADDRESS,
   getClient,
   VOTIUM_FORWARDER_REGISTRY,
+  VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  DELEGATION_ADDRESS,
+  CVX_GAUGE_DELEGATION,
+  CVX_GAUGE_VOTE_HELPER,
+  CVX_GAUGE_VOTE_PLATFORM_CURVE,
+  CVX_GAUGE_VOTE_PLATFORM_FXN,
+  WEEK,
 } from "../../utils/constants";
+import {
+  getContributingWeightsAtVote,
+  getDelegatesAtEpoch,
+} from "../../utils/onChainDelegation";
+import {
+  getOnChainProposal,
+  getOnChainVoters,
+  getOnChainVotingPower,
+  associateGaugesPerIdOnChain,
+} from "../../utils/gaugeVotePlatform";
 import { getGaugesInfos } from "../../utils/reportUtils";
 import {
   getBlockNumberByTimestamp,
   getClosestBlockTimestamp,
 } from "../../utils/chainUtils";
-import {
-  associateGaugesPerId,
-  fetchLastProposalsIdsCurrentPeriod,
-  getProposal,
-  getVoters,
-  getVotingPower,
-} from "../../utils/snapshot";
 import { getAllCurveGauges } from "../../utils/curveApi";
 import {
   fetchDelegatorData,
@@ -27,8 +36,16 @@ import {
 } from "../../utils/delegationHelper";
 import { processAllForwarders } from "../../utils/forwarderCacheUtils";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
-import { getTokenAddress as getTokenAddressFromService, getTokenDecimals as getTokenDecimalsFromService } from "../../utils/tokenService";
+import {
+  getTokenAddress as getTokenAddressFromService,
+  getTokenDecimals as getTokenDecimalsFromService,
+} from "../../utils/tokenService";
 import { getTokenPrices, TokenIdentifier } from "../../utils/priceUtils";
+import { getAddress, isAddress } from "viem";
+import {
+  normalizeVotiumTokenAddress,
+  reconcileVotiumClaimAllocations,
+} from "./votiumClaimAllocations";
 
 const THE_UNION_ADDRESS = "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49";
 
@@ -36,8 +53,11 @@ interface Forwarder {
   address: string;
   type: "delegator" | "direct-voter";
   votingPower: number;
-  delegatedTo?: string; // Track who they delegated to (e.g., The Union)
-  isUnionDelegator?: boolean; // Flag to identify Union delegators
+  delegatedTo?: string; // e.g. The Union — resolved on-chain at the epoch
+  isUnionDelegator?: boolean;
+  // Weight actually incorporated in The Union's vote on THIS proposal
+  // (GaugeVoteHelper): 0 when the wallet voted directly or synced late.
+  unionContributingWeight?: number;
 }
 
 interface TokenAllocation {
@@ -59,8 +79,16 @@ async function getTokenDecimals(tokenAddress: string): Promise<number> {
 /**
  * Wrapper for token address lookup
  */
-async function getTokenAddress(symbol: string): Promise<string | undefined> {
-  return getTokenAddressFromService(symbol);
+async function getTokenAddress(token: string): Promise<string> {
+  const resolved = isAddress(token)
+    ? token
+    : await getTokenAddressFromService(token);
+  if (!resolved) {
+    throw new Error(
+      `Unable to resolve Votium reward token "${token}" on Ethereum`
+    );
+  }
+  return getAddress(resolved).toLowerCase();
 }
 
 /**
@@ -93,156 +121,148 @@ function customReplacer(_key: string, value: any): any {
 }
 
 /**
- * Get all forwarders by:
- * 1. Loading indexed forwarders from parquet file
- * 2. Checking voters/delegators for forwarding status
- * 3. Merging both sources
+ * Identify every wallet whose Votium rewards are forwarded to Stake DAO and
+ * classify it against the same pinned round:
+ * 1. Candidates: this round's voters plus every wallet the Votium indexer has
+ *    seen register behind our forwarder.
+ * 2. Forwarders: candidates the Votium registry forwards to us at the end of
+ *    the round.
+ * 3. Classification: StakeDAO delegators from the delegation contract; VP is
+ *    the wallet's OWN vote VP (or its on-chain VP when it did not vote) —
+ *    never the delegate contributing weights, which belong to the
+ *    repartition_delegation pipeline.
+ *
+ * Votium attributes rewards to each underlying wallet even behind a delegate
+ * (that is what its forward registry exists for), so a wallet delegating to
+ * The Union while forwarding to us earns its slice of The Union's vote here.
+ * Membership is resolved on-chain at the epoch — a hardcoded list used to
+ * pin it (with fixed VP), and one listed wallet had moved its delegation to
+ * StakeDAO, getting paid twice for the same vlCVX.
  */
-async function getAllForwarders(
+export async function getAllForwarders(
   space: string,
-  proposalId: string,
+  proposal: any,
+  proposalVoters: any[],
   blockSnapshotEnd: number,
   currentEpoch: number
 ): Promise<Forwarder[]> {
-  const forwarders: Forwarder[] = [];
-  const forwarderAddressSet = new Set<string>();
-
-  // 1. Get ALL voters from the proposal
-  const voters = await getVoters(proposalId);
-  const proposal = await getProposal(proposalId);
-
-  // Handle delegators who delegated to The Union
-  const unionDelegatorsList = [
-    { address: "0x5bfF1A68663ff91b0650327D83D4230Cd00023Ad", vp: 19955 },
-    { address: "0x8Ac4c0630C5ed1636537924eC9B037fC652ADee8", vp: 214 }
-  ];
-
-  const unionDelegatorsMap = new Map<string, number>();
-  for (const delegator of unionDelegatorsList) {
-    unionDelegatorsMap.set(delegator.address.toLowerCase(), delegator.vp);
-    voters.push({ voter: delegator.address, vp: delegator.vp });
+  // The proposal and its voters are fetched ONCE in main and passed down, so
+  // every step of a run works on the same pinned round (a proposal created
+  // mid-run must not shift later reads).
+  const voteByAddress = new Map<string, any>();
+  for (const vote of proposalVoters) {
+    voteByAddress.set(vote.voter.toLowerCase(), vote);
   }
 
-  // 2. Get delegation data to identify who are delegators
-  const delegatorData = await fetchDelegatorData(space, proposal);
-  const delegatorSet = new Set<string>();
-
-  if (delegatorData && delegatorData.delegators.length > 0) {
-    for (const delegator of delegatorData.delegators) {
-      delegatorSet.add(delegator.toLowerCase());
-    }
-  }
-
-  // 3. Load indexed forwarders from parquet file
   let indexedForwarders: string[] = [];
   try {
     indexedForwarders = await processAllForwarders(currentEpoch, VOTIUM_FORWARDER, "1");
   } catch (error) {
-    console.warn("Could not load indexed forwarders, using on-chain only");
+    console.warn("Could not load indexed forwarders, using voters only");
   }
 
-  // 4. Prepare all addresses to check (voters + indexed forwarders)
-  const voterAddresses = voters.map((v: any) => v.voter);
-  const voterMap = new Map<string, any>();
-  for (const v of voters) {
-    voterMap.set(v.voter.toLowerCase(), v);
-  }
-
-  const additionalAddresses: string[] = [];
-  for (const addr of indexedForwarders) {
-    if (!voterMap.has(addr.toLowerCase())) {
-      additionalAddresses.push(addr);
-    }
-  }
-
-  const allAddressesToCheck = [...voterAddresses, ...additionalAddresses];
-
-  // 5. Check forwarding status for ALL addresses in batches
-  const batchSize = 50;
-  const allForwardedStatuses: string[] = [];
-  const totalBatches = Math.ceil(allAddressesToCheck.length / batchSize);
-
-  for (let i = 0; i < allAddressesToCheck.length; i += batchSize) {
-    const batch = allAddressesToCheck.slice(i, i + batchSize);
-    const batchNum = Math.floor(i / batchSize) + 1;
-
-    process.stdout.write(`\r  Checking forwarding status... ${batchNum}/${totalBatches}`);
-
-    try {
-      const forwardedAddresses = await getForwardedDelegators(batch, blockSnapshotEnd);
-      allForwardedStatuses.push(...forwardedAddresses);
-    } catch (error) {
-      for (const addr of batch) {
-        try {
-          const result = await getForwardedDelegators([addr], blockSnapshotEnd);
-          allForwardedStatuses.push(result[0] || "");
-        } catch (e) {
-          allForwardedStatuses.push("");
-        }
-      }
-    }
-  }
-  console.log(""); // New line after progress
-
-  // 6. Get voting power for additional addresses (those not in voters)
-  let additionalVotingPowers: Record<string, number> = {};
-  if (additionalAddresses.length > 0) {
-    try {
-      additionalVotingPowers = await getVotingPower(proposal, additionalAddresses, "1");
-    } catch (error) {
-      // Silent fail - will use 0 VP
-    }
-  }
-
-  // 7. Process results and identify forwarders
-  for (let index = 0; index < allAddressesToCheck.length; index++) {
-    const address = allAddressesToCheck[index];
-    const forwardedTo = allForwardedStatuses[index]?.toLowerCase();
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  for (const address of [
+    ...proposalVoters.map((v: any) => v.voter),
+    ...indexedForwarders,
+  ]) {
     const addrLower = address.toLowerCase();
-
-    if (forwarderAddressSet.has(addrLower)) continue;
-
-    if (forwardedTo === VOTIUM_FORWARDER.toLowerCase()) {
-      const vote = voterMap.get(addrLower);
-      const isDelegator = delegatorSet.has(addrLower);
-      const isFromIndex = index >= voterAddresses.length;
-      const isDirectVoter = !isDelegator && addrLower !== DELEGATION_ADDRESS.toLowerCase();
-
-      let type: "delegator" | "direct-voter";
-      let votingPower = vote ? vote.vp : 0;
-
-      if (isFromIndex && !vote) {
-        votingPower = additionalVotingPowers[address] || additionalVotingPowers[addrLower] || 0;
-      }
-
-      if (isDelegator) {
-        type = "delegator";
-        if (delegatorData?.votingPowers) {
-          votingPower = delegatorData.votingPowers[address] || delegatorData.votingPowers[addrLower] || votingPower;
-        }
-      } else if (isDirectVoter) {
-        type = "direct-voter";
-      } else {
-        continue;
-      }
-
-      const isUnionDelegator = unionDelegatorsMap.has(addrLower);
-
-      forwarders.push({
-        address: addrLower,
-        type,
-        votingPower: isUnionDelegator ? unionDelegatorsMap.get(addrLower) || votingPower : votingPower,
-        delegatedTo: isUnionDelegator ? THE_UNION_ADDRESS : undefined,
-        isUnionDelegator,
-      });
-
-      forwarderAddressSet.add(addrLower);
-    }
+    if (seen.has(addrLower)) continue;
+    seen.add(addrLower);
+    candidates.push(address);
   }
 
-  forwarders.sort((a, b) => b.votingPower - a.votingPower);
+  // The Votium registry names each wallet's forward target at the end of the
+  // round. A failed check throws: a silent non-forwarder default would move
+  // that wallet's rewards into the delegators pool. StakeDAO's own delegate
+  // wallets are excluded — the on-chain delegation voter (the seed remapped
+  // StakeDAO's delegate there) and the legacy Snapshot delegation address
+  // both vote FOR the delegation, and must not be paid as individuals.
+  console.log(`Checking forwarding status of ${candidates.length} addresses...`);
+  const forwardTargets = await getForwardedDelegators(candidates, blockSnapshotEnd);
+  const votiumForwarderLower = VOTIUM_FORWARDER.toLowerCase();
+  const stakeDaoWallets = new Set([
+    VLCVX_ONCHAIN_DELEGATION_ADDRESS.toLowerCase(),
+    DELEGATION_ADDRESS.toLowerCase(),
+  ]);
+  const forwarderAddresses = candidates.filter(
+    (address, index) =>
+      forwardTargets[index]?.toLowerCase() === votiumForwarderLower &&
+      !stakeDaoWallets.has(address.toLowerCase())
+  );
 
-  return forwarders;
+  // Delegation data only identifies who are StakeDAO delegators. Its
+  // `votingPowers` are the GaugeVoteHelper contributing weights of the
+  // delegate vote and must never replace a wallet's own vote VP here.
+  const delegatorData = await fetchDelegatorData(space, proposal);
+  const delegatorSet = new Set<string>(
+    (delegatorData?.delegators ?? []).map((delegator) => delegator.toLowerCase())
+  );
+
+  const epoch = Number(proposal.snapshot); // vlCVX epoch
+  const client = await getClient(1);
+  const nonVoters = forwarderAddresses.filter(
+    (address) => !voteByAddress.has(address.toLowerCase())
+  );
+  const onChainVotingPowers =
+    nonVoters.length > 0
+      ? await getOnChainVotingPower(epoch, nonVoters, client)
+      : {};
+
+  // Union membership is a per-wallet reverse lookup on the same delegation
+  // contract the delegator set comes from: one delegate per wallet per epoch,
+  // so a StakeDAO delegator can never also be a Union delegator.
+  const delegateOf = await getDelegatesAtEpoch(
+    CVX_GAUGE_DELEGATION,
+    epoch,
+    forwarderAddresses,
+    client
+  );
+  const theUnionLower = THE_UNION_ADDRESS.toLowerCase();
+
+  // A union delegator's slice of The Union's vote is its weight AS COUNTED in
+  // that vote on this platform proposal — not its raw vlCVX balance. The
+  // helper replays sync-nonce accounting: a wallet that voted directly or
+  // synced after The Union's vote contributes less (usually 0).
+  const unionDelegatorAddresses = forwarderAddresses.filter(
+    (address) => delegateOf[address.toLowerCase()] === theUnionLower
+  );
+  const unionContributingWeights =
+    unionDelegatorAddresses.length > 0
+      ? await getContributingWeightsAtVote(
+          CVX_GAUGE_VOTE_HELPER,
+          proposal.author,
+          Number(proposal.id),
+          THE_UNION_ADDRESS,
+          unionDelegatorAddresses,
+          client
+        )
+      : {};
+
+  const forwarders: Forwarder[] = forwarderAddresses.map((address) => {
+    const addrLower = address.toLowerCase();
+    const vote = voteByAddress.get(addrLower);
+    const votingPower = vote
+      ? vote.vp ?? 0
+      : onChainVotingPowers[address] ?? onChainVotingPowers[addrLower] ?? 0;
+    const isUnionDelegator = delegateOf[addrLower] === theUnionLower;
+
+    return {
+      address: addrLower,
+      type: delegatorSet.has(addrLower)
+        ? ("delegator" as const)
+        : ("direct-voter" as const),
+      votingPower,
+      delegatedTo: isUnionDelegator ? THE_UNION_ADDRESS : undefined,
+      isUnionDelegator,
+      unionContributingWeight: isUnionDelegator
+        ? unionContributingWeights[addrLower] ?? 0
+        : undefined,
+    };
+  });
+
+  return forwarders.sort((a, b) => b.votingPower - a.votingPower);
 }
 
 /**
@@ -261,7 +281,7 @@ function computeVoteSharesForGauge(
   // Create a map of Union delegators for quick lookup
   const unionDelegators = new Map<string, Forwarder>();
   forwarders.forEach((f) => {
-    if (f.isUnionDelegator) {
+    if (f.isUnionDelegator && (f.unionContributingWeight ?? 0) > 0) {
       unionDelegators.set(f.address, f);
     }
   });
@@ -300,15 +320,14 @@ function computeVoteSharesForGauge(
           });
 
           if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
-            const effectiveVp = (delegator.votingPower * gaugeChoiceValue) / vpChoiceSum;
+            const effectiveVp =
+              ((delegator.unionContributingWeight ?? 0) * gaugeChoiceValue) /
+              vpChoiceSum;
             voterVp.set(delegator.address, (voterVp.get(delegator.address) || 0) + effectiveVp);
           }
         });
         return;
       }
-
-      // Skip Union delegators in regular vote processing
-      if (unionDelegators.has(voter)) return;
 
       // Regular forwarder processing
       if (forwarderAddresses.has(voter)) {
@@ -353,10 +372,7 @@ async function aggregateBribesByToken(
   bribesType: "curve" | "fxn"
 ) {
   for (const bribe of gaugeBribes) {
-    // Convert token symbol to address if needed - fallback to symbol if address not found
-    const tokenKey = (await getTokenAddress(bribe.token)) || bribe.token;
-
-
+    const tokenKey = await getTokenAddress(bribe.token);
 
     if (!matchingBribesAggregated[tokenKey]) {
       matchingBribesAggregated[tokenKey] = {
@@ -412,7 +428,7 @@ function computeDelegationShareForGauge(
   // Create a map of Union delegators
   const unionDelegators = new Map<string, Forwarder>();
   forwarders.forEach((f) => {
-    if (f.isUnionDelegator) {
+    if (f.isUnionDelegator && (f.unionContributingWeight ?? 0) > 0) {
       unionDelegators.set(f.address, f);
     }
   });
@@ -457,16 +473,14 @@ function computeDelegationShareForGauge(
 
           if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
             const effectiveVp =
-              (delegator.votingPower * gaugeChoiceValue) / vpChoiceSum;
+              ((delegator.unionContributingWeight ?? 0) * gaugeChoiceValue) /
+              vpChoiceSum;
             totalEffectiveVp += effectiveVp;
             delegationEffectiveVp += effectiveVp;
           }
         });
         return; // Don't count The Union's vote itself
       }
-
-      // Skip Union delegators in regular processing
-      if (unionDelegators.has(voter)) return;
 
       // Regular vote processing
       let vpChoiceSum = 0;
@@ -504,7 +518,8 @@ function computeDelegationShareForGauge(
  */
 async function processGaugeVotes(
   space: string,
-  filter: string,
+  proposal: any,
+  votes: any[],
   gaugeFetcher: () => Promise<any>,
   bribesData: any,
   forwarders: Forwarder[],
@@ -514,23 +529,22 @@ async function processGaugeVotes(
   bribesType: "curve" | "fxn",
   transformGauges = false
 ): Promise<number> {
-  // Fetch proposal and votes
-  const now = Math.floor(Date.now() / 1000);
-  const proposalIdPerSpace = await fetchLastProposalsIdsCurrentPeriod(
-    [space],
-    now,
-    filter
-  );
-  // For testing: Use the specific proposal IDs that match our test data
-  let proposalId = proposalIdPerSpace[space];
+  // Proposal and votes are fetched ONCE in main and passed down (pinned round)
+  const proposalId = proposal.id;
+  console.log(`\nUsing on-chain proposal: ${proposalId} (${votes.length} votes)`);
 
-  const proposal = await getProposal(proposalId);
-  const votes = await getVoters(proposalId);
-
-  // Fetch proposal scores from Snapshot
-  const proposalData = await fetchProposalWithScores(proposalId);
-
-  console.log(`\nUsing proposal: ${proposalId} (${votes.length} votes)`);
+  // Final round-alignment defense (the primary alignment happens at bribes
+  // selection time in fetchBribes): voted rewards and the treasury fee must
+  // never be computed on mismatched rounds.
+  const bribesRoundEnd = Number(bribesData?.epoch?.end);
+  if (Number.isFinite(bribesRoundEnd) && bribesRoundEnd > 0 &&
+      Math.abs(bribesRoundEnd - proposal.end) > 3 * 86400) {
+    throw new Error(
+      `Votium bribes round (end ${bribesRoundEnd}) does not align with the ` +
+        `on-chain proposal ${proposalId} (end ${proposal.end}) for ${bribesType} — ` +
+        `refusing to compute forwarders voted rewards on mismatched rounds`
+    );
+  }
 
   // Get gauges
   let gauges = await gaugeFetcher();
@@ -542,8 +556,8 @@ async function processGaugeVotes(
     }));
   }
 
-  // Map gauges to proposal choices
-  const gaugeMapping = associateGaugesPerId(proposal, gauges);
+  // Map gauges to proposal choices (on-chain choices are gauge addresses)
+  const gaugeMapping = associateGaugesPerIdOnChain(proposal, gauges);
   let processedGauges = 0;
 
   // Process each gauge
@@ -583,32 +597,36 @@ async function processGaugeVotes(
         vote.choice && vote.choice[gaugeInfo.choiceId] !== undefined
     );
 
-    // Also check if we have bribes that match by choice ID (for gauge mismatches)
-    const bribesMatchingByChoice =
-      bribesData?.epoch?.bribes?.filter(
-        (bribe: any) => bribe.choice === gaugeInfo.choiceId - 1
-      ) || [];
-
     if (votesForGauge.length === 0) continue;
 
-    // Get total score for this choice from Snapshot
-    const totalChoiceScore = proposalData.scores[gaugeInfo.choiceId - 1] || 0; // Snapshot uses 0-based indexing
+    // Total on-chain vote weight for this gauge (choiceId is 1-indexed)
+    const totalChoiceScore = proposal.scores[gaugeInfo.choiceId - 1] || 0;
 
-    // Compute vote shares for forwarders
-    const voteShares = computeVoteSharesForGauge(
+    // Per-address vote shares for this gauge (reused for every bribe below)
+    const addressShares = computeVoteSharesForGauge(
       votesForGauge,
       gaugeInfo.choiceId,
       forwarders,
       totalChoiceScore
     );
 
-    // Get bribes for this gauge - Llama API uses choice index -1 compared to Snapshot
+    // Get bribes for this gauge — match by gauge ADDRESS only. The Llama
+    // `choice` field was derived from the Snapshot proposal ordering and has
+    // no relation to the on-chain choice indices: matching on it would
+    // produce false positives. Match against the ROOT/CHILD alias set: the
+    // on-chain choice may be the root gauge while Votium/Llama indexed the
+    // deposit on the child gauge (or vice versa) — a bribe silently dropped
+    // here would understate the treasury fee and the covered-amount
+    // subtraction downstream.
+    const gaugeAliases = new Set(
+      [gaugeAddress, gaugeDetails.gauge, gaugeDetails.rootGauge]
+        .filter(Boolean)
+        .map((a: string) => a.toLowerCase())
+    );
     const gaugeBribes =
-      bribesData?.epoch?.bribes?.filter((bribe: any) => {
-        const matchByGauge = bribe.gauge.toLowerCase() === gaugeAddress.toLowerCase();
-        const matchByChoice = bribe.choice === gaugeInfo.choiceId - 1;
-        return matchByGauge || matchByChoice;
-      }) || [];
+      bribesData?.epoch?.bribes?.filter((bribe: any) =>
+        gaugeAliases.has(bribe.gauge.toLowerCase())
+      ) || [];
 
     // Aggregate bribes for overall distribution (matching working version)
     const delegationShare = computeDelegationShareForGauge(
@@ -617,7 +635,7 @@ async function processGaugeVotes(
       forwarders
     );
 
-    aggregateBribesByToken(
+    await aggregateBribesByToken(
       gaugeBribes,
       matchingBribesAggregated,
       delegationShare,
@@ -628,13 +646,6 @@ async function processGaugeVotes(
     for (const bribe of gaugeBribes) {
       const amountInDollars = bribe.amountDollars || 0;
 
-      // Calculate per-address shares for the aggregated claimed bounties
-      const addressShares = computeVoteSharesForGauge(
-        votesForGauge,
-        gaugeInfo.choiceId,
-        forwarders,
-        totalChoiceScore
-      );
 
       for (const forwarder of forwarders) {
         const share = addressShares.get(forwarder.address) || 0;
@@ -646,8 +657,7 @@ async function processGaugeVotes(
             tokenAllocations[forwarder.address] = {};
           }
 
-          // Convert token symbol to address if needed
-          const tokenKey = await getTokenAddress(bribe.token) || bribe.token;
+          const tokenKey = await getTokenAddress(bribe.token);
 
           if (!tokenAllocations[forwarder.address][tokenKey]) {
             tokenAllocations[forwarder.address][tokenKey] = {
@@ -664,7 +674,7 @@ async function processGaugeVotes(
           };
 
           // Also track for per-address token allocations (for claimed bounties)
-          const tokenAddress = (await getTokenAddress(bribe.token)) || bribe.token;
+          const tokenAddress = tokenKey;
 
           // Check if the bribe amount looks like it's already in wei
           const brideAmountNum = Number(bribe.amount);
@@ -725,7 +735,7 @@ function cleanPerAddressOutput(perAddressOutput: any) {
       for (const token in tokens) {
         const allocation = tokens[token];
         // Convert allocation to a number and skip if zero
-        if (Number(allocation) === 0) continue;
+        if (Number(allocation.amount) === 0) continue;
         // Token should already be an address, but keep as is
         const newTokenKey = token;
         newTokens[newTokenKey] = allocation;
@@ -747,19 +757,14 @@ function cleanPerAddressOutput(perAddressOutput: any) {
  */
 async function fetchProposalVotesWithAddressBreakdown(
   space: string,
-  filter: string,
+  proposal: any,
+  votes: any[],
   gaugeFetcher: () => Promise<any>,
   forwarders: Forwarder[],
   transformGauges = false
 ) {
-  const now = Math.floor(Date.now() / 1000);
-  const proposalIdPerSpace = await fetchLastProposalsIdsCurrentPeriod(
-    [space],
-    now,
-    filter
-  );
-  const proposalId = proposalIdPerSpace[space];
-  const proposal = await getProposal(proposalId);
+  // Proposal and votes are fetched ONCE in main and passed down (pinned round)
+  const proposalId = proposal.id;
 
   let gauges = await gaugeFetcher();
   if (transformGauges) {
@@ -770,7 +775,7 @@ async function fetchProposalVotesWithAddressBreakdown(
     }));
   }
 
-  const gaugeMapping = associateGaugesPerId(proposal, gauges);
+  const gaugeMapping = associateGaugesPerIdOnChain(proposal, gauges);
   const gaugeMappingWithInfos: any = {};
   for (const gaugeKey of Object.keys(gaugeMapping)) {
     const match = gauges.find(
@@ -787,7 +792,6 @@ async function fetchProposalVotesWithAddressBreakdown(
     }
   }
 
-  const votes = await getVoters(proposalId);
   const forwarderAddresses = new Set(forwarders.map((f) => f.address));
 
   // Build per-address vote breakdown using the forwarders list
@@ -801,7 +805,10 @@ async function fetchProposalVotesWithAddressBreakdown(
 
   // Use the isUnionDelegator flag to identify Union delegators
   for (const forwarder of forwarders) {
-    if (forwarder.isUnionDelegator) {
+    if (
+      forwarder.isUnionDelegator &&
+      (forwarder.unionContributingWeight ?? 0) > 0
+    ) {
       unionDelegators.set(forwarder.address.toLowerCase(), forwarder);
     }
   }
@@ -863,49 +870,9 @@ async function fetchProposalVotesWithAddressBreakdown(
 }
 
 /**
- * Fetch proposal data with scores from Snapshot GraphQL API
- */
-async function fetchProposalWithScores(
-  proposalId: string
-): Promise<{ choices: string[]; scores: number[] }> {
-  const query = `
-    query Proposal {
-      proposal(id: "${proposalId}") {
-        choices,
-        scores
-      }
-    }
-  `;
-
-  try {
-    const response = await fetch("https://hub.snapshot.org/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query }),
-    });
-
-    const data = await response.json();
-
-    if (data.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
-    }
-
-    return {
-      choices: data.data.proposal.choices,
-      scores: data.data.proposal.scores,
-    };
-  } catch (error) {
-    console.error("Error fetching proposal from Snapshot:", error);
-    throw error;
-  }
-}
-
-/**
  * Fetch bribes from Llama Airforce with timeout handling
  */
-async function fetchBribes(chain: string) {
+async function fetchBribes(chain: string, targetEnd?: number) {
   try {
     // Add timeout to fetch requests
     const fetchWithTimeout = async (url: string, timeout = 30000) => {
@@ -926,22 +893,40 @@ async function fetchBribes(chain: string) {
     const roundsResponse = await fetchWithTimeout(roundsUrl);
     const roundsData = await roundsResponse.json();
 
-    const lastRoundNumber = roundsData.rounds
-      ? Math.max(...roundsData.rounds) // Use the last completed round # TODO: Fetch correctly , if round is current
-      : null;
-
-    if (!lastRoundNumber) {
+    if (!roundsData.rounds || roundsData.rounds.length === 0) {
       console.warn(`No rounds found for ${chain}`);
       return null;
     }
 
-    console.log(`Fetching bribes for ${chain} round ${lastRoundNumber}`);
+    // Pick the round ALIGNED with the target proposal, not blindly the max:
+    // Llama may already list the currently-active round while we compute the
+    // just-ended one (and vice versa). Walk the most recent rounds and keep
+    // the first whose end is within 3 days of the proposal end.
+    const candidates = [...roundsData.rounds].sort((a, b) => b - a).slice(0, 3);
+    for (const round of candidates) {
+      const bribesUrl = `https://api.llama.airforce/bribes/votium/${chain}/${round}`;
+      const bribesResponse = await fetchWithTimeout(bribesUrl);
+      const bribesData = await bribesResponse.json();
 
-    const bribesUrl = `https://api.llama.airforce/bribes/votium/${chain}/${lastRoundNumber}`;
-    const bribesResponse = await fetchWithTimeout(bribesUrl);
-    const bribesData = await bribesResponse.json();
+      const roundEnd = Number(bribesData?.epoch?.end);
+      if (
+        !targetEnd ||
+        (Number.isFinite(roundEnd) &&
+          roundEnd > 0 &&
+          Math.abs(roundEnd - targetEnd) <= 3 * 86400)
+      ) {
+        console.log(`Fetching bribes for ${chain} round ${round}`);
+        return bribesData;
+      }
+      console.log(
+        `Skipping ${chain} round ${round} (end ${roundEnd}) — not aligned with proposal end ${targetEnd}`
+      );
+    }
 
-    return bribesData;
+    console.warn(
+      `No ${chain} Votium round aligned with proposal end ${targetEnd} among the last ${candidates.length} rounds`
+    );
+    return null;
   } catch (error) {
     console.error(`Error fetching bribes for ${chain}:`, error);
     return null;
@@ -983,52 +968,42 @@ async function fetchAndProcessClaimedBounties(
   };
 
   votiumConvexBounties.votiumBounties.forEach((bounty: any) => {
-    const matching = tokenAddressToBribes[bounty.rewardToken];
-    let curveShare = 0;
-    let fxnShare = 0;
+    const matching =
+      tokenAddressToBribes[normalizeVotiumTokenAddress(bounty.rewardToken)];
+    if (!matching) return;
 
-    if (matching) {
-      const curveAmount = Number(matching.curveAmount);
-      const fxnAmount = Number(matching.fxnAmount);
-      const total = curveAmount + fxnAmount;
+    const claimedAmount = BigInt(bounty.amount);
+    const curveWeight = BigInt(matching.curveAmount);
+    const fxnWeight = BigInt(matching.fxnAmount);
+    const totalWeight = curveWeight + fxnWeight;
+    let curveAmount = 0n;
+    let fxnAmount = 0n;
 
-      if (total > 0) {
-        curveShare = curveAmount / total;
-        fxnShare = fxnAmount / total;
-      } else {
-        const hasCurveBribes = matching.bribes.some(
-          (bribe: any) => bribe.type === "curve"
-        );
-        const hasFxnBribes = matching.bribes.some(
-          (bribe: any) => bribe.type === "fxn"
-        );
-        if (hasCurveBribes && !hasFxnBribes) {
-          curveShare = 1;
-          fxnShare = 0;
-        } else if (!hasCurveBribes && hasFxnBribes) {
-          curveShare = 0;
-          fxnShare = 1;
-        } else if (hasCurveBribes && hasFxnBribes) {
-          curveShare = 0.5;
-          fxnShare = 0.5;
-        }
+    if (totalWeight > 0n) {
+      curveAmount = (claimedAmount * curveWeight) / totalWeight;
+      fxnAmount = claimedAmount - curveAmount;
+    } else {
+      const hasCurveBribes = matching.bribes.some(
+        (bribe: any) => bribe.type === "curve"
+      );
+      const hasFxnBribes = matching.bribes.some(
+        (bribe: any) => bribe.type === "fxn"
+      );
+      if (hasCurveBribes && hasFxnBribes) {
+        curveAmount = claimedAmount / 2n;
+        fxnAmount = claimedAmount - curveAmount;
+      } else if (hasCurveBribes) {
+        curveAmount = claimedAmount;
+      } else if (hasFxnBribes) {
+        fxnAmount = claimedAmount;
       }
+    }
 
-      // Add to curve bounties if there's a curve share
-      if (curveShare > 0) {
-        protocolBountiesArrays.curve.push({
-          ...bounty,
-          amount: BigInt(Math.floor(Number(bounty.amount) * curveShare)),
-        });
-      }
-
-      // Add to fxn bounties if there's an fxn share
-      if (fxnShare > 0) {
-        protocolBountiesArrays.fxn.push({
-          ...bounty,
-          amount: BigInt(Math.floor(Number(bounty.amount) * fxnShare)),
-        });
-      }
+    if (curveAmount > 0n) {
+      protocolBountiesArrays.curve.push({ ...bounty, amount: curveAmount });
+    }
+    if (fxnAmount > 0n) {
+      protocolBountiesArrays.fxn.push({ ...bounty, amount: fxnAmount });
     }
   });
 
@@ -1052,7 +1027,9 @@ async function fetchAndProcessClaimedBounties(
 /**
  * Main function to generate Convex Votium bounties
  */
-export async function generateConvexVotiumBounties(): Promise<void> {
+export async function generateConvexVotiumBounties(
+  pastWeek: number = 0
+): Promise<void> {
   try {
     console.log("\nGenerating Convex Votium Bounties...");
 
@@ -1076,7 +1053,13 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       functionName: "currentEpoch",
     });
 
-    const now = Math.floor(Date.now() / 1000);
+    // Catch-up support (PAST_WEEK=N): re-target the run N weeks back, as if
+    // it had run in its normal Wednesday slot of that week. Only the period
+    // targeting shifts; proposal-start sanity checks keep real time.
+    const now = Math.floor(Date.now() / 1000) - pastWeek * WEEK;
+    if (pastWeek > 0) {
+      console.log(`PAST_WEEK=${pastWeek}: targeting period of ${pastWeek} week(s) ago`);
+    }
     /*
     // If we are on an even week, take the prev round epoch
     if (!isOddWeek(now)) {
@@ -1087,66 +1070,94 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
     console.log(`Epoch: ${currentEpoch} (${new Date(Number(currentEpoch) * 1000).toLocaleDateString('en-GB')})`);
 
-    // Get Curve proposal for reference
-    const curveProposalIds = await fetchLastProposalsIdsCurrentPeriod(
-      [CVX_SPACE],
-      now,
-      "^(?!FXN ).*Gauge Weight for Week of"
-    );
-    const curveProposalId = curveProposalIds[CVX_SPACE];
-    const curveProposal = await getProposal(curveProposalId);
+    // TEST-ONLY fork escape hatch (see 2_repartition): allows reading an
+    // active proposal and approximating the forwarder-check block. In
+    // production (unset) finality is enforced: endTime + equalizer overtime.
+    const allowActive = process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL === "true";
 
-    // Get block for snapshot
-    let blockSnapshotEnd: number;
-    try {
-      const proposalSnapshotBlock = parseInt(curveProposal.snapshot);
-      if (!isNaN(proposalSnapshotBlock) && proposalSnapshotBlock > 0) {
-        blockSnapshotEnd = proposalSnapshotBlock;
-      } else {
-        blockSnapshotEnd = await getBlockNumberByTimestamp(curveProposal.end, "after", 1);
-      }
-    } catch (error) {
-      const latestBlock = await ethereumClient.getBlockNumber();
-      blockSnapshotEnd = Number(latestBlock) - 50400;
-    }
+    // This slot runs the day after the round ends (Wednesday), i.e. BEFORE
+    // the Thursday distribution period that round feeds — pin the proposal to
+    // that upcoming period so a delayed re-run cannot drift onto the next
+    // round once it finalizes.
+    const votiumTargetPeriod = Math.floor(now / WEEK) * WEEK + WEEK;
 
-    // Get all forwarders (delegators + direct voters)
-    console.log("Fetching forwarders...");
-    const forwarders = await getAllForwarders(
+    // Get the Curve proposal and its votes ONCE — every downstream step
+    // (forwarders, breakdown, bribes matching) works on this pinned round. A
+    // proposal created mid-run must never shift later reads.
+    const curveProposal = await getOnChainProposal(
+      CVX_GAUGE_VOTE_PLATFORM_CURVE,
       CVX_SPACE,
-      curveProposalId,
+      ethereumClient,
+      { requireFinal: !allowActive, targetPeriod: votiumTargetPeriod }
+    );
+    if (curveProposal.start > Math.floor(Date.now() / 1000)) {
+      throw new Error(
+        `Latest Curve on-chain proposal ${curveProposal.id} has not started yet ` +
+          `(start ${curveProposal.start})`
+      );
+    }
+    const curveProposalId = curveProposal.id;
+    const curveVotes = await getOnChainVoters(
+      CVX_GAUGE_VOTE_PLATFORM_CURVE,
+      Number(curveProposalId),
+      curveProposal,
+      ethereumClient
+    );
+
+    // Get block for the forwarder check: on-chain, proposal.snapshot is a
+    // vlCVX epoch number, NOT a block — resolve from the proposal end
+    // timestamp (same convention as the repartition path).
+    // VLCVX_ALLOW_ACTIVE_PROPOSAL=true is the TEST-ONLY fork escape hatch
+    // (see 2_repartition): an active proposal has no post-end block yet, and
+    // on a fork the Etherscan-resolved mainnet block may not exist.
+    const blockSnapshotEnd =
+      process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL === "true"
+        ? Number(await ethereumClient.getBlockNumber())
+        : await getBlockNumberByTimestamp(curveProposal.end, "after", 1);
+
+    // Get all forwarders (delegators + direct voters). Forwarder lists are
+    // PER PLATFORM: a wallet's direct effective VP, its choices and its
+    // forwarding status can differ between Curve and FXN. StakeDAO delegate
+    // contributing weights are intentionally excluded here: they are paid by
+    // the separate repartition_delegation pipeline.
+    console.log("Fetching Curve forwarders...");
+    const curveForwarders = await getAllForwarders(
+      CVX_SPACE,
+      curveProposal,
+      curveVotes,
       blockSnapshotEnd,
       Number(currentEpoch)
     );
 
-    if (forwarders.length === 0) {
+    if (curveForwarders.length === 0) {
       console.warn("No forwarders found!");
       return;
     }
 
     // Initialize tracking structures
-    const tokenAllocations: Record<string, TokenAllocation> = {};
-    const perAddressTokenAllocations: Record<
+    let tokenAllocations: Record<string, TokenAllocation> = {};
+    let perAddressTokenAllocations: Record<
       string,
       Record<string, bigint>
     > = {};
     const matchingBribesAggregated: any = {};
 
-    forwarders.forEach((f) => {
+    curveForwarders.forEach((f) => {
       tokenAllocations[f.address] = {};
       perAddressTokenAllocations[f.address] = {};
     });
 
     // Process Curve votes and bribes
     console.log("Processing Curve gauges...");
-    const curveBribes = await fetchBribes("cvx-crv");
+    const curveBribes = await fetchBribes("cvx-crv", curveProposal.end);
 
     // Process Curve votes to get address breakdown
     const votesCurveResult = await fetchProposalVotesWithAddressBreakdown(
       CVX_SPACE,
-      "^(?!FXN ).*Gauge Weight for Week of",
+      curveProposal,
+      curveVotes,
       getAllCurveGauges,
-      forwarders,
+      curveForwarders,
       false
     );
     const curveAddressBreakdown = votesCurveResult
@@ -1155,30 +1166,79 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
     const curveGaugesProcessed = await processGaugeVotes(
       CVX_SPACE,
-      "^(?!FXN ).*Gauge Weight for Week of",
+      curveProposal,
+      curveVotes,
       getAllCurveGauges,
       curveBribes,
-      forwarders,
+      curveForwarders,
       tokenAllocations,
       perAddressTokenAllocations,
       matchingBribesAggregated,
       "curve",
       false
     );
+    console.log(`Processed ${curveGaugesProcessed} Curve gauges with bribes`);
 
-    // Process FXN votes and bribes
+    // Process FXN votes and bribes (skipped cleanly while the FXN platform
+    // has no proposal yet — getOnChainProposal throws into this catch)
     console.log("Processing FXN gauges...");
-    const fxnBribes = await fetchBribes("cvx-fxn");
     let fxnGaugesProcessed = 0;
     let fxnAddressBreakdown: any = {};
+    let fxnForwarders: Forwarder[] = [];
 
     try {
+      const fxnProposal = await getOnChainProposal(
+        CVX_GAUGE_VOTE_PLATFORM_FXN,
+        CVX_SPACE,
+        ethereumClient,
+        { requireFinal: !allowActive, targetPeriod: votiumTargetPeriod }
+      );
+      if (fxnProposal.start > Math.floor(Date.now() / 1000)) {
+        throw new Error(
+          `Latest FXN on-chain proposal ${fxnProposal.id} has not started yet`
+        );
+      }
+      const fxnVotes = await getOnChainVoters(
+        CVX_GAUGE_VOTE_PLATFORM_FXN,
+        Number(fxnProposal.id),
+        fxnProposal,
+        ethereumClient
+      );
+      const fxnBribes = await fetchBribes("cvx-fxn", fxnProposal.end);
+
+      // FXN forwarders must be resolved from the FXN proposal itself. The end
+      // block is platform-specific even though both platforms currently share
+      // the same schedule, and a direct voter's effective VP can differ.
+      const fxnBlockSnapshotEnd = allowActive
+        ? Number(await ethereumClient.getBlockNumber())
+        : await getBlockNumberByTimestamp(fxnProposal.end, "after", 1);
+
+      console.log("Fetching FXN forwarders...");
+      fxnForwarders = await getAllForwarders(
+        CVX_SPACE,
+        fxnProposal,
+        fxnVotes,
+        fxnBlockSnapshotEnd,
+        Number(currentEpoch)
+      );
+
+      // A forwarder may exist on FXN only (e.g. delegated after the Curve
+      // carve-out): allocation maps must cover the union of both lists —
+      // processGaugeVotes assumes perAddressTokenAllocations[addr] exists.
+      fxnForwarders.forEach((f) => {
+        if (!tokenAllocations[f.address]) tokenAllocations[f.address] = {};
+        if (!perAddressTokenAllocations[f.address]) {
+          perAddressTokenAllocations[f.address] = {};
+        }
+      });
+
       // Process FXN votes to get address breakdown
       const votesFxnResult = await fetchProposalVotesWithAddressBreakdown(
         CVX_SPACE,
-        "^FXN.*Gauge Weight for Week of",
+        fxnProposal,
+        fxnVotes,
         () => getGaugesInfos("fxn"),
-        forwarders,
+        fxnForwarders,
         true
       );
       fxnAddressBreakdown = votesFxnResult
@@ -1187,22 +1247,25 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
       fxnGaugesProcessed = await processGaugeVotes(
         CVX_SPACE,
-        "^FXN.*Gauge Weight for Week of",
+        fxnProposal,
+        fxnVotes,
         () => getGaugesInfos("fxn"),
         fxnBribes,
-        forwarders,
+        fxnForwarders,
         tokenAllocations,
         perAddressTokenAllocations,
         matchingBribesAggregated,
         "fxn",
         true
       );
+      console.log(`Processed ${fxnGaugesProcessed} FXN gauges with bribes`);
     } catch (error) {
       console.error("Error processing FXN gauges:", error);
     }
 
     // Store original tokenAllocations for USD values
-    const originalTokenAllocations = JSON.parse(JSON.stringify(tokenAllocations));
+    const originalTokenAllocations: Record<string, TokenAllocation> =
+      JSON.parse(JSON.stringify(tokenAllocations));
 
     // Use the period from VOTIUM_FORWARDER_REGISTRY + one week (bc distribution is done on thursday) instead of current timestamp
     const rootDir = path.resolve(__dirname, "../../..");
@@ -1216,6 +1279,14 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     );
     ensureDirExists(periodFolder);
     const outputDir = periodFolder;
+
+    // Invalidate any previous output for this period BEFORE computing: if this
+    // run fails midway, downstream consumers (delegators merkle fee +
+    // votium-covered subtraction) must find NO file — their absent-file path
+    // is safe (fee = 0) — rather than silently consume stale allocations.
+    fs.rmSync(path.join(outputDir, "forwarders_voted_rewards.json"), {
+      force: true,
+    });
 
     // Initialize variables outside try block so they're accessible in summary
     let claimedTokenAmounts: Record<string, bigint> = {};
@@ -1249,62 +1320,13 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       );
 
       // Process all votium bounties to get actual claimed amounts
-      for (const bounty of votiumConvexBounties.votiumBounties) {
-        const token = bounty.rewardToken;
+      // (fetchVotiumClaimedBounties returns {} when no claim is in range)
+      for (const bounty of votiumConvexBounties.votiumBounties || []) {
+        const token = normalizeVotiumTokenAddress(bounty.rewardToken);
         if (!claimedTokenAmounts[token]) {
           claimedTokenAmounts[token] = 0n;
         }
         claimedTokenAmounts[token] += BigInt(bounty.amount);
-      }
-
-      // Remove any tokens from allocations that weren't actually claimed
-      const tokensToRemove: string[] = [];
-      for (const voter in perAddressTokenAllocations) {
-        for (const token in perAddressTokenAllocations[voter]) {
-          if (!claimedTokenAmounts[token]) {
-            tokensToRemove.push(token);
-          }
-        }
-      }
-
-      const uniqueTokensToRemove = [...new Set(tokensToRemove)];
-
-      for (const token of uniqueTokensToRemove) {
-        for (const voter in perAddressTokenAllocations) {
-          if (perAddressTokenAllocations[voter][token]) {
-            delete perAddressTokenAllocations[voter][token];
-          }
-        }
-        for (const voter in tokenAllocations) {
-          if (tokenAllocations[voter][token]) {
-            delete tokenAllocations[voter][token];
-          }
-        }
-      }
-
-      // Calculate total theoretical amounts per token (only for claimed tokens)
-      const theoreticalTotals: Record<string, bigint> = {};
-      for (const voter in perAddressTokenAllocations) {
-        for (const token in perAddressTokenAllocations[voter]) {
-          if (!theoreticalTotals[token]) {
-            theoreticalTotals[token] = 0n;
-          }
-          theoreticalTotals[token] += perAddressTokenAllocations[voter][token];
-        }
-      }
-
-      // Calculate total USD value per user
-      const userTotalUsd: Record<string, number> = {};
-      let grandTotalUsd = 0;
-
-      for (const voter in originalTokenAllocations) {
-        userTotalUsd[voter] = 0;
-        for (const token in originalTokenAllocations[voter]) {
-          if (claimedTokenAmounts[token]) {
-            userTotalUsd[voter] += originalTokenAllocations[voter][token].usd;
-          }
-        }
-        grandTotalUsd += userTotalUsd[voter];
       }
 
       // Get token prices for claimed tokens
@@ -1312,108 +1334,29 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       const tokenIdentifiers: TokenIdentifier[] = [];
 
       for (const token of Object.keys(claimedTokenAmounts)) {
-        tokenIdentifiers.push({ chainId: 1, address: token.toLowerCase() });
+        tokenIdentifiers.push({ chainId: 1, address: token });
       }
 
-      try {
-        const prices = await getTokenPrices(tokenIdentifiers);
-        for (const [key, price] of Object.entries(prices)) {
-          const address = key.split(':')[1];
-          tokenPrices[address] = price;
-        }
-      } catch (error) {
-        console.error("Error fetching token prices:", error);
+      const prices = await getTokenPrices(tokenIdentifiers);
+      for (const [key, price] of Object.entries(prices)) {
+        const address = key.slice(key.indexOf(":") + 1);
+        tokenPrices[normalizeVotiumTokenAddress(address)] = price;
       }
 
-      // Calculate token amounts based on USD values
-      for (const token in claimedTokenAmounts) {
-        const tokenPrice = tokenPrices[token.toLowerCase()];
-        const actualTotal = claimedTokenAmounts[token];
-
-        if (!tokenPrice || tokenPrice === 0) {
-          // Fallback to proportional distribution if no price
-          const theoreticalTotal = theoreticalTotals[token] || 0n;
-          if (theoreticalTotal > 0n) {
-            for (const voter in perAddressTokenAllocations) {
-              if (perAddressTokenAllocations[voter][token]) {
-                const theoreticalAmount = perAddressTokenAllocations[voter][token];
-                const adjustedAmount = (theoreticalAmount * actualTotal) / theoreticalTotal;
-                perAddressTokenAllocations[voter][token] = adjustedAmount;
-              }
-            }
-          }
-          continue;
-        }
-
-        // Calculate total USD value that should be distributed for this token
-        let tokenUsdTotal = 0;
-        for (const voter in originalTokenAllocations) {
-          if (originalTokenAllocations[voter][token]) {
-            tokenUsdTotal += originalTokenAllocations[voter][token].usd;
-          }
-        }
-
-        // Calculate total token amount needed based on USD value
-        const decimals = await getTokenDecimals(token);
-        const totalTokensNeeded = BigInt(Math.floor((tokenUsdTotal / tokenPrice) * (10 ** decimals)));
-
-        // Distribute tokens based on each user's USD share
-        const tokensToDistribute = totalTokensNeeded > actualTotal ? actualTotal : totalTokensNeeded;
-        let distributedAmount = 0n;
-
-        // Sort voters deterministically for consistent distribution
-        const votersWithAllocation = Object.keys(perAddressTokenAllocations)
-          .filter(voter => originalTokenAllocations[voter] && originalTokenAllocations[voter][token])
-          .sort();
-
-        // Process all voters except the last one
-        for (let i = 0; i < votersWithAllocation.length - 1; i++) {
-          const voter = votersWithAllocation[i];
-          const userUsdForToken = originalTokenAllocations[voter][token].usd;
-          const userShare = tokenUsdTotal > 0 ? userUsdForToken / tokenUsdTotal : 0;
-          const userTokenAmount = BigInt(Math.floor(Number(tokensToDistribute) * userShare));
-
-          perAddressTokenAllocations[voter][token] = userTokenAmount;
-          distributedAmount += userTokenAmount;
-
-          if (tokenAllocations[voter] && tokenAllocations[voter][token]) {
-            tokenAllocations[voter][token] = {
-              amount: (Number(userTokenAmount) / (10 ** decimals)).toFixed(6),
-              usd: originalTokenAllocations[voter][token].usd,
-            };
-          }
-        }
-
-        // Give the last voter exactly the remaining amount (with safety checks)
-        if (votersWithAllocation.length > 0) {
-          const lastVoter = votersWithAllocation[votersWithAllocation.length - 1];
-          const remainingAmount = tokensToDistribute - distributedAmount;
-          
-          // Safety check: remaining amount should be small (just rounding dust)
-          const lastVoterExpectedAmount = originalTokenAllocations[lastVoter][token] 
-            ? BigInt(Math.floor(Number(tokensToDistribute) * (originalTokenAllocations[lastVoter][token].usd / tokenUsdTotal)))
-            : 0n;
-          
-          const dustThreshold = lastVoterExpectedAmount / 1000n; // 0.1% tolerance
-          const dustAmount = remainingAmount > lastVoterExpectedAmount 
-            ? remainingAmount - lastVoterExpectedAmount 
-            : lastVoterExpectedAmount - remainingAmount;
-          
-          if (dustAmount > dustThreshold && dustThreshold > 0n) {
-            throw new Error(`Token distribution error: Remaining amount too large for ${token}`);
-          }
-          
-          perAddressTokenAllocations[lastVoter][token] = remainingAmount;
-          distributedAmount += remainingAmount;
-
-          if (tokenAllocations[lastVoter] && tokenAllocations[lastVoter][token]) {
-            tokenAllocations[lastVoter][token] = {
-              amount: (Number(remainingAmount) / (10 ** decimals)).toFixed(6),
-              usd: originalTokenAllocations[lastVoter][token].usd,
-            };
-          }
-        }
+      const tokenDecimals: Record<string, number> = {};
+      for (const token of Object.keys(claimedTokenAmounts)) {
+        tokenDecimals[token] = await getTokenDecimals(token);
       }
+
+      const reconciled = reconcileVotiumClaimAllocations({
+        claimedTokenAmounts,
+        originalTokenAllocations,
+        tokenDecimals,
+        tokenPrices,
+      });
+      tokenAllocations = reconciled.tokenAllocations;
+      perAddressTokenAllocations =
+        reconciled.perAddressTokenAllocations;
 
       // Add Telegram logger
       const telegramLogger = new ClaimsTelegramLogger();
@@ -1423,8 +1366,8 @@ export async function generateConvexVotiumBounties(): Promise<void> {
         votiumConvexBounties
       );
     } catch (error) {
-      console.error("Error fetching claimed bounties:", error);
-      console.warn("Continuing without claimed bounties file...");
+      console.error("Error reconciling claimed Votium bounties:", error);
+      throw error;
     }
 
     // Recalculate total allocations after adjustments to only include claimed tokens
@@ -1498,10 +1441,22 @@ export async function generateConvexVotiumBounties(): Promise<void> {
       curveVotes: curveAddressBreakdown,
       fxnVotes: fxnAddressBreakdown,
       tokenAllocations: tokenAllocationsWithWei,
+      // Traceability: which pinned round produced this file (extra top-level
+      // key, ignored by the existing consumers)
+      meta: {
+        curveProposalId,
+        curveProposalEnd: curveProposal.end,
+        vlcvxEpoch: Number(curveProposal.snapshot),
+        generatedAt: Math.floor(Date.now() / 1000),
+      },
     };
 
-    // Clean the per-address data
-    const cleanedPerAddressOutput = cleanPerAddressOutput(perAddressOutput);
+    // Clean the per-address data (cleanPerAddressOutput rebuilds the object —
+    // re-attach the meta block afterwards)
+    const cleanedPerAddressOutput = {
+      ...cleanPerAddressOutput(perAddressOutput),
+      meta: perAddressOutput.meta,
+    };
 
     // Save the cleaned per-address data
     const perAddressPath = path.join(
@@ -1537,14 +1492,22 @@ export async function generateConvexVotiumBounties(): Promise<void> {
     console.log("SUMMARY");
     console.log("=".repeat(60));
     
-    const delegatorCount = forwarders.filter((f) => f.type === "delegator").length;
-    const directVoterCount = forwarders.filter((f) => f.type === "direct-voter").length;
-    
-    console.log(`Forwarders: ${forwarders.length} (${delegatorCount} delegators, ${directVoterCount} direct voters)`);
+    // Union of the two per-platform lists (an address may forward on both)
+    const forwardersByAddress = new Map<string, Forwarder>();
+    for (const f of [...curveForwarders, ...fxnForwarders]) {
+      if (!forwardersByAddress.has(f.address)) forwardersByAddress.set(f.address, f);
+    }
+    const allForwarders = [...forwardersByAddress.values()];
+    const delegatorCount = allForwarders.filter((f) => f.type === "delegator").length;
+    const directVoterCount = allForwarders.filter((f) => f.type === "direct-voter").length;
+
+    console.log(`Forwarders: ${allForwarders.length} (${delegatorCount} delegators, ${directVoterCount} direct voters)`);
     console.log(`Claimed tokens: ${Object.keys(claimedTokenAmounts).length}`);
     console.log(`Total claimed: $${totalClaimedUsd.toFixed(2)}`);
     console.log(`Total distributed: $${totalDistributedUsd.toFixed(2)}`);
-    console.log(`Efficiency: ${(totalDistributedUsd * 100 / totalClaimedUsd).toFixed(2)}%`);
+    const distributionEfficiency =
+      totalClaimedUsd > 0 ? (totalDistributedUsd * 100) / totalClaimedUsd : 0;
+    console.log(`Efficiency: ${distributionEfficiency.toFixed(2)}%`);
     console.log(`Output: ${perAddressPath}`);
     console.log("=".repeat(60));
 
@@ -1556,7 +1519,8 @@ export async function generateConvexVotiumBounties(): Promise<void> {
 
 // Run if called directly
 if (require.main === module) {
-  generateConvexVotiumBounties()
+  const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
+  generateConvexVotiumBounties(pastWeek)
     .then(() => process.exit(0))
     .catch((error) => {
       console.error(error);

@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 import * as moment from "moment";
 dotenv.config();
 
-import { type PublicClient, getAddress, pad } from "viem";
+import { type PublicClient, formatUnits, getAddress, pad } from "viem";
 import { http, createPublicClient } from "viem";
 import { mainnet } from "../../utils/chains";
 import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
@@ -14,16 +14,26 @@ import {
 	CRVUSD,
 	CVX_SPACE,
 	SCRVUSD,
+	CVX_GAUGE_VOTE_PLATFORM_CURVE,
 	VLCVX_DELEGATORS_MERKLE,
 } from "../../utils/constants";
+import {
+	getOnChainProposal,
+	getOnChainVoters,
+} from "../../utils/gaugeVotePlatform";
+import { getClient } from "../../utils/getClients";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 // Removed unused price utils imports
 import { WETH_ADDRESS } from "../../utils/reportUtils";
-import { fetchLastProposalsIds } from "../../utils/snapshot";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { getSCRVUsdTransfer } from "../utils";
+import {
+	computeVotiumForwarderPayouts,
+	hasClaimedVotiumBounties,
+	type ForwarderPayoutResult,
+} from "./votiumForwarderPayouts";
 
 // Number of seconds in one week
 const WEEK = 604800;
@@ -31,14 +41,46 @@ const WEEK = 604800;
 // Round current UTC time down to the nearest week to get the current period timestamp
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
-// Fee recipient for Votium forwarders fee
-const FEE_RECIPIENT = "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063";
+// Forwarders whose attributed value is below this USD amount are not paid
+// individually; their value stays in the delegators pool.
+const MIN_FORWARDER_PAYOUT_USD = 1;
+
+const PRICE_PER_SHARE_ABI = [
+	{
+		inputs: [],
+		name: "pricePerShare",
+		outputs: [{ name: "", type: "uint256" }],
+		stateMutability: "view",
+		type: "function",
+	},
+] as const;
+
+const VOTIUM_DIR = path.join(
+	"weekly-bounties",
+	currentPeriodTimestamp.toString(),
+	"votium",
+);
+const VOTIUM_CLAIMS_FILE = path.join(
+	VOTIUM_DIR,
+	"claimed_bounties_convex.json",
+);
+const VOTIUM_FORWARDERS_FILE = path.join(
+	VOTIUM_DIR,
+	"forwarders_voted_rewards.json",
+);
 
 // The directory to which we'll write the bounties reports for this period
 const reportsDir = path.join(
 	"bounties-reports",
 	currentPeriodTimestamp.toString(),
 	"vlCVX",
+);
+
+// Applied Votium payouts (with the pricePerShare used) are recorded here so
+// verifyForwardersMerkle can check exact per-address deltas after the fact.
+const VOTIUM_PAYOUTS_ARTIFACT = path.join(
+	reportsDir,
+	"votium_forwarder_payouts.json",
 );
 
 // Path to the JSON file holding delegation data for this period
@@ -396,6 +438,112 @@ async function computeShares(totalScrvUsd: bigint, delegationSummary: any) {
  * Main function to compute forwarder rewards, build a Merkle tree,
  * and run the distribution verifier.
  */
+const emptyForwarderPayouts = (): ForwarderPayoutResult => ({
+	capped: false,
+	payouts: {},
+	requestedTotal: 0n,
+	totalPayout: 0n,
+});
+
+async function getVotiumForwarderPayouts(
+	publicClient: PublicClient,
+	maxTotal: bigint,
+): Promise<ForwarderPayoutResult> {
+	if (!fs.existsSync(VOTIUM_FORWARDERS_FILE)) {
+		// generateConvexVotium deletes the attribution file before rewriting it.
+		// If it crashed in between, real claims would silently fold into the
+		// delegators pool — refuse instead.
+		if (fs.existsSync(VOTIUM_CLAIMS_FILE)) {
+			const claimedBounties: unknown = JSON.parse(
+				fs.readFileSync(VOTIUM_CLAIMS_FILE, "utf8"),
+			);
+			if (hasClaimedVotiumBounties(claimedBounties)) {
+				throw new Error(
+					`Votium bounties were claimed this period but the forwarder ` +
+						`attribution file is missing: ${VOTIUM_FORWARDERS_FILE}. ` +
+						`Refusing to fold forwarder value into the delegators pool.`,
+				);
+			}
+		}
+		return emptyForwarderPayouts();
+	}
+	if (!fs.existsSync(VOTIUM_CLAIMS_FILE)) {
+		throw new Error(
+			`Votium forwarder attribution exists without claimed bounties: ` +
+				`${VOTIUM_FORWARDERS_FILE}. Refusing to pay it from the shared pool.`,
+		);
+	}
+
+	const forwardersData = JSON.parse(
+		fs.readFileSync(VOTIUM_FORWARDERS_FILE, "utf8"),
+	) as { tokenAllocations?: unknown };
+	const tokenAllocations = forwardersData.tokenAllocations ?? {};
+	if (
+		typeof tokenAllocations === "object" &&
+		!Array.isArray(tokenAllocations) &&
+		Object.keys(tokenAllocations).length === 0
+	) {
+		return emptyForwarderPayouts();
+	}
+
+	const claimedBounties: unknown = JSON.parse(
+		fs.readFileSync(VOTIUM_CLAIMS_FILE, "utf8"),
+	);
+	const pricePerShare = await publicClient.readContract({
+		address: SCRVUSD as `0x${string}`,
+		abi: PRICE_PER_SHARE_ABI,
+		functionName: "pricePerShare",
+	});
+
+	const result = computeVotiumForwarderPayouts({
+		claimedBounties,
+		maxTotal,
+		minimumPayoutUsd: MIN_FORWARDER_PAYOUT_USD,
+		pricePerShare,
+		tokenAllocations,
+	});
+
+	console.log(
+		`sCRVUSD price per share: ${formatUnits(pricePerShare, 18)} crvUSD`,
+	);
+	console.log(
+		`Votium forwarder payouts: ${Object.keys(result.payouts).length} address(es), ` +
+			`${formatUnits(result.totalPayout, 18)} sCRVUSD`,
+	);
+	if (result.capped) {
+		console.warn(
+			`Votium forwarder payouts capped from ` +
+				`${formatUnits(result.requestedTotal, 18)} to ` +
+				`${formatUnits(result.totalPayout, 18)} sCRVUSD`,
+		);
+	}
+
+	fs.mkdirSync(reportsDir, { recursive: true });
+	fs.writeFileSync(
+		VOTIUM_PAYOUTS_ARTIFACT,
+		JSON.stringify(
+			{
+				period: currentPeriodTimestamp,
+				pricePerShare: pricePerShare.toString(),
+				minimumPayoutUsd: MIN_FORWARDER_PAYOUT_USD,
+				capped: result.capped,
+				requestedTotal: result.requestedTotal.toString(),
+				totalPayout: result.totalPayout.toString(),
+				payouts: Object.fromEntries(
+					Object.entries(result.payouts).map(([address, amount]) => [
+						address,
+						amount.toString(),
+					]),
+				),
+			},
+			null,
+			2,
+		),
+	);
+
+	return result;
+}
+
 async function processForwarders() {
 	// Idempotency guard: abort if this period's merkle already exists, unless caller
 	// explicitly forces a regeneration. Prevents re-running the merkle step after a
@@ -434,69 +582,31 @@ async function processForwarders() {
 
 	// Subtract a small buffer to avoid minor rounding issues
 	totalScrvUsd -= BigInt(10 ** 14);
+	if (totalScrvUsd <= 0n) {
+		throw new Error(
+			`No distributable sCRVUSD remains after the rounding buffer: ${totalScrvUsd}`,
+		);
+	}
 	console.log("Total sCRVUSD received:", totalScrvUsd.toString());
 
-	// Calculate fee amount FIRST before any distribution
-	let feeAmount = 0n;
-	const forwardersRewardsPath = path.join(
-		"weekly-bounties",
-		currentPeriodTimestamp.toString(),
-		"votium",
-		"forwarders_voted_rewards.json",
+	// Pay Votium users their own forwarded voted rewards before splitting the
+	// remaining shared pool among Stake DAO delegators.
+	const forwarderPayouts = await getVotiumForwarderPayouts(
+		publicClient,
+		totalScrvUsd,
 	);
 
-	if (fs.existsSync(forwardersRewardsPath)) {
-		console.log("Calculating Votium forwarders fee...");
-		const forwardersData = JSON.parse(fs.readFileSync(forwardersRewardsPath, "utf8"));
-
-		let totalForwardersUSD = 0;
-
-		// Calculate total USD from all tokenAllocations
-		if (forwardersData.tokenAllocations) {
-			for (const [forwarder, tokens] of Object.entries(forwardersData.tokenAllocations)) {
-				for (const [token, values] of Object.entries(tokens as Record<string, any>)) {
-					if (values.usd) {
-						totalForwardersUSD += values.usd;
-					}
-				}
-			}
-		}
-
-		if (totalForwardersUSD > 0) {
-			// Get the actual scrvUSD/crvUSD exchange rate from the contract
-			const scrvUsdContract = "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367";
-			const pricePerShareAbi = [
-				{
-					inputs: [],
-					name: "pricePerShare",
-					outputs: [{ name: "", type: "uint256" }],
-					stateMutability: "view",
-					type: "function",
-				},
-			] as const;
-
-			// Fetch the current price per share (crvUSD per scrvUSD)
-			const pricePerShare = await publicClient.readContract({
-				address: scrvUsdContract as `0x${string}`,
-				abi: pricePerShareAbi,
-				functionName: "pricePerShare",
-			});
-
-			console.log(`Total Votium forwarders USD value: $${totalForwardersUSD.toFixed(2)}`);
-			console.log(`scrvUSD price per share: ${(Number(pricePerShare) / 1e18).toFixed(6)} crvUSD per scrvUSD`);
-
-			// Convert USD to crvUSD (1:1), then to scrvUSD using the price per share
-			// scrvUSD amount = crvUSD amount / pricePerShare
-			const crvUsdAmount = BigInt(Math.floor(totalForwardersUSD * 1e18));
-			feeAmount = (crvUsdAmount * BigInt(1e18)) / pricePerShare;
-
-			console.log(`Fee amount: ${(Number(feeAmount) / 1e18).toFixed(6)} scrvUSD`);
-		}
+	const availableForDistribution = totalScrvUsd - forwarderPayouts.totalPayout;
+	if (availableForDistribution < 0n) {
+		throw new Error(
+			`Votium forwarder payouts ${forwarderPayouts.totalPayout} exceed ` +
+				`the sCRVUSD received ${totalScrvUsd}`,
+		);
 	}
-
-	// Deduct fee from total BEFORE distribution
-	const availableForDistribution = totalScrvUsd - feeAmount;
-	console.log("Total sCRVUSD for delegators distribution (after fee):", availableForDistribution.toString());
+	console.log(
+		"Total sCRVUSD for delegators distribution (after forwarders):",
+		availableForDistribution.toString(),
+	);
 
 	const protocolShares = await getProtocolShares(
 		publicClient,
@@ -544,20 +654,24 @@ async function processForwarders() {
 	// Then add all fxn distributions (summing where needed)
 	mergeDistributions(fxnCombined, combined);
 
-	// Add the pre-calculated fee allocation to the fee recipient
-	if (feeAmount > 0n) {
-		const feeRecipient = getAddress(FEE_RECIPIENT);
+	// Pay each direct-voter forwarder individually (replaces the old aggregate
+	// governance claim). Keys on both sides are EIP-55 checksummed, so a mixed
+	// address — delegation forwarder on one platform, direct voter on the
+	// other — is summed into a single entry here. generateMerkleTree overwrites
+	// amounts on key collisions, so collisions must not survive past this merge.
+	const forwarderDistribution = Object.fromEntries(
+		Object.entries(forwarderPayouts.payouts).map(([address, amount]) => [
+			address,
+			{ tokens: { [SCRVUSD]: amount } },
+		]),
+	);
+	mergeDistributions(forwarderDistribution, combined);
 
-		// Add or update the fee recipient's allocation
-		if (!combined[feeRecipient]) {
-			combined[feeRecipient] = { tokens: {} };
-		}
-
-		// Add scrvUSD allocation
-		combined[feeRecipient].tokens[SCRVUSD] =
-			(combined[feeRecipient].tokens[SCRVUSD] || 0n) + feeAmount;
-
-		console.log(`\nAdding fee allocation: ${(Number(feeAmount) / 1e18).toFixed(6)} scrvUSD to ${feeRecipient}`);
+	if (forwarderPayouts.totalPayout > 0n) {
+		console.log(
+			`\nAdded ${Object.keys(forwarderPayouts.payouts).length} Votium forwarder payout(s): ` +
+				`${formatUnits(forwarderPayouts.totalPayout, 18)} sCRVUSD`,
+		);
 	}
 
 	// Load previous Merkle data for forwarders from the PREVIOUS PERIOD's archived file.
@@ -620,17 +734,24 @@ async function processForwarders() {
 	);
 
 	// Attempt to verify distribution on mainnet
-	const filter = "^(?!FXN ).*Gauge Weight for Week of";
-	const now = Math.floor(Date.now() / 1000);
 	try {
-		// Find the proposal ID used for verifying distribution
-		const proposalIdPerSpace = await fetchLastProposalsIds(
-			[CVX_SPACE],
-			now,
-			filter,
+		const client = await getClient(1);
+		// Pin the proposal to the running period (started the previous Thursday):
+		// the Tuesday delegators merkle distributes that Thursday's repartition,
+		// and must not drift onto a round that finalized in between.
+		const proposal = await getOnChainProposal(
+			CVX_GAUGE_VOTE_PLATFORM_CURVE,
+			CVX_SPACE,
+			client,
+			{ targetPeriod: currentPeriodTimestamp },
 		);
-		const proposalId = proposalIdPerSpace[CVX_SPACE];
-		console.log("Running verifier with proposalId:", proposalId);
+		const votes = await getOnChainVoters(
+			CVX_GAUGE_VOTE_PLATFORM_CURVE,
+			Number(proposal.id),
+			proposal,
+			client,
+		);
+		console.log("Running verifier with on-chain proposalId:", proposal.id);
 
 		distributionVerifier(
 			CVX_SPACE,
@@ -639,8 +760,9 @@ async function processForwarders() {
 			newMerkleData,
 			previousMerkleData,
 			currentDistribution.distribution,
-			proposalId,
+			proposal.id,
 			"forwarders",
+			{ proposal, votes },
 		);
 	} catch (error) {
 		console.error("Error running distribution verifier:", error);

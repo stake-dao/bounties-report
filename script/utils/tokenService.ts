@@ -30,6 +30,9 @@ class TokenService {
 
   // Special case overrides for tokens with multiple entries
   private readonly TOKEN_OVERRIDES: Record<string, Record<string, string>> = {
+    USDT: {
+      "1": "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+    },
     USDC: {
       "1": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "10": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
@@ -435,6 +438,3 @@ export async function getTokenByAddress(address: string, chainId: string = "1"):
 export async function getTokenSymbol(address: string, chainId: string = "1"): Promise<string> {
   return tokenService.getTokenSymbol(address, chainId);
 }
-
-// Initialize on first import (but don't block)
-tokenService.initialize().catch(console.error);

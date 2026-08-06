@@ -49,6 +49,14 @@ jobs:
         with:
           python: 'true'
 
+      # Must run BEFORE claims generation: generateConvexVotium discovers
+      # non-voting forwarders from this index.
+      - name: Refresh Votium forwarders index (convex-votium only)
+        if: inputs.platform == 'convex-votium'
+        run: make -f automation/indexer.mk get-forwarders
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+
       - name: Generate claims
         run: |
           case "${{ inputs.platform }}" in

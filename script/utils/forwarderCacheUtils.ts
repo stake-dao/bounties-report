@@ -30,14 +30,16 @@ const setRegHash = keccak256(encodePacked(["string"], [setRegSignature]));
 const expRegSignature = "expReg(address,uint256)";
 const expRegHash = keccak256(encodePacked(["string"], [expRegSignature]));
 
+// Numeric fields are number when freshly parsed from logs but BigInt when
+// read back from parquet (hyparquet returns INT64 columns as BigInt).
 export interface ForwarderData {
   event: "Set" | "Expire" | "EndBlock";
   from: string;
   to: string;
-  start: number;
-  expiration: number;
-  timestamp: number;
-  blockNumber: number;
+  start: number | bigint;
+  expiration: number | bigint;
+  timestamp: number | bigint;
+  blockNumber: number | bigint;
 }
 
 function getForwardersFilePath(chainId: string, toAddress: string): string {
@@ -101,6 +103,55 @@ export const fetchAllForwarders = async (
 };
 
 /**
+ * Replay Set/Expire events chronologically and return the addresses whose
+ * registration is active at the epoch: start <= epoch AND (no expiration OR
+ * expiration > epoch). Numeric fields are normalized through Number() because
+ * the parquet reader returns INT64 columns as BigInt, and a BigInt 0n is NOT
+ * strictly equal to 0 — comparing without normalizing silently classified
+ * every never-expired registration as inactive.
+ */
+export const activeForwardersAt = (
+  events: ForwarderData[],
+  epochTimestamp: number
+): string[] => {
+  const forwarderState: Map<string, { start: number; expiration: number }> = new Map();
+
+  for (const event of events) {
+    if (event.event === "EndBlock") continue;
+    if (Number(event.timestamp) > epochTimestamp) continue;
+
+    const fromAddr = event.from.toLowerCase();
+
+    if (event.event === "Set") {
+      forwarderState.set(fromAddr, {
+        start: Number(event.start),
+        expiration: Number(event.expiration),
+      });
+    } else if (event.event === "Expire") {
+      const current = forwarderState.get(fromAddr);
+      if (current) {
+        forwarderState.set(fromAddr, {
+          ...current,
+          expiration: Number(event.expiration),
+        });
+      }
+    }
+  }
+
+  const activeForwarders: string[] = [];
+  for (const [address, state] of forwarderState) {
+    const isActive =
+      state.start <= epochTimestamp &&
+      (state.expiration === 0 || state.expiration > epochTimestamp);
+    if (isActive) {
+      activeForwarders.push(address);
+    }
+  }
+
+  return activeForwarders;
+};
+
+/**
  * Get all active forwarders at a specific epoch timestamp
  * Returns addresses that were forwarding to the target address at that time
  */
@@ -117,49 +168,7 @@ export const processAllForwarders = async (
   }
 
   const forwarders = await readParquetFile(filePath);
-
-  // Build state for each forwarder address
-  const forwarderState: Map<string, { start: number; expiration: number }> = new Map();
-
-  // Process events chronologically
-  for (const event of forwarders) {
-    if (event.event === "EndBlock") continue;
-    if (event.timestamp > epochTimestamp) continue;
-
-    const fromAddr = event.from.toLowerCase();
-
-    if (event.event === "Set") {
-      forwarderState.set(fromAddr, {
-        start: event.start,
-        expiration: event.expiration,
-      });
-    } else if (event.event === "Expire") {
-      // Update expiration
-      const current = forwarderState.get(fromAddr);
-      if (current) {
-        forwarderState.set(fromAddr, {
-          ...current,
-          expiration: event.expiration,
-        });
-      }
-    }
-  }
-
-  // Filter to active forwarders at the epoch
-  const activeForwarders: string[] = [];
-
-  for (const [address, state] of forwarderState) {
-    // Active if: start <= epochTimestamp AND (expiration == 0 OR expiration > epochTimestamp)
-    const isActive =
-      state.start <= epochTimestamp &&
-      (state.expiration === 0 || state.expiration > epochTimestamp);
-
-    if (isActive) {
-      activeForwarders.push(address);
-    }
-  }
-
-  return activeForwarders;
+  return activeForwardersAt(forwarders, epochTimestamp);
 };
 
 async function fetchForwardersForAddress(
@@ -228,8 +237,7 @@ async function getLatestProcessedBlock(
     const forwarders = await readParquetFile(filePath);
     if (forwarders.length === 0) return 0;
 
-    const lastBlock = forwarders[forwarders.length - 1].blockNumber;
-    return lastBlock;
+    return Number(forwarders[forwarders.length - 1].blockNumber);
   } catch (error) {
     console.error(`Error reading Parquet file for ${toAddress}:`, error);
     console.warn("Starting from block 0 due to error.");
@@ -313,13 +321,14 @@ async function fetchLogs(
         console.log(`  Retrying in ${backoffMs / 1000}s...`);
         await delay(backoffMs);
       } else {
-        console.error(
-          `fetchLogs: All ${maxRetries} retries failed for blocks ${startBlock}-${endBlock}`
+        // The EndBlock marker advances past whatever this run indexed, so a
+        // skipped chunk would become a PERMANENT hole: a wallet whose setReg
+        // sits in it is never discovered, and its rewards silently fold into
+        // the delegators pool. Abort instead — the parquet stays unwritten
+        // and the next run retries the same range.
+        throw new Error(
+          `fetchLogs: all ${maxRetries} retries failed for blocks ${startBlock}-${endBlock}. Error: ${error}`
         );
-        console.error(
-          `  WARNING: Potential gap in data between blocks ${startBlock}-${endBlock}`
-        );
-        return [];
       }
     }
   }

@@ -8,11 +8,20 @@ import { mainnet } from "../../utils/chains";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { generateMerkleTree, mergeMerkleData } from "../../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../../interfaces/MerkleData";
-import { CVX_SPACE, WEEK } from "../../utils/constants";
+import {
+  CVX_SPACE,
+  WEEK,
+  CVX_GAUGE_VOTE_PLATFORM_CURVE,
+  CVX_GAUGE_VOTE_PLATFORM_FXN,
+} from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import { applyShare, splitPoolByShares } from "../../utils/merkle/splitPoolByShares";
-import { fetchLastProposalsIds } from "../../utils/snapshot";
+import {
+  getOnChainProposal,
+  getOnChainVoters,
+} from "../../utils/gaugeVotePlatform";
+import { getClient } from "../../utils/getClients";
 
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
@@ -319,7 +328,8 @@ function processChain(
     return;
   }
 
-  // 3. (On curve merkle) Log Votium forwarders' rewards but DO NOT distribute them
+  // 3. (On curve merkle) Log Votium forwarders' rewards. They are settled in
+  // sCRVUSD by createDelegatorsMerkle, never through this combined merkle.
   if (gaugeType === "curve" && chainId === "1") {
     const votiumRewardsDir = path.join(
       "weekly-bounties",
@@ -341,7 +351,7 @@ function processChain(
       addressesSkipped?: string[];
     } = {
       timestamp: currentPeriodTimestamp,
-      message: "Votium forwarders rewards are no longer distributed through merkle trees",
+      message: "Votium forwarder rewards are paid in sCRVUSD through the delegators merkle, not through this combined merkle",
     };
     
     // Try to load actual claimed bounties first
@@ -351,7 +361,7 @@ function processChain(
     );
     
     if (fs.existsSync(claimedBountiesFile)) {
-      console.log("\n⚠️  NOTICE: Found Votium claimed bounties, but NOT distributing to forwarders");
+      console.log("\nℹ️  Votium claimed bounties found; forwarders are paid via the delegators merkle");
       console.log("   File:", claimedBountiesFile);
       
       // Load forwarders data to log what would have been distributed
@@ -365,7 +375,7 @@ function processChain(
           fs.readFileSync(forwardersRewardsFile, "utf8")
         );
         
-        console.log("\n📊 Votium Forwarders Summary (NOT DISTRIBUTED):");
+        console.log("\n📊 Votium Forwarders Summary (settled via delegators merkle):");
         console.log("   ═══════════════════════════════════════════");
         
         if (forwardersData.tokenAllocations) {
@@ -401,7 +411,7 @@ function processChain(
           }
           
           console.log(`   📍 Unique forwarders: ${uniqueAddresses.size}`);
-          console.log(`   💰 Token totals that would have been distributed:`);
+          console.log(`   💰 Attributed token totals (settled in sCRVUSD elsewhere):`);
           
           for (const [token, total] of Object.entries(totalsByToken)) {
             console.log(`      • ${token}: ${total.toString()} wei`);
@@ -414,7 +424,7 @@ function processChain(
           );
           votiumLog.addressesSkipped = Array.from(uniqueAddresses);
           
-          console.log("\n   ℹ️  These rewards should be handled through a separate process");
+          console.log("\n   ℹ️  These rewards are paid in sCRVUSD by createDelegatorsMerkle");
           console.log("   ℹ️  Log saved to:", logFilePath);
         }
       } else {
@@ -428,7 +438,7 @@ function processChain(
       );
       
       if (fs.existsSync(forwardersRewardsFile)) {
-        console.log("\n⚠️  NOTICE: Found theoretical Votium forwarders rewards, but NOT distributing");
+        console.log("\nℹ️  Found theoretical Votium forwarders rewards (no claims yet)");
         console.log("   File:", forwardersRewardsFile);
         
         const forwardersData = JSON.parse(
@@ -439,8 +449,8 @@ function processChain(
           const tokenAllocations = forwardersData.tokenAllocations;
           const uniqueAddresses = Object.keys(tokenAllocations).length;
           
-          console.log(`   📍 Would have distributed to ${uniqueAddresses} forwarders`);
-          console.log("   ℹ️  These theoretical rewards are NOT being added to the merkle tree");
+          console.log(`   📍 ${uniqueAddresses} forwarder(s) with theoretical attribution`);
+          console.log("   ℹ️  Not payable until claims exist; the delegators merkle pays realized attributions only");
           
           votiumLog.forwardersData = { 
             tokenAllocations: tokenAllocations,
@@ -499,19 +509,24 @@ function processChain(
     );
   }
 
-  const filter =
-    gaugeType === "fxn"
-      ? "^FXN.*Gauge Weight for Week of"
-      : "^(?!FXN ).*Gauge Weight for Week of";
-  const now = Math.floor(Date.now() / 1000);
   (async () => {
-    const proposalIdPerSpace = await fetchLastProposalsIds(
-      [CVX_SPACE],
-      now,
-      filter
+    const platform =
+      gaugeType === "fxn"
+        ? CVX_GAUGE_VOTE_PLATFORM_FXN
+        : CVX_GAUGE_VOTE_PLATFORM_CURVE;
+    const client = await getClient(1);
+    // Pin the proposal to the period whose merkle was just generated, so a
+    // late re-run cannot verify the next round against this period's files.
+    const proposal = await getOnChainProposal(platform, CVX_SPACE, client, {
+      targetPeriod: currentPeriodTimestamp,
+    });
+    const votes = await getOnChainVoters(
+      platform,
+      Number(proposal.id),
+      proposal,
+      client
     );
-    const proposalId = proposalIdPerSpace[CVX_SPACE];
-    console.log("proposalId", proposalId);
+    console.log("on-chain proposalId", proposal.id);
     distributionVerifier(
       CVX_SPACE,
       mainnet,
@@ -519,7 +534,9 @@ function processChain(
       newMerkleData,
       previousMerkleData,
       currentDistribution.distribution,
-      proposalId
+      proposal.id,
+      undefined,
+      { proposal, votes }
     );
   })().catch(console.error);
 }

@@ -264,6 +264,14 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
 
 // Filter out endpoints that require API keys if keys are not available
 export function getAvailableEndpoints(chainId: number): RpcEndpoint[] {
+  // Explicit per-chain override (e.g. RPC_URL_1 for a Tenderly virtual
+  // testnet / fork). When set, it is the ONLY endpoint returned so every
+  // client reads the same fork state.
+  const override = process.env[`RPC_URL_${chainId}`];
+  if (override) {
+    return [{ url: override, priority: 0 }];
+  }
+
   const config = RPC_CONFIGS[chainId];
   if (!config) return [];
 

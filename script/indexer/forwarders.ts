@@ -21,4 +21,7 @@ const main = async () => {
   await indexForwarders();
 };
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

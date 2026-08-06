@@ -2,8 +2,20 @@ import { DelegatorDataAugmented } from "../interfaces/DelegatorDataAugmented";
 import { formatAddress } from "./address";
 import { getBlockNumberByTimestamp } from "./chainUtils";
 import { processAllDelegators } from "./cacheUtils";
-import { getClient, DELEGATION_ADDRESS, VOTIUM_FORWARDER_REGISTRY } from "./constants";
+import {
+  getClient,
+  DELEGATION_ADDRESS,
+  VOTIUM_FORWARDER_REGISTRY,
+  CVX_SPACE,
+  VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  CVX_GAUGE_DELEGATION,
+  CVX_GAUGE_VOTE_HELPER,
+} from "./constants";
 import { getVotingPower } from "./snapshot";
+import {
+  getOnChainDelegators,
+  getContributingWeightsAtVote,
+} from "./onChainDelegation";
 import { Proposal } from "./types";
 import { VOTIUM_FORWARDER } from "./constants";
 import { verifyDelegators, fetchDelegatorsWithFallback } from "./delegationAPIUtils";
@@ -151,6 +163,54 @@ export const fetchDelegatorData = async (
   options: { verify?: boolean; useFallback?: boolean } = {}
 ): Promise<DelegatorDataAugmented | null> => {
   const { verify = false, useFallback = false } = options;
+
+  // vlCVX is on-chain: delegators + VP come from the Convex GaugeDelegation
+  // and vlCVX contracts. The other spaces keep the parquet/score-API path
+  // below untouched.
+  if (space === CVX_SPACE) {
+    const epoch = Number(proposal.snapshot);
+    if (!Number.isInteger(epoch) || epoch <= 0 || epoch > 100_000) {
+      throw new Error(
+        `fetchDelegatorData: cvx.eth is read on-chain and expects ` +
+          `proposal.snapshot to be a vlCVX epoch, got "${proposal.snapshot}" ` +
+          `(looks like a block number — was a legacy Snapshot proposal passed?)`
+      );
+    }
+    const proposalId = Number(proposal.id);
+    if (!Number.isInteger(proposalId) || !`${proposal.author}`.startsWith("0x")) {
+      throw new Error(
+        `fetchDelegatorData: cvx.eth expects an on-chain proposal ` +
+          `(numeric id + platform address in author), got id="${proposal.id}" ` +
+          `author="${proposal.author}"`
+      );
+    }
+
+    const client = await getClient(1);
+    const onChainDelegators = await getOnChainDelegators(
+      CVX_GAUGE_DELEGATION,
+      VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+      epoch,
+      client
+    );
+    if (onChainDelegators.length === 0) return null;
+
+    // Weight of each delegator AS INCORPORATED IN THE DELEGATE'S VOTE on this
+    // platform proposal (GaugeVoteHelper) — not the mutable epoch table, and
+    // not raw vlCVX balances.
+    const votingPowers = await getContributingWeightsAtVote(
+      CVX_GAUGE_VOTE_HELPER,
+      proposal.author,
+      proposalId,
+      VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+      onChainDelegators,
+      client
+    );
+    const totalVotingPower = Object.values(votingPowers).reduce(
+      (acc, vp) => acc + vp,
+      0
+    );
+    return { delegators: onChainDelegators, votingPowers, totalVotingPower };
+  }
 
   let delegators: string[];
 
