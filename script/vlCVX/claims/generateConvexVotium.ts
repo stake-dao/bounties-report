@@ -508,6 +508,9 @@ async function processGaugeVotes(
 
 
       for (const forwarder of forwarders) {
+        // StakeDAO delegators are paid through the delegation pot (their
+        // expanded VP feeds delegationShare above) — never individually here.
+        if (forwarder.type === "delegator") continue;
         const share = addressShares.get(forwarder.address) || 0;
         if (share > 0) {
           const allocatedDollars = amountInDollars * share;
