@@ -5,6 +5,7 @@ import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getContributingWeightsAtVoteRaw } from "../../utils/onChainDelegation";
 import { getVoteOf } from "../../utils/gaugeVotePlatform";
 import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
+import { isPooledDelegate } from "../../utils/delegationExact";
 
 export type DelegationDistribution = Record<
   string,
@@ -33,8 +34,14 @@ export type PerDelegateExact = {
  *
  * `perDelegate` is the payable data: each delegate voter's pool token totals
  * and the wei-exact per-wallet per-token attribution of that pool to ITS OWN
- * delegators, grouped by Votium-forwarding status. totalTokens / totalPerGroup
- * are exact bigint sums over it.
+ * delegators, grouped by Votium-forwarding status (registry facts).
+ * totalTokens is the exact bigint sum over it.
+ *
+ * totalPerGroup carries PAYMENT ROUTES: "forwarders" = pooled Tuesday sCRVUSD
+ * (only Stake DAO delegates' forwarders — VLCVX_POOLED_DELEGATES); everything
+ * else, including forwarders behind other delegates, totals under
+ * "nonForwarders" and is paid raw in the Thursday combined merkle. The ops
+ * swap sizes the Tuesday pot from totalPerGroup.forwarders.
  *
  * The scalar share fields (forwarders / nonForwarders / total*Share) are
  * membership and reporting data — VP shares flattened across delegates.
@@ -377,8 +384,9 @@ const stringifyTokenMap = (m: Record<string, bigint>): Record<string, string> =>
 /**
  * Builds the full delegation summary: scalar membership fields via
  * computeScalarShareFields, plus the exact `perDelegate` sections, with
- * totalTokens / totalPerGroup as exact bigint sums of the per-delegate
- * attributions.
+ * totalTokens as the exact bigint sum of the per-delegate attributions and
+ * totalPerGroup as the exact ROUTED sums (pooled Tuesday vs raw Thursday —
+ * see the DelegationSummary doc).
  *
  * Throws when the exact data does not conserve:
  * - a delegator appears under two delegates (delegation is 1:1 per epoch),
@@ -413,10 +421,13 @@ export const buildDelegationSummary = (
 
       const target = d.forwarderFlags[addr] ? fwd : nfwd;
       target[addr] = stringifyTokenMap(tokens);
+      // Route: only a Stake DAO delegate's forwarders count into the pooled
+      // Tuesday group; a forwarder behind any other delegate is paid raw.
+      const pooled = d.forwarderFlags[addr] && isPooledDelegate(d.delegate);
       for (const [token, amount] of Object.entries(tokens)) {
         groupSumPerToken[token] = (groupSumPerToken[token] ?? 0n) + amount;
         const g = (groupTotals[token] ??= { forwarders: 0n, nonForwarders: 0n });
-        if (d.forwarderFlags[addr]) g.forwarders += amount;
+        if (pooled) g.forwarders += amount;
         else g.nonForwarders += amount;
       }
     }

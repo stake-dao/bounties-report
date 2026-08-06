@@ -25,10 +25,8 @@ import {
   getClosestBlockTimestamp,
 } from "../../utils/chainUtils";
 import { getAllCurveGauges } from "../../utils/curveApi";
-import {
-  fetchDelegatorData,
-  getForwardedDelegators,
-} from "../../utils/delegationHelper";
+import { getForwardedDelegators } from "../../utils/delegationHelper";
+import { isPooledDelegate } from "../../utils/delegationExact";
 import { processAllForwarders } from "../../utils/forwarderCacheUtils";
 import { ClaimsTelegramLogger } from "../../sdTkns/claims/claimsTelegramLogger";
 import {
@@ -44,7 +42,15 @@ import {
 
 interface Forwarder {
   address: string;
-  type: "delegator" | "direct-voter";
+  /**
+   * Payment route of this wallet's leg ON THIS PLATFORM.
+   * "pooled": its vote is a virtual slice of a Stake DAO delegate's vote —
+   * its Votium value settles through the Tuesday delegators pot.
+   * "individual": own vote (even by a Stake DAO delegator) or a slice of a
+   * non-Stake-DAO delegate's vote — attributed individually and paid raw in
+   * the Thursday combined merkle.
+   */
+  type: "pooled" | "individual";
   votingPower: number;
 }
 
@@ -115,15 +121,15 @@ function customReplacer(_key: string, value: any): any {
  *    seen register behind our forwarder.
  * 2. Forwarders: candidates the Votium registry forwards to us at the end of
  *    the round.
- * 3. Classification: StakeDAO delegators from the delegation contract; VP is
- *    the wallet's OWN vote VP (or its on-chain VP when it did not vote) —
- *    never the delegate contributing weights, which belong to the
- *    repartition_delegation pipeline.
+ * 3. Route (PER PLATFORM, from the wallet's vote leg): "pooled" when the leg
+ *    is a virtual slice of a Stake DAO delegate's vote (viaDelegate); every
+ *    other leg — an own vote, even by a Stake DAO delegator, or a slice of
+ *    another delegate's vote — is "individual".
  *
  * Votes passed in are EXPANDED (expandDelegateVotes): every delegate vote is
  * already exploded into per-delegator virtual votes, so a wallet delegating
  * to any delegate while forwarding to us appears here as a plain voter with
- * its exact contributing weight.
+ * its exact contributing weight, tagged with its source delegate.
  */
 export async function getAllForwarders(
   space: string,
@@ -135,9 +141,18 @@ export async function getAllForwarders(
   // The proposal and its voters are fetched ONCE in main and passed down, so
   // every step of a run works on the same pinned round (a proposal created
   // mid-run must not shift later reads).
+  //
+  // One entry per wallet per platform: the platform zeroes a delegator's
+  // contributing weight once it votes itself, so a wallet never carries two
+  // live legs. If an own vote and a virtual slice ever coexisted anyway, the
+  // own vote must win — routing and VP both key on this entry.
   const voteByAddress = new Map<string, any>();
   for (const vote of proposalVoters) {
-    voteByAddress.set(vote.voter.toLowerCase(), vote);
+    const key = vote.voter.toLowerCase();
+    const existing = voteByAddress.get(key);
+    if (!existing || existing.viaDelegate !== undefined) {
+      voteByAddress.set(key, vote);
+    }
   }
 
   let indexedForwarders: string[] = [];
@@ -178,14 +193,6 @@ export async function getAllForwarders(
       !stakeDaoWallets.has(address.toLowerCase())
   );
 
-  // Delegation data only identifies who are StakeDAO delegators. Its
-  // `votingPowers` are the GaugeVoteHelper contributing weights of the
-  // delegate vote and must never replace a wallet's own vote VP here.
-  const delegatorData = await fetchDelegatorData(space, proposal);
-  const delegatorSet = new Set<string>(
-    (delegatorData?.delegators ?? []).map((delegator) => delegator.toLowerCase())
-  );
-
   const nonVoters = forwarderAddresses.filter(
     (address) => !voteByAddress.has(address.toLowerCase())
   );
@@ -205,11 +212,17 @@ export async function getAllForwarders(
       ? vote.vp ?? 0
       : onChainVotingPowers[address] ?? onChainVotingPowers[addrLower] ?? 0;
 
+    // Route from the leg's provenance: a virtual slice of a Stake DAO
+    // delegate's vote settles through the Tuesday pot; everything else is
+    // attributed individually. A wallet with no vote on this platform earns
+    // nothing here regardless of type.
+    const viaDelegate = vote?.viaDelegate as string | undefined;
     return {
       address: addrLower,
-      type: delegatorSet.has(addrLower)
-        ? ("delegator" as const)
-        : ("direct-voter" as const),
+      type:
+        viaDelegate && isPooledDelegate(viaDelegate)
+          ? ("pooled" as const)
+          : ("individual" as const),
       votingPower,
     };
   });
@@ -508,9 +521,11 @@ async function processGaugeVotes(
 
 
       for (const forwarder of forwarders) {
-        // StakeDAO delegators are paid through the delegation pot (their
-        // expanded VP feeds delegationShare above) — never individually here.
-        if (forwarder.type === "delegator") continue;
+        // Pooled legs (virtual slices of a Stake DAO delegate's vote) settle
+        // through the Tuesday delegators pot — never individually here. Own
+        // votes and slices of other delegates' votes ARE individual: they are
+        // paid raw in the Thursday combined merkle.
+        if (forwarder.type === "pooled") continue;
         const share = addressShares.get(forwarder.address) || 0;
         if (share > 0) {
           const allocatedDollars = amountInDollars * share;
@@ -1343,10 +1358,10 @@ export async function generateConvexVotiumBounties(
       if (!forwardersByAddress.has(f.address)) forwardersByAddress.set(f.address, f);
     }
     const allForwarders = [...forwardersByAddress.values()];
-    const delegatorCount = allForwarders.filter((f) => f.type === "delegator").length;
-    const directVoterCount = allForwarders.filter((f) => f.type === "direct-voter").length;
+    const pooledCount = allForwarders.filter((f) => f.type === "pooled").length;
+    const individualCount = allForwarders.filter((f) => f.type === "individual").length;
 
-    console.log(`Forwarders: ${allForwarders.length} (${delegatorCount} delegators, ${directVoterCount} direct voters)`);
+    console.log(`Forwarders: ${allForwarders.length} (${pooledCount} pooled behind Stake DAO delegates, ${individualCount} individually attributed)`);
     console.log(`Claimed tokens: ${Object.keys(claimedTokenAmounts).length}`);
     console.log(`Total claimed: $${totalClaimedUsd.toFixed(2)}`);
     console.log(`Total distributed: $${totalDistributedUsd.toFixed(2)}`);

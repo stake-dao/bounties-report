@@ -8,6 +8,14 @@
  * are membership and reporting data — a payer must never split a pot with
  * them.
  *
+ * Group names are PAYMENT ROUTES, not registry facts. Only forwarders behind
+ * a Stake DAO-operated delegate (VLCVX_POOLED_DELEGATES) are pooled into the
+ * Tuesday sCRVUSD merkle — the "forwarders" group. Everyone else is paid raw
+ * tokens in the Thursday combined merkle — the "nonForwarders" group, which
+ * therefore also contains the forwarder-delegators of every OTHER delegate.
+ * The per-delegate sections keep the registry facts (who actually forwards);
+ * the routing is applied when flattening.
+ *
  * Every accessor here re-validates conservation before returning: the
  * flattened per-wallet amounts must sum, token by token, to the file's
  * totalPerGroup. A mismatch means the file was hand-edited or produced by a
@@ -16,7 +24,21 @@
  * caller must regenerate the repartition.
  */
 
+import { VLCVX_POOLED_DELEGATES } from "./constants";
+
 type ExactGroup = Record<string, Record<string, string>>;
+
+const POOLED_DELEGATES = new Set(
+  VLCVX_POOLED_DELEGATES.map((address) => address.toLowerCase())
+);
+
+/**
+ * True when `delegate` is operated by Stake DAO: its forwarder-delegators
+ * settle through the pooled Tuesday sCRVUSD merkle instead of raw Thursday
+ * leaves.
+ */
+export const isPooledDelegate = (delegate: string): boolean =>
+  POOLED_DELEGATES.has(delegate.toLowerCase());
 
 interface PerDelegateSection {
   poolTokens: Record<string, string>;
@@ -30,6 +52,11 @@ export interface DelegationSummaryLike {
   perDelegate?: Record<string, PerDelegateSection>;
 }
 
+/**
+ * "forwarders"    → pooled Tuesday sCRVUSD (Stake DAO delegates' forwarders).
+ * "nonForwarders" → raw Thursday leaves (everyone else, including forwarders
+ *                   behind non-Stake-DAO delegates).
+ */
 export type GroupName = "forwarders" | "nonForwarders";
 
 /** True when the summary carries the per-delegate attribution. */
@@ -81,7 +108,25 @@ const assertDelegatePoolsConserve = (
 };
 
 /**
- * Flattens a group's exact amounts across all delegates:
+ * The per-delegate sections a routed group draws from. Pooled delegates
+ * contribute their factual section 1:1; a non-pooled delegate's forwarders
+ * are re-routed into the raw ("nonForwarders") group.
+ */
+const routedSections = (
+  delegate: string,
+  section: PerDelegateSection,
+  group: GroupName
+): ExactGroup[] => {
+  if (group === "forwarders") {
+    return isPooledDelegate(delegate) ? [section.forwarders ?? {}] : [];
+  }
+  return isPooledDelegate(delegate)
+    ? [section.nonForwarders ?? {}]
+    : [section.nonForwarders ?? {}, section.forwarders ?? {}];
+};
+
+/**
+ * Flattens a routed group's exact amounts across all delegates:
  * lowercase wallet -> lowercase token -> wei. Delegator sets are disjoint
  * across delegates within one file (delegation is 1:1 per epoch), but the
  * merge sums defensively anyway.
@@ -107,19 +152,20 @@ export const getExactGroupAmounts = (
   const sums: Record<string, bigint> = {};
 
   for (const [delegate, section] of Object.entries(summary.perDelegate!)) {
-    const groupMap = section[group] ?? {};
-    for (const [addr, tokens] of Object.entries(groupMap)) {
-      const wallet = addr.toLowerCase();
-      for (const [token, amountStr] of Object.entries(tokens)) {
-        const t = token.toLowerCase();
-        const amount = BigInt(amountStr);
-        if (amount < 0n) {
-          throw new Error(
-            `getExactGroupAmounts: negative amount for ${wallet}/${t} under delegate ${delegate}`
-          );
+    for (const groupMap of routedSections(delegate, section, group)) {
+      for (const [addr, tokens] of Object.entries(groupMap)) {
+        const wallet = addr.toLowerCase();
+        for (const [token, amountStr] of Object.entries(tokens)) {
+          const t = token.toLowerCase();
+          const amount = BigInt(amountStr);
+          if (amount < 0n) {
+            throw new Error(
+              `getExactGroupAmounts: negative amount for ${wallet}/${t} under delegate ${delegate}`
+            );
+          }
+          (out[wallet] ??= {})[t] = (out[wallet][t] ?? 0n) + amount;
+          sums[t] = (sums[t] ?? 0n) + amount;
         }
-        (out[wallet] ??= {})[t] = (out[wallet][t] ?? 0n) + amount;
-        sums[t] = (sums[t] ?? 0n) + amount;
       }
     }
   }

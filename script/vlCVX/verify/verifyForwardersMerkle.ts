@@ -125,63 +125,25 @@ function buildClaimMap(m: any): Record<string, bigint> {
   console.log("FXN forwarders:  ", fxnAddrs.length, "| only-fxn:  ", onlyFxn.length);
   console.log("Overlap (both):  ", overlap.length);
 
-  // Votium forwarder payouts are carved off the pool before the delegator
-  // split. Verify them against the artifact written by createDelegatorsMerkle,
-  // then subtract them so the proportionality checks below see pure delegator
-  // shares (a delegator who also received a Votium payout is not an outlier).
-  const payoutsPath = path.join(reportsDir, "votium_forwarder_payouts.json");
-  const votiumPayouts: Record<string, bigint> = {};
-  let votiumExpectedTotal = 0n;
-  if (fs.existsSync(payoutsPath)) {
-    const artifact = JSON.parse(fs.readFileSync(payoutsPath, "utf8"));
-    for (const [addr, amount] of Object.entries(artifact.payouts || {})) {
-      votiumPayouts[lc(addr)] = BigInt(amount as string);
-      votiumExpectedTotal += BigInt(amount as string);
-    }
-  }
+  // Votium legs never appear in this merkle: individually attributed legs
+  // are paid raw in the Thursday combined merkle, and the pooled legs' value
+  // arrives swapped inside the pot. The whole pot follows the split
+  // breakdown — no carve to subtract.
 
-  console.log("\n=== Votium forwarder payouts ===");
-  console.log("Artifact:", fs.existsSync(payoutsPath) ? payoutsPath : "absent → expecting no payouts");
-  console.log("Expected total:", (Number(votiumExpectedTotal) / 1e18).toFixed(6), "sCRVUSD");
-  let payoutMismatches = 0;
-  for (const [addr, expected] of Object.entries(votiumPayouts)) {
-    const d = deltas[addr] || 0n;
-    const alsoDelegator = addr in curveLcKeys || addr in fxnLcKeys;
-    const ok = alsoDelegator ? d >= expected : d === expected;
-    if (!ok) {
-      payoutMismatches++;
-      console.log(`  ❌ ${addr}: delta ${(Number(d) / 1e18).toFixed(6)} vs expected ${alsoDelegator ? ">=" : "=="} ${(Number(expected) / 1e18).toFixed(6)}`);
-    }
-  }
-  if (Object.keys(votiumPayouts).length > 0) {
-    console.log(`Per-address payouts: ${payoutMismatches === 0 ? "✅ all covered" : `❌ ${payoutMismatches} mismatch(es)`}`);
-  }
-  const attributionPath = path.join("weekly-bounties", String(periodTs), "votium", "forwarders_voted_rewards.json");
-  if (!fs.existsSync(payoutsPath) && fs.existsSync(attributionPath)) {
-    const attribution = JSON.parse(fs.readFileSync(attributionPath, "utf8"));
-    const attributed = Object.keys(attribution.tokenAllocations || {}).length;
-    if (attributed > 0) {
-      console.log(`⚠ attribution file lists ${attributed} forwarder(s) but no payout artifact was written`);
-    }
-  }
-
-  // Individual payouts replaced the aggregate fee claim: the legacy fee
+  // Individual raw payouts replaced the aggregate fee claim: the legacy fee
   // recipient must not receive anything new, ever.
   const LEGACY_FEE_RECIPIENT = "0xf930ebbd05ef8b25b1797b9b2109ddc9b0d43063";
   const feeDelta = deltas[LEGACY_FEE_RECIPIENT] || 0n;
   console.log(
-    `Legacy fee recipient delta: ${(Number(feeDelta) / 1e18).toFixed(6)} sCRVUSD ` +
+    `\nLegacy fee recipient delta: ${(Number(feeDelta) / 1e18).toFixed(6)} sCRVUSD ` +
       (feeDelta === 0n ? "✅" : "❌ individual payouts should have replaced the fee")
   );
 
   const adjustedDeltas: Record<string, bigint> = { ...deltas };
-  for (const [addr, amount] of Object.entries(votiumPayouts)) {
-    adjustedDeltas[addr] = (adjustedDeltas[addr] || 0n) - amount;
-  }
 
   // Per-address check against the split breakdown createDelegatorsMerkle
-  // wrote: every wallet's delegator delta (net of Votium payouts) must equal
-  // the artifact's total EXACTLY, and no wallet may have moved outside it.
+  // wrote: every wallet's delegator delta must equal the artifact's total
+  // EXACTLY, and no wallet may have moved outside it.
   const breakdownPath = path.join(reportsDir, "delegators_split_breakdown.json");
   if (!fs.existsSync(breakdownPath)) {
     console.log(
