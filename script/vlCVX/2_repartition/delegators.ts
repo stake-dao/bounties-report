@@ -1,10 +1,10 @@
+import type { PublicClient } from "viem";
 import { formatUnits } from "viem";
 import { VOTIUM_FORWARDER, CVX_GAUGE_VOTE_HELPER } from "../../utils/constants";
 import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getContributingWeightsAtVote } from "../../utils/onChainDelegation";
 import { getVoteOf } from "../../utils/gaugeVotePlatform";
 import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
-import { getClient } from "../../utils/getClients";
 
 export type DelegationDistribution = Record<
   string,
@@ -37,7 +37,8 @@ export const computeStakeDaoDelegation = async (
   proposal: any,
   stakeDaoDelegators: string[],
   tokens: Record<string, bigint>,
-  delegationVoter: string
+  delegationVoter: string,
+  client: PublicClient
 ): Promise<{
   distribution: DelegationDistribution;
   delegateOwnTokens: Record<string, bigint>;
@@ -50,7 +51,6 @@ export const computeStakeDaoDelegation = async (
   // NOT userWeightAtEpochOf: that table stays mutable until the epoch rolls,
   // so a delegator syncing AFTER the delegate voted would be over-credited.
   // NOT the raw vlCVX balance either: the delegate votes with synced weights.
-  const client = await getClient(1);
   const vps = await getContributingWeightsAtVote(
     CVX_GAUGE_VOTE_HELPER,
     proposal.author,
@@ -67,7 +67,7 @@ export const computeStakeDaoDelegation = async (
   // A shortfall means contributing weights are missing (the found delegators
   // would silently absorb the missing ones' share); an excess means the
   // helper over-credited someone. Tolerance = 0.1 vlCVX per-delegator synced
-  // weight granularity, same convention as assertDelegatorsCompleteness.
+  // weight granularity (assertDelegatorsCompleteness itself is exact-match).
   const delegateVote = await getVoteOf(
     proposal.author,
     Number(proposal.id),

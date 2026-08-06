@@ -63,7 +63,8 @@ describe("computeStakeDaoDelegation", () => {
       proposal,
       [D1, D2],
       { [TOKEN]: 1000n },
-      DELEGATION_VOTER
+      DELEGATION_VOTER,
+      {} as any
     );
 
     expect(delegateOwnTokens).toEqual({});
@@ -99,7 +100,8 @@ describe("computeStakeDaoDelegation", () => {
       proposal,
       [D1, D2],
       { [TOKEN]: 999n },
-      DELEGATION_VOTER
+      DELEGATION_VOTER,
+      {} as any
     );
 
     // own = floor(999 * 50 / 150) = 333, pool = 666 — conservation is exact

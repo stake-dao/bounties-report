@@ -30,6 +30,28 @@ const VLCVX_ABI = parseAbi([
 // the final state can only be read after that overtime.
 const EQUALIZER_OVERTIME = 600;
 
+// Public gateways shed oversized eth_calls under load ("evm timeout",
+// -32009 - see getContributingWeightsAtVote in onChainDelegation.ts), a
+// NONSTANDARD error code viem's transport does not retry. Keep every
+// multicall bounded so one shed mega-call cannot fail the whole read.
+const MULTICALL_CHUNK_SIZE = 200;
+
+const chunkedMulticall = async <T>(
+  client: any,
+  contracts: any[]
+): Promise<T[]> => {
+  const results: T[] = [];
+  for (let i = 0; i < contracts.length; i += MULTICALL_CHUNK_SIZE) {
+    results.push(
+      ...((await client.multicall({
+        allowFailure: false,
+        contracts: contracts.slice(i, i + MULTICALL_CHUNK_SIZE),
+      })) as T[])
+    );
+  }
+  return results;
+};
+
 /**
  * Reads the FINALIZED proposal to distribute from a GaugeVotePlatform (Curve
  * or FXN) and maps it to the Proposal interface: choices = lowercase gauge
@@ -42,7 +64,7 @@ const EQUALIZER_OVERTIME = 600;
  * endTime + overtime. forceEndProposal zeroes startTime/endTime/epoch, so a
  * force-ended proposal is never distributable.
  *
- * opts.targetPeriod (WEEK-aligned start of the distribution period being
+ * targetPeriod (WEEK-aligned start of the distribution period being
  * computed) pins the selection to that period instead of the current clock:
  * only proposals already finalized by the period start are eligible, so a
  * late retry of a past period cannot drift onto the round that finalized in
@@ -59,10 +81,11 @@ export const getOnChainProposal = async (
   gaugeVotePlatformAddress: string,
   spaceId: string,
   client: any,
-  opts: { requireFinal?: boolean; targetPeriod?: number } = {
-    requireFinal: true,
-  }
+  opts: { requireFinal?: boolean; targetPeriod?: number } = {}
 ): Promise<Proposal> => {
+  // Per-field defaults: a caller passing { targetPeriod } alone must still
+  // get requireFinal = true (object defaults do not merge).
+  const { requireFinal = true, targetPeriod } = opts;
   const count: bigint = await client.readContract({
     address: gaugeVotePlatformAddress,
     abi: GAUGE_VOTE_PLATFORM_ABI,
@@ -75,7 +98,7 @@ export const getOnChainProposal = async (
   }
 
   const now = Math.floor(Date.now() / 1000);
-  let proposalId = Number(count) - 1;
+  let proposalId!: number;
   let proposalData: [bigint, bigint, bigint] | undefined;
 
   for (let pid = Number(count) - 1; pid >= 0; pid--) {
@@ -97,7 +120,7 @@ export const getOnChainProposal = async (
       continue;
     }
 
-    if (opts.requireFinal === false) {
+    if (requireFinal === false) {
       proposalId = pid;
       proposalData = data;
       break;
@@ -111,12 +134,12 @@ export const getOnChainProposal = async (
     }
 
     if (
-      opts.targetPeriod !== undefined &&
-      endTime + EQUALIZER_OVERTIME > opts.targetPeriod
+      targetPeriod !== undefined &&
+      endTime + EQUALIZER_OVERTIME > targetPeriod
     ) {
       console.log(
         `Skipping on-chain proposal ${pid}: finalized after the start of ` +
-          `distribution period ${opts.targetPeriod} (ends at ${endTime})`
+          `distribution period ${targetPeriod} (ends at ${endTime})`
       );
       continue;
     }
@@ -126,13 +149,13 @@ export const getOnChainProposal = async (
     // the period should distribute is missing (never created or force-ended):
     // refuse to serve the previous round a third week.
     if (
-      opts.targetPeriod !== undefined &&
-      endTime <= opts.targetPeriod - 2 * WEEK
+      targetPeriod !== undefined &&
+      endTime <= targetPeriod - 2 * WEEK
     ) {
       throw new Error(
         `Stale on-chain proposal on GaugeVotePlatform ${gaugeVotePlatformAddress}: ` +
           `newest eligible proposal ${pid} ended at ${endTime}, more than 2 weeks ` +
-          `before distribution period ${opts.targetPeriod} — the expected round ` +
+          `before distribution period ${targetPeriod} — the expected round ` +
           `is missing, refusing to reuse it`
       );
     }
@@ -149,8 +172,8 @@ export const getOnChainProposal = async (
         (opts.requireFinal === false
           ? ")"
           : `, finality = endTime + ${EQUALIZER_OVERTIME}s overtime elapsed` +
-            (opts.targetPeriod !== undefined
-              ? ` before period ${opts.targetPeriod})`
+            (targetPeriod !== undefined
+              ? ` before period ${targetPeriod})`
               : ")"))
     );
   }
@@ -164,15 +187,15 @@ export const getOnChainProposal = async (
     args: [BigInt(proposalId)],
   });
 
-  const entries = (await client.multicall({
-    allowFailure: false,
-    contracts: Array.from({ length: Number(gaugeCount) }, (_, i) => ({
+  const entries = await chunkedMulticall<[string, bigint]>(
+    client,
+    Array.from({ length: Number(gaugeCount) }, (_, i) => ({
       address: gaugeVotePlatformAddress,
       abi: GAUGE_VOTE_PLATFORM_ABI,
       functionName: "getGaugeEntry",
       args: [BigInt(proposalId), BigInt(i)],
-    })),
-  })) as [string, bigint][];
+    }))
+  );
 
   const choices = entries.map(([gauge]) => gauge.toLowerCase());
   const scores = entries.map(([, totalWeight]) =>
@@ -207,8 +230,7 @@ export const getOnChainProposal = async (
  * getVoterCount/getVoterAtIndex enumerate unique voters directly — no event
  * scan, no dedup. getVote then reflects the final state (re-votes overwrite).
  *
- * vp = baseWeight + adjustedWeight (exact signed sum, asserted > 0 for voted
- * accounts), in vlCVX (18 decimals).
+ * vp = baseWeight + adjustedWeight (exact signed sum, non-negative: throws on <0, exact zero is valid and skipped), in vlCVX (18 decimals).
  * choice keys are 1-indexed positions in proposal.choices. Values are the
  * on-chain weights (ppm, 0-1_000_000 since the 2026-07-25 redeploy) divided
  * by 100 — only meaningful relative to the voter's other choice values; all
@@ -228,25 +250,25 @@ export const getOnChainVoters = async (
   });
   if (voterCount === 0n) return [];
 
-  const voters = (await client.multicall({
-    allowFailure: false,
-    contracts: Array.from({ length: Number(voterCount) }, (_, i) => ({
+  const voters = await chunkedMulticall<string>(
+    client,
+    Array.from({ length: Number(voterCount) }, (_, i) => ({
       address: gaugeVotePlatformAddress,
       abi: GAUGE_VOTE_PLATFORM_ABI,
       functionName: "getVoterAtIndex",
       args: [BigInt(proposalId), BigInt(i)],
-    })),
-  })) as string[];
+    }))
+  );
 
-  const voteResults = (await client.multicall({
-    allowFailure: false,
-    contracts: voters.map((voter) => ({
+  const voteResults = await chunkedMulticall<[string[], bigint[], boolean, bigint, bigint]>(
+    client,
+    voters.map((voter) => ({
       address: gaugeVotePlatformAddress,
       abi: GAUGE_VOTE_PLATFORM_ABI,
       functionName: "getVote",
       args: [BigInt(proposalId), voter],
-    })),
-  })) as [string[], bigint[], boolean, bigint, bigint][];
+    }))
+  );
 
   const votes: any[] = [];
   voteResults.forEach((result, i) => {
@@ -359,15 +381,15 @@ export const getOnChainVotingPower = async (
 ): Promise<Record<string, number>> => {
   if (addresses.length === 0) return {};
 
-  const balances = (await client.multicall({
-    allowFailure: false,
-    contracts: addresses.map((addr) => ({
+  const balances = await chunkedMulticall<bigint>(
+    client,
+    addresses.map((addr) => ({
       address: VLCVX_ADDRESS,
       abi: VLCVX_ABI,
       functionName: "balanceAtEpochOf",
       args: [BigInt(epoch), addr],
-    })),
-  })) as bigint[];
+    }))
+  );
 
   return Object.fromEntries(
     addresses.map((addr, i) => [

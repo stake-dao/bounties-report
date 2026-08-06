@@ -602,8 +602,8 @@ async function processGaugeVotes(
     // Total on-chain vote weight for this gauge (choiceId is 1-indexed)
     const totalChoiceScore = proposal.scores[gaugeInfo.choiceId - 1] || 0;
 
-    // Compute vote shares for forwarders
-    const voteShares = computeVoteSharesForGauge(
+    // Per-address vote shares for this gauge (reused for every bribe below)
+    const addressShares = computeVoteSharesForGauge(
       votesForGauge,
       gaugeInfo.choiceId,
       forwarders,
@@ -646,13 +646,6 @@ async function processGaugeVotes(
     for (const bribe of gaugeBribes) {
       const amountInDollars = bribe.amountDollars || 0;
 
-      // Calculate per-address shares for the aggregated claimed bounties
-      const addressShares = computeVoteSharesForGauge(
-        votesForGauge,
-        gaugeInfo.choiceId,
-        forwarders,
-        totalChoiceScore
-      );
 
       for (const forwarder of forwarders) {
         const share = addressShares.get(forwarder.address) || 0;
@@ -742,7 +735,7 @@ function cleanPerAddressOutput(perAddressOutput: any) {
       for (const token in tokens) {
         const allocation = tokens[token];
         // Convert allocation to a number and skip if zero
-        if (Number(allocation) === 0) continue;
+        if (Number(allocation.amount) === 0) continue;
         // Token should already be an address, but keep as is
         const newTokenKey = token;
         newTokens[newTokenKey] = allocation;

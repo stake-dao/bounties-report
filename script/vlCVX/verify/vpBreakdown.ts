@@ -16,10 +16,12 @@
  * a still-active round (dry-runs). Defaults to
  * bounties-reports/<period>/vlCVX/vp_breakdown.json
  */
+import type { PublicClient } from "viem";
 import * as fs from "fs";
 import * as path from "path";
 import {
   CVX_SPACE,
+  VOTIUM_FORWARDER,
   WEEK,
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
@@ -38,7 +40,6 @@ import {
 import { getForwardedDelegators } from "../../utils/delegationHelper";
 import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
 import { getClient } from "../../utils/getClients";
-import { VOTIUM_FORWARDER } from "../../utils/constants";
 
 type Row = {
   address: string;
@@ -57,7 +58,7 @@ const allowActive = process.env.VLCVX_ALLOW_ACTIVE_PROPOSAL === "true";
 
 async function breakdownForPlatform(
   platform: "curve" | "fxn",
-  client: any
+  client: PublicClient
 ): Promise<{ rows: Row[]; meta: any } | null> {
   const platformAddress =
     platform === "curve"
@@ -70,6 +71,9 @@ async function breakdownForPlatform(
       requireFinal: !allowActive,
     });
   } catch (e: any) {
+    // Only the expected empty states are skippable; a real RPC/decode
+    // failure must not read as "platform has no proposal".
+    if (!/proposal/i.test(String(e?.message))) throw e;
     console.warn(`[${platform}] no usable proposal: ${e.message}`);
     return null;
   }
@@ -112,11 +116,12 @@ async function breakdownForPlatform(
     });
   }
 
+  const delegatorSet = new Set(delegators.map((d) => d.toLowerCase()));
   for (const vote of votes) {
     const addr = vote.voter.toLowerCase();
     if (addr === delegationVoter) {
       rows.push({ address: addr, role: "delegation", vp: vote.vp, paidVia: "split-below", platform });
-    } else if (delegators.some((d) => d.toLowerCase() === addr)) {
+    } else if (delegatorSet.has(addr)) {
       rows.push({ address: addr, role: "delegator-voted-direct", vp: vote.vp, paidVia: "as-voter-direct", platform });
     } else {
       rows.push({ address: addr, role: "voter-direct", vp: vote.vp, paidVia: "thursday-voters-merkle", platform });
@@ -159,6 +164,9 @@ async function breakdownForPlatform(
   const outArg = process.argv.indexOf("--out");
   const client = await getClient(1);
   const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
+  if (outArg !== -1 && !process.argv[outArg + 1]) {
+    throw new Error("--out requires a path argument");
+  }
   const outPath =
     outArg !== -1
       ? process.argv[outArg + 1]

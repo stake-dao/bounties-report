@@ -30,6 +30,7 @@ import {
   Distribution,
 } from "../../shared/nonDelegators";
 import { getGaugesInfos } from "../../utils/reportUtils";
+import type { PublicClient } from "viem";
 import { getClient } from "../../utils/getClients";
 import { Proposal } from "../../utils/types";
 
@@ -68,7 +69,7 @@ const processGaugeProposal = async (
   gaugeType: "curve" | "fxn",
   proposal: Proposal,
   currentPeriodTimestamp: number,
-  publicClient: any
+  publicClient: PublicClient
 ): Promise<void> => {
   console.log(`Starting ${gaugeType} repartition generation...`);
 
@@ -215,7 +216,8 @@ const processGaugeProposal = async (
             proposal,
             stakeDaoDelegators,
             tokens,
-            voter
+            voter,
+            publicClient
           );
         delegationDistribution = distribution;
         if (Object.keys(delegateOwnTokens).length > 0) {
@@ -395,7 +397,7 @@ const main = async () => {
   );
   const fxnProposal = await getOnChainProposal(
     CVX_GAUGE_VOTE_PLATFORM_FXN,
-    CVX_SPACE,
+    CVX_FXN_SPACE,
     publicClient,
     { requireFinal, targetPeriod }
   );

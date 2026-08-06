@@ -4,6 +4,7 @@
  * The client is injected, so scenarios are driven by a plain mock object
  * dispatching on functionName — no network, no module mocks.
  */
+import { WEEK } from "../../utils/constants";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   getOnChainProposal,
@@ -11,7 +12,6 @@ import {
 } from "../../utils/gaugeVotePlatform";
 
 const PLATFORM = "0x64D9B5AC386B70af9EDCD20A58cE9262D2EAC278";
-const WEEK = 604800;
 const OVERTIME = 600;
 
 // proposals: array of [startTime, endTime, epoch] tuples (index = proposal id)
