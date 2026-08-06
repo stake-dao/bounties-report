@@ -18,6 +18,12 @@ import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import { hasPerDelegateAttribution, getExactGroupAmounts } from "../../utils/delegationExact";
 import {
+  computeVotiumRawPayouts,
+  hasClaimedVotiumBounties,
+  MIN_VOTIUM_RAW_PAYOUT_USD,
+} from "../../utils/votiumRawPayouts";
+import { VOTIUM_FORWARDER } from "../../utils/constants";
+import {
   getOnChainProposal,
   getOnChainVoters,
 } from "../../utils/gaugeVotePlatform";
@@ -25,6 +31,27 @@ import { getClient } from "../../utils/getClients";
 
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
+
+const VOTERS_DISTRIBUTOR = "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
+
+// Ops instruction for the raw Votium leaves, staged during the curve pass and
+// written by main() only after EVERY merkle output landed — a half-finished
+// run must not leave an instruction describing unpublished leaves.
+let pendingVotiumWithdrawal: {
+  period: number;
+  source: string;
+  destination: string;
+  fundingLeg: string;
+  tokens: Record<string, string>;
+} | null = null;
+
+const votiumWithdrawalPath = () =>
+  path.join(
+    "bounties-reports",
+    currentPeriodTimestamp.toString(),
+    "vlCVX",
+    "votium_thursday_withdrawal.json"
+  );
 
 // Global variables to hold Merkle data for each gauge type and chain
 let merkleDataByChain: {
@@ -75,6 +102,16 @@ async function main() {
   // After processing, generate the global merkle for each chain.
   for (const chainId of supportedChainIds) {
     generateGlobalMerkleForChain(chainId);
+  }
+
+  // Every merkle output landed — the ops withdrawal instruction may now be
+  // published (staged by applyVotiumRawLeaves during the curve pass).
+  if (pendingVotiumWithdrawal) {
+    fs.writeFileSync(
+      votiumWithdrawalPath(),
+      JSON.stringify(pendingVotiumWithdrawal, null, 2)
+    );
+    console.log(`Votium withdrawal instruction saved to ${votiumWithdrawalPath()}`);
   }
 }
 
@@ -259,8 +296,11 @@ function processChain(
     );
   }
 
-  // 3. Pay each non-forwarder its exact per-delegate attribution — never a
-  // pool × scalar-share split. getExactGroupAmounts re-validates conservation
+  // 3. Pay every raw-routed delegator its exact per-delegate attribution —
+  // never a pool × scalar-share split. The "nonForwarders" ROUTE covers
+  // non-forwarder delegators of every delegate AND the forwarders behind
+  // non-Stake-DAO delegates (only Stake DAO delegates' forwarders settle
+  // through the Tuesday pot). getExactGroupAmounts re-validates conservation
   // against totalPerGroup before returning, and refuses files without the
   // perDelegate section (pre-cutover periods must be regenerated first).
   if (delegationSummary) {
@@ -270,12 +310,12 @@ function processChain(
           `(pre-cutover format?) — regenerate the repartition before building merkles`
       );
     }
-    const exactNonForwarders = getExactGroupAmounts(
+    const exactRawRouted = getExactGroupAmounts(
       delegationSummary,
       "nonForwarders"
     );
     let walletCount = 0;
-    for (const [address, tokens] of Object.entries(exactNonForwarders)) {
+    for (const [address, tokens] of Object.entries(exactRawRouted)) {
       const addr = address.toLowerCase();
       if (!combined[addr]) {
         combined[addr] = { tokens: {} };
@@ -288,154 +328,28 @@ function processChain(
       walletCount++;
     }
     console.log(
-      `Chain ${chainId}: ${walletCount} non-forwarder wallet(s) paid their ` +
-        `per-delegate amounts`
+      `Chain ${chainId}: ${walletCount} raw-routed delegator wallet(s) paid ` +
+        `their per-delegate amounts`
     );
+  }
+
+  // 3b. (Curve mainnet merkle, claim weeks only) Pay the individually
+  // attributed Votium forwarder legs as RAW TOKEN leaves. The attribution
+  // file only ever lists individual legs — own votes (including Stake DAO
+  // delegators who voted themselves) and slices of non-Stake-DAO delegates'
+  // votes; pooled legs settle through the Tuesday delegators pot. The paid
+  // totals are also staged as a withdrawal instruction: the Thursday batch
+  // funds them with a dedicated votium-vault → voters-distributor withdraw,
+  // and the votium swap job sweeps only the remainder for the Tuesday pot.
+  // Runs BEFORE the empty guard: its crash-window checks must fire even on a
+  // week with no VotemarketV2 distributions at all.
+  if (gaugeType === "curve" && chainId === "1") {
+    applyVotiumRawLeaves(combined, reportsDir);
   }
 
   if (Object.keys(combined).length === 0) {
     console.log(`No distributions to process for chain ${chainId}`);
     return;
-  }
-
-  // 3. (On curve merkle) Log Votium forwarders' rewards. They are settled in
-  // sCRVUSD by createDelegatorsMerkle, never through this combined merkle.
-  if (gaugeType === "curve" && chainId === "1") {
-    const votiumRewardsDir = path.join(
-      "weekly-bounties",
-      currentPeriodTimestamp.toString(),
-      "votium"
-    );
-    
-    // Create a log file for Votium forwarders info
-    const logFilePath = path.join(
-      reportsDir,
-      "votium_forwarders_log.json"
-    );
-    
-    const votiumLog: {
-      timestamp: number;
-      message: string;
-      forwardersData?: any;
-      totalRewardsSkipped?: { [token: string]: string };
-      addressesSkipped?: string[];
-    } = {
-      timestamp: currentPeriodTimestamp,
-      message: "Votium forwarder rewards are paid in sCRVUSD through the delegators merkle, not through this combined merkle",
-    };
-    
-    // Try to load actual claimed bounties first
-    const claimedBountiesFile = path.join(
-      votiumRewardsDir,
-      "claimed_bounties_convex.json"
-    );
-    
-    if (fs.existsSync(claimedBountiesFile)) {
-      console.log("\nℹ️  Votium claimed bounties found; forwarders are paid via the delegators merkle");
-      console.log("   File:", claimedBountiesFile);
-      
-      // Load forwarders data to log what would have been distributed
-      const forwardersRewardsFile = path.join(
-        votiumRewardsDir,
-        "forwarders_voted_rewards.json"
-      );
-      
-      if (fs.existsSync(forwardersRewardsFile)) {
-        const forwardersData = JSON.parse(
-          fs.readFileSync(forwardersRewardsFile, "utf8")
-        );
-        
-        console.log("\n📊 Votium Forwarders Summary (settled via delegators merkle):");
-        console.log("   ═══════════════════════════════════════════");
-        
-        if (forwardersData.tokenAllocations) {
-          const tokenAllocations = forwardersData.tokenAllocations;
-          const totalsByToken: { [token: string]: bigint } = {};
-          const uniqueAddresses = new Set<string>();
-          
-          // Calculate totals that would have been distributed
-          for (const address in tokenAllocations) {
-            uniqueAddresses.add(address.toLowerCase());
-            
-            for (const token in tokenAllocations[address]) {
-              const tokenData = tokenAllocations[address][token];
-              
-              let amountStr: string;
-              if (typeof tokenData === 'object' && tokenData.amountWei) {
-                amountStr = tokenData.amountWei;
-              } else if (typeof tokenData === 'object' && tokenData.amount) {
-                amountStr = tokenData.amount;
-              } else if (typeof tokenData === 'string') {
-                amountStr = tokenData;
-              } else {
-                continue;
-              }
-              
-              const amount = BigInt(amountStr.split('.')[0]);
-              
-              if (!totalsByToken[token]) {
-                totalsByToken[token] = 0n;
-              }
-              totalsByToken[token] += amount;
-            }
-          }
-          
-          console.log(`   📍 Unique forwarders: ${uniqueAddresses.size}`);
-          console.log(`   💰 Attributed token totals (settled in sCRVUSD elsewhere):`);
-          
-          for (const [token, total] of Object.entries(totalsByToken)) {
-            console.log(`      • ${token}: ${total.toString()} wei`);
-          }
-          
-          // Add to log
-          votiumLog.forwardersData = forwardersData;
-          votiumLog.totalRewardsSkipped = Object.fromEntries(
-            Object.entries(totalsByToken).map(([k, v]) => [k, v.toString()])
-          );
-          votiumLog.addressesSkipped = Array.from(uniqueAddresses);
-          
-          console.log("\n   ℹ️  These rewards are paid in sCRVUSD by createDelegatorsMerkle");
-          console.log("   ℹ️  Log saved to:", logFilePath);
-        }
-      } else {
-        console.warn("   ⚠️  Forwarders rewards file not found");
-      }
-    } else {
-      // Check if theoretical forwarders file exists
-      const forwardersRewardsFile = path.join(
-        votiumRewardsDir,
-        "forwarders_voted_rewards.json"
-      );
-      
-      if (fs.existsSync(forwardersRewardsFile)) {
-        console.log("\nℹ️  Found theoretical Votium forwarders rewards (no claims yet)");
-        console.log("   File:", forwardersRewardsFile);
-        
-        const forwardersData = JSON.parse(
-          fs.readFileSync(forwardersRewardsFile, "utf8")
-        );
-        
-        if (forwardersData.tokenAllocations) {
-          const tokenAllocations = forwardersData.tokenAllocations;
-          const uniqueAddresses = Object.keys(tokenAllocations).length;
-          
-          console.log(`   📍 ${uniqueAddresses} forwarder(s) with theoretical attribution`);
-          console.log("   ℹ️  Not payable until claims exist; the delegators merkle pays realized attributions only");
-          
-          votiumLog.forwardersData = { 
-            tokenAllocations: tokenAllocations,
-            source: "theoretical" 
-          };
-          votiumLog.addressesSkipped = Object.keys(tokenAllocations).map(a => a.toLowerCase());
-        }
-      } else {
-        console.log("   ℹ️  No Votium forwarders rewards found for this period");
-      }
-    }
-    
-    // Save the log file
-    fs.writeFileSync(logFilePath, JSON.stringify(votiumLog, null, 2));
-    console.log("\n═══════════════════════════════════════════════════════════");
   }
 
   // 4. Load previous Merkle data, scanning back up to 12 weeks to handle skipped periods
@@ -500,7 +414,7 @@ function processChain(
     distributionVerifier(
       CVX_SPACE,
       mainnet,
-      "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+      VOTERS_DISTRIBUTOR,
       newMerkleData,
       previousMerkleData,
       currentDistribution.distribution,
@@ -509,4 +423,156 @@ function processChain(
       { proposal, votes }
     );
   })().catch(console.error);
+}
+
+/**
+ * Pays the individually attributed Votium forwarder legs as raw token leaves
+ * (claim weeks only) and records the matching ops withdrawal instruction.
+ *
+ * Crash-window guards mirror both directions: claims without an attribution
+ * file mean generateConvexVotium died mid-write — refuse rather than silently
+ * fold real forwarder money into the pool; an attribution without claims
+ * means nothing was realized — refuse rather than pay unbacked leaves.
+ */
+function applyVotiumRawLeaves(
+  combined: { [address: string]: { tokens: { [token: string]: bigint } } },
+  reportsDir: string
+) {
+  const votiumDir = path.join(
+    "weekly-bounties",
+    currentPeriodTimestamp.toString(),
+    "votium"
+  );
+  const claimsFile = path.join(votiumDir, "claimed_bounties_convex.json");
+  const attributionFile = path.join(votiumDir, "forwarders_voted_rewards.json");
+  const logFilePath = path.join(reportsDir, "votium_forwarders_log.json");
+
+  // A FORCE_UPDATE re-run must not leave a stale withdrawal instruction
+  // describing leaves that no longer exist. The fresh instruction is staged
+  // here and written by main() only after every merkle output landed.
+  fs.rmSync(votiumWithdrawalPath(), { force: true });
+
+  const claims: unknown = fs.existsSync(claimsFile)
+    ? JSON.parse(fs.readFileSync(claimsFile, "utf8"))
+    : null;
+  const hasClaims = claims !== null && hasClaimedVotiumBounties(claims);
+
+  if (!fs.existsSync(attributionFile)) {
+    if (hasClaims) {
+      throw new Error(
+        `Votium bounties were claimed this period but the forwarder ` +
+          `attribution file is missing: ${attributionFile}. Refusing to fold ` +
+          `forwarder value into the delegators pool.`
+      );
+    }
+    fs.writeFileSync(
+      logFilePath,
+      JSON.stringify(
+        {
+          timestamp: currentPeriodTimestamp,
+          message:
+            "No Votium claim this period — no raw Votium leaves in this merkle",
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  const forwardersData = JSON.parse(fs.readFileSync(attributionFile, "utf8"));
+  const tokenAllocations = forwardersData.tokenAllocations ?? {};
+
+  if (!hasClaims) {
+    if (Object.keys(tokenAllocations).length > 0) {
+      throw new Error(
+        `Votium forwarder attribution exists without claimed bounties: ` +
+          `${attributionFile}. Refusing to pay unbacked raw leaves.`
+      );
+    }
+    fs.writeFileSync(
+      logFilePath,
+      JSON.stringify(
+        {
+          timestamp: currentPeriodTimestamp,
+          message:
+            "Votium attribution present but empty and nothing claimed — no raw Votium leaves",
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  const raw = computeVotiumRawPayouts({
+    claimedBounties: claims,
+    minimumPayoutUsd: MIN_VOTIUM_RAW_PAYOUT_USD,
+    tokenAllocations,
+  });
+
+  let paidWallets = 0;
+  for (const [address, tokens] of Object.entries(raw.payouts)) {
+    const addr = address.toLowerCase();
+    if (!combined[addr]) combined[addr] = { tokens: {} };
+    for (const [token, amount] of Object.entries(tokens)) {
+      if (amount === 0n) continue;
+      combined[addr].tokens[token] =
+        (combined[addr].tokens[token] || 0n) + amount;
+    }
+    paidWallets++;
+  }
+
+  const totalsAsStrings = Object.fromEntries(
+    Object.entries(raw.totalsPerToken).map(([token, amount]) => [
+      token,
+      amount.toString(),
+    ])
+  );
+
+  console.log(
+    `\n💰 Votium raw leaves: ${paidWallets} forwarder(s) paid in this merkle` +
+      (raw.belowFloor.length
+        ? `; ${raw.belowFloor.length} below the $${MIN_VOTIUM_RAW_PAYOUT_USD} floor stay with the pool`
+        : "")
+  );
+  for (const [token, total] of Object.entries(raw.totalsPerToken)) {
+    console.log(`   • ${token}: ${total.toString()} wei`);
+  }
+
+  fs.writeFileSync(
+    logFilePath,
+    JSON.stringify(
+      {
+        timestamp: currentPeriodTimestamp,
+        message:
+          "Individually attributed Votium forwarder legs are paid as raw token " +
+          "leaves in this combined merkle; Stake DAO-pooled legs settle through " +
+          "the Tuesday delegators pot",
+        forwardersData,
+        totalRewardsPaid: totalsAsStrings,
+        addressesPaid: Object.keys(raw.payouts),
+        belowFloor: raw.belowFloor,
+      },
+      null,
+      2
+    )
+  );
+
+  if (Object.keys(raw.totalsPerToken).length > 0) {
+    // Ops contract: the tokens sit on the Votium vault (the claim recipient).
+    // The Thursday batch must carry a dedicated votium-vault →
+    // voters-distributor withdraw of EXACTLY these amounts, and the votium
+    // swap job must only sweep the remainder into sCRVUSD for the Tuesday
+    // pot. withdraw() is caller-gated (AllMight V2 is allowed) — the
+    // destination needs no allowlisting.
+    pendingVotiumWithdrawal = {
+      period: currentPeriodTimestamp,
+      source: VOTIUM_FORWARDER,
+      destination: VOTERS_DISTRIBUTOR,
+      fundingLeg:
+        "dedicated votium-vault → voters-distributor withdraw in the Thursday batch",
+      tokens: totalsAsStrings,
+    };
+  }
 }

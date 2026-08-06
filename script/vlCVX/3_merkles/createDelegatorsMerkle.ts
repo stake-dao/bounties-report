@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 import * as moment from "moment";
 dotenv.config();
 
-import { type PublicClient, formatUnits, getAddress } from "viem";
+import { type PublicClient, getAddress } from "viem";
 import { http, createPublicClient } from "viem";
 import { mainnet } from "../../utils/chains";
 import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
@@ -25,11 +25,6 @@ import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { getSCRVUsdTransfer } from "../utils";
-import {
-	computeVotiumForwarderPayouts,
-	hasClaimedVotiumBounties,
-	type ForwarderPayoutResult,
-} from "./votiumForwarderPayouts";
 import {
 	hasPerDelegateAttribution,
 	getExactGroupAmounts,
@@ -73,46 +68,11 @@ const WEEK = 604800;
 // Round current UTC time down to the nearest week to get the current period timestamp
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
-// Forwarders whose attributed value is below this USD amount are not paid
-// individually; their value stays in the delegators pool.
-const MIN_FORWARDER_PAYOUT_USD = 1;
-
-const PRICE_PER_SHARE_ABI = [
-	{
-		inputs: [],
-		name: "pricePerShare",
-		outputs: [{ name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-] as const;
-
-const VOTIUM_DIR = path.join(
-	"weekly-bounties",
-	currentPeriodTimestamp.toString(),
-	"votium",
-);
-const VOTIUM_CLAIMS_FILE = path.join(
-	VOTIUM_DIR,
-	"claimed_bounties_convex.json",
-);
-const VOTIUM_FORWARDERS_FILE = path.join(
-	VOTIUM_DIR,
-	"forwarders_voted_rewards.json",
-);
-
 // The directory to which we'll write the bounties reports for this period
 const reportsDir = path.join(
 	"bounties-reports",
 	currentPeriodTimestamp.toString(),
 	"vlCVX",
-);
-
-// Applied Votium payouts (with the pricePerShare used) are recorded here so
-// verifyForwardersMerkle can check exact per-address deltas after the fact.
-const VOTIUM_PAYOUTS_ARTIFACT = path.join(
-	reportsDir,
-	"votium_forwarder_payouts.json",
 );
 
 // Path to the JSON file holding delegation data for this period
@@ -169,113 +129,12 @@ if (totalCurveForwardersShare <= 0 && totalFxnForwardersShare <= 0) {
 /**
  * Main function to compute forwarder rewards, build a Merkle tree,
  * and run the distribution verifier.
+ *
+ * Votium money never appears here individually: individually attributed legs
+ * are paid raw in the Thursday combined merkle, and the pooled legs' value
+ * arrives already swapped inside the sCRVUSD received below, following the
+ * same entitlement weights as the VotemarketV2 pot.
  */
-const emptyForwarderPayouts = (): ForwarderPayoutResult => ({
-	capped: false,
-	payouts: {},
-	requestedTotal: 0n,
-	totalPayout: 0n,
-});
-
-async function getVotiumForwarderPayouts(
-	publicClient: PublicClient,
-	maxTotal: bigint,
-): Promise<ForwarderPayoutResult> {
-	if (!fs.existsSync(VOTIUM_FORWARDERS_FILE)) {
-		// generateConvexVotium deletes the attribution file before rewriting it.
-		// If it crashed in between, real claims would silently fold into the
-		// delegators pool — refuse instead.
-		if (fs.existsSync(VOTIUM_CLAIMS_FILE)) {
-			const claimedBounties: unknown = JSON.parse(
-				fs.readFileSync(VOTIUM_CLAIMS_FILE, "utf8"),
-			);
-			if (hasClaimedVotiumBounties(claimedBounties)) {
-				throw new Error(
-					`Votium bounties were claimed this period but the forwarder ` +
-						`attribution file is missing: ${VOTIUM_FORWARDERS_FILE}. ` +
-						`Refusing to fold forwarder value into the delegators pool.`,
-				);
-			}
-		}
-		return emptyForwarderPayouts();
-	}
-	if (!fs.existsSync(VOTIUM_CLAIMS_FILE)) {
-		throw new Error(
-			`Votium forwarder attribution exists without claimed bounties: ` +
-				`${VOTIUM_FORWARDERS_FILE}. Refusing to pay it from the shared pool.`,
-		);
-	}
-
-	const forwardersData = JSON.parse(
-		fs.readFileSync(VOTIUM_FORWARDERS_FILE, "utf8"),
-	) as { tokenAllocations?: unknown };
-	const tokenAllocations = forwardersData.tokenAllocations ?? {};
-	if (
-		typeof tokenAllocations === "object" &&
-		!Array.isArray(tokenAllocations) &&
-		Object.keys(tokenAllocations).length === 0
-	) {
-		return emptyForwarderPayouts();
-	}
-
-	const claimedBounties: unknown = JSON.parse(
-		fs.readFileSync(VOTIUM_CLAIMS_FILE, "utf8"),
-	);
-	const pricePerShare = await publicClient.readContract({
-		address: SCRVUSD as `0x${string}`,
-		abi: PRICE_PER_SHARE_ABI,
-		functionName: "pricePerShare",
-	});
-
-	const result = computeVotiumForwarderPayouts({
-		claimedBounties,
-		maxTotal,
-		minimumPayoutUsd: MIN_FORWARDER_PAYOUT_USD,
-		pricePerShare,
-		tokenAllocations,
-	});
-
-	console.log(
-		`sCRVUSD price per share: ${formatUnits(pricePerShare, 18)} crvUSD`,
-	);
-	console.log(
-		`Votium forwarder payouts: ${Object.keys(result.payouts).length} address(es), ` +
-			`${formatUnits(result.totalPayout, 18)} sCRVUSD`,
-	);
-	if (result.capped) {
-		console.warn(
-			`Votium forwarder payouts capped from ` +
-				`${formatUnits(result.requestedTotal, 18)} to ` +
-				`${formatUnits(result.totalPayout, 18)} sCRVUSD`,
-		);
-	}
-
-	fs.mkdirSync(reportsDir, { recursive: true });
-	fs.writeFileSync(
-		VOTIUM_PAYOUTS_ARTIFACT,
-		JSON.stringify(
-			{
-				period: currentPeriodTimestamp,
-				pricePerShare: pricePerShare.toString(),
-				minimumPayoutUsd: MIN_FORWARDER_PAYOUT_USD,
-				capped: result.capped,
-				requestedTotal: result.requestedTotal.toString(),
-				totalPayout: result.totalPayout.toString(),
-				payouts: Object.fromEntries(
-					Object.entries(result.payouts).map(([address, amount]) => [
-						address,
-						amount.toString(),
-					]),
-				),
-			},
-			null,
-			2,
-		),
-	);
-
-	return result;
-}
-
 async function processForwarders() {
 	// Idempotency guard: abort if this period's merkle already exists, unless caller
 	// explicitly forces a regeneration. Prevents re-running the merkle step after a
@@ -290,15 +149,12 @@ async function processForwarders() {
 		return;
 	}
 
-	// Invalidate the previous run's audit artifacts BEFORE recomputing: the
-	// verifiers key on these files, so a FORCE_MERKLE re-run must not leave a
-	// stale split breakdown (or stale Votium payouts) describing a merkle
-	// that no longer exists. Both are rewritten by the steps that produce
-	// them.
+	// Invalidate the previous run's audit artifact BEFORE recomputing: the
+	// verifiers key on this file, so a FORCE_MERKLE re-run must not leave a
+	// stale split breakdown describing a merkle that no longer exists.
 	fs.rmSync(path.join(reportsDir, "delegators_split_breakdown.json"), {
 		force: true,
 	});
-	fs.rmSync(VOTIUM_PAYOUTS_ARTIFACT, { force: true });
 
 	// Create a public viem client for mainnet (using an RPC URL from .env if provided)
 	const publicClient = createPublicClient({
@@ -331,24 +187,7 @@ async function processForwarders() {
 	}
 	console.log("Total sCRVUSD received:", totalScrvUsd.toString());
 
-	// Pay Votium users their own forwarded voted rewards before splitting the
-	// remaining shared pool among Stake DAO delegators.
-	const forwarderPayouts = await getVotiumForwarderPayouts(
-		publicClient,
-		totalScrvUsd,
-	);
-
-	const availableForDistribution = totalScrvUsd - forwarderPayouts.totalPayout;
-	if (availableForDistribution < 0n) {
-		throw new Error(
-			`Votium forwarder payouts ${forwarderPayouts.totalPayout} exceed ` +
-				`the sCRVUSD received ${totalScrvUsd}`,
-		);
-	}
-	console.log(
-		"Total sCRVUSD for delegators distribution (after forwarders):",
-		availableForDistribution.toString(),
-	);
+	const availableForDistribution = totalScrvUsd;
 
 	// Merge the two distributions (sum token amounts if same address)
 	const combined: {
@@ -374,14 +213,17 @@ async function processForwarders() {
 		}
 	};
 
-	// --- Split the pool among delegator-forwarders ---
-	// The pool is split by each wallet's USD-VALUED exact entitlement
-	// (Σ token amount × price, from the per-delegate attribution — a wallet
-	// weighs only the tokens its own delegate earned). Real deposit txs batch
-	// many tokens into ONE sCRVUSD mint, so receipt-level per-token proceeds
-	// are not readable without fragile route tracing; value weighting keeps
-	// the split exact per entitlement while socializing swap slippage across
-	// the pool. Votium-leftover value (below-floor wallets, cap overflow) is
+	// --- Split the pool among Stake DAO's pooled delegator-forwarders ---
+	// The "forwarders" ROUTE only contains Stake DAO delegates' forwarders;
+	// forwarders behind other delegates are paid raw in the Thursday combined
+	// merkle and never appear here. The pool is split by each wallet's
+	// USD-VALUED exact entitlement (Σ token amount × price, from the
+	// per-delegate attribution — a wallet weighs only the tokens its own
+	// delegate earned). Real deposit txs batch many tokens into ONE sCRVUSD
+	// mint, so receipt-level per-token proceeds are not readable without
+	// fragile route tracing; value weighting keeps the split exact per
+	// entitlement while socializing swap slippage across the pool.
+	// Votium-leftover value (pooled legs, below-floor Thursday wallets) is
 	// pooled by design and follows the same weights.
 	for (const [label, summary] of [
 		["curve", curveDelegationSummary],
@@ -505,26 +347,6 @@ async function processForwarders() {
 	} else {
 		console.log(
 			"No sCRVUSD left for the delegator split after the Votium payouts.",
-		);
-	}
-
-	// Pay each direct-voter forwarder individually (replaces the old aggregate
-	// governance claim). Keys on both sides are EIP-55 checksummed, so a mixed
-	// address — delegation forwarder on one platform, direct voter on the
-	// other — is summed into a single entry here. generateMerkleTree overwrites
-	// amounts on key collisions, so collisions must not survive past this merge.
-	const forwarderDistribution = Object.fromEntries(
-		Object.entries(forwarderPayouts.payouts).map(([address, amount]) => [
-			address,
-			{ tokens: { [SCRVUSD]: amount } },
-		]),
-	);
-	mergeDistributions(forwarderDistribution, combined);
-
-	if (forwarderPayouts.totalPayout > 0n) {
-		console.log(
-			`\nAdded ${Object.keys(forwarderPayouts.payouts).length} Votium forwarder payout(s): ` +
-				`${formatUnits(forwarderPayouts.totalPayout, 18)} sCRVUSD`,
 		);
 	}
 

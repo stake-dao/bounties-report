@@ -16,6 +16,7 @@ import {
   VOTIUM_FORWARDER_REGISTRY,
   CVX_SPACE,
 } from "../../utils/constants";
+import { isPooledDelegate } from "../../utils/delegationExact";
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 const SCORE_ENDPOINT = "https://score.snapshot.org/api/scores";
@@ -1067,7 +1068,14 @@ async function main() {
     console.log(`>>> ${typeLabel} (delegator) <<<`);
     console.log(`    Share: ${(userShare.share * 100).toFixed(4)}% of pool (VP)`);
     if (userShare.delegate) {
+      const route =
+        userShare.type === "forwarder"
+          ? isPooledDelegate(userShare.delegate)
+            ? "pooled → Tuesday sCRVUSD delegators merkle"
+            : "raw → Thursday combined merkle"
+          : "raw → Thursday combined merkle";
       console.log(`    Delegate: ${userShare.delegate}`);
+      console.log(`    Payment route: ${route}`);
     }
     if (userShare.exactTokens) {
       console.log(`    Attributed tokens: ${Object.keys(userShare.exactTokens).length} (exact per-delegate amounts)`);

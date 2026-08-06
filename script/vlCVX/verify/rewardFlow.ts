@@ -4,8 +4,10 @@
  * Checks:
  * 1. CSV balance — CSV_total === delegation_total + nonDelegator_total per token (exact BigInt)
  * 2. Group split — forwarders + nonForwarders === totalTokens per token
+ *    (routes: "forwarders" = pooled Tuesday, "nonForwarders" = raw Thursday)
  * 3. Attribution — per-delegate wallet sums conserve pools, groups and totals to the wei
  * 4. Cumulative merkle — curr ≈ prev + this_week_repart + nonFwd_deleg
+ *    (+ raw Votium leaves in the curve merkle on claim weeks)
  * 5. Forwarders sCRVUSD — cumulative monotonically increasing
  *
  * Usage:
@@ -17,6 +19,11 @@ import * as path from "path";
 import { WEEK } from "../../utils/constants";
 import { ChainCheck, verifyCSVBalance, REPORTS_DIR, readJSON, shortAddr } from "../../utils/verifyHelpers";
 import { hasPerDelegateAttribution, getExactGroupAmounts } from "../../utils/delegationExact";
+import {
+  computeVotiumRawPayouts,
+  hasClaimedVotiumBounties,
+  MIN_VOTIUM_RAW_PAYOUT_USD,
+} from "../../utils/votiumRawPayouts";
 
 const SCRVUSD = "0x0655977feb2f289a4ab78af67bab0d17aab84367";
 const LATEST_FORWARDERS_MERKLE = path.join(
@@ -248,6 +255,34 @@ function verifyCumulativeMerkle(timestamp: number): { allOk: boolean; results: s
       }
     }
 
+    // Raw Votium leaves enter the CURVE merkle on claim weeks — recompute
+    // them from the same inputs as createCombinedMerkle.
+    const votiumPerToken: Record<string, bigint> = {};
+    if (cfg.gaugeType === "curve") {
+      const votiumDir = path.join(
+        __dirname,
+        `../../../weekly-bounties/${timestamp}/votium`
+      );
+      const claimsFile = path.join(votiumDir, "claimed_bounties_convex.json");
+      const attributionFile = path.join(votiumDir, "forwarders_voted_rewards.json");
+      try {
+        const claims = fs.existsSync(claimsFile) ? readJSON(claimsFile) : null;
+        if (claims !== null && hasClaimedVotiumBounties(claims) && fs.existsSync(attributionFile)) {
+          const attribution = readJSON(attributionFile);
+          const raw = computeVotiumRawPayouts({
+            claimedBounties: claims,
+            minimumPayoutUsd: MIN_VOTIUM_RAW_PAYOUT_USD,
+            tokenAllocations: attribution.tokenAllocations ?? {},
+          });
+          for (const [token, amount] of Object.entries(raw.totalsPerToken)) {
+            votiumPerToken[token] = amount;
+          }
+        }
+      } catch (e: any) {
+        results.push(`  ⚠️  Votium raw term could not be computed: ${e.message}`);
+      }
+    }
+
     const allTokens = new Set([...Object.keys(currTotals), ...Object.keys(prevTotals)]);
     let checkOk = true;
     let tokenCount = 0;
@@ -258,7 +293,8 @@ function verifyCumulativeMerkle(timestamp: number): { allOk: boolean; results: s
       const prev = prevTotals[token] || 0n;
       const repart = repartPerToken[token] || 0n;
       const nonFwd = nonFwdPerToken[token] || 0n;
-      const expected = prev + repart + nonFwd;
+      const votiumRaw = votiumPerToken[token] || 0n;
+      const expected = prev + repart + nonFwd + votiumRaw;
       const diff = curr - expected;
 
       if (diff !== 0n) {
@@ -273,7 +309,7 @@ function verifyCumulativeMerkle(timestamp: number): { allOk: boolean; results: s
       }
     }
 
-    if (checkOk) results.push(`  ✅ All ${tokenCount} tokens: prev + repart + nonFwd = curr`);
+    if (checkOk) results.push(`  ✅ All ${tokenCount} tokens: prev + repart + nonFwd + votiumRaw = curr`);
   }
 
   return { allOk, results };

@@ -41,6 +41,14 @@ export const DELEGATE_REGISTRY_CREATION_BLOCK_BASE = 17894724;
 // has ZERO on-chain weight — on-chain reads must use this address instead.
 export const VLCVX_ONCHAIN_DELEGATION_ADDRESS =
   "0xbB06fEFB8f23A7c60C93fe20464DB6687C51955f";
+// Delegates operated by Stake DAO. Only THEIR delegators who forward to our
+// Votium forwarder are paid through the pooled Tuesday sCRVUSD delegators
+// merkle. A forwarder behind any other delegate — and any wallet that voted
+// itself — is paid raw tokens in the Thursday combined merkle.
+export const VLCVX_POOLED_DELEGATES = [
+  VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  DELEGATION_ADDRESS,
+];
 // Gauge vote platforms were redeployed 2026-07-25 (weights now ppm 0-1_000_000
 // instead of bps 0-10000; read ABI unchanged). Proposal history restarted at 0:
 // rounds voted before the redeploy live on the old contracts

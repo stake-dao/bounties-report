@@ -7,6 +7,11 @@ import {
   hasPerDelegateAttribution,
   getExactGroupAmounts,
 } from "./delegationExact";
+import {
+  computeVotiumRawPayouts,
+  hasClaimedVotiumBounties,
+  MIN_VOTIUM_RAW_PAYOUT_USD,
+} from "./votiumRawPayouts";
 
 interface DelegationRepartition {
   distribution: {
@@ -49,6 +54,49 @@ const weekChangeOf = (
   const previousAmount =
     previousMerkleData.claims[address]?.tokens[token]?.amount || "0";
   return BigInt(merkleTokenAmount) - BigInt(previousAmount);
+};
+
+/**
+ * The raw Votium leaves the combined CURVE merkle must carry this period
+ * (lowercase wallet -> lowercase token -> wei), recomputed from the same
+ * inputs as createCombinedMerkle. Empty on non-claim weeks. Errors are
+ * reported through `errors` instead of throwing — this is a verifier.
+ */
+const loadVotiumRawExpectations = (
+  currentPeriodTimestamp: number,
+  errors: string[]
+): Record<string, Record<string, bigint>> => {
+  const votiumDir = path.join(
+    process.cwd(),
+    "weekly-bounties",
+    String(currentPeriodTimestamp),
+    "votium"
+  );
+  const claimsFile = path.join(votiumDir, "claimed_bounties_convex.json");
+  const attributionFile = path.join(votiumDir, "forwarders_voted_rewards.json");
+
+  try {
+    const claims: unknown = fs.existsSync(claimsFile)
+      ? JSON.parse(fs.readFileSync(claimsFile, "utf-8"))
+      : null;
+    const hasClaims = claims !== null && hasClaimedVotiumBounties(claims);
+    if (!hasClaims) return {};
+    if (!fs.existsSync(attributionFile)) {
+      errors.push(
+        "Votium bounties claimed this period but the forwarder attribution file is missing"
+      );
+      return {};
+    }
+    const attribution = JSON.parse(fs.readFileSync(attributionFile, "utf-8"));
+    return computeVotiumRawPayouts({
+      claimedBounties: claims,
+      minimumPayoutUsd: MIN_VOTIUM_RAW_PAYOUT_USD,
+      tokenAllocations: attribution.tokenAllocations ?? {},
+    }).payouts;
+  } catch (error) {
+    errors.push(`Votium raw expectations could not be computed: ${error}`);
+    return {};
+  }
 };
 
 export const verifyVlCVXDistribution = async (
@@ -116,29 +164,15 @@ export const verifyVlCVXDistribution = async (
       process.cwd(),
       `bounties-reports/${currentPeriodTimestamp}/vlCVX/delegators_split_breakdown.json`
     );
-    const payoutsPath = path.join(
-      process.cwd(),
-      `bounties-reports/${currentPeriodTimestamp}/vlCVX/votium_forwarder_payouts.json`
-    );
     if (fs.existsSync(breakdownPath)) {
       log("\n=== Verifying Forwarders (exact split breakdown) ===");
       const breakdown = JSON.parse(fs.readFileSync(breakdownPath, "utf-8"));
-      const votiumPayouts: Record<string, bigint> = {};
-      if (fs.existsSync(payoutsPath)) {
-        const artifact = JSON.parse(fs.readFileSync(payoutsPath, "utf-8"));
-        for (const [addr, amount] of Object.entries(artifact.payouts || {})) {
-          votiumPayouts[getAddress(addr)] = BigInt(amount as string);
-        }
-      }
       const SCRVUSD = getAddress("0x0655977FEb2f289A4aB78af67BAB0d17aAb84367");
       const expected: Record<string, bigint> = {};
       for (const [addr, row] of Object.entries(
         (breakdown.perWallet || {}) as Record<string, { total: string }>
       )) {
         expected[getAddress(addr)] = BigInt(row.total);
-      }
-      for (const [addr, amount] of Object.entries(votiumPayouts)) {
-        expected[addr] = (expected[addr] ?? 0n) + amount;
       }
       let checked = 0;
       for (const [addr, expectedDelta] of Object.entries(expected)) {
@@ -169,27 +203,37 @@ export const verifyVlCVXDistribution = async (
       );
     }
   } else {
-    // Combined merkle: skip forwarders (they're not in this merkle)
-    log("\n=== Skipping Forwarders ===");
-    log("Forwarders are distributed through a separate merkle tree");
+    // Combined merkle: Stake DAO-pooled forwarders settle through the
+    // Tuesday sCRVUSD merkle; every other forwarder is raw-routed and IS
+    // checked below with the raw-routed delegators / Votium leaves.
+    log("\n=== Pooled Forwarders ===");
+    log("Stake DAO delegates' forwarders are distributed through the Tuesday sCRVUSD merkle");
   }
 
   if (merkleType === "combined") {
-    log("\n=== Verifying Non-Forwarder Delegators ===");
-    log(`Checking ${Object.keys(nonForwarders).length} non-forwarder delegator addresses...`);
+    // Raw Votium leaves live in the CURVE combined merkle on claim weeks;
+    // they stack on top of a wallet's delegation and direct amounts.
+    const votiumExtra =
+      gaugeType === "curve"
+        ? loadVotiumRawExpectations(currentPeriodTimestamp, errors)
+        : {};
+
+    log("\n=== Verifying Raw-Routed Delegators ===");
+    log(
+      "Non-forwarder delegators of every delegate plus forwarders behind " +
+        "non-Stake-DAO delegates — each paid its exact per-delegate attribution"
+    );
+
+    const exactRawRouted = hasAttribution
+      ? getExactGroupAmounts(delegationData.distribution, "nonForwarders")
+      : {};
 
     if (hasAttribution) {
-      // Every wallet must have received EXACTLY its per-delegate
-      // attribution, token by token.
-      const exactNonForwarders = getExactGroupAmounts(
-        delegationData.distribution,
-        "nonForwarders"
-      );
-      for (const [wallet, tokens] of Object.entries(exactNonForwarders)) {
+      for (const [wallet, tokens] of Object.entries(exactRawRouted)) {
         const normalizedAddress = getAddress(wallet);
         if (!currentMerkleData.claims[normalizedAddress]) {
           errors.push(
-            `Non-forwarder delegator ${formatAddress(normalizedAddress)} not found in merkle data`
+            `Raw-routed delegator ${formatAddress(normalizedAddress)} not found in merkle data`
           );
           continue;
         }
@@ -204,22 +248,24 @@ export const verifyVlCVXDistribution = async (
           );
           if (weekChange === null) {
             warnings.push(
-              `Token ${normalizedToken} not found for non-forwarder ${formatAddress(normalizedAddress)}`
+              `Token ${normalizedToken} not found for raw-routed delegator ${formatAddress(normalizedAddress)}`
             );
             continue;
           }
-          // Direct-voter amounts can add to the same wallet/token — the
-          // exact delegation amount is a lower bound then; equality holds
-          // for pure delegators.
+          // Direct-voter and raw Votium amounts can add to the same
+          // wallet/token; equality holds on the summed expectation.
           const directAmount = BigInt(
             Object.entries(nonDelegators).find(
               ([a]) => a.toLowerCase() === wallet
             )?.[1]?.tokens?.[token] ?? 0
           );
-          const expectedTotal = expectedAmount + directAmount;
+          const expectedTotal =
+            expectedAmount +
+            directAmount +
+            (votiumExtra[wallet]?.[token.toLowerCase()] ?? 0n);
           if (weekChange !== expectedTotal) {
             errors.push(
-              `Non-forwarder delegator ${formatAddress(normalizedAddress)} token ${normalizedToken}: ` +
+              `Raw-routed delegator ${formatAddress(normalizedAddress)} token ${normalizedToken}: ` +
                 `expected ${expectedTotal.toString()}, got ${weekChange.toString()}`
             );
           }
@@ -236,10 +282,6 @@ export const verifyVlCVXDistribution = async (
     log(`Checking ${Object.keys(nonDelegators).length} direct voter addresses...`);
     log("These users voted directly without delegation");
 
-    const exactNonForwardersForDirect = hasAttribution
-      ? getExactGroupAmounts(delegationData.distribution, "nonForwarders")
-      : {};
-
     for (const [address, data] of Object.entries(nonDelegators)) {
       const normalizedAddress = getAddress(address);
       const merkleEntry = currentMerkleData.claims[normalizedAddress];
@@ -249,15 +291,19 @@ export const verifyVlCVXDistribution = async (
         continue;
       }
 
-      // A wallet can be direct voter AND non-forwarder delegator; its
-      // delegation part is added on top of the direct part.
+      // A wallet can be direct voter AND raw-routed delegator AND a raw
+      // Votium payee; the parts stack on the same token.
       const delegationExtra: Record<string, bigint> =
-        exactNonForwardersForDirect[address.toLowerCase()] ?? {};
+        exactRawRouted[address.toLowerCase()] ?? {};
+      const walletVotium: Record<string, bigint> =
+        votiumExtra[address.toLowerCase()] ?? {};
 
       for (const [token, amount] of Object.entries(data.tokens)) {
         const normalizedToken = getAddress(token);
         const expectedAmount =
-          BigInt(amount) + (delegationExtra[token.toLowerCase()] ?? 0n);
+          BigInt(amount) +
+          (delegationExtra[token.toLowerCase()] ?? 0n) +
+          (walletVotium[token.toLowerCase()] ?? 0n);
 
         const weekChange = weekChangeOf(
           currentMerkleData,
@@ -275,6 +321,47 @@ export const verifyVlCVXDistribution = async (
             `Non-delegator ${formatAddress(normalizedAddress)} token ${normalizedToken}: ` +
             `expected ${expectedAmount.toString()}, got ${weekChange.toString()}`
           );
+        }
+      }
+    }
+
+    if (Object.keys(votiumExtra).length > 0) {
+      log("\n=== Verifying Raw Votium Leaves ===");
+      log(`Checking ${Object.keys(votiumExtra).length} Votium payee(s)...`);
+      for (const [wallet, tokens] of Object.entries(votiumExtra)) {
+        const normalizedAddress = getAddress(wallet);
+        const delegationTokens = exactRawRouted[wallet] ?? {};
+        const directTokens =
+          Object.entries(nonDelegators).find(
+            ([a]) => a.toLowerCase() === wallet
+          )?.[1]?.tokens ?? {};
+        for (const [token, votiumAmount] of Object.entries(tokens)) {
+          const normalizedToken = getAddress(token);
+          const directAmount = BigInt(
+            Object.entries(directTokens).find(
+              ([t]) => t.toLowerCase() === token
+            )?.[1] ?? 0
+          );
+          const expectedTotal =
+            votiumAmount + (delegationTokens[token] ?? 0n) + directAmount;
+          const weekChange = weekChangeOf(
+            currentMerkleData,
+            previousMerkleData,
+            normalizedAddress,
+            normalizedToken
+          );
+          if (weekChange === null) {
+            errors.push(
+              `Votium payee ${formatAddress(normalizedAddress)} token ${normalizedToken} missing from merkle data`
+            );
+            continue;
+          }
+          if (weekChange !== expectedTotal) {
+            errors.push(
+              `Votium payee ${formatAddress(normalizedAddress)} token ${normalizedToken}: ` +
+                `expected ${expectedTotal.toString()}, got ${weekChange.toString()}`
+            );
+          }
         }
       }
     }

@@ -23,7 +23,9 @@ import {
 const A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const B = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const C = "0xcccccccccccccccccccccccccccccccccccccccc";
-const DELEGATE_1 = "0x1000000000000000000000000000000000000001";
+// Stake DAO's on-chain delegate: its forwarders route to the pooled Tuesday
+// group. DELEGATE_2 is a third-party delegate: its forwarders route raw.
+const DELEGATE_1 = "0xbb06fefb8f23a7c60c93fe20464db6687c51955f";
 const DELEGATE_2 = "0x2000000000000000000000000000000000000002";
 const CRV = "0xd533a949740bb3306d119cc777fa900ba034cd52";
 const USG = "0xb1c2db5d6ca03fce73dbd304d320bf76c55ae1b1";
@@ -74,8 +76,9 @@ const buildInputs = (): {
   merged: DelegationDistribution;
   perDelegate: PerDelegateExact[];
 } => {
-  // Delegate 1: pool 1000 CRV, A (forwarder) 667 / B 333.
-  // Delegate 2: pool 500 CRV + 90 USG, C only.
+  // Delegate 1 (Stake DAO, pooled): pool 1000 CRV, A (forwarder) 667 / B 333.
+  // Delegate 2 (third-party): pool 500 CRV + 90 USG, C (forwarder) only —
+  // C's amounts must route RAW despite the forwarder flag.
   const perDelegate: PerDelegateExact[] = [
     {
       delegate: DELEGATE_1,
@@ -92,13 +95,13 @@ const buildInputs = (): {
       exactByDelegator: {
         [C]: { [CRV]: 500n, [USG]: 90n },
       },
-      forwarderFlags: { [C]: false },
+      forwarderFlags: { [C]: true },
     },
   ];
   const merged: DelegationDistribution = {
     [A]: { share: "0.4", shareForwarders: "0.4", shareNonForwarders: "0" },
     [B]: { share: "0.2", shareForwarders: "0", shareNonForwarders: "0.2" },
-    [C]: { share: "0.4", shareForwarders: "0", shareNonForwarders: "0.4" },
+    [C]: { share: "0.4", shareForwarders: "0.4", shareNonForwarders: "0" },
     // merged pot entry (delegation address) — totals must match pools
     "0xdddddddddddddddddddddddddddddddddddddddd": {
       tokens: { [CRV]: 1500n, [USG]: 90n },
@@ -108,23 +111,25 @@ const buildInputs = (): {
 };
 
 describe("buildDelegationSummary", () => {
-  it("emits exact per-delegate sections and exact group totals", () => {
+  it("emits exact per-delegate sections and ROUTED group totals", () => {
     const { merged, perDelegate } = buildInputs();
     const summary = buildDelegationSummary(merged, perDelegate);
 
+    // Sections keep the registry facts: C IS a forwarder of delegate 2.
     expect(summary.perDelegate[DELEGATE_1].forwarders[A][CRV]).toBe("667");
     expect(summary.perDelegate[DELEGATE_1].nonForwarders[B][CRV]).toBe("333");
-    expect(summary.perDelegate[DELEGATE_2].nonForwarders[C][USG]).toBe("90");
+    expect(summary.perDelegate[DELEGATE_2].forwarders[C][USG]).toBe("90");
 
-    // Group totals are exact sums, not scalar-derived.
+    // totalPerGroup carries payment routes: only the Stake DAO delegate's
+    // forwarder (A) is pooled; C's forwarder amounts route raw.
     expect(summary.totalPerGroup[CRV].forwarders).toBe("667");
     expect(summary.totalPerGroup[CRV].nonForwarders).toBe("833");
     expect(summary.totalPerGroup[USG].forwarders).toBe("0");
     expect(summary.totalPerGroup[USG].nonForwarders).toBe("90");
 
-    // Scalar membership fields survive for the verifiers.
-    expect(Object.keys(summary.forwarders)).toEqual([A]);
-    expect(Object.keys(summary.nonForwarders).sort()).toEqual([B, C].sort());
+    // Scalar membership fields survive for the verifiers (registry facts).
+    expect(Object.keys(summary.forwarders).sort()).toEqual([A, C].sort());
+    expect(Object.keys(summary.nonForwarders)).toEqual([B]);
   });
 
   it("throws when a delegator is attributed to two delegates", () => {
@@ -164,18 +169,29 @@ describe("delegationExact reader", () => {
     );
   };
 
-  it("detects the attribution and flattens groups across delegates", () => {
+  it("detects the attribution and flattens routed groups across delegates", () => {
     const s = summaryJson();
     expect(hasPerDelegateAttribution(s)).toBe(true);
 
-    const nfwd = getExactGroupAmounts(s, "nonForwarders");
-    expect(nfwd[B][CRV]).toBe(333n);
-    expect(nfwd[C][CRV]).toBe(500n);
-    expect(nfwd[C][USG]).toBe(90n);
+    // Raw route: B (non-forwarder) plus C (forwarder of a NON-pooled
+    // delegate — rerouted here even though it forwards).
+    const raw = getExactGroupAmounts(s, "nonForwarders");
+    expect(raw[B][CRV]).toBe(333n);
+    expect(raw[C][CRV]).toBe(500n);
+    expect(raw[C][USG]).toBe(90n);
+    expect(raw[A]).toBeUndefined();
 
     const totals = getExactGroupTokenTotals(s, "nonForwarders");
     expect(totals[CRV]).toBe(833n);
     expect(totals[USG]).toBe(90n);
+  });
+
+  it("pools only the Stake DAO delegate's forwarders into the Tuesday group", () => {
+    const s = summaryJson();
+    const pooled = getExactGroupAmounts(s, "forwarders");
+    expect(pooled[A][CRV]).toBe(667n);
+    expect(pooled[C]).toBeUndefined();
+    expect(Object.keys(pooled)).toEqual([A]);
   });
 
   it("rejects summaries without per-delegate attribution", () => {
@@ -196,10 +212,10 @@ describe("delegationExact reader", () => {
   it("rejects offsetting errors across delegates even when aggregates still match", () => {
     const s = summaryJson();
     // Move 100 CRV of attribution from delegate 2's wallet to delegate 1's:
-    // group totals and totalPerGroup stay identical, but each delegate's
-    // section no longer conserves its own pool.
+    // both legs route raw, so the aggregate raw totals stay identical, but
+    // each delegate's section no longer conserves its own pool.
     s.perDelegate[DELEGATE_1].nonForwarders[B][CRV] = "433"; // 333 + 100
-    s.perDelegate[DELEGATE_2].nonForwarders[C][CRV] = "400"; // 500 - 100
+    s.perDelegate[DELEGATE_2].forwarders[C][CRV] = "400"; // 500 - 100
     expect(() => getExactGroupAmounts(s, "nonForwarders")).toThrow(
       "inconsistent file"
     );

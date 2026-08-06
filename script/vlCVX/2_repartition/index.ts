@@ -202,9 +202,11 @@ const processGaugeProposal = async (
   // --- 4) Compute Delegation Distribution & Summary ---
   // Every delegate voter's pool splits among ITS OWN delegators only,
   // wei-conserving (perDelegate section — the payable data). Routing is per
-  // delegator: forwarding to Stake DAO's Votium forwarder → Tuesday sCRVUSD;
-  // otherwise raw tokens with the non-forwarders. The combined-VP scalar
-  // share fields are membership/reporting data consumed by the verifiers.
+  // delegator: forwarding to Stake DAO's Votium forwarder AND delegating to a
+  // Stake DAO delegate → pooled Tuesday sCRVUSD; every other delegator —
+  // including forwarders behind other delegates — is paid raw tokens in the
+  // Thursday combined merkle. The combined-VP scalar share fields are
+  // membership/reporting data consumed by the verifiers.
   const delegationDistribution: DelegationDistribution = {};
   const mergedPoolTokens: Record<string, bigint> = {};
   const delegatorWeights: Record<
