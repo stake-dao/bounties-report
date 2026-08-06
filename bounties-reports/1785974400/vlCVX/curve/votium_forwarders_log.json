@@ -1,0 +1,782 @@
+{
+  "timestamp": 1785974400,
+  "message": "Votium forwarder rewards are paid in sCRVUSD through the delegators merkle, not through this combined merkle",
+  "forwardersData": {
+    "curveVotes": {
+      "0x1732951b80c737dbb8f367e83e530623bb612e54": {
+        "0": {
+          "proposalId": "0",
+          "gauge": "0x543c88e9b7bd90a4c14a31bdbf41dd509ab666ed",
+          "choiceId": 7,
+          "weight": 5096
+        },
+        "1": {
+          "proposalId": "0",
+          "gauge": "0x0228fa0bb44acb35582d429bc93c6c1bbb1ae81e",
+          "choiceId": 13,
+          "weight": 180
+        },
+        "2": {
+          "proposalId": "0",
+          "gauge": "0xc58cb38c462c27baee0abb9790402f2e80cfb471",
+          "choiceId": 14,
+          "weight": 172
+        },
+        "3": {
+          "proposalId": "0",
+          "gauge": "0xcfc25170633581bf896cb6cdee170e3e3aa59503",
+          "choiceId": 15,
+          "weight": 4397
+        },
+        "4": {
+          "proposalId": "0",
+          "gauge": "0x5e54eb89fb1ba7f735c96a45e6641b362009b228",
+          "choiceId": 18,
+          "weight": 67
+        },
+        "5": {
+          "proposalId": "0",
+          "gauge": "0x7738ca93e0a122d3e66bb4e863f1572958f2c150",
+          "choiceId": 20,
+          "weight": 57
+        },
+        "6": {
+          "proposalId": "0",
+          "gauge": "0x26f57596d7b9258c0ac747f20196e8ec6cd569b1",
+          "choiceId": 22,
+          "weight": 31
+        }
+      },
+      "0xe32a8cf93af8661ec4708ef627b255801184ad2f": {
+        "0": {
+          "proposalId": "0",
+          "gauge": "0x93b823e54959635ccabfcf1b313b2ad2785bfe95",
+          "choiceId": 12,
+          "weight": 10000
+        }
+      },
+      "0x4b908f3d5e46b89c0d8a6478f86c80b88aa277d3": {
+        "0": {
+          "proposalId": "0",
+          "gauge": "0x07a01471fa544d9c6531b631e6a96a79a9ad05e9",
+          "choiceId": 1,
+          "weight": 10000
+        }
+      },
+      "0x8213d97f29227a8fa0fd6cc4c6c666345d8fbf97": {
+        "0": {
+          "proposalId": "0",
+          "gauge": "0x07a01471fa544d9c6531b631e6a96a79a9ad05e9",
+          "choiceId": 1,
+          "weight": 54.76,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0",
+          "gauge": "0x22804b0f6be741a9fa1bbaecdd6c8d4116e96944",
+          "choiceId": 2,
+          "weight": 318.18,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0",
+          "gauge": "0x4e6bb6b7447b7b2aa268c16ab87f4bb48bf57939",
+          "choiceId": 3,
+          "weight": 111.8,
+          "viaUnion": true
+        },
+        "3": {
+          "proposalId": "0",
+          "gauge": "0x95f00391cb5eebcd190eb58728b4ce23dbfa6ac1",
+          "choiceId": 4,
+          "weight": 279.39,
+          "viaUnion": true
+        },
+        "4": {
+          "proposalId": "0",
+          "gauge": "0x7e1444ba99dcdffe8fbdb42c02f0005d14f13be1",
+          "choiceId": 5,
+          "weight": 206.1,
+          "viaUnion": true
+        },
+        "5": {
+          "proposalId": "0",
+          "gauge": "0xfb18127c1471131468a1aad4785c19678e521d86",
+          "choiceId": 6,
+          "weight": 1224.21,
+          "viaUnion": true
+        },
+        "6": {
+          "proposalId": "0",
+          "gauge": "0xb53c23d2cc6219adf78ea22bfd38bffc50ec54cb",
+          "choiceId": 8,
+          "weight": 1404.23,
+          "viaUnion": true
+        },
+        "7": {
+          "proposalId": "0",
+          "gauge": "0xb251c0885c7c1975d773b57e67c138fbceaa6db4",
+          "choiceId": 9,
+          "weight": 112.1,
+          "viaUnion": true
+        },
+        "8": {
+          "proposalId": "0",
+          "gauge": "0xf3c43e7d722963b9569d1e39873df9e2dfe8c087",
+          "choiceId": 11,
+          "weight": 159.97,
+          "viaUnion": true
+        },
+        "9": {
+          "proposalId": "0",
+          "gauge": "0x7dcb252f7ea2b8da6fa59c79edf63f793c8b63b6",
+          "choiceId": 17,
+          "weight": 134.4,
+          "viaUnion": true
+        },
+        "10": {
+          "proposalId": "0",
+          "gauge": "0x0621982cda4fd4041964e91af4080583c5f099e1",
+          "choiceId": 19,
+          "weight": 167.81,
+          "viaUnion": true
+        },
+        "11": {
+          "proposalId": "0",
+          "gauge": "0xae1680ef5efc2486e73d8d5d0f8a8db77da5774e",
+          "choiceId": 23,
+          "weight": 510.81,
+          "viaUnion": true
+        },
+        "12": {
+          "proposalId": "0",
+          "gauge": "0xaf01d68714e7ea67f43f08b5947e367126b889b1",
+          "choiceId": 26,
+          "weight": 770.2,
+          "viaUnion": true
+        },
+        "13": {
+          "proposalId": "0",
+          "gauge": "0x29e9975561fad3a7988ca96361ab5c5317cb32af",
+          "choiceId": 30,
+          "weight": 514.81,
+          "viaUnion": true
+        },
+        "14": {
+          "proposalId": "0",
+          "gauge": "0x09f62a6777032329c0d49f1fd4fbe9b3468cda56",
+          "choiceId": 31,
+          "weight": 227.46,
+          "viaUnion": true
+        },
+        "15": {
+          "proposalId": "0",
+          "gauge": "0x7970489a543fb237abab63d62524d8a5ce165b86",
+          "choiceId": 32,
+          "weight": 109.35,
+          "viaUnion": true
+        },
+        "16": {
+          "proposalId": "0",
+          "gauge": "0xb49ec875dc7e1ddce5c5da17249a5ea3904b5eb3",
+          "choiceId": 33,
+          "weight": 93.96,
+          "viaUnion": true
+        },
+        "17": {
+          "proposalId": "0",
+          "gauge": "0xafcd73e242c6d880edfa87b8146825639bda3881",
+          "choiceId": 34,
+          "weight": 93.96,
+          "viaUnion": true
+        },
+        "18": {
+          "proposalId": "0",
+          "gauge": "0x83f12b0506a115e610c3e76292885192731e9b53",
+          "choiceId": 35,
+          "weight": 37.59,
+          "viaUnion": true
+        },
+        "19": {
+          "proposalId": "0",
+          "gauge": "0x19f9266f349158b54a6d95dce79297df670f7f14",
+          "choiceId": 36,
+          "weight": 84.56,
+          "viaUnion": true
+        },
+        "20": {
+          "proposalId": "0",
+          "gauge": "0x415f30505368fa1db82feea02eb778be04e75907",
+          "choiceId": 37,
+          "weight": 338.25,
+          "viaUnion": true
+        },
+        "21": {
+          "proposalId": "0",
+          "gauge": "0xf3f6d6d412a77b680ec3a5e35ebb11bbec319739",
+          "choiceId": 38,
+          "weight": 189.54,
+          "viaUnion": true
+        },
+        "22": {
+          "proposalId": "0",
+          "gauge": "0x8882eb84d0c4894753c0450f2d514e39883c0c82",
+          "choiceId": 39,
+          "weight": 74.22,
+          "viaUnion": true
+        },
+        "23": {
+          "proposalId": "0",
+          "gauge": "0x7ba1e40dae22847e6c521ba297d40ff1c5fd97dd",
+          "choiceId": 40,
+          "weight": 47,
+          "viaUnion": true
+        },
+        "24": {
+          "proposalId": "0",
+          "gauge": "0x48100238c4a3cf44cfbf6c7693ed5c216881face",
+          "choiceId": 41,
+          "weight": 74.22,
+          "viaUnion": true
+        },
+        "25": {
+          "proposalId": "0",
+          "gauge": "0x9a356132605ad599aba34651aa2a606730bacaaa",
+          "choiceId": 43,
+          "weight": 284.95,
+          "viaUnion": true
+        },
+        "26": {
+          "proposalId": "0",
+          "gauge": "0xd1d981ddd0c9a0469e7d8cee877f83b5877d7260",
+          "choiceId": 44,
+          "weight": 71.24,
+          "viaUnion": true
+        },
+        "27": {
+          "proposalId": "0",
+          "gauge": "0x821529bb07c83803c9cc7763e5974386e9efedc7",
+          "choiceId": 45,
+          "weight": 344.53,
+          "viaUnion": true
+        },
+        "28": {
+          "proposalId": "0",
+          "gauge": "0x070ebc9f46d0a6a523d31eb4ae7901c56ad97ae2",
+          "choiceId": 50,
+          "weight": 21,
+          "viaUnion": true
+        },
+        "29": {
+          "proposalId": "0",
+          "gauge": "0x8f4e42343af1cbf4f364ce448252d801e3f73937",
+          "choiceId": 51,
+          "weight": 76.8,
+          "viaUnion": true
+        },
+        "30": {
+          "proposalId": "0",
+          "gauge": "0x724476f141ed2de4da22ebdf435905def1118317",
+          "choiceId": 52,
+          "weight": 90.51,
+          "viaUnion": true
+        },
+        "31": {
+          "proposalId": "0",
+          "gauge": "0xc2075702490f0426e84e00d8b328119027813ac5",
+          "choiceId": 53,
+          "weight": 142.01,
+          "viaUnion": true
+        },
+        "32": {
+          "proposalId": "0",
+          "gauge": "0xbe6228125448e40f5dcbb2dbdf7ff3f5721000b4",
+          "choiceId": 55,
+          "weight": 709.39,
+          "viaUnion": true
+        },
+        "33": {
+          "proposalId": "0",
+          "gauge": "0x4e21418095d32d15c6e2b96a9910772613a50d50",
+          "choiceId": 56,
+          "weight": 85.64,
+          "viaUnion": true
+        },
+        "34": {
+          "proposalId": "0",
+          "gauge": "0xb110cdd5a25023e2a74542d7dc0644d2171bf556",
+          "choiceId": 59,
+          "weight": 46.62,
+          "viaUnion": true
+        },
+        "35": {
+          "proposalId": "0",
+          "gauge": "0xa41eb3062fd68b6fa9f11439c86503913806761d",
+          "choiceId": 64,
+          "weight": 788.43,
+          "viaUnion": true
+        }
+      },
+      "0x307cfaad607bb9afc4148a07b163c21a7b7e7bbd": {
+        "0": {
+          "proposalId": "0",
+          "gauge": "0x07a01471fa544d9c6531b631e6a96a79a9ad05e9",
+          "choiceId": 1,
+          "weight": 54.76,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0",
+          "gauge": "0x22804b0f6be741a9fa1bbaecdd6c8d4116e96944",
+          "choiceId": 2,
+          "weight": 318.18,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0",
+          "gauge": "0x4e6bb6b7447b7b2aa268c16ab87f4bb48bf57939",
+          "choiceId": 3,
+          "weight": 111.8,
+          "viaUnion": true
+        },
+        "3": {
+          "proposalId": "0",
+          "gauge": "0x95f00391cb5eebcd190eb58728b4ce23dbfa6ac1",
+          "choiceId": 4,
+          "weight": 279.39,
+          "viaUnion": true
+        },
+        "4": {
+          "proposalId": "0",
+          "gauge": "0x7e1444ba99dcdffe8fbdb42c02f0005d14f13be1",
+          "choiceId": 5,
+          "weight": 206.1,
+          "viaUnion": true
+        },
+        "5": {
+          "proposalId": "0",
+          "gauge": "0xfb18127c1471131468a1aad4785c19678e521d86",
+          "choiceId": 6,
+          "weight": 1224.21,
+          "viaUnion": true
+        },
+        "6": {
+          "proposalId": "0",
+          "gauge": "0xb53c23d2cc6219adf78ea22bfd38bffc50ec54cb",
+          "choiceId": 8,
+          "weight": 1404.23,
+          "viaUnion": true
+        },
+        "7": {
+          "proposalId": "0",
+          "gauge": "0xb251c0885c7c1975d773b57e67c138fbceaa6db4",
+          "choiceId": 9,
+          "weight": 112.1,
+          "viaUnion": true
+        },
+        "8": {
+          "proposalId": "0",
+          "gauge": "0xf3c43e7d722963b9569d1e39873df9e2dfe8c087",
+          "choiceId": 11,
+          "weight": 159.97,
+          "viaUnion": true
+        },
+        "9": {
+          "proposalId": "0",
+          "gauge": "0x7dcb252f7ea2b8da6fa59c79edf63f793c8b63b6",
+          "choiceId": 17,
+          "weight": 134.4,
+          "viaUnion": true
+        },
+        "10": {
+          "proposalId": "0",
+          "gauge": "0x0621982cda4fd4041964e91af4080583c5f099e1",
+          "choiceId": 19,
+          "weight": 167.81,
+          "viaUnion": true
+        },
+        "11": {
+          "proposalId": "0",
+          "gauge": "0xae1680ef5efc2486e73d8d5d0f8a8db77da5774e",
+          "choiceId": 23,
+          "weight": 510.81,
+          "viaUnion": true
+        },
+        "12": {
+          "proposalId": "0",
+          "gauge": "0xaf01d68714e7ea67f43f08b5947e367126b889b1",
+          "choiceId": 26,
+          "weight": 770.2,
+          "viaUnion": true
+        },
+        "13": {
+          "proposalId": "0",
+          "gauge": "0x29e9975561fad3a7988ca96361ab5c5317cb32af",
+          "choiceId": 30,
+          "weight": 514.81,
+          "viaUnion": true
+        },
+        "14": {
+          "proposalId": "0",
+          "gauge": "0x09f62a6777032329c0d49f1fd4fbe9b3468cda56",
+          "choiceId": 31,
+          "weight": 227.46,
+          "viaUnion": true
+        },
+        "15": {
+          "proposalId": "0",
+          "gauge": "0x7970489a543fb237abab63d62524d8a5ce165b86",
+          "choiceId": 32,
+          "weight": 109.35,
+          "viaUnion": true
+        },
+        "16": {
+          "proposalId": "0",
+          "gauge": "0xb49ec875dc7e1ddce5c5da17249a5ea3904b5eb3",
+          "choiceId": 33,
+          "weight": 93.96,
+          "viaUnion": true
+        },
+        "17": {
+          "proposalId": "0",
+          "gauge": "0xafcd73e242c6d880edfa87b8146825639bda3881",
+          "choiceId": 34,
+          "weight": 93.96,
+          "viaUnion": true
+        },
+        "18": {
+          "proposalId": "0",
+          "gauge": "0x83f12b0506a115e610c3e76292885192731e9b53",
+          "choiceId": 35,
+          "weight": 37.59,
+          "viaUnion": true
+        },
+        "19": {
+          "proposalId": "0",
+          "gauge": "0x19f9266f349158b54a6d95dce79297df670f7f14",
+          "choiceId": 36,
+          "weight": 84.56,
+          "viaUnion": true
+        },
+        "20": {
+          "proposalId": "0",
+          "gauge": "0x415f30505368fa1db82feea02eb778be04e75907",
+          "choiceId": 37,
+          "weight": 338.25,
+          "viaUnion": true
+        },
+        "21": {
+          "proposalId": "0",
+          "gauge": "0xf3f6d6d412a77b680ec3a5e35ebb11bbec319739",
+          "choiceId": 38,
+          "weight": 189.54,
+          "viaUnion": true
+        },
+        "22": {
+          "proposalId": "0",
+          "gauge": "0x8882eb84d0c4894753c0450f2d514e39883c0c82",
+          "choiceId": 39,
+          "weight": 74.22,
+          "viaUnion": true
+        },
+        "23": {
+          "proposalId": "0",
+          "gauge": "0x7ba1e40dae22847e6c521ba297d40ff1c5fd97dd",
+          "choiceId": 40,
+          "weight": 47,
+          "viaUnion": true
+        },
+        "24": {
+          "proposalId": "0",
+          "gauge": "0x48100238c4a3cf44cfbf6c7693ed5c216881face",
+          "choiceId": 41,
+          "weight": 74.22,
+          "viaUnion": true
+        },
+        "25": {
+          "proposalId": "0",
+          "gauge": "0x9a356132605ad599aba34651aa2a606730bacaaa",
+          "choiceId": 43,
+          "weight": 284.95,
+          "viaUnion": true
+        },
+        "26": {
+          "proposalId": "0",
+          "gauge": "0xd1d981ddd0c9a0469e7d8cee877f83b5877d7260",
+          "choiceId": 44,
+          "weight": 71.24,
+          "viaUnion": true
+        },
+        "27": {
+          "proposalId": "0",
+          "gauge": "0x821529bb07c83803c9cc7763e5974386e9efedc7",
+          "choiceId": 45,
+          "weight": 344.53,
+          "viaUnion": true
+        },
+        "28": {
+          "proposalId": "0",
+          "gauge": "0x070ebc9f46d0a6a523d31eb4ae7901c56ad97ae2",
+          "choiceId": 50,
+          "weight": 21,
+          "viaUnion": true
+        },
+        "29": {
+          "proposalId": "0",
+          "gauge": "0x8f4e42343af1cbf4f364ce448252d801e3f73937",
+          "choiceId": 51,
+          "weight": 76.8,
+          "viaUnion": true
+        },
+        "30": {
+          "proposalId": "0",
+          "gauge": "0x724476f141ed2de4da22ebdf435905def1118317",
+          "choiceId": 52,
+          "weight": 90.51,
+          "viaUnion": true
+        },
+        "31": {
+          "proposalId": "0",
+          "gauge": "0xc2075702490f0426e84e00d8b328119027813ac5",
+          "choiceId": 53,
+          "weight": 142.01,
+          "viaUnion": true
+        },
+        "32": {
+          "proposalId": "0",
+          "gauge": "0xbe6228125448e40f5dcbb2dbdf7ff3f5721000b4",
+          "choiceId": 55,
+          "weight": 709.39,
+          "viaUnion": true
+        },
+        "33": {
+          "proposalId": "0",
+          "gauge": "0x4e21418095d32d15c6e2b96a9910772613a50d50",
+          "choiceId": 56,
+          "weight": 85.64,
+          "viaUnion": true
+        },
+        "34": {
+          "proposalId": "0",
+          "gauge": "0xb110cdd5a25023e2a74542d7dc0644d2171bf556",
+          "choiceId": 59,
+          "weight": 46.62,
+          "viaUnion": true
+        },
+        "35": {
+          "proposalId": "0",
+          "gauge": "0xa41eb3062fd68b6fa9f11439c86503913806761d",
+          "choiceId": 64,
+          "weight": 788.43,
+          "viaUnion": true
+        }
+      }
+    },
+    "fxnVotes": {
+      "0x8213d97f29227a8fa0fd6cc4c6c666345d8fbf97": {
+        "0": {
+          "proposalId": "0",
+          "gauge": "0xfEFafB9446d84A9e58a3A2f2DDDd7219E8c94FbB",
+          "choiceId": 1,
+          "weight": 6512.29,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0",
+          "gauge": "0xA5250C540914E012E22e623275E290c4dC993D11",
+          "choiceId": 2,
+          "weight": 1972.43,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0",
+          "gauge": "0xb5152D159fce50a7576eBa7FAb61C2B98F0Ed692",
+          "choiceId": 7,
+          "weight": 1515.28,
+          "viaUnion": true
+        }
+      },
+      "0x307cfaad607bb9afc4148a07b163c21a7b7e7bbd": {
+        "0": {
+          "proposalId": "0",
+          "gauge": "0xfEFafB9446d84A9e58a3A2f2DDDd7219E8c94FbB",
+          "choiceId": 1,
+          "weight": 6512.29,
+          "viaUnion": true
+        },
+        "1": {
+          "proposalId": "0",
+          "gauge": "0xA5250C540914E012E22e623275E290c4dC993D11",
+          "choiceId": 2,
+          "weight": 1972.43,
+          "viaUnion": true
+        },
+        "2": {
+          "proposalId": "0",
+          "gauge": "0xb5152D159fce50a7576eBa7FAb61C2B98F0Ed692",
+          "choiceId": 7,
+          "weight": 1515.28,
+          "viaUnion": true
+        }
+      }
+    },
+    "tokenAllocations": {
+      "0x307cfaad607bb9afc4148a07b163c21a7b7e7bbd": {
+        "0x01791f726b4103694969820be083196cc7c045ff": {
+          "amount": "3.323738919758011867",
+          "amountWei": "3323738919758011867",
+          "usd": 0.229101
+        },
+        "0x04acaf8d2865c0714f79da09645c13fd2888977f": {
+          "amount": "2.705659997151066439",
+          "amountWei": "2705659997151066439",
+          "usd": 0.778761
+        },
+        "0x365accfca291e7d3914637abf1f7635db165bb09": {
+          "amount": "0.000860037421501582",
+          "amountWei": "860037421501582",
+          "usd": 0.010103
+        },
+        "0x419905009e4656fdc02418c7df35b1e61ed5f726": {
+          "amount": "2.20468678301871865",
+          "amountWei": "2204686783018718650",
+          "usd": 0.278667
+        },
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": {
+          "amount": "0.416324090697788959",
+          "amountWei": "416324090697788959",
+          "usd": 0.617055
+        },
+        "0x6440f144b7e50d6a8439336510312d2f54beb01d": {
+          "amount": "0.017608773530038841",
+          "amountWei": "17608773530038841",
+          "usd": 0.017613
+        },
+        "0x865377367054516e17014ccded1e7d814edc9ce4": {
+          "amount": "0.015059786375783234",
+          "amountWei": "15059786375783234",
+          "usd": 0.015009
+        },
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+          "amount": "0.051531",
+          "amountWei": "51531",
+          "usd": 0.051504
+        },
+        "0xcacd6fd266af91b8aed52accc382b4e165586e29": {
+          "amount": "0.065787459900028908",
+          "amountWei": "65787459900028908",
+          "usd": 0.065766
+        },
+        "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+          "amount": "0.253276",
+          "amountWei": "253276",
+          "usd": 0.253026
+        },
+        "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": {
+          "amount": "0.109955121919380589",
+          "amountWei": "109955121919380589",
+          "usd": 0.215631
+        },
+        "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+          "amount": "0.717444540334029478",
+          "amountWei": "717444540334029478",
+          "usd": 0.716607
+        }
+      },
+      "0x8213d97f29227a8fa0fd6cc4c6c666345d8fbf97": {
+        "0x01791f726b4103694969820be083196cc7c045ff": {
+          "amount": "61.503837281840734669",
+          "amountWei": "61503837281840734669",
+          "usd": 4.239397
+        },
+        "0x04acaf8d2865c0714f79da09645c13fd2888977f": {
+          "amount": "50.066605982065615804",
+          "amountWei": "50066605982065615804",
+          "usd": 14.410521
+        },
+        "0x365accfca291e7d3914637abf1f7635db165bb09": {
+          "amount": "0.015914948223261765",
+          "amountWei": "15914948223261765",
+          "usd": 0.186973
+        },
+        "0x419905009e4656fdc02418c7df35b1e61ed5f726": {
+          "amount": "40.796515767654551496",
+          "amountWei": "40796515767654551496",
+          "usd": 5.156597
+        },
+        "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": {
+          "amount": "7.703827472602356167",
+          "amountWei": "7703827472602356167",
+          "usd": 11.41825
+        },
+        "0x6440f144b7e50d6a8439336510312d2f54beb01d": {
+          "amount": "0.325842177744339911",
+          "amountWei": "325842177744339911",
+          "usd": 0.325932
+        },
+        "0x865377367054516e17014ccded1e7d814edc9ce4": {
+          "amount": "0.278679290084263806",
+          "amountWei": "278679290084263806",
+          "usd": 0.277744
+        },
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+          "amount": "0.953576",
+          "amountWei": "953576",
+          "usd": 0.953079
+        },
+        "0xcacd6fd266af91b8aed52accc382b4e165586e29": {
+          "amount": "1.217366601012915017",
+          "amountWei": "1217366601012915017",
+          "usd": 1.216988
+        },
+        "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+          "amount": "4.686735",
+          "amountWei": "4686735",
+          "usd": 4.682113
+        },
+        "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": {
+          "amount": "2.03465774918145053",
+          "amountWei": "2034657749181450530",
+          "usd": 3.990149
+        },
+        "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+          "amount": "13.275883680371312951",
+          "amountWei": "13275883680371312951",
+          "usd": 13.260404
+        }
+      },
+      "0x4b908f3d5e46b89c0d8a6478f86c80b88aa277d3": {
+        "0x6440f144b7e50d6a8439336510312d2f54beb01d": {
+          "amount": "60.818249845702519296",
+          "amountWei": "60818249845702519296",
+          "usd": 60.835157
+        }
+      }
+    },
+    "meta": {
+      "curveProposalId": "0",
+      "curveProposalEnd": 1785801600,
+      "vlcvxEpoch": 230,
+      "generatedAt": 1786004650
+    }
+  },
+  "totalRewardsSkipped": {
+    "0x01791f726b4103694969820be083196cc7c045ff": "64827576201598746536",
+    "0x04acaf8d2865c0714f79da09645c13fd2888977f": "52772265979216682243",
+    "0x365accfca291e7d3914637abf1f7635db165bb09": "16774985644763347",
+    "0x419905009e4656fdc02418c7df35b1e61ed5f726": "43001202550673270146",
+    "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "8120151563300145126",
+    "0x6440f144b7e50d6a8439336510312d2f54beb01d": "61161700796976898048",
+    "0x865377367054516e17014ccded1e7d814edc9ce4": "293739076460047040",
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "1005107",
+    "0xcacd6fd266af91b8aed52accc382b4e165586e29": "1283154060912943925",
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": "4940011",
+    "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": "2144612871100831119",
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": "13993328220705342429"
+  },
+  "addressesSkipped": [
+    "0x307cfaad607bb9afc4148a07b163c21a7b7e7bbd",
+    "0x8213d97f29227a8fa0fd6cc4c6c666345d8fbf97",
+    "0x4b908f3d5e46b89c0d8a6478f86c80b88aa277d3"
+  ]
+}
