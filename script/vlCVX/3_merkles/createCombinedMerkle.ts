@@ -16,7 +16,7 @@ import {
 } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
-import { applyShare, splitPoolByShares } from "../../utils/merkle/splitPoolByShares";
+import { hasPerDelegateAttribution, getExactGroupAmounts } from "../../utils/delegationExact";
 import {
   getOnChainProposal,
   getOnChainVoters,
@@ -259,67 +259,37 @@ function processChain(
     );
   }
 
-  // 3. Process delegation data (if it exists and is in the expected format)
-  if (
-    delegationSummary &&
-    delegationSummary.totalTokens &&
-    delegationSummary.totalNonForwardersShare !== undefined
-  ) {
-    const delegationTotalTokens = delegationSummary.totalTokens;
-    const totalNonForwardersShare = parseFloat(
-      delegationSummary.totalNonForwardersShare
-    );
-
-    // Build the delegation pool for tokens
-    const delegationPool: { [token: string]: bigint } = {};
-    if (totalNonForwardersShare > 0) {
-      for (const [token, totalStr] of Object.entries(delegationTotalTokens)) {
-        if (
-          delegationSummary.totalPerGroup &&
-          delegationSummary.totalPerGroup[token] &&
-          delegationSummary.totalPerGroup[token].nonForwarders
-        ) {
-          delegationPool[token] = BigInt(
-            delegationSummary.totalPerGroup[token].nonForwarders
-          );
-        } else {
-          const total = BigInt(totalStr as string);
-          delegationPool[token] = applyShare(
-            total,
-            delegationSummary.totalNonForwardersShare
-          );
-        }
-      }
-      console.log(`Delegation Non-Forwarders Pool for chain ${chainId}:`);
-      for (const [token, pool] of Object.entries(delegationPool)) {
-        console.log(`${token}: ${pool.toString()}`);
-      }
-    } else {
-      console.warn(
-        `No delegation non-forwarded rewards to add for chain ${chainId}.`
+  // 3. Pay each non-forwarder its exact per-delegate attribution — never a
+  // pool × scalar-share split. getExactGroupAmounts re-validates conservation
+  // against totalPerGroup before returning, and refuses files without the
+  // perDelegate section (pre-cutover periods must be regenerated first).
+  if (delegationSummary) {
+    if (!hasPerDelegateAttribution(delegationSummary)) {
+      throw new Error(
+        `Delegation file for chain ${chainId} has no perDelegate attribution ` +
+          `(pre-cutover format?) — regenerate the repartition before building merkles`
       );
     }
-
-    // Distribute rewards from the delegation pool based on each address's share
-    if (totalNonForwardersShare > 0 && delegationSummary.nonForwarders) {
-      for (const [token, pool] of Object.entries(delegationPool)) {
-        const rewards = splitPoolByShares(
-          pool,
-          delegationSummary.nonForwarders
-        );
-        for (const [address, reward] of Object.entries(rewards)) {
-          const addr = address.toLowerCase();
-          if (!combined[addr]) {
-            combined[addr] = { tokens: {} };
-          }
-          combined[addr].tokens[token] =
-            (combined[addr].tokens[token] || 0n) + reward;
-        }
+    const exactNonForwarders = getExactGroupAmounts(
+      delegationSummary,
+      "nonForwarders"
+    );
+    let walletCount = 0;
+    for (const [address, tokens] of Object.entries(exactNonForwarders)) {
+      const addr = address.toLowerCase();
+      if (!combined[addr]) {
+        combined[addr] = { tokens: {} };
       }
+      for (const [token, amount] of Object.entries(tokens)) {
+        if (amount === 0n) continue;
+        combined[addr].tokens[token] =
+          (combined[addr].tokens[token] || 0n) + amount;
+      }
+      walletCount++;
     }
-  } else {
-    console.warn(
-      `Delegation data for chain ${chainId} is not available or not in the expected format. Skipping delegation processing.`
+    console.log(
+      `Chain ${chainId}: ${walletCount} non-forwarder wallet(s) paid their ` +
+        `per-delegate amounts`
     );
   }
 

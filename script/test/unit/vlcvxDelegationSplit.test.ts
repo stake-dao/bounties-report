@@ -8,13 +8,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { VOTIUM_FORWARDER } from "../../utils/constants";
 
 const mocks = vi.hoisted(() => ({
-  getContributingWeightsAtVote: vi.fn(),
+  getContributingWeightsAtVoteRaw: vi.fn(),
   getVoteOf: vi.fn(),
   getForwardedDelegators: vi.fn(),
 }));
 
 vi.mock("../../utils/onChainDelegation", () => ({
-  getContributingWeightsAtVote: mocks.getContributingWeightsAtVote,
+  getContributingWeightsAtVoteRaw: mocks.getContributingWeightsAtVoteRaw,
 }));
 vi.mock("../../utils/gaugeVotePlatform", () => ({
   getVoteOf: mocks.getVoteOf,
@@ -46,7 +46,7 @@ beforeEach(() => {
 
 describe("computeStakeDaoDelegation", () => {
   it("with baseWeight 0 the full amount is the delegation pool, split by contributing weights", async () => {
-    mocks.getContributingWeightsAtVote.mockResolvedValue({ [D1]: 100, [D2]: 50 });
+    mocks.getContributingWeightsAtVoteRaw.mockResolvedValue({ [D1]: 100n * ONE, [D2]: 50n * ONE });
     mocks.getVoteOf.mockResolvedValue({
       gauges: [],
       weights: [],
@@ -82,8 +82,43 @@ describe("computeStakeDaoDelegation", () => {
     expect(d2.shareNonForwarders).toBe(d2.share);
   });
 
+  it("returns wei-exact per-delegator attribution that conserves the pool", async () => {
+    // 1000 split 2:1 → 666.67/333.33: floor gives 666/333, the leftover wei
+    // goes to the largest remainder (D1: 100e18 vs D2: 50e18 mod 150e18).
+    mocks.getContributingWeightsAtVoteRaw.mockResolvedValue({ [D1]: 100n * ONE, [D2]: 50n * ONE });
+    mocks.getVoteOf.mockResolvedValue({
+      gauges: [],
+      weights: [],
+      voted: true,
+      baseWeight: 0n,
+      adjustedWeight: 150n * ONE,
+    });
+    mocks.getForwardedDelegators.mockResolvedValue([
+      VOTIUM_FORWARDER,
+      "0x0000000000000000000000000000000000000000",
+    ]);
+
+    const { exact } = await computeStakeDaoDelegation(
+      proposal,
+      [D1, D2],
+      { [TOKEN]: 1000n },
+      DELEGATION_VOTER,
+      {} as any
+    );
+
+    expect(exact.delegate).toBe(DELEGATION_VOTER);
+    expect(exact.poolTokens).toEqual({ [TOKEN]: 1000n });
+    expect(exact.exactByDelegator[D1][TOKEN]).toBe(667n);
+    expect(exact.exactByDelegator[D2][TOKEN]).toBe(333n);
+    expect(
+      exact.exactByDelegator[D1][TOKEN] + exact.exactByDelegator[D2][TOKEN]
+    ).toBe(1000n);
+    expect(exact.forwarderFlags[D1]).toBe(true);
+    expect(exact.forwarderFlags[D2]).toBe(false);
+  });
+
   it("with baseWeight > 0 the delegate keeps floor(amount*base/effective), the pool gets the remainder", async () => {
-    mocks.getContributingWeightsAtVote.mockResolvedValue({ [D1]: 60, [D2]: 40 });
+    mocks.getContributingWeightsAtVoteRaw.mockResolvedValue({ [D1]: 60n * ONE, [D2]: 40n * ONE });
     mocks.getVoteOf.mockResolvedValue({
       gauges: [],
       weights: [],
@@ -112,7 +147,7 @@ describe("computeStakeDaoDelegation", () => {
   });
 
   it("throws when contributing weights do not reconcile with the applied vote", async () => {
-    mocks.getContributingWeightsAtVote.mockResolvedValue({ [D1]: 10 });
+    mocks.getContributingWeightsAtVoteRaw.mockResolvedValue({ [D1]: 10n * ONE });
     mocks.getVoteOf.mockResolvedValue({
       gauges: [],
       weights: [],
@@ -127,7 +162,7 @@ describe("computeStakeDaoDelegation", () => {
   });
 
   it("throws when the delegate has no vote on the proposal", async () => {
-    mocks.getContributingWeightsAtVote.mockResolvedValue({});
+    mocks.getContributingWeightsAtVoteRaw.mockResolvedValue({});
     mocks.getVoteOf.mockResolvedValue({
       gauges: [],
       weights: [],
@@ -144,7 +179,7 @@ describe("computeStakeDaoDelegation", () => {
   it("refuses to strand a non-empty pool when no delegator has a contributing weight", async () => {
     // base 9 + adjusted 1 => pool = 10% of tokens, but the only delegator
     // contributes 0 (drift -1 stays within the 0.1*1+1 tolerance)
-    mocks.getContributingWeightsAtVote.mockResolvedValue({ [D1]: 0 });
+    mocks.getContributingWeightsAtVoteRaw.mockResolvedValue({ [D1]: 0n });
     mocks.getVoteOf.mockResolvedValue({
       gauges: [],
       weights: [],
@@ -159,7 +194,7 @@ describe("computeStakeDaoDelegation", () => {
   });
 
   it("throws on a voted account with non-positive effective weight", async () => {
-    mocks.getContributingWeightsAtVote.mockResolvedValue({ [D1]: 0 });
+    mocks.getContributingWeightsAtVoteRaw.mockResolvedValue({ [D1]: 0n });
     mocks.getVoteOf.mockResolvedValue({
       gauges: [],
       weights: [],

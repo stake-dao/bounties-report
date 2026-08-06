@@ -4,18 +4,16 @@ import * as dotenv from "dotenv";
 import * as moment from "moment";
 dotenv.config();
 
-import { type PublicClient, formatUnits, getAddress, pad } from "viem";
+import { type PublicClient, formatUnits, getAddress } from "viem";
 import { http, createPublicClient } from "viem";
 import { mainnet } from "../../utils/chains";
 import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 import type { MerkleData } from "../../interfaces/MerkleData";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
 import {
-	CRVUSD,
 	CVX_SPACE,
 	SCRVUSD,
 	CVX_GAUGE_VOTE_PLATFORM_CURVE,
-	VLCVX_DELEGATORS_MERKLE,
 } from "../../utils/constants";
 import {
 	getOnChainProposal,
@@ -25,8 +23,6 @@ import { getClient } from "../../utils/getClients";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
-// Removed unused price utils imports
-import { WETH_ADDRESS } from "../../utils/reportUtils";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { getSCRVUsdTransfer } from "../utils";
 import {
@@ -34,6 +30,42 @@ import {
 	hasClaimedVotiumBounties,
 	type ForwarderPayoutResult,
 } from "./votiumForwarderPayouts";
+import {
+	hasPerDelegateAttribution,
+	getExactGroupAmounts,
+} from "../../utils/delegationExact";
+import {
+	computeValueWeights,
+	mergeEntitlements,
+	usdToPico,
+} from "./forwarderProceedsSplit";
+import { splitAmountByWeights } from "../2_repartition/delegators";
+import { getTokenPrices } from "../../utils/priceUtils";
+
+// Strict ERC-20 decimals read: tokenService.getTokenDecimals silently
+// defaults to 18 on lookup failure (and for legitimate 0-decimal tokens),
+// which would misvalue an entitlement by powers of ten — fail instead.
+const ERC20_DECIMALS_ABI = [
+	{
+		inputs: [],
+		name: "decimals",
+		outputs: [{ name: "", type: "uint8" }],
+		stateMutability: "view",
+		type: "function",
+	},
+] as const;
+
+async function getStrictDecimals(
+	publicClient: PublicClient,
+	token: string,
+): Promise<number> {
+	const decimals = await publicClient.readContract({
+		address: token as `0x${string}`,
+		abi: ERC20_DECIMALS_ABI,
+		functionName: "decimals",
+	});
+	return Number(decimals);
+}
 
 // Number of seconds in one week
 const WEEK = 604800;
@@ -109,8 +141,8 @@ const curveDelegationData = JSON.parse(
 );
 const curveDelegationSummary = curveDelegationData.distribution;
 
-let fxnDelegationData = null;
-let fxnDelegationSummary = null;
+let fxnDelegationData: any = null;
+let fxnDelegationSummary: any = null;
 try {
 	fxnDelegationData = JSON.parse(fs.readFileSync(FXN_DELEGATION_FILE, "utf8"));
 	fxnDelegationSummary = fxnDelegationData.distribution;
@@ -132,306 +164,6 @@ const totalFxnForwardersShare = Number.parseFloat(
 if (totalCurveForwardersShare <= 0 && totalFxnForwardersShare <= 0) {
 	console.warn("No forwarders found in delegation data.");
 	process.exit(0);
-}
-
-// There is FXN + Curve. We need to know shares of each (for the total CRVUSD); because delegators can be different
-// One can be not present on one (voted by himself), but present on the other
-async function getProtocolShares(
-	publicClient: PublicClient,
-	totalScrvUsd: bigint,
-	txHashes: string[],
-) {
-	// --- File Paths & Data Loading ---
-	const curveDelegationFilePath = path.join(
-		"bounties-reports",
-		currentPeriodTimestamp.toString(),
-		"vlCVX",
-		"curve",
-		"repartition_delegation.json",
-	);
-	const fxnDelegationFilePath = path.join(
-		"bounties-reports",
-		currentPeriodTimestamp.toString(),
-		"vlCVX",
-		"fxn",
-		"repartition_delegation.json",
-	);
-
-	let curveDelegationSummary: any = null;
-	if (fs.existsSync(curveDelegationFilePath)) {
-		const data = JSON.parse(fs.readFileSync(curveDelegationFilePath, "utf8"));
-		curveDelegationSummary = data.distribution;
-	} else {
-		throw new Error("Curve delegation file not found");
-	}
-
-	let fxnDelegationSummary: any = null;
-	let hasFxnDelegation = false;
-	try {
-		const data = JSON.parse(fs.readFileSync(fxnDelegationFilePath, "utf8"));
-		fxnDelegationSummary = data.distribution;
-		hasFxnDelegation = true;
-	} catch (_error) {
-		console.log("No FXN delegation file found, allocating all to Curve");
-	}
-
-	// --- Initialize Delegation Maps (Normalize Keys) ---
-	const totalCurveVM: { [token: string]: bigint } = {};
-	const totalFxnVM: { [token: string]: bigint } = {};
-
-	if (curveDelegationSummary.totalPerGroup) {
-		for (const [token, amount] of Object.entries(
-			curveDelegationSummary.totalPerGroup,
-		)) {
-			if (amount.forwarders) {
-				totalCurveVM[token.toLowerCase()] = BigInt(amount.forwarders);
-			}
-		}
-	}
-
-	if (fxnDelegationSummary?.totalPerGroup) {
-		for (const [token, amount] of Object.entries(
-			fxnDelegationSummary.totalPerGroup,
-		)) {
-			if (amount.forwarders) {
-				totalFxnVM[token.toLowerCase()] = BigInt(amount.forwarders);
-			}
-		}
-	}
-
-	// --- Load Votium Data ---
-	const votiumClaimedBountiesFilePath = path.join(
-		"weekly-bounties",
-		currentPeriodTimestamp.toString(),
-		"votium",
-		"claimed_bounties_convex.json",
-	);
-
-	let votiumClaimedBounties = { curve: {}, fxn: {} };
-	let votiumForwarders = { tokenAllocations: {} };
-
-	// Make Votium file optional
-	if (fs.existsSync(votiumClaimedBountiesFilePath)) {
-		votiumClaimedBounties = JSON.parse(
-			fs.readFileSync(votiumClaimedBountiesFilePath, "utf8"),
-		);
-
-		const votiumForwardPath = path.join(
-			"weekly-bounties",
-			currentPeriodTimestamp.toString(),
-			"votium",
-			"forwarders_voted_rewards.json",
-		);
-
-		if (fs.existsSync(votiumForwardPath)) {
-			votiumForwarders = JSON.parse(fs.readFileSync(votiumForwardPath, "utf8"));
-
-			// Only process forwarders if we have valid data
-			if (votiumForwarders.tokenAllocations) {
-				// Subtract forwarders amounts
-				for (const [_, data] of Object.entries(
-					votiumForwarders.tokenAllocations,
-				)) {
-					for (const [token, values] of Object.entries(
-						data as Record<string, string>,
-					)) {
-						const key = token.toLowerCase();
-						if (totalCurveVM[key])
-							totalCurveVM[key] -= BigInt(values.amountWei);
-						if (totalFxnVM[key]) totalFxnVM[key] -= BigInt(values.amountWei);
-					}
-				}
-			}
-		} else {
-			console.log(
-				"Votium forwarders file not found, skipping forwarders processing",
-			);
-		}
-	} else {
-		console.log("Votium claimed bounties file not found, using empty data");
-	}
-
-	const totalCurveVotium: { [token: string]: bigint } = {};
-	const totalFxnVotium: { [token: string]: bigint } = {};
-
-	for (const [_, data] of Object.entries(votiumClaimedBounties.curve)) {
-		const token = (data.rewardToken as string).toLowerCase();
-		totalCurveVotium[token] =
-			(totalCurveVotium[token] || 0n) + BigInt(data.amount);
-	}
-	for (const [_, data] of Object.entries(votiumClaimedBounties.fxn)) {
-		const token = (data.rewardToken as string).toLowerCase();
-		totalFxnVotium[token] = (totalFxnVotium[token] || 0n) + BigInt(data.amount);
-	}
-
-	// --- Merge Delegation & Votium Tokens ---
-	const totalCurveTokens: { [token: string]: bigint } = { ...totalCurveVM };
-	const totalFxnTokens: { [token: string]: bigint } = { ...totalFxnVM };
-
-	for (const [token, amount] of Object.entries(totalCurveVotium)) {
-		totalCurveTokens[token] = (totalCurveTokens[token] || 0n) + amount;
-	}
-	for (const [token, amount] of Object.entries(totalFxnVotium)) {
-		totalFxnTokens[token] = (totalFxnTokens[token] || 0n) + amount;
-	}
-
-	// If no FXN delegation, everything belongs to Curve — no split needed.
-	if (!hasFxnDelegation) {
-		return {
-			curveCrvUsdAmount: totalScrvUsd,
-			fxnCrvUsdAmount: 0n,
-		};
-	}
-
-	// --- Attribute each deposit tx's minted sCRVUSD to Curve/FXN ---
-	// Each swap tx moves reward tokens out of the VM/Votium source, swaps them
-	// (the route varies: legacy ALL_MIGHT token→WETH→crvUSD hops, ALL_MIGHT_V2 +
-	// aggregator since Aug 2026) and mints sCRVUSD to the distributor within the
-	// same tx. Tracing individual swap legs is route-dependent and silently
-	// breaks on executor migrations, so instead split each tx's minted sCRVUSD
-	// by the protocol weights of the reward tokens moved in that tx. Swap
-	// batches are built per protocol, so in practice a tx is 100% Curve or FXN.
-	const TRANSFER_TOPIC =
-		"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-	const PADDED_DISTRIBUTOR = pad(VLCVX_DELEGATORS_MERKLE as `0x${string}`, {
-		size: 32,
-	}).toLowerCase();
-	const scrvUsdLower = SCRVUSD.toLowerCase();
-	const excludedTokens = new Set([
-		scrvUsdLower,
-		CRVUSD.toLowerCase(),
-		WETH_ADDRESS.toLowerCase(),
-	]);
-
-	let curveCrvUsdAmount = 0n;
-	let fxnCrvUsdAmount = 0n;
-
-	for (const txHash of txHashes) {
-		let receipt;
-		let retries = 0;
-		const maxRetries = 10;
-
-		while (retries < maxRetries) {
-			try {
-				receipt = await publicClient.getTransactionReceipt({
-					hash: txHash as `0x${string}`,
-				});
-				break;
-			} catch (error: any) {
-				if (retries === maxRetries - 1) throw error;
-
-				// Check if it's a receipt not found error
-				if (error.name === 'TransactionReceiptNotFoundError' ||
-					(error.message && error.message.includes('could not be found'))) {
-					console.warn(`Receipt not found for ${txHash}, retrying (${retries + 1}/${maxRetries})...`);
-					await new Promise(resolve => setTimeout(resolve, 2000 * (retries + 1)));
-					retries++;
-				} else {
-					throw error;
-				}
-			}
-		}
-
-		if (!receipt) {
-			throw new Error(`Failed to fetch receipt for ${txHash}`);
-		}
-
-		let mintedToDistributor = 0n;
-		const inputTokens = new Set<string>();
-		for (const log of receipt.logs) {
-			if (
-				!log.topics ||
-				!log.topics[0] ||
-				log.topics[0].toLowerCase() !== TRANSFER_TOPIC ||
-				log.topics.length < 3
-			)
-				continue;
-			const token = log.address.toLowerCase();
-			if (
-				token === scrvUsdLower &&
-				(log.topics[2] as string).toLowerCase() === PADDED_DISTRIBUTOR
-			) {
-				mintedToDistributor += BigInt(log.data);
-			} else if (
-				!excludedTokens.has(token) &&
-				(totalCurveTokens[token] !== undefined ||
-					totalFxnTokens[token] !== undefined)
-			) {
-				inputTokens.add(token);
-			}
-		}
-		if (mintedToDistributor === 0n) continue;
-
-		let curveWeight = 0n;
-		let fxnWeight = 0n;
-		for (const token of inputTokens) {
-			curveWeight += totalCurveTokens[token] || 0n;
-			fxnWeight += totalFxnTokens[token] || 0n;
-		}
-		const totalWeight = curveWeight + fxnWeight;
-		// Unattributable deposit (e.g. a WETH-only leg): skip — the final
-		// normalization spreads it pro-rata across both protocols.
-		if (totalWeight === 0n) continue;
-
-		const curvePart = (mintedToDistributor * curveWeight) / totalWeight;
-		curveCrvUsdAmount += curvePart;
-		fxnCrvUsdAmount += mintedToDistributor - curvePart;
-	}
-
-	// Never write a silent zero distribution while sCRVUSD actually arrived:
-	// fail the run so the pipeline halts before set-root.
-	if (totalScrvUsd > 0n && curveCrvUsdAmount + fxnCrvUsdAmount === 0n) {
-		throw new Error(
-			`Protocol split attributed 0 of ${totalScrvUsd} sCRVUSD across ${txHashes.length} deposit tx(s) — refusing to write an empty distribution. Did the swap route change?`,
-		);
-	}
-
-	console.log(
-		`Protocol split: curve=${curveCrvUsdAmount} fxn=${fxnCrvUsdAmount} (total on-chain: ${totalScrvUsd})`,
-	);
-
-	// Normalize with totalScrvUsd
-	const computedTotal = curveCrvUsdAmount + fxnCrvUsdAmount;
-	if (computedTotal > 0n) {
-		curveCrvUsdAmount = (curveCrvUsdAmount * totalScrvUsd) / computedTotal;
-		fxnCrvUsdAmount = (fxnCrvUsdAmount * totalScrvUsd) / computedTotal;
-	}
-	return { curveCrvUsdAmount, fxnCrvUsdAmount };
-}
-
-async function computeShares(totalScrvUsd: bigint, delegationSummary: any) {
-	// Return empty distribution if no delegation summary
-	if (!delegationSummary || !delegationSummary.forwarders) {
-		return {};
-	}
-
-	const combined: {
-		[address: string]: { tokens: { [token: string]: bigint } };
-	} = {};
-
-	// Iterate over each forwarder from the delegation summary
-	// Calculate their portion of crvUSD
-	for (const [address, shareStr] of Object.entries(
-		delegationSummary.forwarders,
-	)) {
-		const share = Number.parseFloat(shareStr);
-		if (share <= 0) continue; // Skip any zero or negative shares
-
-		// Convert the address to EIP-55 format
-		const addr = getAddress(address);
-
-		// Calculate sCRVUSD amount for everyone
-		const scrvUsdAmount =
-			(totalScrvUsd * BigInt(Math.floor(share * 1e18))) / BigInt(1e18);
-
-		// Only add if the user gets a non-zero allocation
-		if (scrvUsdAmount > 0n) {
-			combined[addr] = { tokens: {} };
-			combined[addr].tokens[SCRVUSD] = scrvUsdAmount;
-		}
-	}
-
-	return combined;
 }
 
 /**
@@ -558,6 +290,16 @@ async function processForwarders() {
 		return;
 	}
 
+	// Invalidate the previous run's audit artifacts BEFORE recomputing: the
+	// verifiers key on these files, so a FORCE_MERKLE re-run must not leave a
+	// stale split breakdown (or stale Votium payouts) describing a merkle
+	// that no longer exists. Both are rewritten by the steps that produce
+	// them.
+	fs.rmSync(path.join(reportsDir, "delegators_split_breakdown.json"), {
+		force: true,
+	});
+	fs.rmSync(VOTIUM_PAYOUTS_ARTIFACT, { force: true });
+
 	// Create a public viem client for mainnet (using an RPC URL from .env if provided)
 	const publicClient = createPublicClient({
 		chain: mainnet,
@@ -608,22 +350,6 @@ async function processForwarders() {
 		availableForDistribution.toString(),
 	);
 
-	const protocolShares = await getProtocolShares(
-		publicClient,
-		availableForDistribution, // Use the amount after fee deduction
-		scrvUsdTransfer.txHashes,
-	);
-
-	// Split : Curve & FXN
-	const curveCombined = await computeShares(
-		protocolShares.curveCrvUsdAmount,
-		curveDelegationSummary,
-	);
-
-	const fxnCombined = fxnDelegationSummary
-		? await computeShares(protocolShares.fxnCrvUsdAmount, fxnDelegationSummary)
-		: {};
-
 	// Merge the two distributions (sum token amounts if same address)
 	const combined: {
 		[address: string]: { tokens: { [token: string]: bigint } };
@@ -648,11 +374,139 @@ async function processForwarders() {
 		}
 	};
 
-	// First add all curve distributions
-	mergeDistributions(curveCombined, combined);
+	// --- Split the pool among delegator-forwarders ---
+	// The pool is split by each wallet's USD-VALUED exact entitlement
+	// (Σ token amount × price, from the per-delegate attribution — a wallet
+	// weighs only the tokens its own delegate earned). Real deposit txs batch
+	// many tokens into ONE sCRVUSD mint, so receipt-level per-token proceeds
+	// are not readable without fragile route tracing; value weighting keeps
+	// the split exact per entitlement while socializing swap slippage across
+	// the pool. Votium-leftover value (below-floor wallets, cap overflow) is
+	// pooled by design and follows the same weights.
+	for (const [label, summary] of [
+		["curve", curveDelegationSummary],
+		["fxn", fxnDelegationSummary],
+	] as const) {
+		if (summary && !hasPerDelegateAttribution(summary)) {
+			throw new Error(
+				`${label} delegation file has no perDelegate attribution ` +
+					`(pre-cutover format?) — regenerate the repartition before ` +
+					`building the delegators merkle`,
+			);
+		}
+	}
 
-	// Then add all fxn distributions (summing where needed)
-	mergeDistributions(fxnCombined, combined);
+	if (availableForDistribution > 0n) {
+		const curveFwdExact = getExactGroupAmounts(
+			curveDelegationSummary,
+			"forwarders",
+		);
+		const fxnFwdExact = fxnDelegationSummary
+			? getExactGroupAmounts(fxnDelegationSummary, "forwarders")
+			: {};
+		const entitlements = mergeEntitlements(curveFwdExact, fxnFwdExact);
+		const vmTokens = new Set<string>();
+		for (const tokens of Object.values(entitlements)) {
+			for (const [token, amount] of Object.entries(tokens)) {
+				if (amount > 0n) vmTokens.add(token);
+			}
+		}
+		if (vmTokens.size === 0) {
+			// Never observed: sCRVUSD arrived while no forwarder holds any
+			// VotemarketV2 entitlement (pure Votium leftover). There is no
+			// entitlement basis to split on — stop instead of inventing one.
+			throw new Error(
+				"sCRVUSD to distribute but no VotemarketV2 forwarder entitlement " +
+					"this period — no basis to split the pool, aborting",
+			);
+		}
+
+		// Prices (same source as the Votium USD attribution) + strict
+		// on-chain decimals. computeValueWeights hard-fails on a missing
+		// price/decimals: a zero-weighted token would silently move its
+		// holders' money.
+		const tokenList = [...vmTokens];
+		const prices = await getTokenPrices(
+			tokenList.map((address) => ({ chainId: 1, address })),
+			"4h",
+		);
+		const pricePicoByToken: Record<string, bigint> = {};
+		const priceUsdByToken: Record<string, number> = {};
+		const decimalsByToken: Record<string, number> = {};
+		for (const token of tokenList) {
+			const usd = prices[`ethereum:${token}`] ?? 0;
+			priceUsdByToken[token] = usd;
+			pricePicoByToken[token] = usdToPico(usd, `price of ${token}`);
+			decimalsByToken[token] = await getStrictDecimals(publicClient, token);
+		}
+
+		const valueWeights = computeValueWeights(
+			entitlements,
+			pricePicoByToken,
+			decimalsByToken,
+		);
+		const totalValuePico = Object.values(valueWeights).reduce(
+			(a, b) => a + b,
+			0n,
+		);
+		const walletScrvUsd = splitAmountByWeights(
+			availableForDistribution,
+			valueWeights,
+		);
+
+		const perWalletBreakdown: Record<
+			string,
+			{ valuePico: string; total: string }
+		> = {};
+		const delegatorDistribution: {
+			[address: string]: { tokens: { [token: string]: bigint } };
+		} = {};
+		for (const [wallet, amount] of Object.entries(walletScrvUsd)) {
+			if (amount <= 0n) continue;
+			const addr = getAddress(wallet);
+			delegatorDistribution[addr] = { tokens: { [SCRVUSD]: amount } };
+			perWalletBreakdown[addr] = {
+				valuePico: (valueWeights[wallet] ?? 0n).toString(),
+				total: amount.toString(),
+			};
+		}
+		mergeDistributions(delegatorDistribution, combined);
+
+		// Audit artifact: records the price vector used and lets
+		// verifyForwardersMerkle / the inline verifier check exact
+		// per-address deltas.
+		const breakdownPath = path.join(
+			reportsDir,
+			"delegators_split_breakdown.json",
+		);
+		fs.mkdirSync(reportsDir, { recursive: true });
+		fs.writeFileSync(
+			breakdownPath,
+			JSON.stringify(
+				{
+					period: currentPeriodTimestamp,
+					mode: "value-weighted-exact-entitlements",
+					availableForDistribution: availableForDistribution.toString(),
+					totalValuePico: totalValuePico.toString(),
+					pricesUsd: priceUsdByToken,
+					decimals: decimalsByToken,
+					perWallet: perWalletBreakdown,
+				},
+				null,
+				2,
+			),
+		);
+		console.log(
+			`${Object.keys(perWalletBreakdown).length} forwarder(s) paid by ` +
+				`value-weighted exact entitlements ` +
+				`(${(Number(totalValuePico) / 1e12).toFixed(2)} USD of VM value); ` +
+				`breakdown saved to ${breakdownPath}`,
+		);
+	} else {
+		console.log(
+			"No sCRVUSD left for the delegator split after the Votium payouts.",
+		);
+	}
 
 	// Pay each direct-voter forwarder individually (replaces the old aggregate
 	// governance claim). Keys on both sides are EIP-55 checksummed, so a mixed
