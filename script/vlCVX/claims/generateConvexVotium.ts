@@ -8,16 +8,11 @@ import {
   VOTIUM_FORWARDER_REGISTRY,
   VLCVX_ONCHAIN_DELEGATION_ADDRESS,
   DELEGATION_ADDRESS,
-  CVX_GAUGE_DELEGATION,
-  CVX_GAUGE_VOTE_HELPER,
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
   WEEK,
 } from "../../utils/constants";
-import {
-  getContributingWeightsAtVote,
-  getDelegatesAtEpoch,
-} from "../../utils/onChainDelegation";
+import { expandDelegateVotes } from "../../shared/effectiveVotes";
 import {
   getOnChainProposal,
   getOnChainVoters,
@@ -47,17 +42,10 @@ import {
   reconcileVotiumClaimAllocations,
 } from "./votiumClaimAllocations";
 
-const THE_UNION_ADDRESS = "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49";
-
 interface Forwarder {
   address: string;
   type: "delegator" | "direct-voter";
   votingPower: number;
-  delegatedTo?: string; // e.g. The Union — resolved on-chain at the epoch
-  isUnionDelegator?: boolean;
-  // Weight actually incorporated in The Union's vote on THIS proposal
-  // (GaugeVoteHelper): 0 when the wallet voted directly or synced late.
-  unionContributingWeight?: number;
 }
 
 interface TokenAllocation {
@@ -132,12 +120,10 @@ function customReplacer(_key: string, value: any): any {
  *    never the delegate contributing weights, which belong to the
  *    repartition_delegation pipeline.
  *
- * Votium attributes rewards to each underlying wallet even behind a delegate
- * (that is what its forward registry exists for), so a wallet delegating to
- * The Union while forwarding to us earns its slice of The Union's vote here.
- * Membership is resolved on-chain at the epoch — a hardcoded list used to
- * pin it (with fixed VP), and one listed wallet had moved its delegation to
- * StakeDAO, getting paid twice for the same vlCVX.
+ * Votes passed in are EXPANDED (expandDelegateVotes): every delegate vote is
+ * already exploded into per-delegator virtual votes, so a wallet delegating
+ * to any delegate while forwarding to us appears here as a plain voter with
+ * its exact contributing weight.
  */
 export async function getAllForwarders(
   space: string,
@@ -200,43 +186,15 @@ export async function getAllForwarders(
     (delegatorData?.delegators ?? []).map((delegator) => delegator.toLowerCase())
   );
 
-  const epoch = Number(proposal.snapshot); // vlCVX epoch
-  const client = await getClient(1);
   const nonVoters = forwarderAddresses.filter(
     (address) => !voteByAddress.has(address.toLowerCase())
   );
   const onChainVotingPowers =
     nonVoters.length > 0
-      ? await getOnChainVotingPower(epoch, nonVoters, client)
-      : {};
-
-  // Union membership is a per-wallet reverse lookup on the same delegation
-  // contract the delegator set comes from: one delegate per wallet per epoch,
-  // so a StakeDAO delegator can never also be a Union delegator.
-  const delegateOf = await getDelegatesAtEpoch(
-    CVX_GAUGE_DELEGATION,
-    epoch,
-    forwarderAddresses,
-    client
-  );
-  const theUnionLower = THE_UNION_ADDRESS.toLowerCase();
-
-  // A union delegator's slice of The Union's vote is its weight AS COUNTED in
-  // that vote on this platform proposal — not its raw vlCVX balance. The
-  // helper replays sync-nonce accounting: a wallet that voted directly or
-  // synced after The Union's vote contributes less (usually 0).
-  const unionDelegatorAddresses = forwarderAddresses.filter(
-    (address) => delegateOf[address.toLowerCase()] === theUnionLower
-  );
-  const unionContributingWeights =
-    unionDelegatorAddresses.length > 0
-      ? await getContributingWeightsAtVote(
-          CVX_GAUGE_VOTE_HELPER,
-          proposal.author,
-          Number(proposal.id),
-          THE_UNION_ADDRESS,
-          unionDelegatorAddresses,
-          client
+      ? await getOnChainVotingPower(
+          Number(proposal.snapshot), // vlCVX epoch
+          nonVoters,
+          await getClient(1)
         )
       : {};
 
@@ -246,7 +204,6 @@ export async function getAllForwarders(
     const votingPower = vote
       ? vote.vp ?? 0
       : onChainVotingPowers[address] ?? onChainVotingPowers[addrLower] ?? 0;
-    const isUnionDelegator = delegateOf[addrLower] === theUnionLower;
 
     return {
       address: addrLower,
@@ -254,11 +211,6 @@ export async function getAllForwarders(
         ? ("delegator" as const)
         : ("direct-voter" as const),
       votingPower,
-      delegatedTo: isUnionDelegator ? THE_UNION_ADDRESS : undefined,
-      isUnionDelegator,
-      unionContributingWeight: isUnionDelegator
-        ? unionContributingWeights[addrLower] ?? 0
-        : undefined,
     };
   });
 
@@ -278,56 +230,14 @@ function computeVoteSharesForGauge(
   const forwarderAddresses = new Set(forwarders.map((f) => f.address));
   const forwarderMap = new Map(forwarders.map((f) => [f.address, f]));
 
-  // Create a map of Union delegators for quick lookup
-  const unionDelegators = new Map<string, Forwarder>();
-  forwarders.forEach((f) => {
-    if (f.isUnionDelegator && (f.unionContributingWeight ?? 0) > 0) {
-      unionDelegators.set(f.address, f);
-    }
-  });
-
   const voterVp = new Map<string, number>();
-
-  // Find The Union's vote for this gauge
-  let unionVoteChoice: any = null;
-  const unionVote = votes.find(
-    (v) => v.voter.toLowerCase() === THE_UNION_ADDRESS.toLowerCase()
-  );
-  if (unionVote && unionVote.choice && unionVote.choice[gaugeChoiceId] !== undefined) {
-    unionVoteChoice = unionVote.choice;
-  }
 
   // Calculate effective VP for each forwarder on this gauge
   votes.forEach((vote) => {
     if (vote.choice && vote.choice[gaugeChoiceId] !== undefined) {
       const voter = vote.voter.toLowerCase();
 
-      // Skip if not a forwarder AND not The Union
-      if (!forwarderAddresses.has(voter) && voter !== THE_UNION_ADDRESS.toLowerCase()) return;
-
-      // Handle Union delegators separately
-      if (voter === THE_UNION_ADDRESS.toLowerCase() && unionDelegators.size > 0) {
-        unionDelegators.forEach((delegator) => {
-          let vpChoiceSum = 0;
-          let gaugeChoiceValue = 0;
-
-          Object.keys(unionVoteChoice).forEach((choiceId) => {
-            const val = unionVoteChoice[choiceId];
-            vpChoiceSum += val;
-            if (parseInt(choiceId) === gaugeChoiceId) {
-              gaugeChoiceValue = val;
-            }
-          });
-
-          if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
-            const effectiveVp =
-              ((delegator.unionContributingWeight ?? 0) * gaugeChoiceValue) /
-              vpChoiceSum;
-            voterVp.set(delegator.address, (voterVp.get(delegator.address) || 0) + effectiveVp);
-          }
-        });
-        return;
-      }
+      if (!forwarderAddresses.has(voter)) return;
 
       // Regular forwarder processing
       if (forwarderAddresses.has(voter)) {
@@ -425,62 +335,12 @@ function computeDelegationShareForGauge(
   const forwarderAddresses = new Set(forwarders.map((f) => f.address));
   const forwarderMap = new Map(forwarders.map((f) => [f.address, f]));
 
-  // Create a map of Union delegators
-  const unionDelegators = new Map<string, Forwarder>();
-  forwarders.forEach((f) => {
-    if (f.isUnionDelegator && (f.unionContributingWeight ?? 0) > 0) {
-      unionDelegators.set(f.address, f);
-    }
-  });
-
   let totalEffectiveVp = 0;
   let delegationEffectiveVp = 0;
-
-  // Find The Union's vote
-  const unionVote = votes.find(
-    (v) => v.voter.toLowerCase() === THE_UNION_ADDRESS.toLowerCase()
-  );
-  let unionChoice: any = null;
-  if (
-    unionVote &&
-    unionVote.choice &&
-    unionVote.choice[gaugeChoiceId] !== undefined
-  ) {
-    unionChoice = unionVote.choice;
-  }
 
   votes.forEach((vote) => {
     if (vote.choice && vote.choice[gaugeChoiceId] !== undefined) {
       const voter = vote.voter.toLowerCase();
-
-      // Handle Union vote separately
-      if (
-        voter === THE_UNION_ADDRESS.toLowerCase() &&
-        unionDelegators.size > 0
-      ) {
-        // Calculate effective VP for Union delegators
-        unionDelegators.forEach((delegator) => {
-          let vpChoiceSum = 0;
-          let gaugeChoiceValue = 0;
-
-          Object.keys(unionChoice).forEach((choiceId) => {
-            const val = unionChoice[choiceId];
-            vpChoiceSum += val;
-            if (parseInt(choiceId) === gaugeChoiceId) {
-              gaugeChoiceValue = val;
-            }
-          });
-
-          if (vpChoiceSum > 0 && gaugeChoiceValue > 0) {
-            const effectiveVp =
-              ((delegator.unionContributingWeight ?? 0) * gaugeChoiceValue) /
-              vpChoiceSum;
-            totalEffectiveVp += effectiveVp;
-            delegationEffectiveVp += effectiveVp;
-          }
-        });
-        return; // Don't count The Union's vote itself
-      }
 
       // Regular vote processing
       let vpChoiceSum = 0;
@@ -800,21 +660,6 @@ async function fetchProposalVotesWithAddressBreakdown(
     addressBreakdown[forwarder.address] = [];
   });
 
-  // Create a map to track Union delegators (those who delegated to The Union)
-  const unionDelegators = new Map<string, Forwarder>();
-
-  // Use the isUnionDelegator flag to identify Union delegators
-  for (const forwarder of forwarders) {
-    if (
-      forwarder.isUnionDelegator &&
-      (forwarder.unionContributingWeight ?? 0) > 0
-    ) {
-      unionDelegators.set(forwarder.address.toLowerCase(), forwarder);
-    }
-  }
-
-
-
   const processedVotes = votes.map((vote: any) => {
     let choicesWithInfos: any = {};
     if (vote.choice && typeof vote.choice === "object") {
@@ -830,22 +675,7 @@ async function fetchProposalVotesWithAddressBreakdown(
           };
           const voter = vote.voter.toLowerCase();
 
-          // Check if this is The Union's vote
-          if (voter === THE_UNION_ADDRESS.toLowerCase()) {
-            // Distribute The Union's votes to delegators who delegated to them
-            for (const [delegatorAddress] of unionDelegators) {
-              if (forwarderAddresses.has(delegatorAddress)) {
-                // Add the vote to the delegator's breakdown
-                addressBreakdown[delegatorAddress].push({
-                  proposalId,
-                  gauge: gaugeMappingWithInfos[gaugeKey].gauge,
-                  choiceId: gaugeMappingWithInfos[gaugeKey].choiceId,
-                  weight: vote.choice[choiceId],
-                  viaUnion: true, // Mark that this came via The Union
-                });
-              }
-            }
-          } else if (forwarderAddresses.has(voter)) {
+          if (forwarderAddresses.has(voter)) {
             // Regular forwarder vote
             addressBreakdown[voter].push({
               proposalId,
@@ -1097,9 +927,16 @@ export async function generateConvexVotiumBounties(
       );
     }
     const curveProposalId = curveProposal.id;
-    const curveVotes = await getOnChainVoters(
+    const curveVotesRaw = await getOnChainVoters(
       CVX_GAUGE_VOTE_PLATFORM_CURVE,
       Number(curveProposalId),
+      curveProposal,
+      ethereumClient
+    );
+    // Explode delegate votes into per-delegator virtual votes: downstream,
+    // every wallet is a plain voter with its exact contributing weight.
+    const curveVotes = await expandDelegateVotes(
+      curveVotesRaw,
       curveProposal,
       ethereumClient
     );
@@ -1198,9 +1035,14 @@ export async function generateConvexVotiumBounties(
           `Latest FXN on-chain proposal ${fxnProposal.id} has not started yet`
         );
       }
-      const fxnVotes = await getOnChainVoters(
+      const fxnVotesRaw = await getOnChainVoters(
         CVX_GAUGE_VOTE_PLATFORM_FXN,
         Number(fxnProposal.id),
+        fxnProposal,
+        ethereumClient
+      );
+      const fxnVotes = await expandDelegateVotes(
+        fxnVotesRaw,
         fxnProposal,
         ethereumClient
       );
