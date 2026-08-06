@@ -50,7 +50,22 @@ export const CVX_GAUGE_VOTE_PLATFORM_CURVE =
 export const CVX_GAUGE_VOTE_PLATFORM_FXN =
   "0xDcEa673B021f1f431E7D0Ec70a63bF8DcB6d44E6"; // FxGaugeVoting
 export const CVX_GAUGE_DELEGATION =
-  "0xb8270eef1319173dE9f5033FED442F638ff1607d"; // GaugeDelegation (NOT the DaoDelegation)
+  "0xb8270eef1319173dE9f5033FED442F638ff1607d";
+
+// Every delegation wallet operated by Stake DAO whose gauge vote must be
+// split among its own delegators (repartition + votium exclusions +
+// verifiers all key off this list — never hardcode one of them alone).
+export const STAKE_DAO_DELEGATION_ADDRESSES = [
+  VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  DELEGATION_ADDRESS,
+];
+
+// Known third-party delegate voters that legitimately carry delegated
+// weight and run their OWN distribution (their leaf must NOT be split).
+export const KNOWN_EXTERNAL_DELEGATE_VOTERS = [
+  "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", // The Union
+];
+ // GaugeDelegation (NOT the DaoDelegation)
 export const CVX_GAUGE_VOTE_HELPER =
   "0x76C484F67898EA978aa874dc7B32e648380FB9b1"; // GaugeVoteHelper (read-only contributing weights)
 export const CVX_GAUGE_DELEGATION_CREATION_BLOCK_ETH = 25478184;

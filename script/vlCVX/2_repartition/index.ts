@@ -10,6 +10,8 @@ import {
   CVX_GAUGE_VOTE_PLATFORM_CURVE,
   CVX_GAUGE_VOTE_PLATFORM_FXN,
   CVX_GAUGE_DELEGATION,
+  STAKE_DAO_DELEGATION_ADDRESSES,
+  KNOWN_EXTERNAL_DELEGATE_VOTERS,
 } from "../../utils/constants";
 import {
   getOnChainProposal,
@@ -153,6 +155,53 @@ const processGaugeProposal = async (
     publicClient
   );
 
+
+  // Defense against the next unknown delegation wallet: any voter that
+  // carries material delegated weight but is neither one of OUR delegation
+  // wallets nor a known external delegate would be paid as a plain voter —
+  // exactly how the legacy wallet slipped through. Warn loudly so it gets
+  // classified deliberately.
+  const recognizedDelegates = new Set(
+    [...STAKE_DAO_DELEGATION_ADDRESSES, ...KNOWN_EXTERNAL_DELEGATE_VOTERS].map(
+      (address) => address.toLowerCase()
+    )
+  );
+  const unrecognizedVoters = votes.filter(
+    (voter) => !recognizedDelegates.has(voter.voter.toLowerCase())
+  );
+  if (unrecognizedVoters.length > 0) {
+    const delegatedWeights = (await publicClient.multicall({
+      allowFailure: false,
+      contracts: unrecognizedVoters.map((voter) => ({
+        address: CVX_GAUGE_DELEGATION as `0x${string}`,
+        abi: [
+          {
+            inputs: [
+              { name: "epoch", type: "uint256" },
+              { name: "delegate", type: "address" },
+            ],
+            name: "balanceAtEpochOf",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ] as const,
+        functionName: "balanceAtEpochOf",
+        args: [BigInt(proposal.snapshot), voter.voter],
+      })),
+    })) as bigint[];
+    unrecognizedVoters.forEach((voter, index) => {
+      if (delegatedWeights[index] > 10n ** 18n) {
+        console.warn(
+          `⚠️  Voter ${voter.voter} carries ${delegatedWeights[index]} wei of ` +
+            `delegated weight but is not a recognized delegation wallet — its ` +
+            `delegators earn nothing through this repartition. If it is ours, ` +
+            `add it to STAKE_DAO_DELEGATION_ADDRESSES.`
+        );
+      }
+    });
+  }
+
   // --- 2) Process StakeDAO Delegators ---
   console.log("Fetching StakeDAO delegators...");
   const delegationAddress = VLCVX_ONCHAIN_DELEGATION_ADDRESS;
@@ -219,7 +268,7 @@ const processGaugeProposal = async (
   > = {};
   let combinedVp = 0;
 
-  for (const delegate of [delegationAddress, DELEGATION_ADDRESS]) {
+  for (const delegate of STAKE_DAO_DELEGATION_ADDRESSES) {
     const key = Object.keys(nonDelegatorsDistribution).find(
       (voter) => voter.toLowerCase() === delegate.toLowerCase()
     );
