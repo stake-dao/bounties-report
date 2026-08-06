@@ -1,6 +1,6 @@
 {
   "timestamp": 1785974400,
-  "message": "Votium forwarder rewards are paid in sCRVUSD through the delegators merkle, not through this combined merkle",
+  "message": "Individually attributed Votium forwarder legs are paid as raw token leaves in this combined merkle; Stake DAO-pooled legs settle through the Tuesday delegators pot",
   "forwardersData": {
     "curveVotes": {
       "0x0410489f9bdf8bba2f50b30a77e82109b9fd7a53": {
@@ -59796,7 +59796,7 @@
       "generatedAt": 1786010015
     }
   },
-  "totalRewardsSkipped": {
+  "totalRewardsPaid": {
     "0x01791f726b4103694969820be083196cc7c045ff": "65541670333538678165",
     "0x04acaf8d2865c0714f79da09645c13fd2888977f": "52212458707586116811",
     "0x365accfca291e7d3914637abf1f7635db165bb09": "16725732377758250",
@@ -59810,11 +59810,12 @@
     "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": "2146649959422834480",
     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": "13991395154218536655"
   },
-  "addressesSkipped": [
+  "addressesPaid": [
     "0x307cfaad607bb9afc4148a07b163c21a7b7e7bbd",
-    "0x8213d97f29227a8fa0fd6cc4c6c666345d8fbf97",
     "0x4b365bde1d8426fecdb06c78dccb8e1b179fff2c",
-    "0xe9379fe4f557bcbcc70038bf76eb7aaad628a899",
-    "0x4b908f3d5e46b89c0d8a6478f86c80b88aa277d3"
-  ]
+    "0x4b908f3d5e46b89c0d8a6478f86c80b88aa277d3",
+    "0x8213d97f29227a8fa0fd6cc4c6c666345d8fbf97",
+    "0xe9379fe4f557bcbcc70038bf76eb7aaad628a899"
+  ],
+  "belowFloor": []
 }
