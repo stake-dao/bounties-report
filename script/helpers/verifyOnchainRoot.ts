@@ -25,7 +25,7 @@ const URD_ABI = [
 
 const ZERO_ROOT = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-type Target = "delegators" | "voters";
+type Target = "delegators" | "voters" | "sdcrv" | "sdfxn";
 
 interface FileSpec {
   path: string;
@@ -44,7 +44,29 @@ const VLCVX_VOTERS: Record<number, `0x${string}`> = {
   8453: "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
 };
 
-function collectFiles(target: Target, period: number): FileSpec[] {
+const SDTKNS_URDS: Record<"sdcrv" | "sdfxn", { file: string; distributor: `0x${string}` }> = {
+  sdcrv: {
+    file: "sdtkns_merkle_1_sdcrv.json",
+    distributor: "0x32dA29D7F3aD8cF157C6427CecFD3f0665042A37",
+  },
+  sdfxn: {
+    file: "sdtkns_merkle_1_sdfxn.json",
+    distributor: "0xdD03449c5b8F1e2aF92FaA45Db6CCA268479b990",
+  },
+};
+
+export function collectFiles(target: Target, period: number): FileSpec[] {
+  if (target === "sdcrv" || target === "sdfxn") {
+    const spec = SDTKNS_URDS[target];
+    return [
+      {
+        path: path.join("bounties-reports", String(period), "sdTkns", spec.file),
+        chainId: 1,
+        distributor: spec.distributor,
+      },
+    ];
+  }
+
   const vlcvxDir = path.join("bounties-reports", String(period), "vlCVX");
   const files: FileSpec[] = [];
 
@@ -208,11 +230,11 @@ async function main() {
 
   if (!target || !periodStr) {
     console.error(
-      "Usage: verifyOnchainRoot --target <delegators|voters> --period <timestamp>",
+      "Usage: verifyOnchainRoot --target <delegators|voters|sdcrv|sdfxn> --period <timestamp>",
     );
     process.exit(2);
   }
-  if (!["delegators", "voters"].includes(target)) {
+  if (!["delegators", "voters", "sdcrv", "sdfxn"].includes(target)) {
     console.error(`Unknown target: ${target}`);
     process.exit(2);
   }
