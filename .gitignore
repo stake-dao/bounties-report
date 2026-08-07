@@ -43,3 +43,6 @@ bounties-reports/*/vlCVX/vp_breakdown.json
 
 # Local forecast archive for round 128 (dry-run inputs/outputs kept for comparison)
 .forecast-round128/
+
+# Union reassignment outputs (regenerated from chain and Snapshot on every run)
+script/vlCVX/union_reassign/out/
