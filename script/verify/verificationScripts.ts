@@ -52,6 +52,18 @@ const SCRIPTS: VerifyScript[] = [
     gate: true,
   },
   {
+    // Gate: aggregate + per-address reconciliation of the Tuesday delegators
+    // merkle against on-chain sCRVUSD and the split breakdown. Since ENG-2105
+    // the week's delta is "received - withheld + carried in", so this is also
+    // what stops a Votium half from being paid twice or not at all. Self-skips
+    // on Thursday runs, where no delegators merkle exists yet.
+    label: "vlCVX Delegators Pot Reconciliation",
+    path: "script/vlCVX/verify/verifyForwardersMerkle.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlCVX", "all"],
+    gate: true,
+  },
+  {
     label: "vlCVX Claims Completeness",
     path: "script/vlCVX/verify/claimsCompleteness.ts",
     args: (ts) => ["--timestamp", String(ts)],

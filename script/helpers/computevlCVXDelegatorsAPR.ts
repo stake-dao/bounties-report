@@ -30,7 +30,7 @@ import {
 import { getClient } from "../utils/getClients";
 import { extractCSV } from "../utils/utils";
 import { getClosestBlockTimestamp } from "../utils/chainUtils";
-import { writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { getAllRewardsForDelegators } from "./utils";
 
@@ -243,11 +243,34 @@ async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 		scrvUsdTransfer.amount.toString(),
 	);
 
+	// APR is about what was actually PAID this week, which since ENG-2105 is no
+	// longer everything that arrived: a period can hold back half of its Votium
+	// swap proceeds for the next distribution and pay in a half withheld
+	// earlier. The merkle records the pot it distributed; fall back to the raw
+	// transfers for periods generated before that artifact existed.
+	const breakdownPath = join(
+		"bounties-reports",
+		currentPeriodTimestamp.toString(),
+		"vlCVX",
+		"delegators_split_breakdown.json",
+	);
+	let distributedScrvUsd = scrvUsdTransfer.amount;
+	if (existsSync(breakdownPath)) {
+		const breakdown = JSON.parse(readFileSync(breakdownPath, "utf8"));
+		if (breakdown?.availableForDistribution) {
+			distributedScrvUsd = BigInt(breakdown.availableForDistribution);
+			console.log(
+				"sCRVUSD actually distributed this week (split breakdown):",
+				distributedScrvUsd.toString(),
+			);
+		}
+	}
+
 	// Calculate total delegator rewards by combining Thursday rewards and CRVUSD transfers
 	const totalDelegatorsRewards = { ...thursdayRewards };
 
 	// Add sCRVUSD transfers to forwarders on Ethereum chain
-	if (scrvUsdTransfer.amount > 0n) {
+	if (distributedScrvUsd > 0n) {
 		if (!totalDelegatorsRewards.chainRewards[1]) {
 			totalDelegatorsRewards.chainRewards[1] = {
 				rewards: {},
@@ -258,7 +281,7 @@ async function computeForwardersUSDPerCVX(): Promise<USDPerCVXResult> {
 		totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.forwarders[SCRVUSD] =
 			(totalDelegatorsRewards.chainRewards[1].rewardsPerGroup.forwarders[
 				SCRVUSD
-			] || 0n) + scrvUsdTransfer.amount;
+			] || 0n) + distributedScrvUsd;
 	}
 
 	console.log("Total delegators rewards (Ethereum):", {

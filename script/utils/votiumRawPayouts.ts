@@ -62,7 +62,10 @@ const usdToMicros = (value: unknown, label: string): bigint => {
 	return BigInt(micros);
 };
 
-const sumClaimedAmounts = (claimedBounties: unknown): Record<string, bigint> => {
+/** Claimed wei per lowercase reward token, summed over curve + fxn. */
+export const sumClaimedAmounts = (
+	claimedBounties: unknown,
+): Record<string, bigint> => {
 	const root = asRecord(claimedBounties, "claimedBounties");
 	const totals: Record<string, bigint> = {};
 
