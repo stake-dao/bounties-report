@@ -69,11 +69,43 @@ The payout path is deliberately strict:
 - the withdrawal instruction is written only after every merkle output
   landed, so a half-finished run cannot describe unpublished leaves.
 
-`createDelegatorsMerkle.ts` carries no Votium machinery anymore: the Tuesday
-pot is all sCRVUSD received by the delegators distributor, split by the
-pooled wallets' USD-valued VotemarketV2 entitlements
-(`delegators_split_breakdown.json` records the split;
-`verify/verifyForwardersMerkle.ts` checks exact per-address deltas from it).
+`createDelegatorsMerkle.ts` splits the Tuesday pot by the pooled wallets'
+USD-valued VotemarketV2 entitlements (`delegators_split_breakdown.json`
+records the split; `verify/verifyForwardersMerkle.ts` re-checks the pot total
+and the exact per-address deltas from it, and fails the pipeline when they
+disagree).
+
+## Votium proceeds over two weeks (ENG-2105)
+
+A Votium round is now swapped once, in the week its round ends, so what
+delegators earn no longer depends on where the market goes over the following
+fortnight. The payout is still spread over two Tuesdays — by the merkle rather
+than by the swap:
+
+- the merkle that follows the swap distributes **half** of the
+  Votium-attributable sCRVUSD and writes the rest to
+  `votium_scrvusd_carryover.json`;
+- the next distribution adds that carried half to its own pot and records the
+  period it consumed in `delegators_split_breakdown.json` →
+  `votium.carriedInFrom`, which is what stops a half from ever being paid
+  twice. A skipped Tuesday delays the second half by a week (look-back window:
+  4 weeks) instead of stranding it.
+
+Deposits are attributed per transaction: every source mints sCRVUSD to the
+distributor from the zero address, so a deposit counts as Votium only when its
+transaction also withdraws the vault's reward tokens to the shared executor —
+the fingerprint of the Votium batch. Residual settlements and orphan
+recoveries are separate transactions, so they are paid in full in the week
+they land; the breakdown artifact shows exactly how the pot was composed.
+
+Everything comes from chain state plus committed artifacts, so a
+`FORCE_MERKLE` re-run reproduces the same numbers, and a carryover is
+re-derived from the chain before it is spent.
+
+The split stays dormant until `VOTIUM_MERKLE_SPLIT_FROM_PERIOD`
+(`script/utils/constants.ts`, overridable with the `VOTIUM_MERKLE_SPLIT_FROM`
+env var) is set to the period of the first round swapped in one window — that
+is what makes this side and the swap job start on the same round.
 
 ## Commands
 

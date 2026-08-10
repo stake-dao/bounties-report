@@ -34,6 +34,18 @@ import {
 	mergeEntitlements,
 	usdToPico,
 } from "./forwarderProceedsSplit";
+import {
+	assertCarryoverMatchesChain,
+	carryoverPath,
+	classifyVotiumDeposits,
+	findUnconsumedCarryovers,
+	pooledVotiumRemainder,
+	isVotiumSplitActive,
+	planVotiumPot,
+	serializeCarryover,
+	splitVotiumProceeds,
+	type VotiumClassification,
+} from "../votiumSplit";
 import { splitAmountByWeights } from "../2_repartition/delegators";
 import { getTokenPrices } from "../../utils/priceUtils";
 
@@ -134,6 +146,12 @@ if (totalCurveForwardersShare <= 0 && totalFxnForwardersShare <= 0) {
  * are paid raw in the Thursday combined merkle, and the pooled legs' value
  * arrives already swapped inside the sCRVUSD received below, following the
  * same entitlement weights as the VotemarketV2 pot.
+ *
+ * Since ENG-2105 a round's Votium proceeds land in ONE period (the swap job
+ * sells the whole round right after it ends) but are still paid over two: this
+ * period keeps half and writes the rest to a carryover artifact that the next
+ * distribution picks up. Everything else in the pot — VoteMarket, bridged
+ * Convex CRV, settlements — is distributed the week it arrives, as before.
  */
 async function processForwarders() {
 	// Idempotency guard: abort if this period's merkle already exists, unless caller
@@ -149,12 +167,15 @@ async function processForwarders() {
 		return;
 	}
 
-	// Invalidate the previous run's audit artifact BEFORE recomputing: the
-	// verifiers key on this file, so a FORCE_MERKLE re-run must not leave a
-	// stale split breakdown describing a merkle that no longer exists.
+	// Invalidate the previous run's audit artifacts BEFORE recomputing: the
+	// verifiers key on these files, so a FORCE_MERKLE re-run must not leave a
+	// stale split breakdown or carryover describing a merkle that no longer
+	// exists. Both are rewritten from chain state below, so a re-run lands on
+	// the same numbers instead of compounding the previous ones.
 	fs.rmSync(path.join(reportsDir, "delegators_split_breakdown.json"), {
 		force: true,
 	});
+	fs.rmSync(carryoverPath(currentPeriodTimestamp), { force: true });
 
 	// Create a public viem client for mainnet (using an RPC URL from .env if provided)
 	const publicClient = createPublicClient({
@@ -174,20 +195,66 @@ async function processForwarders() {
 
 	// Query the sCRVUSD transfer data within the specified block range
 	const scrvUsdTransfer = await getSCRVUsdTransfer(minBlock, currentBlock);
-
-	// We store the total amount of sCRVUSD found during this time frame
-	let totalScrvUsd = scrvUsdTransfer.amount;
-
-	// Subtract a small buffer to avoid minor rounding issues
-	totalScrvUsd -= BigInt(10 ** 14);
-	if (totalScrvUsd <= 0n) {
-		throw new Error(
-			`No distributable sCRVUSD remains after the rounding buffer: ${totalScrvUsd}`,
-		);
-	}
+	const totalScrvUsd = scrvUsdTransfer.amount;
 	console.log("Total sCRVUSD received:", totalScrvUsd.toString());
 
-	const availableForDistribution = totalScrvUsd;
+	// Which of it came from the Votium swap, and what the two-week split makes
+	// of that. Everything here is derived from chain state and this period's
+	// claim data, so a re-run reproduces it exactly.
+	const getReceipt = (txHash: string) =>
+		publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+	const classifyRange = async (
+		fromBlock: number,
+		toBlock: number,
+	): Promise<VotiumClassification> => {
+		const { transfers } = await getSCRVUsdTransfer(fromBlock, toBlock);
+		return classifyVotiumDeposits(getReceipt, transfers);
+	};
+
+	const splitActive = isVotiumSplitActive(currentPeriodTimestamp);
+	const classification = splitActive
+		? await classifyVotiumDeposits(getReceipt, scrvUsdTransfer.transfers)
+		: { votiumAmount: 0n, nonVotiumAmount: totalScrvUsd, votiumTxs: [] };
+
+	// A carryover is money that arrived weeks ago, so it is re-derived from the
+	// chain over the range it was measured on before any of it is paid out.
+	const carryovers = splitActive
+		? findUnconsumedCarryovers(currentPeriodTimestamp)
+		: [];
+	for (const { carry } of carryovers) {
+		await assertCarryoverMatchesChain(carry, classifyRange);
+	}
+
+	const votiumPlan = planVotiumPot({
+		active: splitActive,
+		remainder: splitActive
+			? pooledVotiumRemainder(currentPeriodTimestamp)
+			: { claimDataPresent: false, hasRemainder: false },
+		classification,
+		carryovers,
+	});
+
+	if (splitActive) {
+		console.log(
+			`Votium split: ${votiumPlan.votiumReceived} wei attributable to the ` +
+				`Votium swap (${votiumPlan.votiumTxs.length} tx), withholding ` +
+				`${votiumPlan.withheld} wei for the next distribution, carrying in ` +
+				`${votiumPlan.carriedIn} wei from ` +
+				`[${votiumPlan.carriedInFrom.join(", ")}]`,
+		);
+	}
+
+	// Subtract a small buffer to avoid minor rounding issues
+	const availableForDistribution =
+		totalScrvUsd -
+		votiumPlan.withheld +
+		votiumPlan.carriedIn -
+		BigInt(10 ** 14);
+	if (availableForDistribution <= 0n) {
+		throw new Error(
+			`No distributable sCRVUSD remains after the rounding buffer: ${availableForDistribution}`,
+		);
+	}
 
 	// Merge the two distributions (sum token amounts if same address)
 	const combined: {
@@ -314,9 +381,10 @@ async function processForwarders() {
 		}
 		mergeDistributions(delegatorDistribution, combined);
 
-		// Audit artifact: records the price vector used and lets
-		// verifyForwardersMerkle / the inline verifier check exact
-		// per-address deltas.
+		// Audit artifact: records the price vector used, how the pot was
+		// composed, and lets verifyForwardersMerkle / the inline verifier check
+		// exact per-address deltas. `votium.carriedInFrom` is also what marks a
+		// carryover as paid, so a later period never pays it twice.
 		const breakdownPath = path.join(
 			reportsDir,
 			"delegators_split_breakdown.json",
@@ -330,6 +398,22 @@ async function processForwarders() {
 					mode: "value-weighted-exact-entitlements",
 					availableForDistribution: availableForDistribution.toString(),
 					totalValuePico: totalValuePico.toString(),
+					// The window the pot was measured over, so verifiers re-read
+					// exactly what this run saw instead of "everything up to now",
+					// which drifts as soon as another deposit lands.
+					fromBlock: minBlock,
+					toBlock: currentBlock,
+					received: totalScrvUsd.toString(),
+					votium: {
+						splitActive,
+						isRoundWeekA: votiumPlan.isRoundWeekA,
+						votiumReceived: votiumPlan.votiumReceived.toString(),
+						nonVotiumReceived: votiumPlan.nonVotiumReceived.toString(),
+						withheld: votiumPlan.withheld.toString(),
+						carriedIn: votiumPlan.carriedIn.toString(),
+						carriedInFrom: votiumPlan.carriedInFrom,
+						votiumTxs: votiumPlan.votiumTxs,
+					},
 					pricesUsd: priceUsdByToken,
 					decimals: decimalsByToken,
 					perWallet: perWalletBreakdown,
@@ -376,9 +460,13 @@ async function processForwarders() {
 
 	console.log("Delegators Merkle Root:", newMerkleData.merkleRoot);
 
-	// Integrity check: verify the cumulative delta across the new merkle vs the
-	// previous merkle matches the sCRVUSD actually received on-chain this period.
-	// A 2× delta indicates a stale `previousMerkleData` being re-accumulated.
+	// Integrity check: the cumulative delta across the new merkle vs the
+	// previous one must equal what this period is entitled to distribute —
+	// what arrived on-chain, less the half held back for the next period, plus
+	// any half carried in. Checked in BOTH directions: too much still means a
+	// stale `previousMerkleData` re-accumulated (the classic 2x), too little
+	// means the pot was under-distributed, which under the carryover scheme
+	// would silently strand money instead of paying it late.
 	const sumScrvUsd = (data: MerkleData): bigint => {
 		let total = 0n;
 		for (const claim of Object.values(data.claims || {})) {
@@ -391,10 +479,15 @@ async function processForwarders() {
 	const prevCumulative = sumScrvUsd(previousMerkleData);
 	const delta = newCumulative - prevCumulative;
 	const tolerance = BigInt(10 ** 15); // 0.001 sCRVUSD slack for rounding
-	if (delta > totalScrvUsd + tolerance) {
+	const drift = delta - availableForDistribution;
+	if (drift > tolerance || drift < -tolerance) {
 		throw new Error(
-			`Delegators merkle integrity check failed: cumulative delta ${delta} exceeds on-chain sCRVUSD received ${totalScrvUsd}. ` +
-				"Likely cause: stale previousMerkleData reinjection (re-run after publish).",
+			`Delegators merkle integrity check failed: cumulative delta ${delta} ` +
+				`does not match the distributable pot ${availableForDistribution} ` +
+				`(received ${totalScrvUsd}, withheld ${votiumPlan.withheld}, ` +
+				`carried in ${votiumPlan.carriedIn}). Likely causes: stale ` +
+				"previousMerkleData reinjection (re-run after publish), or a pot " +
+				"that was not fully allocated.",
 		);
 	}
 
@@ -408,6 +501,33 @@ async function processForwarders() {
 	console.log(
 		"Delegators Merkle tree generated and saved as merkle_data_delegators.json",
 	);
+
+	// The withheld half becomes an instruction for the next distribution —
+	// written only now, like the Thursday withdrawal instruction, so a run that
+	// died before producing a merkle cannot leave a claim on money it never
+	// withheld.
+	if (votiumPlan.withheld > 0n) {
+		const { distributed, carried } = splitVotiumProceeds(
+			votiumPlan.votiumReceived,
+		);
+		const carryFile = carryoverPath(currentPeriodTimestamp);
+		fs.writeFileSync(
+			carryFile,
+			serializeCarryover({
+				period: currentPeriodTimestamp,
+				votiumScrvUsd: votiumPlan.votiumReceived,
+				distributed,
+				carried,
+				fromBlock: minBlock,
+				toBlock: currentBlock,
+				sourceTxs: votiumPlan.votiumTxs,
+			}),
+		);
+		console.log(
+			`Votium carryover saved to ${carryFile}: ${carried} wei for the next ` +
+				"delegators distribution",
+		);
+	}
 
 	// Attempt to verify distribution on mainnet
 	try {
