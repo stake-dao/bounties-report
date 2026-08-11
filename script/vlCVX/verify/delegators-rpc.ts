@@ -1,600 +1,360 @@
 /**
- * Verify vlCVX delegators using direct RPC calls to Snapshot Delegation Registry
- * instead of relying solely on block explorer APIs (parquet cache).
+ * vlCVX on-chain delegator verification (post on-chain cutover).
  *
- * This script:
- * 1. Fetches SetDelegate and ClearDelegate events from Snapshot Delegation Registry
- * 2. Reconstructs delegation state at the snapshot block
- * 3. Compares with the parquet cache and current repartition_delegation.json
+ * Recomputes each protocol's delegation attribution from epoch-pinned chain
+ * state and compares it wei-exact against repartition_delegation.json
+ * (+ chain-split files):
+ *
+ * 1. Round binding — the artifact's proposalId/epoch must match the on-chain
+ *    proposal resolved for the period (same pinning as generation).
+ * 2. Delegate set — on-chain delegate voters (voters with
+ *    GaugeDelegation.balanceAtEpochOf > 0) vs the file's perDelegate keys;
+ *    a delegate voter that earned rewards with delegated weight but was paid
+ *    as a plain voter (the epoch-230 0x52ea… incident class) fails.
+ * 3. Per delegate — delegator enumeration via DelegateSet logs with the
+ *    exact completeness assert against the contract's own accounting,
+ *    contributing weights AT THE VOTE via GaugeVoteHelper (not raw VP, not
+ *    the mutable epoch table), reconciliation against the applied vote,
+ *    wei-exact largest-remainder split of the file's pools, and
+ *    Votium-registry forwarding facts at the proposal-end block.
+ *
+ * Every read is pinned to the proposal/epoch, so re-running days later gives
+ * identical results.
  *
  * Usage:
  *   pnpm tsx script/vlCVX/verify/delegators-rpc.ts [--timestamp <ts>] [--gauge-type <curve|fxn|all>]
+ *
+ * Exit code: 0 = artifact matches the recomputation, 1 = mismatch.
  */
 
 import * as dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
-import { formatBytes32String } from "ethers/lib/utils";
+import { formatUnits } from "viem";
 import { getClient } from "../../utils/getClients";
 import {
-  DELEGATION_ADDRESS,
-  DELEGATE_REGISTRY,
-  DELEGATE_REGISTRY_CREATION_BLOCK_ETH,
   CVX_SPACE,
+  CVX_FXN_SPACE,
   WEEK,
+  CVX_GAUGE_VOTE_PLATFORM_CURVE,
+  CVX_GAUGE_VOTE_PLATFORM_FXN,
+  CVX_GAUGE_DELEGATION,
+  CVX_GAUGE_VOTE_HELPER,
+  VOTIUM_FORWARDER,
 } from "../../utils/constants";
-import { fetchLastProposalsIds, getProposal, getVoters } from "../../utils/snapshot";
-import { parseAbiItem, getAddress, createPublicClient, http, PublicClient } from "viem";
-import { getAvailableEndpoints } from "../../utils/rpcConfig";
-import { CHAINS_BY_ID } from "../../utils/chains";
 import {
-  DelegationEvent,
-  loadDelegationStatesAtSnapshots,
-} from "./delegationState";
+  getOnChainProposal,
+  getOnChainVoters,
+  getVoteOf,
+} from "../../utils/gaugeVotePlatform";
+import {
+  getOnChainDelegators,
+  getContributingWeightsAtVoteRaw,
+} from "../../utils/onChainDelegation";
+import { getForwardedDelegators } from "../../utils/delegationHelper";
+import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
+import { splitAmountByWeights } from "../2_repartition/delegators";
+import {
+  MergedDelegateLeg,
+  WalletTokenAmounts,
+  compareDelegateAttribution,
+  delegateSetIssues,
+  loadDelegationArtifacts,
+  loadRepartitionVoterKeys,
+  mergeDelegationChainFiles,
+} from "./delegatorsVerifyCore";
 
 dotenv.config();
 
-const SNAPSHOT_SCORE_API = "https://score.snapshot.org/api/scores";
+const BALANCE_CHUNK = 400;
 
-// Snapshot Delegation Registry events
-const SET_DELEGATE_EVENT = parseAbiItem(
-  "event SetDelegate(address indexed delegator, bytes32 indexed id, address indexed delegate)"
-);
+const DELEGATION_BALANCE_ABI = [
+  {
+    inputs: [
+      { name: "epoch", type: "uint256" },
+      { name: "delegate", type: "address" },
+    ],
+    name: "balanceAtEpochOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
-const CLEAR_DELEGATE_EVENT = parseAbiItem(
-  "event ClearDelegate(address indexed delegator, bytes32 indexed id, address indexed delegate)"
-);
-
-/**
- * Fetch voting power for multiple addresses using the Snapshot scoring API.
- * This is the authoritative source — it runs the exact same strategy computation
- * as Snapshot itself, so the VP filter here is identical to what Snapshot uses
- * when tallying votes. Strategies and snapshot block are taken directly from the
- * proposal object so they stay in sync automatically.
- */
-async function fetchSnapshotScores(
-  addresses: string[],
-  strategies: Array<{ name: string; params: Record<string, unknown> }>,
-  snapshotBlock: number,
-  space: string
-): Promise<Map<string, number>> {
-  const scores = new Map<string, number>();
-
-  if (addresses.length === 0) return scores;
-
-  console.log(`Fetching Snapshot VP for ${addresses.length} addresses at block ${snapshotBlock}...`);
-
-  // Snapshot scoring API handles up to ~1000 addresses per call
-  const BATCH_SIZE = 500;
-  for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
-    const batch = addresses.slice(i, i + BATCH_SIZE);
-
-    const res = await fetch(SNAPSHOT_SCORE_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        params: {
-          network: "1",
-          snapshot: snapshotBlock,
-          strategies,
-          space,
-          addresses: batch,
-        },
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Snapshot score API error: ${res.status} ${await res.text()}`);
-
-    const data = (await res.json()) as { result?: { scores?: Record<string, number>[] } };
-    const stratScores = data.result?.scores ?? [];
-
-    // Sum VP across all strategies for each address
-    for (const stratScore of stratScores) {
-      for (const [addr, vp] of Object.entries(stratScore)) {
-        const key = addr.toLowerCase();
-        scores.set(key, (scores.get(key) ?? 0) + vp);
-      }
-    }
+const delegatedBalances = async (
+  voters: string[],
+  epoch: number,
+  client: any
+): Promise<bigint[]> => {
+  const out: bigint[] = [];
+  for (let i = 0; i < voters.length; i += BALANCE_CHUNK) {
+    const chunk = voters.slice(i, i + BALANCE_CHUNK);
+    const results = (await client.multicall({
+      allowFailure: false,
+      contracts: chunk.map((voter) => ({
+        address: CVX_GAUGE_DELEGATION as `0x${string}`,
+        abi: DELEGATION_BALANCE_ABI,
+        functionName: "balanceAtEpochOf",
+        args: [BigInt(epoch), voter],
+      })),
+    })) as bigint[];
+    out.push(...results);
   }
+  return out;
+};
 
-  const nonZeroCount = [...scores.values()].filter((v) => v > 0).length;
-  console.log(`  ${nonZeroCount}/${addresses.length} addresses have non-zero VP`);
-
-  return scores;
-}
-
-/**
- * Fetch all SetDelegate and ClearDelegate events from Delegation Registry
- */
-async function fetchDelegationEvents(
-  targetDelegate: string,
-  spaceBytes32: string,
-  toBlock: bigint
-): Promise<DelegationEvent[]> {
-  const FIRST_STAKEDAO_DELEGATION_BLOCK = 21_000_000n;
-  const fromBlock = FIRST_STAKEDAO_DELEGATION_BLOCK > BigInt(DELEGATE_REGISTRY_CREATION_BLOCK_ETH)
-    ? FIRST_STAKEDAO_DELEGATION_BLOCK
-    : BigInt(DELEGATE_REGISTRY_CREATION_BLOCK_ETH);
-  const normalizedDelegate = getAddress(targetDelegate);
-
-  console.log(`Fetching delegation events from block ${fromBlock} to ${toBlock}...`);
-  console.log(`  Target delegate: ${normalizedDelegate}`);
-  console.log(`  Space (bytes32): ${spaceBytes32}`);
-
-  // Historical getLogs over ~4.4M blocks. Two independent failure modes:
-  //  - the provider caps the window (results or block range) → a smaller range fixes it
-  //  - the provider cannot serve the query at all (no archive access, persistent
-  //    rate limit) → no window is small enough; only another endpoint fixes it
-  // Halving handles the first, endpoint rotation the second.
-  const endpoints = getAvailableEndpoints(1);
-  if (endpoints.length === 0) throw new Error("No RPC endpoints configured for chain 1");
-  const clients: { url: string; client: PublicClient }[] = endpoints.map((e) => ({
-    url: e.url,
-    client: createPublicClient({
-      chain: CHAINS_BY_ID[1],
-      transport: http(e.url, { retryCount: 2, retryDelay: 500, timeout: 30000 }),
-    }),
-  }));
-
-  const BATCH_SIZE = 45_000n;
-  // Floor on halving: below this a rejection is the provider refusing the query,
-  // not the window being too wide, so rotate instead of recursing to single blocks.
-  const MIN_RANGE = 1_000n;
-  const MAX_RATE_LIMIT_RETRIES = 5;
-
-  const isRangeLimitError = (error: any): boolean => {
-    const msg = (error?.message || "").toLowerCase();
-    return (
-      msg.includes("query returned more than") ||
-      msg.includes("block range") ||
-      msg.includes("too large") ||
-      msg.includes("limited to") ||
-      msg.includes("response size exceeded") ||
-      error?.code === -32005 ||
-      error?.code === -32600 ||
-      error?.code === -32602
-    );
-  };
-
-  const isRateLimitError = (error: any): boolean => {
-    const msg = (error?.message || "").toLowerCase();
-    return msg.includes("429") || msg.includes("rate") || error?.code === 429;
-  };
-
-  // Fetch Set+Clear logs for a range on one client. On a range-limit error, split
-  // the window and recurse until it fits or hits MIN_RANGE. Returns the events
-  // instead of pushing them, so an outer retry can never double-count a
-  // partially-fetched window.
-  const fetchRange = async (
-    client: PublicClient,
-    from: bigint,
-    to: bigint
-  ): Promise<DelegationEvent[]> => {
-    try {
-      const [setLogs, clearLogs] = await Promise.all([
-        client.getLogs({
-          address: getAddress(DELEGATE_REGISTRY),
-          event: SET_DELEGATE_EVENT,
-          args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
-          fromBlock: from,
-          toBlock: to,
-        }),
-        client.getLogs({
-          address: getAddress(DELEGATE_REGISTRY),
-          event: CLEAR_DELEGATE_EVENT,
-          args: { id: spaceBytes32 as `0x${string}`, delegate: normalizedDelegate },
-          fromBlock: from,
-          toBlock: to,
-        }),
-      ]);
-
-      const out: DelegationEvent[] = [];
-      for (const log of setLogs) {
-        out.push({
-          delegator: (log.args as any).delegator.toLowerCase(),
-          space: (log.args as any).id,
-          delegate: (log.args as any).delegate.toLowerCase(),
-          blockNumber: log.blockNumber,
-          eventType: "Set",
-        });
-      }
-      for (const log of clearLogs) {
-        out.push({
-          delegator: (log.args as any).delegator.toLowerCase(),
-          space: (log.args as any).id,
-          delegate: (log.args as any).delegate.toLowerCase(),
-          blockNumber: log.blockNumber,
-          eventType: "Clear",
-        });
-      }
-      return out;
-    } catch (error: any) {
-      if (isRangeLimitError(error) && to - from > MIN_RANGE) {
-        const mid = from + (to - from) / 2n;
-        console.log(`  Range ${from}-${to} rejected, splitting at ${mid}...`);
-        const left = await fetchRange(client, from, mid);
-        const right = await fetchRange(client, mid + 1n, to);
-        return [...left, ...right];
-      }
-      throw error;
-    }
-  };
-
-  const events: DelegationEvent[] = [];
-  let clientIdx = 0;
-  let currentFrom = fromBlock;
-  let batchCount = 0;
-  let rateLimitStrikes = 0;
-
-  while (currentFrom <= toBlock) {
-    const currentTo = currentFrom + BATCH_SIZE > toBlock ? toBlock : currentFrom + BATCH_SIZE;
-    const { url, client } = clients[clientIdx];
-
-    try {
-      const fetched = await fetchRange(client, currentFrom, currentTo);
-      events.push(...fetched);
-      batchCount++;
-      rateLimitStrikes = 0;
-
-      if (batchCount % 20 === 0) {
-        console.log(`  Block ${currentTo}/${toBlock}, ${events.length} events found so far...`);
-      }
-      currentFrom = currentTo + 1n;
-    } catch (error: any) {
-      if (isRateLimitError(error) && rateLimitStrikes < MAX_RATE_LIMIT_RETRIES) {
-        rateLimitStrikes++;
-        console.log(
-          `  Rate limited on ${url}, retry ${rateLimitStrikes}/${MAX_RATE_LIMIT_RETRIES} in ${rateLimitStrikes * 2}s...`
-        );
-        await new Promise((resolve) => setTimeout(resolve, rateLimitStrikes * 2000));
-      } else if (clientIdx < clients.length - 1) {
-        // Halving already failed down to MIN_RANGE, or the endpoint is rate-limiting
-        // us out of the run: this provider cannot serve the scan. Try the next one.
-        clientIdx++;
-        rateLimitStrikes = 0;
-        console.log(
-          `  ${url} unusable (${String(error.message ?? "").split("\n")[0]}), switching to ${clients[clientIdx].url}`
-        );
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  console.log(`  Found ${events.length} total delegation events`);
-  return events;
-}
-
-/**
- * Read parquet file to compare with RPC data
- */
-async function readParquetDelegators(
-  delegationAddress: string,
-  spaceBytes32: string,
-  snapshotTimestamp: number
-): Promise<string[]> {
-  const filePath = path.join(
+const verifyGaugeType = async (
+  gt: "curve" | "fxn",
+  timestamp: number,
+  client: any
+): Promise<string[]> => {
+  const issues: string[] = [];
+  const platform =
+    gt === "curve" ? CVX_GAUGE_VOTE_PLATFORM_CURVE : CVX_GAUGE_VOTE_PLATFORM_FXN;
+  const space = gt === "curve" ? CVX_SPACE : CVX_FXN_SPACE;
+  const dirAbs = path.join(
     __dirname,
-    `../../../data/delegations/1/${delegationAddress}.parquet`
+    `../../../bounties-reports/${timestamp}/vlCVX/${gt}`
   );
 
-  if (!fs.existsSync(filePath)) {
-    console.warn(`Parquet file not found: ${filePath}`);
-    return [];
+  console.log(`\n${"=".repeat(70)}`);
+  console.log(`Verifying ${gt.toUpperCase()} against on-chain state`);
+  console.log("=".repeat(70));
+
+  if (!fs.existsSync(path.join(dirAbs, "repartition.json"))) {
+    issues.push(`${gt}: repartition.json missing — round artifacts absent`);
+    console.log(`❌ repartition.json missing`);
+    return issues;
   }
 
-  try {
-    const { parquetRead, asyncBufferFromFile } = await import("hyparquet");
+  const files = loadDelegationArtifacts(dirAbs);
+  const proposal = await getOnChainProposal(platform, space, client, {
+    targetPeriod: timestamp,
+  });
+  const proposalId = Number(proposal.id);
+  const epoch = Number(proposal.snapshot);
+  console.log(
+    `On-chain proposal ${proposalId} (vlCVX epoch ${epoch}), end ${proposal.end}`
+  );
 
-    let data: any[] = [];
-    await parquetRead({
-      file: await asyncBufferFromFile(filePath),
-      rowFormat: "object",
-      onComplete: (result: any[]) => {
-        data = result;
-      },
+  if (files.length > 0) {
+    const [main] = files;
+    if (String(main.proposalId) !== String(proposal.id)) {
+      issues.push(
+        `${gt}: artifact proposal ${main.proposalId} != on-chain proposal ${proposal.id} for this period`
+      );
+    }
+    if (Number(main.snapshotBlock) !== epoch) {
+      issues.push(
+        `${gt}: artifact epoch ${main.snapshotBlock} != on-chain epoch ${epoch}`
+      );
+    }
+    if (issues.length > 0) {
+      for (const issue of issues) console.log(`❌ ${issue}`);
+      return issues;
+    }
+  } else {
+    console.log(
+      `No repartition_delegation.json — legitimacy decided by the delegate-set check below`
+    );
+  }
+
+  const votes = await getOnChainVoters(platform, proposalId, proposal, client);
+  const voterAddresses = votes.map((v: { voter: string }) => v.voter);
+  const balances = await delegatedBalances(voterAddresses, epoch, client);
+  const delegateVoters = voterAddresses.filter((_, i) => balances[i] > 0n);
+  console.log(
+    `Voters: ${voterAddresses.length}, delegate voters (delegated weight > 0): ${delegateVoters.length}`
+  );
+
+  let merged: Record<string, MergedDelegateLeg> = {};
+  try {
+    merged = mergeDelegationChainFiles(files.map((f) => f.summary));
+  } catch (error) {
+    issues.push(`${gt}: ${(error as Error).message}`);
+    console.log(`❌ ${(error as Error).message}`);
+    return issues;
+  }
+  const fileDelegates = Object.keys(merged);
+  const repartitionVoters = loadRepartitionVoterKeys(dirAbs);
+
+  const delegateVoterSet = new Set(delegateVoters);
+  const adjustedWeights: Record<string, bigint> = {};
+  for (const d of delegateVoters) {
+    if (fileDelegates.includes(d) || !repartitionVoters.has(d)) continue;
+    const vote = await getVoteOf(platform, proposalId, d, client);
+    adjustedWeights[d] = vote.adjustedWeight;
+  }
+
+  const setIssues = delegateSetIssues({
+    fileDelegates,
+    delegateVoters,
+    repartitionVoters,
+    adjustedWeights,
+  });
+  for (const issue of setIssues) console.log(`❌ ${issue}`);
+  issues.push(...setIssues.map((i) => `${gt}: ${i}`));
+
+  if (fileDelegates.length === 0) {
+    if (issues.length === 0) {
+      console.log(`✅ ${gt.toUpperCase()}: no delegation rewards this round — consistent`);
+    }
+    return issues;
+  }
+
+  const blockEnd = await getBlockNumberByTimestamp(proposal.end, "after", 1);
+  console.log(`Votium forwarding facts read at block ${blockEnd} (proposal end)`);
+
+  for (const delegate of fileDelegates) {
+    if (!delegateVoterSet.has(delegate)) continue; // already flagged above
+
+    let delegators: string[];
+    try {
+      delegators = await getOnChainDelegators(
+        CVX_GAUGE_DELEGATION,
+        delegate,
+        epoch,
+        client
+      );
+    } catch (error) {
+      const msg = `delegate ${delegate}: delegator enumeration failed — ${(error as Error).message}`;
+      issues.push(`${gt}: ${msg}`);
+      console.log(`❌ ${msg}`);
+      continue;
+    }
+
+    const weightsWei = await getContributingWeightsAtVoteRaw(
+      CVX_GAUGE_VOTE_HELPER,
+      platform,
+      proposalId,
+      delegate,
+      delegators,
+      client
+    );
+    const contributing = Object.values(weightsWei).filter((w) => w > 0n).length;
+
+    const vote = await getVoteOf(platform, proposalId, delegate, client);
+    const totalVp = Number(
+      formatUnits(
+        Object.values(weightsWei).reduce((acc, w) => acc + w, 0n),
+        18
+      )
+    );
+    const baseWeight = Number(formatUnits(vote.baseWeight, 18));
+    const effectiveWeight = Number(
+      formatUnits(vote.baseWeight + vote.adjustedWeight, 18)
+    );
+    const tolerance = 0.1 * delegators.length + 1;
+    const drift = baseWeight + totalVp - effectiveWeight;
+    if (!vote.voted || Math.abs(drift) > tolerance) {
+      const msg =
+        `delegate ${delegate}: contributing weights do not reconcile with the applied ` +
+        `vote (base ${baseWeight.toFixed(2)} + helper ${totalVp.toFixed(2)} vs ` +
+        `effective ${effectiveWeight.toFixed(2)}, drift ${drift.toFixed(2)}, ` +
+        `tolerance ±${tolerance.toFixed(1)})`;
+      issues.push(`${gt}: ${msg}`);
+      console.log(`❌ ${msg}`);
+      continue;
+    }
+
+    const recomputed: WalletTokenAmounts = {};
+    try {
+      for (const [token, amount] of Object.entries(merged[delegate].poolTokens)) {
+        const split = splitAmountByWeights(amount, weightsWei);
+        for (const [addr, amt] of Object.entries(split)) {
+          if (amt === 0n) continue;
+          (recomputed[addr] ??= {})[token] = amt;
+        }
+      }
+    } catch (error) {
+      const msg = `delegate ${delegate}: ${(error as Error).message}`;
+      issues.push(`${gt}: ${msg}`);
+      console.log(`❌ ${msg}`);
+      continue;
+    }
+
+    const members = Object.keys(recomputed);
+    const forwarded = await getForwardedDelegators(members, blockEnd);
+    const forwarderFlags: Record<string, boolean> = {};
+    members.forEach((wallet, i) => {
+      forwarderFlags[wallet] =
+        forwarded[i].toLowerCase() === VOTIUM_FORWARDER.toLowerCase();
     });
 
-    // Filter by space and timestamp
-    const filtered = data.filter(
-      (d) =>
-        d.spaceId?.toLowerCase() === spaceBytes32.toLowerCase() &&
-        d.timestamp <= snapshotTimestamp &&
-        d.event !== "EndBlock"
+    const legIssues = compareDelegateAttribution({
+      delegate,
+      fileLeg: merged[delegate],
+      recomputed,
+      forwarderFlags,
+    });
+    const fileFwd = Object.keys(merged[delegate].forwarders).length;
+    const fileNonFwd = Object.keys(merged[delegate].nonForwarders).length;
+    console.log(
+      `delegate ${delegate}: ${delegators.length} delegators, ${contributing} contributing, ` +
+        `${members.length} earning → file ${fileFwd} fwd + ${fileNonFwd} non-fwd — ` +
+        (legIssues.length === 0 ? `exact match` : `MISMATCH (${legIssues.length})`)
     );
-
-    // Group events by user
-    const userEvents: Record<string, string[]> = {};
-    for (const entry of filtered) {
-      const user = entry.user.toLowerCase();
-      if (!userEvents[user]) {
-        userEvents[user] = [];
-      }
-      userEvents[user].push(entry.event);
+    for (const issue of legIssues.slice(0, 10)) console.log(`  ❌ ${issue}`);
+    if (legIssues.length > 10) {
+      console.log(`  … and ${legIssues.length - 10} more`);
     }
-
-    // Keep only users whose last event is "Set"
-    const activeDelegators: string[] = [];
-    for (const [user, events] of Object.entries(userEvents)) {
-      if (events[events.length - 1] === "Set") {
-        activeDelegators.push(user);
-      }
-    }
-
-    return activeDelegators;
-  } catch (error) {
-    console.error(`Error reading parquet file:`, error);
-    return [];
+    issues.push(...legIssues.map((i) => `${gt}: ${i}`));
   }
-}
 
-async function main() {
+  if (issues.length === 0) {
+    const wallets = Object.values(merged).reduce(
+      (acc, leg) =>
+        acc +
+        Object.keys(leg.forwarders).length +
+        Object.keys(leg.nonForwarders).length,
+      0
+    );
+    console.log(
+      `✅ ${gt.toUpperCase()}: ${fileDelegates.length} delegate(s), ${wallets} wallets — ` +
+        `wei-exact match with on-chain recomputation, forwarding flags match`
+    );
+  }
+  return issues;
+};
+
+const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
-
   let timestamp: number | undefined;
   let gaugeType: "curve" | "fxn" | "all" = "all";
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--timestamp" && args[i + 1]) {
-      timestamp = parseInt(args[i + 1]);
-      i++;
+      timestamp = parseInt(args[++i]);
     } else if (args[i] === "--gauge-type" && args[i + 1]) {
-      gaugeType = args[i + 1] as "curve" | "fxn" | "all";
-      i++;
-    } else if (args[i] === "--help") {
-      console.log(`
-Usage: pnpm tsx script/vlCVX/verify/delegators-rpc.ts [options]
-
-Options:
-  --timestamp <ts>    Period timestamp (default: current period)
-  --gauge-type <type> Gauge type: curve, fxn, or all (default: all)
-  --help              Show this help message
-`);
-      process.exit(0);
+      gaugeType = args[++i] as "curve" | "fxn" | "all";
     }
   }
-
-  // Default to current period
   if (!timestamp) {
-    const now = Math.floor(Date.now() / 1000);
-    timestamp = Math.floor(now / WEEK) * WEEK;
+    timestamp = Math.floor(Math.floor(Date.now() / 1000) / WEEK) * WEEK;
   }
 
-  console.log("=".repeat(80));
-  console.log("vlCVX Delegators Verification via RPC");
-  console.log("=".repeat(80));
-  console.log(`\nPeriod: ${timestamp} (${new Date(timestamp * 1000).toISOString()})`);
+  console.log("=".repeat(70));
+  console.log(`vlCVX On-Chain Delegator Verification — period ${timestamp}`);
+  console.log("=".repeat(70));
 
   const gaugeTypes: Array<"curve" | "fxn"> =
-    gaugeType === "all" ? ["curve", "fxn"] : [gaugeType as "curve" | "fxn"];
+    gaugeType === "all" ? ["curve", "fxn"] : [gaugeType];
+  const client = await getClient(1);
 
-  const stakeDAODelegateAddress = DELEGATION_ADDRESS;
-  console.log(`StakeDAO delegation address: ${stakeDAODelegateAddress}`);
-
-  const space = CVX_SPACE;
-  const spaceBytes32 = formatBytes32String(space);
-  const gaugeContexts: Array<{
-    gaugeType: "curve" | "fxn";
-    proposalId: string;
-    proposal: Awaited<ReturnType<typeof getProposal>>;
-    snapshotBlock: bigint;
-  }> = [];
-
+  const allIssues: string[] = [];
   for (const gt of gaugeTypes) {
-    const filter =
-      gt === "fxn"
-        ? "^FXN.*Gauge Weight for Week of"
-        : "^(?!FXN ).*Gauge Weight for Week of";
-    const proposalIdPerSpace = await fetchLastProposalsIds(
-      [CVX_SPACE],
-      timestamp + WEEK,
-      filter
-    );
-    const proposalId = proposalIdPerSpace[CVX_SPACE];
-
-    if (!proposalId) {
-      console.error(`No proposal found for ${gt} gauge type`);
-      continue;
-    }
-
-    const proposal = await getProposal(proposalId);
-    gaugeContexts.push({
-      gaugeType: gt,
-      proposalId,
-      proposal,
-      snapshotBlock: BigInt(proposal.snapshot),
-    });
+    allIssues.push(...(await verifyGaugeType(gt, timestamp, client)));
   }
 
-  console.log("\n--- Fetching shared delegations via RPC ---");
-  const rpcDelegatorsByGauge = await loadDelegationStatesAtSnapshots(
-    gaugeContexts.map(({ gaugeType: key, snapshotBlock }) => ({
-      key,
-      snapshotBlock,
-    })),
-    (toBlock) =>
-      fetchDelegationEvents(
-        stakeDAODelegateAddress,
-        spaceBytes32,
-        toBlock
-      )
-  );
-
-  for (const context of gaugeContexts) {
-    const { gaugeType: gt, proposalId, proposal, snapshotBlock } = context;
-    console.log("\n" + "=".repeat(80));
-    console.log(`Verifying ${gt.toUpperCase()} gauge type`);
-    console.log("=".repeat(80));
-
-    // Both Curve and FXN use the same cvx.eth space for delegation
-    // (only the proposal filter differs - FXN proposals have "FXN" prefix)
-    console.log(`Space: ${space} (used for both Curve and FXN delegation)`);
-    console.log(`Space (bytes32): ${spaceBytes32}`);
-
-    console.log(`Proposal: ${proposal.title}`);
-    console.log(`Proposal ID: ${proposalId}`);
-    console.log(`Snapshot block: ${snapshotBlock}`);
-
-    // Get snapshot block timestamp
-    const publicClient = await getClient(1);
-    const snapshotBlockData = await publicClient.getBlock({ blockNumber: snapshotBlock });
-    const snapshotTimestamp = Number(snapshotBlockData.timestamp);
-    console.log(
-      `Snapshot timestamp: ${snapshotTimestamp} (${new Date(snapshotTimestamp * 1000).toISOString()})`
-    );
-
-    // Fetch voters to exclude those who voted directly
-    const votes = await getVoters(proposalId);
-    const directVoters = new Set(votes.map((v) => v.voter.toLowerCase()));
-    console.log(`Direct voters: ${directVoters.size}`);
-
-    // === RPC-based delegation discovery ===
-    console.log("\n--- Reconstructing delegations from shared RPC events ---");
-    const rpcDelegators = rpcDelegatorsByGauge.get(gt);
-    if (!rpcDelegators) {
-      throw new Error(`Missing reconstructed RPC delegators for ${gt}`);
-    }
-    console.log(`RPC delegators (raw): ${rpcDelegators.length}`);
-
-    // Remove direct voters and delegation address
-    const rpcDelegatorsAfterVoters = rpcDelegators.filter(
-      (d) =>
-        !directVoters.has(d) && d !== stakeDAODelegateAddress.toLowerCase()
-    );
-    console.log(`RPC delegators (after removing voters): ${rpcDelegatorsAfterVoters.length}`);
-
-    // === Filter by voting power (via Snapshot scoring API) ===
-    console.log("\n--- Checking voting power via Snapshot scoring API ---");
-    const vpMap = await fetchSnapshotScores(
-      rpcDelegatorsAfterVoters,
-      proposal.strategies,
-      Number(proposal.snapshot),
-      CVX_SPACE
-    );
-
-    const zeroVpDelegators: string[] = [];
-    const rpcDelegatorsFiltered: string[] = [];
-
-    for (const delegator of rpcDelegatorsAfterVoters) {
-      const vp = vpMap.get(delegator) ?? 0;
-      if (vp > 0) {
-        rpcDelegatorsFiltered.push(delegator);
-      } else {
-        zeroVpDelegators.push(delegator);
-      }
-    }
-
-    console.log(`Delegators with zero VP: ${zeroVpDelegators.length}`);
-    if (zeroVpDelegators.length > 0 && zeroVpDelegators.length <= 10) {
-      for (const addr of zeroVpDelegators) {
-        console.log(`  ${addr}`);
-      }
-    }
-    console.log(`RPC delegators (after removing zero-VP): ${rpcDelegatorsFiltered.length}`);
-
-    // === Parquet-based delegation (for comparison) ===
-    console.log("\n--- Fetching delegations via Parquet cache ---");
-
-    const parquetDelegators = await readParquetDelegators(
-      stakeDAODelegateAddress,
-      spaceBytes32,
-      snapshotTimestamp
-    );
-    const parquetDelegatorsFiltered = parquetDelegators.filter(
-      (d) =>
-        !directVoters.has(d) && d !== stakeDAODelegateAddress.toLowerCase()
-    );
-    console.log(`Parquet delegators (after filtering): ${parquetDelegatorsFiltered.length}`);
-
-    // === Load repartition file ===
-    const dirPath = `bounties-reports/${timestamp}/vlCVX/${gt}`;
-    const delegationFilePath = path.join(__dirname, `../../../${dirPath}/repartition_delegation.json`);
-
-    let existingDelegators: string[] = [];
-    if (fs.existsSync(delegationFilePath)) {
-      const delegationData = JSON.parse(fs.readFileSync(delegationFilePath, "utf-8"));
-      const forwarders = Object.keys(delegationData.distribution?.forwarders || {});
-      const nonForwarders = Object.keys(delegationData.distribution?.nonForwarders || {});
-      existingDelegators = [...forwarders, ...nonForwarders].map((a) => a.toLowerCase());
-      console.log(`\nRepartition file delegators: ${existingDelegators.length}`);
-    } else {
-      console.warn(`\nRepartition file not found: ${delegationFilePath}`);
-    }
-
-    // === Comparison ===
-    console.log("\n" + "=".repeat(60));
-    console.log("COMPARISON RESULTS");
-    console.log("=".repeat(60));
-
-    const rpcSet = new Set(rpcDelegatorsFiltered);
-    const parquetSet = new Set(parquetDelegatorsFiltered);
-    const existingSet = new Set(existingDelegators);
-
-    console.log(`\nDelegator counts:`);
-    console.log(`  - RPC (direct events):       ${rpcDelegatorsAfterVoters.length} (incl. ${zeroVpDelegators.length} zero-VP / expired locks)`);
-    console.log(`  - RPC (zero-VP excluded):    ${rpcSet.size}`);
-    console.log(`  - Parquet (cached events):   ${parquetSet.size}`);
-    console.log(`  - Repartition file:          ${existingSet.size}`);
-
-    // Find differences between RPC and Parquet
-    const inRpcNotParquet = [...rpcSet].filter((d) => !parquetSet.has(d));
-    const inParquetNotRpc = [...parquetSet].filter((d) => !rpcSet.has(d));
-
-    console.log(`\nRPC vs Parquet:`);
-    console.log(`  - In RPC but NOT in Parquet: ${inRpcNotParquet.length}`);
-    if (inRpcNotParquet.length > 0 && inRpcNotParquet.length <= 10) {
-      for (const addr of inRpcNotParquet) console.log(`    ${addr}`);
-    }
-
-    const zeroVpSet = new Set(zeroVpDelegators);
-    const inParquetNotRpcZeroVp = inParquetNotRpc.filter((d) => zeroVpSet.has(d));
-    const inParquetNotRpcUnexplained = inParquetNotRpc.filter((d) => !zeroVpSet.has(d));
-    console.log(
-      `  - In Parquet but NOT in RPC: ${inParquetNotRpc.length}` +
-        (inParquetNotRpcZeroVp.length > 0
-          ? ` (${inParquetNotRpcZeroVp.length} zero-VP / expired locks — expected` +
-            (inParquetNotRpcUnexplained.length > 0
-              ? `, ${inParquetNotRpcUnexplained.length} UNEXPLAINED)`
-              : `)`)
-          : "")
-    );
-    if (inParquetNotRpcUnexplained.length > 0 && inParquetNotRpcUnexplained.length <= 10) {
-      console.log(`  Unexplained discrepancies (not zero-VP):`);
-      for (const addr of inParquetNotRpcUnexplained) console.log(`    ${addr}`);
-    }
-
-    // Find differences between RPC and existing file
-    const inRpcNotExisting = [...rpcSet].filter((d) => !existingSet.has(d));
-    const inExistingNotRpc = [...existingSet].filter((d) => !rpcSet.has(d));
-
-    console.log(`\nRPC vs Repartition file:`);
-    console.log(`  - In RPC but NOT in file:    ${inRpcNotExisting.length}`);
-    if (inRpcNotExisting.length > 0 && inRpcNotExisting.length <= 10) {
-      for (const addr of inRpcNotExisting) console.log(`    ${addr}`);
-    }
-
-    console.log(`  - In file but NOT in RPC:    ${inExistingNotRpc.length}`);
-    if (inExistingNotRpc.length > 0 && inExistingNotRpc.length <= 10) {
-      for (const addr of inExistingNotRpc) console.log(`    ${addr}`);
-    }
-
-    // Final verdict for this gauge type
-    console.log("\n" + "-".repeat(60));
-    if (inExistingNotRpc.length === 0 && inRpcNotExisting.length === 0) {
-      console.log(`✅ ${gt.toUpperCase()}: RPC delegators match repartition file`);
-    } else if (inExistingNotRpc.length > 0) {
-      console.log(`⚠️  ${gt.toUpperCase()}: ${inExistingNotRpc.length} delegators in file NOT found via RPC`);
-      console.log(`   This could indicate addresses that un-delegated but weren't removed`);
-    } else if (inRpcNotExisting.length > 0) {
-      console.log(`⚠️  ${gt.toUpperCase()}: ${inRpcNotExisting.length} RPC delegators MISSING from file`);
-      console.log(`   These may be zero-VP delegators (expected) or missing rewards (check VP)`);
-    }
+  console.log("\n" + "=".repeat(70));
+  if (allIssues.length === 0) {
+    console.log("RESULT: artifacts match the on-chain recomputation");
+  } else {
+    console.log(`RESULT: FAILED — ${allIssues.length} violation(s)`);
+    process.exitCode = 1;
   }
-
-  console.log("\n" + "=".repeat(80));
-  console.log("Verification complete");
-  console.log("=".repeat(80));
-}
+  console.log("=".repeat(70));
+};
 
 main().catch((error) => {
   console.error(error);

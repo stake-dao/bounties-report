@@ -25,7 +25,7 @@ export type Protocol = "vlCVX" | "bounties" | "spectra" | "frax" | "all";
 
 Registered scripts:
 
-- vlCVX distribution, reward flow, claims completeness, parquet delegators, and RPC delegators.
+- vlCVX distribution, reward flow, claims completeness, delegation artifact coherence, and on-chain delegator recomputation.
 - bounty report verification through `verifyBountiesReport.ts`.
 - sdSPECTRA distribution verification through `verifySpectraDistribution.ts`.
 - frax-only bounty verification (the sdFXS gate) — `verifyBountiesReport.ts --only frax`.
