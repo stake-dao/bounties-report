@@ -141,7 +141,7 @@ Options:
                          (authoritative run context for the models; default: infer from dates)
   --models    <m1,m2>    Comma-separated model IDs (default: ${DEFAULT_MODELS.join(",")})
   --model     <m>        Single model (shorthand for --models with one)
-  --deep                 Include RPC/parquet delegation checks (implicit)
+  --deep                 Include artifact/on-chain delegation checks (implicit)
   --help                 Show this message
 `);
       process.exit(0);

@@ -11,7 +11,7 @@
  *   --timestamp <ts>      Week epoch (default: current week)
  *   --protocol  <p>       vlCVX | bounties | spectra | frax | all (default: all)
  *   --models    <m1,m2>   Comma-separated model IDs
- *   --deep                Include RPC/parquet delegation checks
+ *   --deep                Include artifact/on-chain delegation checks
  *
  * Available ZEN models: GET https://opencode.ai/zen/v1/models
  * Free options: minimax-m2.5-free, deepseek-v4-flash-free, mimo-v2.5-free, nemotron-3-super-free, qwen3.6-plus-free
