@@ -62,6 +62,7 @@ import {
   loadDelegationArtifacts,
   loadRepartitionVoterKeys,
   mergeDelegationChainFiles,
+  parseBountyGauges,
 } from "./delegatorsVerifyCore";
 
 dotenv.config();
@@ -179,11 +180,31 @@ const verifyGaugeType = async (
   const repartitionVoters = loadRepartitionVoterKeys(dirAbs);
 
   const delegateVoterSet = new Set(delegateVoters);
+  // Applied vote of every delegate voter absent from the file — not only the
+  // repartition-present ones: a voter dropped from BOTH repartition.json and
+  // the delegation file leaves per-token conservation intact (its share is
+  // renormalized onto the gauge's other voters), so absence itself must be
+  // classified against what the vote could have earned.
   const adjustedWeights: Record<string, bigint> = {};
+  const votedGauges: Record<string, string[]> = {};
   for (const d of delegateVoters) {
-    if (fileDelegates.includes(d) || !repartitionVoters.has(d)) continue;
+    if (fileDelegates.includes(d)) continue;
     const vote = await getVoteOf(platform, proposalId, d, client);
     adjustedWeights[d] = vote.adjustedWeight;
+    votedGauges[d] = vote.gauges.map((g) => g.toLowerCase());
+  }
+  const csvPath = path.join(
+    __dirname,
+    `../../../bounties-reports/${timestamp}/${gt === "curve" ? "cvx.csv" : "cvx_fxn.csv"}`
+  );
+  const bountyGauges = fs.existsSync(csvPath)
+    ? parseBountyGauges(fs.readFileSync(csvPath, "utf-8"))
+    : new Set<string>();
+  if (bountyGauges.size === 0) {
+    console.log(
+      `⚠️  no bounty gauges loaded from ${path.basename(csvPath)} — ` +
+        `the dropped-delegate (renormalization) check is inert this run`
+    );
   }
 
   const setIssues = delegateSetIssues({
@@ -191,6 +212,8 @@ const verifyGaugeType = async (
     delegateVoters,
     repartitionVoters,
     adjustedWeights,
+    votedGauges,
+    bountyGauges,
   });
   for (const issue of setIssues) console.log(`❌ ${issue}`);
   issues.push(...setIssues.map((i) => `${gt}: ${i}`));

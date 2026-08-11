@@ -70,6 +70,17 @@ The vlCVX invariant target defaults to `both`, which includes voters/delegators
 delta-exclusivity. Target-specific generation jobs can use `--target voters` or
 `--target delegators` when only that artifact exists.
 
+Cross-merkle exclusivity runs at two granularities: per (account, token)
+(`EXCL_DELTA_OVERLAP`) and per account (`EXCL_ADDR_DELTA_OVERLAP`). The
+address-level pass exists because the realistic double-pay never collides on a
+token (Tuesday pays sCRVUSD, Thursday pays raw tokens); it auto-clears the
+legitimate platform split (pooled forwarder on one gauge platform, direct
+voter/raw route on the other) from the week's own artifacts — the per-platform
+`sources` in `delegators_split_breakdown.json` vs the address-keyed
+`repartition.json` and raw-routed delegation legs — and fails closed on
+anything it cannot attribute. Waivers for address-level violations use the
+`"*"` token wildcard.
+
 ## Verdicts
 
 | Verdict | Meaning |

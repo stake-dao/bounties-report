@@ -43,7 +43,9 @@ export function loadWaivers(path: string): Waiver[] {
   return waivers.map((w) => ({
     ...w,
     account: getAddress(w.account),
-    token: getAddress(w.token),
+    // "*" waives an address-level invariant (subject "account / *") — the
+    // account and maxDeficit still bind, only the token dimension is absent.
+    token: w.token === "*" ? "*" : getAddress(w.token),
   }));
 }
 
@@ -72,16 +74,27 @@ export function applyWaivers(
       continue;
     }
     const pair = v.subject.split(" / ");
-    const match = waivers.find(
-      (w) =>
-        w.invariant === v.invariant &&
-        w.chainId === v.chainId &&
-        w.target === v.target &&
-        pair.length === 2 &&
-        getAddress(pair[0]) === w.account &&
-        getAddress(pair[1]) === w.token &&
-        v.deficit! <= BigInt(w.maxDeficit)
-    );
+    const match = waivers.find((w) => {
+      if (
+        w.invariant !== v.invariant ||
+        w.chainId !== v.chainId ||
+        w.target !== v.target ||
+        pair.length !== 2
+      ) {
+        return false;
+      }
+      // The token leg may be the "*" wildcard (address-level invariants);
+      // a malformed subject must never crash the gate, only fail to match.
+      try {
+        if (getAddress(pair[0]) !== w.account) return false;
+        if (w.token === "*" ? pair[1] !== "*" : getAddress(pair[1]) !== w.token) {
+          return false;
+        }
+      } catch {
+        return false;
+      }
+      return v.deficit! <= BigInt(w.maxDeficit);
+    });
     if (match) waived.push({ violation: v, waiver: match });
     else active.push(v);
   }

@@ -10,6 +10,7 @@ import {
   compareDelegateAttribution,
   delegateSetIssues,
   mergeDelegationChainFiles,
+  parseBountyGauges,
 } from "../../vlCVX/verify/delegatorsVerifyCore";
 
 const POOLED = VLCVX_POOLED_DELEGATES[0].toLowerCase();
@@ -167,6 +168,71 @@ describe("delegateSetIssues", () => {
         adjustedWeights: { [OTHER]: 0n },
       })
     ).toEqual([]);
+  });
+
+  it("flags a delegate voter dropped from BOTH files that voted a bounty gauge (renormalization class)", () => {
+    const G_BOUNTY = "0x1111000000000000000000000000000000000011";
+    const G_PLAIN = "0x2222000000000000000000000000000000000022";
+    const issues = delegateSetIssues({
+      fileDelegates: [POOLED],
+      delegateVoters: [POOLED, OTHER],
+      repartitionVoters: new Set(),
+      adjustedWeights: { [OTHER]: 1n },
+      votedGauges: { [OTHER]: [G_BOUNTY, G_PLAIN] },
+      bountyGauges: new Set([G_BOUNTY]),
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatch(/renormalized/);
+  });
+
+  it("accepts a dropped delegate voter whose gauges carry no bounty", () => {
+    const issues = delegateSetIssues({
+      fileDelegates: [POOLED],
+      delegateVoters: [POOLED, OTHER],
+      repartitionVoters: new Set(),
+      adjustedWeights: { [OTHER]: 1n },
+      votedGauges: { [OTHER]: ["0x2222000000000000000000000000000000000022"] },
+      bountyGauges: new Set(["0x1111000000000000000000000000000000000011"]),
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it("stays silent for legacy callers that pass no gauge context (back-compat)", () => {
+    const issues = delegateSetIssues({
+      fileDelegates: [POOLED],
+      delegateVoters: [POOLED, OTHER],
+      repartitionVoters: new Set(),
+      adjustedWeights: { [OTHER]: 1n },
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it("marks a missing STAKE DAO pooled delegate in the issue text", () => {
+    const issues = delegateSetIssues({
+      fileDelegates: [],
+      delegateVoters: [POOLED],
+      repartitionVoters: new Set([POOLED]),
+      adjustedWeights: { [POOLED]: 1n },
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatch(/STAKE DAO POOLED DELEGATE/);
+  });
+});
+
+describe("parseBountyGauges", () => {
+  it("extracts lowercase gauge addresses from the weekly CSV, skipping the header", () => {
+    const csv =
+      "ChainId;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;\n" +
+      "1;FRAX+USDC ;0xCFc25170633581Bf896CB6CDeE170e3E3Aa59503;WFRAX;0x04ACaF8D2865c0714F79da09645C13FD2888977f;309217691763932902411;\n" +
+      "8453;Base pool;0x46b17b13490fF4dcd435d5d06f9Bf8649e2911Aa;USDC;0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;96612738;\n" +
+      "\n";
+    const gauges = parseBountyGauges(csv);
+    expect(gauges).toEqual(
+      new Set([
+        "0xcfc25170633581bf896cb6cdee170e3e3aa59503",
+        "0x46b17b13490ff4dcd435d5d06f9bf8649e2911aa",
+      ])
+    );
   });
 });
 

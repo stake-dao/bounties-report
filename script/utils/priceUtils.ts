@@ -33,6 +33,45 @@ const COINGECKO_CHAIN_ID_MAPPING: Record<number, string> = {
 };
 
 /**
+ * DefiLlama-only price fetch (no fallback). Exposed so callers that need
+ * exact source provenance (e.g. the delegators-merkle price sanity gate) can
+ * distinguish llama-priced tokens from fallback-filled ones — getTokenPrices
+ * merges the fallback in and loses that distinction.
+ */
+export async function fetchDefiLlamaPrices(
+  tokens: TokenIdentifier[],
+  searchWidth: string = "4h"
+): Promise<Record<string, number>> {
+  const results: Record<string, number> = {};
+  const llamaKeys = tokens.map(({ chainId, address }) => {
+    const llamaNetwork = LLAMA_NETWORK_MAPPING[chainId];
+    if (!llamaNetwork) {
+      throw new Error(`Unsupported network: ${chainId}`);
+    }
+    return `${llamaNetwork}:${address}`.toLowerCase();
+  });
+  if (llamaKeys.length === 0) return results;
+
+  try {
+    const llamaUrl =
+      `https://coins.llama.fi/prices/current/${llamaKeys.join(",")}` +
+      `?searchWidth=${encodeURIComponent(searchWidth)}`;
+    const llamaResp = await axios.get<{
+      coins: Record<string, { price: number }>;
+    }>(llamaUrl);
+    const coins = llamaResp.data.coins || {};
+    Object.entries(coins).forEach(([key, { price }]) => {
+      if (price > 0) {
+        results[key] = price;
+      }
+    });
+  } catch (err) {
+    console.error("DefiLlama API error:", err);
+  }
+  return results;
+}
+
+/**
  * Fetch current USD prices for multiple tokens, using DefiLlama as primary
  * and GeckoTerminal as a fallback for any missing data.
  *
@@ -44,8 +83,6 @@ export async function getTokenPrices(
   tokens: TokenIdentifier[],
   searchWidth: string = "4h"
 ): Promise<Record<string, number>> {
-  const results: Record<string, number> = {};
-
   // Build DefiLlama keys and map back to our tokens
   const llamaKeys: string[] = [];
   const tokenKeyMap: Record<string, TokenIdentifier> = {};
@@ -60,24 +97,7 @@ export async function getTokenPrices(
     tokenKeyMap[key] = { chainId, address };
   });
 
-  // Primary fetch from DefiLlama
-  try {
-    const llamaUrl =
-      `https://coins.llama.fi/prices/current/${llamaKeys.join(",")}` +
-      `?searchWidth=${encodeURIComponent(searchWidth)}`;
-    const llamaResp = await axios.get<{
-      coins: Record<string, { price: number }>;
-    }>(llamaUrl);
-    const coins = llamaResp.data.coins || {};
-    // Populate results for any prices > 0
-    Object.entries(coins).forEach(([key, { price }]) => {
-      if (price > 0) {
-        results[key] = price;
-      }
-    });
-  } catch (err) {
-    console.error("DefiLlama API error:", err);
-  }
+  const results = await fetchDefiLlamaPrices(tokens, searchWidth);
 
   // Determine which keys are still missing
   const missingKeys = llamaKeys.filter((key) => !(key in results));
@@ -106,16 +126,20 @@ export async function getTokenPrices(
           `https://api.geckoterminal.com/api/v2/simple/networks/` +
           `${geckoNetwork}/token_price/${addresses}`;
         const geckoResp = await axios.get<any>(geckoUrl);
-        const data = geckoResp.data.data || [];
-        data.forEach((item: any) => {
-          const addr = item.attributes.token_address.toLowerCase();
-          const price = item.attributes.price;
-          // Find corresponding key in our group
-          const found = group.find((g) => g.address === addr);
-          if (found && price > 0) {
+        // Response shape: { data: { attributes: { token_prices: { "0x…": "1.23" } } } }
+        // (the previous array-shaped parsing threw on every response, silently
+        // disabling this fallback via the catch below).
+        const tokenPrices: Record<string, unknown> =
+          geckoResp.data?.data?.attributes?.token_prices ?? {};
+        for (const [addr, priceRaw] of Object.entries(tokenPrices)) {
+          const price = Number(priceRaw);
+          const found = group.find(
+            (g) => g.address.toLowerCase() === addr.toLowerCase()
+          );
+          if (found && Number.isFinite(price) && price > 0) {
             results[found.key] = price;
           }
-        });
+        }
       } catch (err) {
         console.error(`GeckoTerminal error on ${geckoNetwork}:`, err);
       }
