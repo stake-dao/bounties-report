@@ -70,16 +70,25 @@ const SCRIPTS: VerifyScript[] = [
     protocols: ["vlCVX", "all"],
   },
   {
-    label: "vlCVX parquet delegators",
+    // Post-cutover gate: file-only coherence of repartition_delegation
+    // (per-delegate pool conservation, routed totals, membership sets across
+    // chain files, curve/fxn same epoch). Deterministic, no RPC.
+    label: "vlCVX delegation artifact",
     path: "script/vlCVX/verify/verifyDelegators.ts",
     args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
     protocols: ["vlCVX", "all"],
+    gate: true,
   },
   {
+    // Post-cutover gate: epoch-pinned on-chain recomputation — delegate-set
+    // completeness, per-delegate delegator enumeration (exact vs
+    // GaugeDelegation accounting), contributing weights at the vote,
+    // wei-exact split and Votium-registry grouping vs the artifact.
     label: "vlCVX RPC delegators",
     path: "script/vlCVX/verify/delegators-rpc.ts",
     args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
     protocols: ["vlCVX", "all"],
+    gate: true,
   },
   // ── bounties report ─────────────────────────────────────────
   {

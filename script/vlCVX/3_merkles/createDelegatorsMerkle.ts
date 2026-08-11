@@ -48,6 +48,10 @@ import {
 } from "../votiumSplit";
 import { splitAmountByWeights } from "../2_repartition/delegators";
 import { getTokenPrices } from "../../utils/priceUtils";
+import {
+	fetchGeckoTerminalPrices,
+	validatePriceVector,
+} from "../../utils/priceSanity";
 
 // Strict ERC-20 decimals read: tokenService.getTokenDecimals silently
 // defaults to 18 on lookup failure (and for legitimate 0-decimal tokens),
@@ -349,8 +353,48 @@ async function processForwarders() {
 			decimalsByToken[token] = await getStrictDecimals(publicClient, token);
 		}
 
+		// Price sanity gate: only price RATIOS drive the split, so one wrong
+		// price legally moves money between forwarders while every conservation
+		// check still passes. Stables are anchored to a hard band; the rest is
+		// cross-checked against an independent source. The full vector and the
+		// verdict are recorded in the breakdown for audit. PRICE_SANITY_BYPASS
+		// is the reviewed escape hatch for a knowingly-degraded price week.
+		const priceFetchedAt = new Date().toISOString();
+		const crossPricesUsd = await fetchGeckoTerminalPrices(tokenList);
+		const sanity = validatePriceVector({
+			pricesUsd: priceUsdByToken,
+			crossPricesUsd,
+		});
+		for (const warning of sanity.warnings) {
+			console.warn(`⚠️ price sanity: ${warning}`);
+		}
+		if (sanity.failures.length > 0) {
+			const message = `price sanity failed:\n - ${sanity.failures.join("\n - ")}`;
+			if (process.env.PRICE_SANITY_BYPASS === "true") {
+				console.warn(`⚠️ PRICE_SANITY_BYPASS=true — proceeding despite:\n${message}`);
+			} else {
+				throw new Error(message);
+			}
+		}
+
 		const valueWeights = computeValueWeights(
 			entitlements,
+			pricePicoByToken,
+			decimalsByToken,
+		);
+		// Per-platform value provenance for the address-level cross-merkle
+		// invariant: a wallet's Tuesday platforms are those where its OWN
+		// entitlement carries value. Informational only — the paid split uses
+		// the MERGED weights above (per-token flooring can differ by a wei of
+		// pico between Σ sources and valuePico when a token spans platforms),
+		// so consumers must only ever test sources for > 0.
+		const curveValuePico = computeValueWeights(
+			curveFwdExact,
+			pricePicoByToken,
+			decimalsByToken,
+		);
+		const fxnValuePico = computeValueWeights(
+			fxnFwdExact,
 			pricePicoByToken,
 			decimalsByToken,
 		);
@@ -365,7 +409,11 @@ async function processForwarders() {
 
 		const perWalletBreakdown: Record<
 			string,
-			{ valuePico: string; total: string }
+			{
+				valuePico: string;
+				total: string;
+				sources: { curve: string; fxn: string };
+			}
 		> = {};
 		const delegatorDistribution: {
 			[address: string]: { tokens: { [token: string]: bigint } };
@@ -377,6 +425,10 @@ async function processForwarders() {
 			perWalletBreakdown[addr] = {
 				valuePico: (valueWeights[wallet] ?? 0n).toString(),
 				total: amount.toString(),
+				sources: {
+					curve: (curveValuePico[wallet] ?? 0n).toString(),
+					fxn: (fxnValuePico[wallet] ?? 0n).toString(),
+				},
 			};
 		}
 		mergeDistributions(delegatorDistribution, combined);
@@ -416,6 +468,14 @@ async function processForwarders() {
 					},
 					pricesUsd: priceUsdByToken,
 					decimals: decimalsByToken,
+					priceProvenance: {
+						primary: "defillama coins/prices/current (searchWidth=4h) via getTokenPrices, geckoterminal fallback for gaps",
+						cross: "geckoterminal simple/token_price",
+						fetchedAt: priceFetchedAt,
+						crossPricesUsd,
+						deviations: sanity.deviations,
+						warnings: sanity.warnings,
+					},
 					perWallet: perWalletBreakdown,
 				},
 				null,
