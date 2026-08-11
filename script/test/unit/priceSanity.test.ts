@@ -105,6 +105,32 @@ describe("validatePriceVector", () => {
     });
     expect(result.failures).toHaveLength(1);
   });
+
+  it("never self-confirms a fallback-sourced token against its own source", () => {
+    // Non-stable filled from the cross provider: cross price identical, but
+    // it must read as unchecked (warning, null deviation), not 0-deviation.
+    const result = validatePriceVector({
+      pricesUsd: { [TOKEN]: 5 },
+      crossPricesUsd: { [TOKEN]: 5 },
+      dependentTokens: new Set([TOKEN]),
+      stables: STABLES,
+    });
+    expect(result.failures).toEqual([]);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/fallback-sourced/);
+    expect(result.deviations[TOKEN]).toBeNull();
+  });
+
+  it("a fallback-sourced stable out of band cannot rescue itself via 'agreement'", () => {
+    const result = validatePriceVector({
+      pricesUsd: { [STABLE]: 0.5 },
+      crossPricesUsd: { [STABLE]: 0.5 },
+      dependentTokens: new Set([STABLE]),
+      stables: STABLES,
+    });
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]).toMatch(/no independent price/);
+  });
 });
 
 describe("KNOWN_STABLE_TOKENS", () => {

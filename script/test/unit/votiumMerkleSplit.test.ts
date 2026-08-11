@@ -2,7 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { WEEK, VOTIUM_FORWARDER, ALL_MIGHT_V2 } from "../../utils/constants";
+import {
+  WEEK,
+  VOTIUM_FORWARDER,
+  ALL_MIGHT_V2,
+  VOTIUM_MERKLE_SPLIT_FROM_PERIOD,
+} from "../../utils/constants";
 import {
   assertCarryoverMatchesChain,
   carryoverPath,
@@ -443,8 +448,11 @@ describe("assertCarryoverMatchesChain", () => {
 });
 
 describe("activation", () => {
-  it("is dormant by default", () => {
-    expect(isVotiumSplitActive(PERIOD, {})).toBe(false);
+  it("is active from the epoch-230 week-A period onwards (constants flip)", () => {
+    expect(VOTIUM_MERKLE_SPLIT_FROM_PERIOD).toBe(1785974400);
+    expect(isVotiumSplitActive(1785974400 - WEEK, {})).toBe(false);
+    expect(isVotiumSplitActive(1785974400, {})).toBe(true);
+    expect(isVotiumSplitActive(PERIOD, {})).toBe(true);
   });
 
   it("activates from the configured period onwards", () => {

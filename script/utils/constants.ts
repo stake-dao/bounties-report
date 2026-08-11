@@ -114,8 +114,12 @@ export const TWOWEEKS = WEEK * 2;
  * Set it to the week-A period of the first round that runs with the
  * full-in-one-window swap job, so both sides of the change start on the same
  * round. `VOTIUM_MERKLE_SPLIT_FROM` overrides it for tests and backfills.
+ *
+ * 1785974400 = epoch-230 week A (2026-08-06), the first round whose whole
+ * Votium claim was swapped in its ending window (stable remainder completed
+ * on 2026-08-11 before the delegators merkle regeneration).
  */
-export const VOTIUM_MERKLE_SPLIT_FROM_PERIOD: number | null = null;
+export const VOTIUM_MERKLE_SPLIT_FROM_PERIOD: number | null = 1785974400;
 
 
 

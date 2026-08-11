@@ -47,7 +47,7 @@ import {
 	type VotiumClassification,
 } from "../votiumSplit";
 import { splitAmountByWeights } from "../2_repartition/delegators";
-import { getTokenPrices } from "../../utils/priceUtils";
+import { fetchDefiLlamaPrices } from "../../utils/priceUtils";
 import {
 	fetchGeckoTerminalPrices,
 	validatePriceVector,
@@ -338,11 +338,30 @@ async function processForwarders() {
 		// on-chain decimals. computeValueWeights hard-fails on a missing
 		// price/decimals: a zero-weighted token would silently move its
 		// holders' money.
+		//
+		// The primary vector is assembled HERE rather than via getTokenPrices
+		// so the fallback provenance stays exact: DefiLlama first, GeckoTerminal
+		// fills the gaps. A gecko-filled primary has no independent cross price —
+		// the sanity gate below must treat it as unchecked instead of comparing
+		// the fallback source against itself.
 		const tokenList = [...vmTokens];
-		const prices = await getTokenPrices(
+		const priceFetchedAt = new Date().toISOString();
+		const llamaPrices = await fetchDefiLlamaPrices(
 			tokenList.map((address) => ({ chainId: 1, address })),
 			"4h",
 		);
+		const crossPricesUsd = await fetchGeckoTerminalPrices(tokenList);
+		const fallbackSourcedTokens = new Set<string>();
+		const prices: Record<string, number> = {};
+		for (const token of tokenList) {
+			const llamaUsd = llamaPrices[`ethereum:${token}`] ?? 0;
+			if (llamaUsd > 0) {
+				prices[`ethereum:${token}`] = llamaUsd;
+			} else if ((crossPricesUsd[token] ?? 0) > 0) {
+				prices[`ethereum:${token}`] = crossPricesUsd[token];
+				fallbackSourcedTokens.add(token);
+			}
+		}
 		const pricePicoByToken: Record<string, bigint> = {};
 		const priceUsdByToken: Record<string, number> = {};
 		const decimalsByToken: Record<string, number> = {};
@@ -356,21 +375,25 @@ async function processForwarders() {
 		// Price sanity gate: only price RATIOS drive the split, so one wrong
 		// price legally moves money between forwarders while every conservation
 		// check still passes. Stables are anchored to a hard band; the rest is
-		// cross-checked against an independent source. The full vector and the
-		// verdict are recorded in the breakdown for audit. PRICE_SANITY_BYPASS
-		// is the reviewed escape hatch for a knowingly-degraded price week.
-		const priceFetchedAt = new Date().toISOString();
-		const crossPricesUsd = await fetchGeckoTerminalPrices(tokenList);
+		// cross-checked against an independent source (fallback-sourced tokens
+		// are treated as unchecked, never self-confirmed). The full vector and
+		// the verdict — including a bypass — are recorded in the breakdown for
+		// audit. PRICE_SANITY_BYPASS is the reviewed escape hatch for a
+		// knowingly-degraded price week.
 		const sanity = validatePriceVector({
 			pricesUsd: priceUsdByToken,
 			crossPricesUsd,
+			dependentTokens: fallbackSourcedTokens,
 		});
 		for (const warning of sanity.warnings) {
 			console.warn(`⚠️ price sanity: ${warning}`);
 		}
+		const priceSanityBypassed =
+			sanity.failures.length > 0 &&
+			process.env.PRICE_SANITY_BYPASS === "true";
 		if (sanity.failures.length > 0) {
 			const message = `price sanity failed:\n - ${sanity.failures.join("\n - ")}`;
-			if (process.env.PRICE_SANITY_BYPASS === "true") {
+			if (priceSanityBypassed) {
 				console.warn(`⚠️ PRICE_SANITY_BYPASS=true — proceeding despite:\n${message}`);
 			} else {
 				throw new Error(message);
@@ -469,12 +492,15 @@ async function processForwarders() {
 					pricesUsd: priceUsdByToken,
 					decimals: decimalsByToken,
 					priceProvenance: {
-						primary: "defillama coins/prices/current (searchWidth=4h) via getTokenPrices, geckoterminal fallback for gaps",
+						primary: "defillama coins/prices/current (searchWidth=4h); geckoterminal fills gaps (provenance-tracked)",
 						cross: "geckoterminal simple/token_price",
 						fetchedAt: priceFetchedAt,
 						crossPricesUsd,
+						fallbackSourcedTokens: [...fallbackSourcedTokens].sort(),
 						deviations: sanity.deviations,
 						warnings: sanity.warnings,
+						failures: sanity.failures,
+						bypassed: priceSanityBypassed,
 					},
 					perWallet: perWalletBreakdown,
 				},

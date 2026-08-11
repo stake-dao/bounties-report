@@ -73,6 +73,12 @@ export const validatePriceVector = (input: {
   pricesUsd: Record<string, number>;
   /** tokenLower -> independent second-source USD price (may be sparse). */
   crossPricesUsd: Record<string, number>;
+  /**
+   * Tokens whose primary price CAME FROM the cross provider (fallback fill).
+   * Their cross price is not independent — comparing it would self-confirm a
+   * wrong price — so they are validated as if no cross price existed.
+   */
+  dependentTokens?: ReadonlySet<string>;
   stables?: ReadonlySet<string>;
 }): PriceSanityResult => {
   const stables = input.stables ?? KNOWN_STABLE_TOKENS;
@@ -89,9 +95,10 @@ export const validatePriceVector = (input: {
       deviations[t] = null;
       continue;
     }
+    const dependent = input.dependentTokens?.has(t) ?? false;
     const cross = input.crossPricesUsd[t];
     const deviation =
-      Number.isFinite(cross) && (cross as number) > 0
+      !dependent && Number.isFinite(cross) && (cross as number) > 0
         ? relDeviation(price, cross as number)
         : null;
     deviations[t] = deviation;
@@ -110,7 +117,7 @@ export const validatePriceVector = (input: {
             `${t}: stable priced at $${price} outside [${STABLE_PRICE_BAND.min}, ` +
               `${STABLE_PRICE_BAND.max}] and the cross source ${
                 deviation === null
-                  ? "has no price"
+                  ? "has no independent price"
                   : `disagrees (deviation ${(deviation * 100).toFixed(1)}%)`
               } — refusing to split on a suspect stable price`
           );
@@ -130,7 +137,10 @@ export const validatePriceVector = (input: {
 
     if (deviation === null) {
       warnings.push(
-        `${t}: no cross-source price — split relies on the primary source alone ($${price})`
+        dependent
+          ? `${t}: primary price was fallback-sourced from the cross provider — ` +
+              `no independent check possible ($${price})`
+          : `${t}: no cross-source price — split relies on the primary source alone ($${price})`
       );
     } else if (deviation > CROSS_SOURCE_FAIL_DEVIATION) {
       failures.push(
