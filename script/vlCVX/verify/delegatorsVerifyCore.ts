@@ -20,6 +20,7 @@ import {
   DelegationSummaryLike,
   getExactGroupAmounts,
   hasPerDelegateAttribution,
+  isPooledDelegate,
 } from "../../utils/delegationExact";
 
 export type TokenAmounts = Record<string, bigint>;
@@ -168,17 +169,29 @@ export const compareDelegateAttribution = (input: {
 /**
  * Delegate-set findings. A delegate in the file that is not an on-chain
  * delegate voter means the file invents a delegation. The reverse — an
- * on-chain delegate voter absent from the file — is only a problem when it
- * EARNED rewards (present in repartition.json) with delegated weight applied
- * (adjustedWeight > 0): its pool then had to be split to its delegators
- * (the epoch-230 0x52ea… incident class). A delegate voter that earned
- * nothing, or voted purely with own weight, is legitimately absent.
+ * on-chain delegate voter with delegated weight applied (adjustedWeight > 0)
+ * absent from the file — is a problem in two distinct shapes:
+ *
+ *   1. Present in repartition.json: it was paid as a plain voter and its
+ *      pool was never split (the epoch-230 0x52ea… incident class).
+ *   2. Absent from repartition.json too, while it voted for at least one
+ *      bounty-carrying gauge: the repartition dropped the voter entirely, so
+ *      its share was silently renormalized onto the gauge's other voters —
+ *      per-token conservation still balances and nothing else catches it.
+ *      Decided from `votedGauges` × `bountyGauges` (weekly CSV).
+ *
+ * A delegate voter that earned nothing (no bounty gauge voted), or voted
+ * purely with own weight, is legitimately absent.
  */
 export const delegateSetIssues = (input: {
   fileDelegates: string[];
   delegateVoters: string[];
   repartitionVoters: Set<string>;
   adjustedWeights: Record<string, bigint>;
+  /** Lowercase gauges each missing delegate voted for (from getVote). */
+  votedGauges?: Record<string, string[]>;
+  /** Lowercase gauges carrying bounties this week (from the weekly CSV). */
+  bountyGauges?: Set<string>;
 }): string[] => {
   const issues: string[] = [];
   const voters = new Set(input.delegateVoters.map((a) => a.toLowerCase()));
@@ -193,15 +206,46 @@ export const delegateSetIssues = (input: {
   }
   for (const d of voters) {
     if (inFile.has(d)) continue;
-    if (!input.repartitionVoters.has(d)) continue;
-    if ((input.adjustedWeights[d] ?? 0n) > 0n) {
+    if ((input.adjustedWeights[d] ?? 0n) <= 0n) continue;
+    const pooled = isPooledDelegate(d) ? " (STAKE DAO POOLED DELEGATE)" : "";
+    if (input.repartitionVoters.has(d)) {
       issues.push(
-        `delegate voter ${fmtWallet(d)} earned rewards with delegated weight ` +
+        `delegate voter ${fmtWallet(d)}${pooled} earned rewards with delegated weight ` +
           `(adjustedWeight > 0) but was paid as a plain voter — its pool was never split`
+      );
+      continue;
+    }
+    const bountyVoted = (input.votedGauges?.[d] ?? []).filter((g) =>
+      input.bountyGauges?.has(g.toLowerCase())
+    );
+    if (bountyVoted.length > 0) {
+      issues.push(
+        `delegate voter ${fmtWallet(d)}${pooled} voted for ${bountyVoted.length} ` +
+          `bounty-carrying gauge(s) with delegated weight (adjustedWeight > 0) but is ` +
+          `absent from BOTH the delegation file and repartition.json — its delegators' ` +
+          `share was silently renormalized onto the other voters`
       );
     }
   }
   return issues;
+};
+
+/**
+ * Gauge addresses (lowercase) carrying bounties in a weekly CSV
+ * (`ChainId;Gauge Name;Gauge Address;Reward Token;Reward Address;Reward Amount;`).
+ * Any chain counts: the vote earning the bounty is always the mainnet gauge
+ * vote, whichever chain the reward tokens land on. The header row and blank
+ * lines fall out of the address-shape filter.
+ */
+export const parseBountyGauges = (csvText: string): Set<string> => {
+  const gauges = new Set<string>();
+  for (const line of csvText.split("\n")) {
+    const columns = line.split(";");
+    if (columns.length < 3) continue;
+    const gauge = columns[2]?.trim().toLowerCase();
+    if (/^0x[0-9a-f]{40}$/.test(gauge)) gauges.add(gauge);
+  }
+  return gauges;
 };
 
 export interface ArtifactFile {
