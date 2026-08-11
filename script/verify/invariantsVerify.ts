@@ -26,7 +26,7 @@ dotenv.config();
 
 import { getClient } from "../utils/getClients";
 import { parseCliArgs } from "./invariants/cli";
-import { loadArtifact } from "./invariants/artifact";
+import { loadArtifact, loadArchivedPairs } from "./invariants/artifact";
 import { resolveBaseline } from "./invariants/baseline";
 import {
   checkPreservation,
@@ -160,7 +160,26 @@ async function main() {
     checkPreservation(ctx, artifact.pairs, baseline.pairs, claimed, violations);
 
     if (spec.chainId === 1) {
-      mainnetDeltas[spec.target] = positiveDeltas(artifact.pairs, baseline.pairs);
+      // Cross-tree deltas must measure THIS ROUND's additions. The
+      // preservation baseline is the ACTIVE root — right for claims
+      // protection, but once this artifact is published the active root IS
+      // this artifact and its delta reads zero, silencing the
+      // voters∩delegators exclusivity checks for whichever tree published
+      // first (voters on Thursday runs, delegators after Tuesday). Fall back
+      // to the previous period's archived artifact for the delta baseline.
+      let deltaBaseline = baseline.pairs;
+      if (
+        baseline.artifactPath &&
+        path.resolve(baseline.artifactPath) === path.resolve(absPath)
+      ) {
+        const archived = loadArchivedPairs(REPORTS_ROOT, timestamp, spec.relPath);
+        deltaBaseline = archived.pairs;
+        console.log(
+          `   already published — cross-tree delta baseline: ` +
+            `${archived.foundAt ?? "none (fresh distributor)"}`
+        );
+      }
+      mainnetDeltas[spec.target] = positiveDeltas(artifact.pairs, deltaBaseline);
     }
   }
 

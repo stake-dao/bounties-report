@@ -1,9 +1,13 @@
+import fs from "fs";
+import os from "os";
+import path from "path";
 import { describe, it, expect } from "vitest";
-import { keccak256 } from "viem";
+import { getAddress, keccak256 } from "viem";
 import MerkleTree from "merkletreejs";
 import {
   computeLeaf,
   computeRoot,
+  loadArchivedPairs,
   toPairMap,
 } from "../../verify/invariants/artifact";
 import { findDuplicateKeys } from "../../verify/invariants/jsonSafe";
@@ -279,5 +283,47 @@ describe("invariants: delta-scoped exclusivity", () => {
       violations
     );
     expect(violations).toHaveLength(0);
+  });
+});
+
+describe("loadArchivedPairs", () => {
+  const WEEK = 604800;
+  const TS = 1785974400;
+  const REL = path.join("vlCVX", "m.json");
+  const write = (root: string, period: number, content: string) => {
+    const dir = path.join(root, String(period), "vlCVX");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "m.json"), content);
+  };
+  const artifact = (amount: bigint) =>
+    JSON.stringify({
+      merkleRoot: "0x00",
+      claims: { [A1]: { tokens: { [T1]: { amount: amount.toString(), proof: [] } } } },
+    });
+
+  it("returns the most recent archive STRICTLY before the timestamp", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "inv-arch-"));
+    write(root, TS, artifact(999n)); // current period must never be the baseline
+    write(root, TS - WEEK, artifact(100n));
+    write(root, TS - 2 * WEEK, artifact(50n));
+    const res = loadArchivedPairs(root, TS, REL);
+    expect(res.foundAt).toContain(String(TS - WEEK));
+    expect(res.pairs.get(getAddress(A1))?.get(getAddress(T1))).toBe(100n);
+  });
+
+  it("skips a corrupt archive and keeps scanning back", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "inv-arch-corrupt-"));
+    write(root, TS - WEEK, "{not json");
+    write(root, TS - 2 * WEEK, artifact(50n));
+    const res = loadArchivedPairs(root, TS, REL);
+    expect(res.foundAt).toContain(String(TS - 2 * WEEK));
+    expect(res.pairs.get(getAddress(A1))?.get(getAddress(T1))).toBe(50n);
+  });
+
+  it("returns an empty baseline when nothing is archived (fresh distributor)", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "inv-arch-empty-"));
+    const res = loadArchivedPairs(root, TS, REL);
+    expect(res.foundAt).toBeNull();
+    expect(res.pairs.size).toBe(0);
   });
 });
