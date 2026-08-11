@@ -366,16 +366,6 @@ function buildClaimMap(m: any): Record<string, bigint> {
   // pooled legs' value arrives swapped inside the pot. The whole pot follows
   // the split breakdown — no carve to subtract.
 
-  // Individual raw payouts replaced the aggregate fee claim: the legacy fee
-  // recipient must not receive anything new, ever.
-  const LEGACY_FEE_RECIPIENT = "0xf930ebbd05ef8b25b1797b9b2109ddc9b0d43063";
-  const feeDelta = deltas[LEGACY_FEE_RECIPIENT] || 0n;
-  const feeOk = feeDelta === 0n;
-  console.log(
-    `\nLegacy fee recipient delta: ${(Number(feeDelta) / 1e18).toFixed(6)} sCRVUSD ` +
-      (feeOk ? "✅" : "❌ individual payouts should have replaced the fee")
-  );
-
   // Per-address check against the split breakdown createDelegatorsMerkle
   // wrote: every wallet's delegator delta must equal the artifact's total
   // EXACTLY, and no wallet may have moved outside it.
@@ -385,6 +375,22 @@ function buildClaimMap(m: any): Record<string, bigint> {
   )) {
     expected[lc(addr)] = BigInt(row.total);
   }
+
+  // Individual raw payouts replaced the aggregate fee claim: the legacy fee
+  // recipient must not receive anything BEYOND what it earns as an ordinary
+  // delegator-forwarder. It IS one (contributing weight under the Stake DAO
+  // delegate on both platforms, Votium registry forwarding to our forwarder),
+  // so a flat non-zero check would fire on organic earnings every week — the
+  // incident class is a delta OUTSIDE the planned per-wallet entitlement.
+  const LEGACY_FEE_RECIPIENT = "0xf930ebbd05ef8b25b1797b9b2109ddc9b0d43063";
+  const feeDelta = deltas[LEGACY_FEE_RECIPIENT] || 0n;
+  const feeEntitled = expected[LEGACY_FEE_RECIPIENT] ?? 0n;
+  const feeOk = feeDelta === feeEntitled;
+  console.log(
+    `\nLegacy fee recipient delta: ${(Number(feeDelta) / 1e18).toFixed(6)} sCRVUSD ` +
+      `(entitled as forwarder: ${(Number(feeEntitled) / 1e18).toFixed(6)}) ` +
+      (feeOk ? "✅" : "❌ received value beyond its forwarder entitlement — legacy fee resurfacing")
+  );
 
   console.log("\n=== Split breakdown ===");
   console.log("Artifact:", breakdownPath);
@@ -445,7 +451,11 @@ function buildClaimMap(m: any): Record<string, bigint> {
   if (totalDeltaPerAddr !== delta) {
     failures.push("per-address deltas do not sum to the cumulative delta");
   }
-  if (!feeOk) failures.push("legacy fee recipient received new value");
+  if (!feeOk) {
+    failures.push(
+      "legacy fee recipient received value beyond its forwarder entitlement"
+    );
+  }
   if (!perAddressOk) {
     failures.push(
       `${mismatches} per-address mismatch(es), ${unexpected} unexplained delta(s)`
