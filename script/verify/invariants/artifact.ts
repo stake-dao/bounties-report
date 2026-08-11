@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 import {
   encodeAbiParameters,
   getAddress,
@@ -213,4 +214,38 @@ export function loadArtifact(
   }
 
   return { spec, absPath, raw, pairs, declaredRoot, computedRoot };
+}
+
+/**
+ * Pairs of the most recent ARCHIVED artifact strictly before `timestamp`
+ * (weekly scan, oldest useful fallback 12 weeks). Used as the cross-tree
+ * delta baseline when the active-root baseline resolves to the artifact
+ * under verification itself: once a tree is published its delta vs the
+ * active root reads zero, which would silence the voters∩delegators
+ * exclusivity checks for whichever tree published first. An empty result
+ * (fresh distributor) makes the full cumulative the delta, which is then
+ * genuinely this round's additions.
+ */
+export function loadArchivedPairs(
+  reportsRoot: string,
+  timestamp: number,
+  relPath: string,
+  maxWeeksBack = 12
+): { pairs: PairMap; foundAt: string | null } {
+  const WEEK = 604800;
+  for (let weeksBack = 1; weeksBack <= maxWeeksBack; weeksBack++) {
+    const candidate = path.join(
+      reportsRoot,
+      String(timestamp - weeksBack * WEEK),
+      relPath
+    );
+    if (!fs.existsSync(candidate)) continue;
+    try {
+      const data: MerkleData = JSON.parse(fs.readFileSync(candidate, "utf8"));
+      return { pairs: toPairMap(data), foundAt: candidate };
+    } catch {
+      // A corrupt archive is not a baseline; keep scanning back.
+    }
+  }
+  return { pairs: new Map(), foundAt: null };
 }
