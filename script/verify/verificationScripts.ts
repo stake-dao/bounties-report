@@ -52,22 +52,43 @@ const SCRIPTS: VerifyScript[] = [
     gate: true,
   },
   {
+    // Gate: aggregate + per-address reconciliation of the Tuesday delegators
+    // merkle against on-chain sCRVUSD and the split breakdown. Since ENG-2105
+    // the week's delta is "received - withheld + carried in", so this is also
+    // what stops a Votium half from being paid twice or not at all. Self-skips
+    // on Thursday runs, where no delegators merkle exists yet.
+    label: "vlCVX Delegators Pot Reconciliation",
+    path: "script/vlCVX/verify/verifyForwardersMerkle.ts",
+    args: (ts) => ["--timestamp", String(ts)],
+    protocols: ["vlCVX", "all"],
+    gate: true,
+  },
+  {
     label: "vlCVX Claims Completeness",
     path: "script/vlCVX/verify/claimsCompleteness.ts",
     args: (ts) => ["--timestamp", String(ts)],
     protocols: ["vlCVX", "all"],
   },
   {
-    label: "vlCVX parquet delegators",
+    // Post-cutover gate: file-only coherence of repartition_delegation
+    // (per-delegate pool conservation, routed totals, membership sets across
+    // chain files, curve/fxn same epoch). Deterministic, no RPC.
+    label: "vlCVX delegation artifact",
     path: "script/vlCVX/verify/verifyDelegators.ts",
     args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
     protocols: ["vlCVX", "all"],
+    gate: true,
   },
   {
+    // Post-cutover gate: epoch-pinned on-chain recomputation — delegate-set
+    // completeness, per-delegate delegator enumeration (exact vs
+    // GaugeDelegation accounting), contributing weights at the vote,
+    // wei-exact split and Votium-registry grouping vs the artifact.
     label: "vlCVX RPC delegators",
     path: "script/vlCVX/verify/delegators-rpc.ts",
     args: (ts) => ["--timestamp", String(ts), "--gauge-type", "all"],
     protocols: ["vlCVX", "all"],
+    gate: true,
   },
   // ── bounties report ─────────────────────────────────────────
   {

@@ -20,54 +20,92 @@ The vlCVX pipeline distributes Convex voting rewards to direct voters, Stake DAO
 
 On-chain swaps, root submission, and final publish are handled outside these scripts by automation jobs and the `vlCVX: Distribution` workflow.
 
+## Payment routing: Tuesday pool vs Thursday raw
+
+Only wallets that forward to Stake DAO's Votium forwarder AND delegate to a
+Stake DAO delegate (`VLCVX_POOLED_DELEGATES`) AND did not vote themselves on
+that platform settle through the pooled Tuesday sCRVUSD merkle. Every other
+leg — own votes (including by Stake DAO delegators), and slices of other
+delegates' votes (for example, The Union's) — is paid raw tokens in the
+Thursday combined merkle. Routing is per platform: a wallet can be pooled on
+FXN and raw on Curve.
+
+In `repartition_delegation.json`, the `perDelegate` sections keep registry
+facts (who forwards), while `totalPerGroup` carries the payment routes:
+`forwarders` = pooled Tuesday, `nonForwarders` = raw Thursday (including the
+forwarders behind non-Stake-DAO delegates). The ops swap sizes the Tuesday
+pot from `totalPerGroup.forwarders`.
+
 ## Votium forwarders money flow
 
 Votium claims all users registered behind Stake DAO's forwarder through one
-aggregate leaf. `claims/generateConvexVotium.ts` reconstructs the per-address
-attribution and writes both files consumed by the Tuesday Merkle:
+aggregate leaf, landing on the rewards recipient (`VOTIUM_FORWARDER`).
+`claims/generateConvexVotium.ts` reconstructs the per-address attribution for
+every INDIVIDUALLY routed leg (pooled legs never appear in it) and writes:
 
-- `claimed_bounties_convex.json` contains the tokens actually claimed;
-- `forwarders_voted_rewards.json` contains each user's `{ amountWei, usd }`
-  attribution.
+- `claimed_bounties_convex.json` — the tokens actually claimed;
+- `forwarders_voted_rewards.json` — each user's `{ amountWei, usd }`
+  attribution, already reconciled against the claimed amounts.
 
-`3_merkles/createDelegatorsMerkle.ts` pays those users in sCRVUSD before
-splitting the remaining pool among Stake DAO delegators. A user who both votes
-through Votium and contributes to the Stake DAO delegation receives both
-allocations; the Merkle merge sums them. A `direct-voter` forwarded its Votium
-claim to Stake DAO but did not contribute voting power to the Stake DAO
-delegate. It may have voted itself, or delegated elsewhere (for example, to
-The Union): Votium attributes rewards to each underlying wallet even behind a
-delegate, so a Union delegator forwarding to us earns its on-chain slice of
-The Union's vote. Union membership is resolved on-chain at the round's epoch,
-never from a hardcoded list.
+`3_merkles/createCombinedMerkle.ts` pays those legs as RAW TOKEN leaves in
+the Thursday voters merkle (curve/mainnet pass, claim weeks only) via
+`utils/votiumRawPayouts.ts`, and stages the matching ops instruction
+`bounties-reports/<period>/vlCVX/votium_thursday_withdrawal.json`: the
+Thursday batch must carry a dedicated votium-vault → voters-distributor
+withdraw of exactly these amounts, and the votium swap job sweeps only the
+remainder into sCRVUSD for the Tuesday pot.
 
 The payout path is deliberately strict:
 
 - the attribution file is ignored when absent and rejected when its matching
-  claimed-bounties file is absent;
+  claimed-bounties file is absent — and the merkle step refuses to run when
+  bounties were claimed but the attribution file is missing, so a crashed
+  generation cannot silently fold forwarder value into the delegators pool;
 - reward symbols must resolve to canonical Ethereum token addresses;
 - only entries with a positive claimed `amountWei` are payable, and allocated
-  token totals cannot exceed the claimed totals;
-- each token is capped by the aggregate amount actually claimed, split by the
-  original USD weights, and valued again from the final `amountWei`;
-- realized USD values are rounded down to six decimals and converted to
-  sCRVUSD at the vault's current `pricePerShare` with bigint arithmetic;
-- payouts below $1 stay in the delegators pool;
-- if requested payouts exceed the available sCRVUSD, every payout is capped
-  pro rata so the shared pool cannot be over-allocated;
-- the merkle step refuses to run when bounties were claimed but the
-  attribution file is missing, so a crashed generation cannot silently fold
-  forwarder value into the delegators pool.
+  token totals cannot exceed the claimed totals (re-validated at merkle time);
+- wallets whose total attributed value is below $1 are not paid raw leaves;
+  their value stays with the pool and settles through the Tuesday pot;
+- the withdrawal instruction is written only after every merkle output
+  landed, so a half-finished run cannot describe unpublished leaves.
 
-The applied payouts and the `pricePerShare` used are recorded in
-`bounties-reports/<period>/vlCVX/votium_forwarder_payouts.json`;
-`verify/verifyForwardersMerkle.ts` reads that artifact to check exact
-per-address merkle deltas.
+`createDelegatorsMerkle.ts` splits the Tuesday pot by the pooled wallets'
+USD-valued VotemarketV2 entitlements (`delegators_split_breakdown.json`
+records the split; `verify/verifyForwardersMerkle.ts` re-checks the pot total
+and the exact per-address deltas from it, and fails the pipeline when they
+disagree).
 
-Token pricing can still differ from realized swap proceeds. Missing identities
-or prices fail the generation instead of emitting a partial attribution. The
-pool cap remains the final protection, and any unallocated remainder goes to
-the delegators distribution.
+## Votium proceeds over two weeks (ENG-2105)
+
+A Votium round is now swapped once, in the week its round ends, so what
+delegators earn no longer depends on where the market goes over the following
+fortnight. The payout is still spread over two Tuesdays — by the merkle rather
+than by the swap:
+
+- the merkle that follows the swap distributes **half** of the
+  Votium-attributable sCRVUSD and writes the rest to
+  `votium_scrvusd_carryover.json`;
+- the next distribution adds that carried half to its own pot and records the
+  period it consumed in `delegators_split_breakdown.json` →
+  `votium.carriedInFrom`, which is what stops a half from ever being paid
+  twice. A skipped Tuesday delays the second half by a week (look-back window:
+  4 weeks) instead of stranding it.
+
+Deposits are attributed per transaction: every source mints sCRVUSD to the
+distributor from the zero address, so a deposit counts as Votium only when its
+transaction also withdraws the vault's reward tokens to the shared executor —
+the fingerprint of the Votium batch. Residual settlements and orphan
+recoveries are separate transactions, so they are paid in full in the week
+they land; the breakdown artifact shows exactly how the pot was composed.
+
+Everything comes from chain state plus committed artifacts, so a
+`FORCE_MERKLE` re-run reproduces the same numbers, and a carryover is
+re-derived from the chain before it is spent.
+
+The split stays dormant until `VOTIUM_MERKLE_SPLIT_FROM_PERIOD`
+(`script/utils/constants.ts`, overridable with the `VOTIUM_MERKLE_SPLIT_FROM`
+env var) is set to the period of the first round swapped in one window — that
+is what makes this side and the swap job start on the same round.
 
 ## Commands
 

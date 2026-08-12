@@ -22,9 +22,10 @@ import * as moment from "moment";
 import { getAllCurveGauges } from "../../utils/curveApi";
 import {
   computeStakeDaoDelegation,
-  computeDelegationSummary,
+  buildDelegationSummary,
   DelegationDistribution,
   DelegationSummary,
+  PerDelegateExact,
 } from "./delegators";
 import {
   computeNonDelegatorsDistribution,
@@ -199,13 +200,13 @@ const processGaugeProposal = async (
     );
 
   // --- 4) Compute Delegation Distribution & Summary ---
-  // Every delegate voter's pool and delegator weights are computed EXACTLY
-  // per delegate, then merged onto a combined-VP share basis (the summary
-  // schema holds one basis and one token-total map). Routing is per
-  // delegator: forwarding to Stake DAO's Votium forwarder → Tuesday sCRVUSD;
-  // otherwise raw tokens with the non-forwarders. Intra-group token-mix
-  // exactness across pools is a known approximation (follow-up: per-token
-  // proceeds split).
+  // Every delegate voter's pool splits among ITS OWN delegators only,
+  // wei-conserving (perDelegate section — the payable data). Routing is per
+  // delegator: forwarding to Stake DAO's Votium forwarder AND delegating to a
+  // Stake DAO delegate → pooled Tuesday sCRVUSD; every other delegator —
+  // including forwarders behind other delegates — is paid raw tokens in the
+  // Thursday combined merkle. The combined-VP scalar share fields are
+  // membership/reporting data consumed by the verifiers.
   const delegationDistribution: DelegationDistribution = {};
   const mergedPoolTokens: Record<string, bigint> = {};
   const delegatorWeights: Record<
@@ -213,6 +214,7 @@ const processGaugeProposal = async (
     { vp: number; forwarder: boolean }
   > = {};
   let combinedVp = 0;
+  const perDelegateExact: PerDelegateExact[] = [];
 
   for (const delegate of delegateVoters) {
     const key = Object.keys(nonDelegatorsDistribution).find(
@@ -228,7 +230,7 @@ const processGaugeProposal = async (
     );
     if (delegators.length === 0) continue;
 
-    const { distribution, delegateOwnTokens, totalDelegatedVp } =
+    const { distribution, delegateOwnTokens, totalDelegatedVp, exact } =
       await computeStakeDaoDelegation(
         proposal,
         delegators,
@@ -236,6 +238,7 @@ const processGaugeProposal = async (
         key,
         publicClient
       );
+    perDelegateExact.push(exact);
 
     for (const [address, data] of Object.entries(distribution)) {
       if ("tokens" in data) {
@@ -282,8 +285,9 @@ const processGaugeProposal = async (
     delegationDistribution[delegationAddress] = { tokens: mergedPoolTokens };
   }
 
-  const delegationSummary: DelegationSummary = computeDelegationSummary(
-    delegationDistribution
+  const delegationSummary: DelegationSummary = buildDelegationSummary(
+    delegationDistribution,
+    perDelegateExact
   );
 
   // --- 5) Break Down Distributions by Chain ---
@@ -316,29 +320,24 @@ const processGaugeProposal = async (
     });
   });
 
-  const delegationSummaryByChain: Record<number, DelegationSummary> = {
-    1: {} as DelegationSummary,
-  };
-  delegationSummaryByChain[1] = {
+  const emptyChainSummary = (): DelegationSummary => ({
     totalTokens: {},
     totalPerGroup: {},
     totalForwardersShare: delegationSummary.totalForwardersShare,
     totalNonForwardersShare: delegationSummary.totalNonForwardersShare,
     forwarders: delegationSummary.forwarders,
     nonForwarders: delegationSummary.nonForwarders,
+    perDelegate: {},
+  });
+
+  const delegationSummaryByChain: Record<number, DelegationSummary> = {
+    1: emptyChainSummary(),
   };
 
   Object.keys(tokenChainIds).forEach((token) => {
     const chainId = tokenChainIds[token.toLowerCase()];
     if (!delegationSummaryByChain[chainId]) {
-      delegationSummaryByChain[chainId] = {
-        totalTokens: {},
-        totalPerGroup: {},
-        totalForwardersShare: delegationSummary.totalForwardersShare,
-        totalNonForwardersShare: delegationSummary.totalNonForwardersShare,
-        forwarders: delegationSummary.forwarders,
-        nonForwarders: delegationSummary.nonForwarders,
-      };
+      delegationSummaryByChain[chainId] = emptyChainSummary();
     }
   });
 
@@ -351,6 +350,47 @@ const processGaugeProposal = async (
     ([token, groupData]) => {
       const chainId = tokenChainIds[token.toLowerCase()] || 1;
       delegationSummaryByChain[chainId].totalPerGroup[token] = groupData;
+    }
+  );
+
+  // Chain-split the per-delegate sections the same way totalTokens is split:
+  // a token's full column (pool + every wallet amount) belongs to its token's
+  // chain. Wallets/delegates with no token left on a chain are dropped from
+  // that chain's file.
+  const chainOfToken = (token: string): number =>
+    tokenChainIds[token.toLowerCase()] || 1;
+  Object.entries(delegationSummary.perDelegate).forEach(
+    ([delegate, delegateData]) => {
+      const filterTokenMap = (
+        m: Record<string, string>,
+        chainId: number
+      ): Record<string, string> =>
+        Object.fromEntries(
+          Object.entries(m).filter(([token]) => chainOfToken(token) === chainId)
+        );
+
+      for (const chainIdStr of Object.keys(delegationSummaryByChain)) {
+        const chainId = Number(chainIdStr);
+        const poolTokens = filterTokenMap(delegateData.poolTokens, chainId);
+        if (Object.keys(poolTokens).length === 0) continue;
+
+        const filterGroup = (
+          group: Record<string, Record<string, string>>
+        ): Record<string, Record<string, string>> => {
+          const out: Record<string, Record<string, string>> = {};
+          for (const [addr, tokens] of Object.entries(group)) {
+            const filtered = filterTokenMap(tokens, chainId);
+            if (Object.keys(filtered).length > 0) out[addr] = filtered;
+          }
+          return out;
+        };
+
+        delegationSummaryByChain[chainId].perDelegate[delegate] = {
+          poolTokens,
+          forwarders: filterGroup(delegateData.forwarders),
+          nonForwarders: filterGroup(delegateData.nonForwarders),
+        };
+      }
     }
   );
 

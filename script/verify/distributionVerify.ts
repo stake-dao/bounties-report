@@ -160,8 +160,9 @@ Root gauge note: Curve L2 gauges (rootGauge on Arbitrum/Base) are resolved to th
 - ❌  "sdInTotal mismatch > 0.5%" → CRITICAL: swap amounts don't reconcile with CSV
 Only frax is in scope here — curve/fxn are deliberately excluded from the sdFXS gate.`,
   vlCVX: `Distribution timing for vlCVX (Curve+FXN):
-- Thursday run = VOTERS distribution. Forwarder slices are NOT yet included; "forwarder missing", "fwd=0", "parquet off-by-one", or a 1-row delta between parquet/RPC counts driven by forwarders is EXPECTED, not anomalous. Do NOT WARN on it.
-- Tuesday run = DELEGATORS distribution. Forwarders join here; parquet and RPC counts (incl. fwd splits) must reconcile.
+- Thursday run = VOTERS distribution (raw-token combined merkle). The Tuesday sCRVUSD delegators merkle for the period does not exist yet — "delegators merkle absent" is EXPECTED then.
+- Tuesday run = DELEGATORS distribution (pooled sCRVUSD merkle for Stake DAO delegates' Votium forwarders; everyone else was paid raw on Thursday).
+Delegation model (since the 2026-08 on-chain cutover): the delegation artifact spans EVERY on-chain delegate voter — Stake DAO's delegation wallets AND third-party delegates (e.g. Votium/Union). Membership = wallets with CONTRIBUTING WEIGHT in their delegate's applied vote (GaugeVoteHelper replay), NOT raw voting power: a delegator who self-voted, synced late, or re-delegated legitimately drops out. Wallet counts are therefore far larger than pre-cutover single-delegate lists and week-over-week membership can shift with vote behavior — judge against the two delegator gates' output, not against raw-VP intuitions.
 If a RUN CONTEXT block names the run, apply its rule directly; only when it is absent infer day-of-week from the "Week:" header date. Apply the rule above before flagging any forwarder-related drift.
 
 CSV mismatch triage for vlCVX:
@@ -199,7 +200,10 @@ This is the ${runType === "delegators" ? "TUESDAY DELEGATORS" : "THURSDAY VOTERS
   const gateContext = scripts.some((s) => s.gate)
     ? `
 ## DETERMINISTIC GROUND TRUTH
-The "vlCVX Deterministic Invariants" script proves — with exact BigInt math against on-chain state at a pinned block — merkle root integrity, per-leaf proof validity, and cumulative preservation (no entitlement shrinks or disappears while unclaimed) for every selected artifact. Voters/delegators delta-exclusivity is proven only when both mainnet targets were selected and the script output shows that cross-target check ran. Its exit 0 in this run means only the checks that actually ran are PROVEN. Do NOT re-verify, re-litigate, or emit warnings about them.
+The "vlCVX Deterministic Invariants" script proves — with exact BigInt math against on-chain state at a pinned block — merkle root integrity, per-leaf proof validity, and cumulative preservation (no entitlement shrinks or disappears while unclaimed) for every selected artifact. Voters/delegators delta-exclusivity is proven only when both mainnet targets were selected and the script output shows that cross-target check ran.
+The "vlCVX delegation artifact" gate proves the delegation artifact agrees with itself: per-delegate pools conserve to the wei, routed group totals match the flattened legs, membership sets agree across chain files.
+The "vlCVX RPC delegators" gate proves the artifact against epoch-pinned on-chain state: delegate-set completeness, per-delegate delegator enumeration reconciled exactly with GaugeDelegation's own accounting, contributing weights at the vote, wei-exact pool split, and Votium-registry forwarding groups.
+For every gate, exit 0 in this run means only the checks that actually ran are PROVEN. Do NOT re-verify, re-litigate, or emit warnings about them.
 Lines marked "🟡 waived" in its output are known, repo-reviewed exceptions (e.g. Round 95 over-claim recovery) — do not flag them as issues.
 Spend your judgment on what deterministic math cannot check: whether the INPUTS were correct (repartition vs actual vote outcomes, delegator classification, claims completeness vs claimed bounties), cross-script consistency, and week-over-week anomalies.
 `
@@ -218,7 +222,7 @@ Analyze the verification script outputs below. Each script tests a different asp
 
 ## BASELINE EXPECTATIONS (typical healthy week — informational, NOT a hard band)
 The numbers below describe the typical operating range; they organically drift up over time as the protocol grows. Counts within or slightly above this range are EXPECTED and must NOT be flagged as warnings on size alone.
-- vlCVX: ~200–400 merkle claims, ~30–60 tokens, ~250–500 delegators, zero-VP filtered: ~50–150
+- vlCVX: ~400–1000 merkle claims, ~30–60 tokens; delegation artifact ~700–1200 wallets across all delegate voters (post 2026-08 per-delegate expansion)
 - A delegator count up to ~1.5× the upper bound = organic growth, not anomalous
 - Only WARN on size if the count is below the lower bound (potential data loss) or more than ~2× the upper bound (potential duplicate run)
 - CSV diff should be exactly 0 for all tokens
@@ -235,7 +239,7 @@ These counts are expected to differ. Do NOT flag a mismatch between them.
 
 ## CROSS-SCRIPT CHECKS
 After reading all outputs, verify:
-- Parquet delegator count ≈ RPC delegator count (same gauge type)
+- Delegation artifact wallet counts == on-chain recomputation counts (the RPC delegators script prints both; its exit 0 proves the wei-exact match)
 - If Week B detected (same proposalId as prev week): delegator set must be identical to previous week
 - If CSV diff ≠ 0: check if Reward Flow mentions the token in merkle claims (present → warning only; absent → fail)
 
@@ -289,8 +293,8 @@ script_notes:
 - Extraction guidance per script:
   - "* Distribution Verification" → claim count + token count, e.g. "234 claims, 18 tokens"
   - "* Reward Flow Verification" → CSV balance result + chain count, e.g. "CSV balanced across 3 chains"
-  - "* parquet delegators" → delegator count + split, e.g. "319: 292 fwd / 27 non-fwd"
-  - "* RPC delegators" → active + filtered count, e.g. "319 active, 93 zero-VP filtered"
+  - "* delegation artifact" → delegate + wallet counts, e.g. "4 delegates, 918 wallets: 346 fwd / 572 non-fwd"
+  - "* RPC delegators" → recomputation outcome, e.g. "918 wallets wei-exact, forwarding flags match"
   - "* delegation timing" → snapshot block(s), e.g. "block 24741454 (ETH) / 43867680 (Base)"
   - "Bounties Report Verification" → gauge/CSV counts or failure, e.g. "42 gauges, 3 CSVs"
 
@@ -301,7 +305,7 @@ week_context:
 
 ## VERDICT RULES
 - "pass" (confidence ≥ 0.9): all ✅, zero ❌, cross-checks consistent
-- "fail" (any confidence): missing required files, invalid merkle root, delegation address in merkle, BigInt group-split mismatch, delegators not found via RPC, CSV diff≠0 AND token NOT in merkle
+- "fail" (any confidence): missing required files, invalid merkle root, delegation address in merkle, BigInt group-split mismatch, delegation artifact vs on-chain recomputation mismatch (wallet set, wei amounts, or forwarding groups), CSV diff≠0 AND token NOT in merkle
 - "warning": non-critical only — optional file absent, week-over-week >20% change, CSV diff≠0 BUT token IS in merkle, cross-script count discrepancy <5%, ⚠️ RPC warnings where counts still match`;
 
   const context = PROTOCOL_CONTEXT[protocol as keyof typeof PROTOCOL_CONTEXT];
