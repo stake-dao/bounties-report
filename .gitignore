@@ -43,3 +43,9 @@ bounties-reports/*/vlCVX/vp_breakdown.json
 
 # Local forecast archive for round 128 (dry-run inputs/outputs kept for comparison)
 .forecast-round128/
+
+# Union reassignment outputs (regenerated from chain and Snapshot on every run).
+# The end-user split is kept: it is the reviewable deliverable, and it must
+# reconcile with the Union's line in the merkle to the wei.
+script/vlCVX/union_reassign/out/*
+!script/vlCVX/union_reassign/out/union_end_user_merkle.json
