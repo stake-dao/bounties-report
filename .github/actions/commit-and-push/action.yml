@@ -18,4 +18,23 @@ runs:
           exit 0
         fi
         git commit -m "${{ inputs.message }}"
-        git push
+
+        # A rejected push throws away work the job already did (2026-08-13:
+        # GitHub answered `remote: Internal Server Error` and the sdFXS merkle
+        # commit died with the runner). Retry, rebasing in between so a
+        # concurrent commit on main is absorbed rather than fought.
+        for attempt in 1 2 3; do
+          if git push; then
+            exit 0
+          fi
+          if [ "$attempt" -eq 3 ]; then
+            echo "::error::git push failed after $attempt attempts"
+            exit 1
+          fi
+          echo "::warning::git push failed (attempt $attempt/3); rebasing before retry"
+          sleep $((attempt * 10))
+          # `|| true`: the step runs under `bash -e`, and an outage that breaks
+          # push often breaks fetch too — a failed rebase must not abort the
+          # remaining attempts.
+          git pull --rebase --autostash origin main || true
+        done
