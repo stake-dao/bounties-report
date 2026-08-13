@@ -36,7 +36,15 @@ commit-and-push:
 	fi
 	@git add data/delegations/* 2>/dev/null || true
 	@git commit -m "Update delegation data [$(shell date +%Y-%m-%d)]" || true
-	@git push origin main
+	@# Same retry as .github/actions/commit-and-push: a transient GitHub 5xx on
+	@# push must not throw away the indexed data.
+	@for attempt in 1 2 3; do \
+		if git push origin main; then exit 0; fi; \
+		if [ "$$attempt" -eq 3 ]; then echo "git push failed after 3 attempts" >&2; exit 1; fi; \
+		echo "git push failed (attempt $$attempt/3); rebasing before retry" >&2; \
+		sleep $$((attempt * 10)); \
+		git pull --rebase origin main || true; \
+	done
 
 clean:
 	@echo "Cleaning up local files..."
