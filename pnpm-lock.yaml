@@ -31,7 +31,7 @@ dependencies:
     version: 4.3.0(graphql@16.14.2)
   hyparquet:
     specifier: ^1.5.0
-    version: 1.28.1
+    version: 1.28.2
   keccak256:
     specifier: ^1.0.6
     version: 1.0.6
@@ -1481,8 +1481,8 @@ packages:
       minimalistic-crypto-utils: 1.0.1
     dev: false
 
-  /hyparquet@1.28.1:
-    resolution: {integrity: sha512-04PlyhYZpNDVaOjJNX4SP00beWf9Y9vXEOEQXSMFqVQNzxGxTmsJOQgBjar8VzLpT6E2kxNiWKL539e1dHcOVA==}
+  /hyparquet@1.28.2:
+    resolution: {integrity: sha512-+24r0j3oA8dzFYQlPfSeua5JacoPmJPSqbyEGbhleuahOJ2cablgXTk862Pq8sMjkw7/uPucLgPpIOJzWxR8Jg==}
     dev: false
 
   /ieee754@1.2.1:
