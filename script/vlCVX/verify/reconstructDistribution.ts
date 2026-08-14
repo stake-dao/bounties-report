@@ -208,11 +208,12 @@ function main() {
 
   // votium raw legs (claim weeks only)
   const logPath = bp(timestamp, "vlCVX/curve/votium_forwarders_log.json");
-  const isClaimWeek = fileExists(logPath);
+  const log: any = fileExists(logPath) ? readJSON(logPath) : null;
+  // Non-claim weeks still write a stub log ({timestamp, message}) — only a
+  // log carrying forwardersData marks a claim week.
+  const isClaimWeek = log?.forwardersData != null;
   const votiumWallets = new Set<string>();
-  let log: any = null;
   if (isClaimWeek) {
-    log = readJSON(logPath);
     for (const [w, tokens] of Object.entries<any>(log.forwardersData.tokenAllocations)) {
       votiumWallets.add(lc(w));
       for (const [t, leg] of Object.entries<any>(tokens)) addLeg(w, t, leg.amountWei, "votium");
@@ -332,7 +333,7 @@ function main() {
     }
     sections.push(printSection("thursday withdrawal", wdResults));
   } else {
-    console.log("\n  (no votium_forwarders_log — non-claim week, votium checks skipped)");
+    console.log("\n  (no votium forwarders data — non-claim week, votium checks skipped)");
   }
 
   const allOk = sections.every(Boolean);
