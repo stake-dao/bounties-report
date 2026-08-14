@@ -14,7 +14,8 @@ export type InvariantId =
   | "PRESERVE_AMOUNT_REDUCED"
   | "PRESERVE_PAIR_REMOVED"
   | "PRESERVE_BELOW_CLAIMED"
-  | "EXCL_DELTA_OVERLAP";
+  | "EXCL_DELTA_OVERLAP"
+  | "EXCL_ADDR_DELTA_OVERLAP";
 
 export interface Violation {
   invariant: InvariantId;

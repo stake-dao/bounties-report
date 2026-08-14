@@ -1,9 +1,11 @@
 import { getAddress } from "viem";
 
-const SCRVUSD_DECIMALS = 18n;
 const USD_MICRO_DECIMALS = 6n;
-const SCRVUSD_SCALE = 10n ** SCRVUSD_DECIMALS;
-const USD_MICRO_TO_WEI = 10n ** (SCRVUSD_DECIMALS - USD_MICRO_DECIMALS);
+
+// Votium payees whose attributed value is below this USD amount are not paid
+// raw leaves; their value stays with the pool and settles through the Tuesday
+// delegators pot. Builder and verifiers must share this floor.
+export const MIN_VOTIUM_RAW_PAYOUT_USD = 1;
 
 type TokenAllocation = {
 	amountWei?: unknown;
@@ -15,22 +17,18 @@ type ClaimedBounty = {
 	rewardToken?: unknown;
 };
 
-export type ForwarderPayoutResult = {
-	/** True when the requested payouts were reduced to fit the available pool. */
-	capped: boolean;
-	/** Checksummed forwarder address -> sCRVUSD amount (wei). */
-	payouts: Record<string, bigint>;
-	/** Total requested before applying the pool cap. */
-	requestedTotal: bigint;
-	/** Sum of the final payouts. */
-	totalPayout: bigint;
+export type VotiumRawPayoutsResult = {
+	/** Lowercase forwarder address -> lowercase token -> wei to pay raw. */
+	payouts: Record<string, Record<string, bigint>>;
+	/** Per-token totals over the PAID wallets (the Thursday withdrawal). */
+	totalsPerToken: Record<string, bigint>;
+	/** Wallets dropped by the USD floor — their value stays with the pool. */
+	belowFloor: string[];
 };
 
-type ComputeForwarderPayoutsParams = {
+type ComputeVotiumRawPayoutsParams = {
 	claimedBounties: unknown;
-	maxTotal: bigint;
 	minimumPayoutUsd: number;
-	pricePerShare: bigint;
 	tokenAllocations: unknown;
 };
 
@@ -64,7 +62,10 @@ const usdToMicros = (value: unknown, label: string): bigint => {
 	return BigInt(micros);
 };
 
-const sumClaimedAmounts = (claimedBounties: unknown): Record<string, bigint> => {
+/** Claimed wei per lowercase reward token, summed over curve + fxn. */
+export const sumClaimedAmounts = (
+	claimedBounties: unknown,
+): Record<string, bigint> => {
 	const root = asRecord(claimedBounties, "claimedBounties");
 	const totals: Record<string, bigint> = {};
 
@@ -106,27 +107,22 @@ export const hasClaimedVotiumBounties = (claimedBounties: unknown): boolean =>
 	);
 
 /**
- * Convert Votium's per-forwarder USD attribution to sCRVUSD payouts.
+ * The raw-token Votium payouts for the Thursday combined merkle.
  *
- * Only allocations backed by a positive `amountWei` are considered. Their
- * token totals must not exceed the same period's claimed Votium bounties.
- * USD values are rounded down to six decimals before conversion so every
- * subsequent operation, including pool capping, uses deterministic bigint
- * arithmetic.
+ * `tokenAllocations` (forwarders_voted_rewards.json) already carries
+ * claimed-cap reconciled wei amounts for every individually attributed leg —
+ * own votes and slices of non-Stake-DAO delegates' votes; pooled legs never
+ * appear in it. This function re-validates the per-token totals against the
+ * same period's claims (a generator bug must not over-pay), then applies the
+ * USD floor per wallet: below-floor wallets are not paid — their tokens stay
+ * with the pool, are swapped with the Stake DAO remainder and settle through
+ * the Tuesday delegators pot.
  */
-export const computeVotiumForwarderPayouts = ({
+export const computeVotiumRawPayouts = ({
 	claimedBounties,
-	maxTotal,
 	minimumPayoutUsd,
-	pricePerShare,
 	tokenAllocations,
-}: ComputeForwarderPayoutsParams): ForwarderPayoutResult => {
-	if (pricePerShare <= 0n) {
-		throw new Error("pricePerShare must be positive");
-	}
-	if (maxTotal < 0n) {
-		throw new Error("maxTotal cannot be negative");
-	}
+}: ComputeVotiumRawPayoutsParams): VotiumRawPayoutsResult => {
 	if (!Number.isFinite(minimumPayoutUsd) || minimumPayoutUsd < 0) {
 		throw new Error("minimumPayoutUsd must be a non-negative finite number");
 	}
@@ -134,11 +130,14 @@ export const computeVotiumForwarderPayouts = ({
 	const claimedByToken = sumClaimedAmounts(claimedBounties);
 	const allocations = asRecord(tokenAllocations, "tokenAllocations");
 	const allocatedByToken: Record<string, bigint> = {};
-	const usdMicrosByAddress: Record<string, bigint> = {};
+	const byAddress: Record<
+		string,
+		{ tokens: Record<string, bigint>; usdMicros: bigint }
+	> = {};
 
 	for (const [rawAddress, rawTokens] of Object.entries(allocations)) {
-		const address = getAddress(rawAddress);
-		let addressUsdMicros = 0n;
+		const address = getAddress(rawAddress).toLowerCase();
+		const entry = (byAddress[address] ??= { tokens: {}, usdMicros: 0n });
 
 		for (const [rawToken, rawAllocation] of Object.entries(
 			asRecord(rawTokens, `tokenAllocations.${rawAddress}`),
@@ -147,26 +146,20 @@ export const computeVotiumForwarderPayouts = ({
 				rawAllocation,
 				`tokenAllocations.${rawAddress}.${rawToken}`,
 			) as TokenAllocation;
-			const usdMicros = usdToMicros(
-				allocation.usd,
-				`tokenAllocations.${rawAddress}.${rawToken}.usd`,
-			);
-			if (usdMicros === 0n) continue;
-
-			const claimedAmount = parseUnsignedBigInt(
+			const amountWei = parseUnsignedBigInt(
 				allocation.amountWei,
 				`tokenAllocations.${rawAddress}.${rawToken}.amountWei`,
 			);
-			if (claimedAmount === 0n) continue;
+			if (amountWei === 0n) continue;
 
 			const token = rawToken.toLowerCase();
-			allocatedByToken[token] =
-				(allocatedByToken[token] ?? 0n) + claimedAmount;
-			addressUsdMicros += usdMicros;
+			allocatedByToken[token] = (allocatedByToken[token] ?? 0n) + amountWei;
+			entry.tokens[token] = (entry.tokens[token] ?? 0n) + amountWei;
+			entry.usdMicros += usdToMicros(
+				allocation.usd,
+				`tokenAllocations.${rawAddress}.${rawToken}.usd`,
+			);
 		}
-
-		usdMicrosByAddress[address] =
-			(usdMicrosByAddress[address] ?? 0n) + addressUsdMicros;
 	}
 
 	for (const [token, allocated] of Object.entries(allocatedByToken)) {
@@ -179,42 +172,26 @@ export const computeVotiumForwarderPayouts = ({
 		}
 	}
 
-	const minimumUsdMicros = usdToMicros(
-		minimumPayoutUsd,
-		"minimumPayoutUsd",
-	);
-	const requestedPayouts: Record<string, bigint> = {};
-	let requestedTotal = 0n;
+	const minimumUsdMicros = usdToMicros(minimumPayoutUsd, "minimumPayoutUsd");
+	const result: VotiumRawPayoutsResult = {
+		payouts: {},
+		totalsPerToken: {},
+		belowFloor: [],
+	};
 
-	for (const address of Object.keys(usdMicrosByAddress).sort()) {
-		const usdMicros = usdMicrosByAddress[address];
-		if (usdMicros < minimumUsdMicros) continue;
-
-		const usdWei = usdMicros * USD_MICRO_TO_WEI;
-		const amount = (usdWei * SCRVUSD_SCALE) / pricePerShare;
-		if (amount === 0n) continue;
-
-		requestedPayouts[address] = amount;
-		requestedTotal += amount;
+	for (const address of Object.keys(byAddress).sort()) {
+		const { tokens, usdMicros } = byAddress[address];
+		if (Object.keys(tokens).length === 0) continue;
+		if (usdMicros < minimumUsdMicros) {
+			result.belowFloor.push(address);
+			continue;
+		}
+		result.payouts[address] = tokens;
+		for (const [token, amount] of Object.entries(tokens)) {
+			result.totalsPerToken[token] =
+				(result.totalsPerToken[token] ?? 0n) + amount;
+		}
 	}
 
-	if (requestedTotal <= maxTotal) {
-		return {
-			capped: false,
-			payouts: requestedPayouts,
-			requestedTotal,
-			totalPayout: requestedTotal,
-		};
-	}
-
-	const payouts: Record<string, bigint> = {};
-	let totalPayout = 0n;
-	for (const [address, requested] of Object.entries(requestedPayouts)) {
-		const amount = (requested * maxTotal) / requestedTotal;
-		if (amount === 0n) continue;
-		payouts[address] = amount;
-		totalPayout += amount;
-	}
-
-	return { capped: true, payouts, requestedTotal, totalPayout };
+	return result;
 };

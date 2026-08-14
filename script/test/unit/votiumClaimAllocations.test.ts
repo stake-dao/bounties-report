@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getAddress } from "viem";
-import { computeVotiumForwarderPayouts } from "../../vlCVX/3_merkles/votiumForwarderPayouts";
+import { computeVotiumRawPayouts } from "../../utils/votiumRawPayouts";
 import { reconcileVotiumClaimAllocations } from "../../vlCVX/claims/votiumClaimAllocations";
 
 const DIRECT_VOTER = "0x4b908f3d5e46b89c0d8a6478f86c80b88aa277d3";
@@ -8,7 +7,6 @@ const DELEGATOR_OVERLAP = "0x5bff1a68663ff91b0650327d83d4230cd00023ad";
 const UNION_FORWARDER = "0x8ac4c0630c5ed1636537924ec9b037fc652adee8";
 const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const BOLD = "0x6440f144b7e50D6a8439336510312d2F54beB01D";
-const ONE = 10n ** 18n;
 
 const tenderlyReconciliation = () =>
 	reconcileVotiumClaimAllocations({
@@ -77,9 +75,9 @@ describe("reconcileVotiumClaimAllocations", () => {
 		});
 	});
 
-	it("pays both a direct voter and a delegator overlap from realized USD", () => {
+	it("pays reconciled legs as raw token leaves, flooring dust wallets", () => {
 		const reconciled = tenderlyReconciliation();
-		const payouts = computeVotiumForwarderPayouts({
+		const raw = computeVotiumRawPayouts({
 			claimedBounties: {
 				curve: {
 					0: { amount: "4940131", rewardToken: USDT },
@@ -90,9 +88,7 @@ describe("reconcileVotiumClaimAllocations", () => {
 				},
 				fxn: {},
 			},
-			maxTotal: 100n * ONE,
 			minimumPayoutUsd: 1,
-			pricePerShare: ONE,
 			tokenAllocations: Object.fromEntries(
 				Object.entries(reconciled.tokenAllocations).map(
 					([address, allocations]) => [
@@ -114,11 +110,20 @@ describe("reconcileVotiumClaimAllocations", () => {
 			),
 		});
 
-		expect(payouts.payouts).toEqual({
-			[getAddress(DIRECT_VOTER)]: 60_394_733n * 10n ** 12n,
-			[getAddress(DELEGATOR_OVERLAP)]: 4_887_714n * 10n ** 12n,
+		expect(raw.payouts).toEqual({
+			[DIRECT_VOTER.toLowerCase()]: {
+				[BOLD.toLowerCase()]: 61_161_700_796_976_898_048n,
+			},
+			[DELEGATOR_OVERLAP.toLowerCase()]: {
+				[USDT.toLowerCase()]: 4_887_714n,
+			},
 		});
-		expect(payouts.totalPayout).toBe(65_282_447n * 10n ** 12n);
+		// $0.05 of USDT stays with the pool instead of a dust leaf.
+		expect(raw.belowFloor).toEqual([UNION_FORWARDER.toLowerCase()]);
+		expect(raw.totalsPerToken).toEqual({
+			[USDT.toLowerCase()]: 4_887_714n,
+			[BOLD.toLowerCase()]: 61_161_700_796_976_898_048n,
+		});
 	});
 
 	it("leaves unclaimed and unattributed amounts in the delegators pool", () => {

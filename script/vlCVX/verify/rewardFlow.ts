@@ -4,8 +4,10 @@
  * Checks:
  * 1. CSV balance — CSV_total === delegation_total + nonDelegator_total per token (exact BigInt)
  * 2. Group split — forwarders + nonForwarders === totalTokens per token
- * 3. Share ratio — actual ratio matches totalForwardersShare within 1e-4
+ *    (routes: "forwarders" = pooled Tuesday, "nonForwarders" = raw Thursday)
+ * 3. Attribution — per-delegate wallet sums conserve pools, groups and totals to the wei
  * 4. Cumulative merkle — curr ≈ prev + this_week_repart + nonFwd_deleg
+ *    (+ raw Votium leaves in the curve merkle on claim weeks)
  * 5. Forwarders sCRVUSD — cumulative monotonically increasing
  *
  * Usage:
@@ -16,6 +18,12 @@ import * as fs from "fs";
 import * as path from "path";
 import { WEEK } from "../../utils/constants";
 import { ChainCheck, verifyCSVBalance, REPORTS_DIR, readJSON, shortAddr } from "../../utils/verifyHelpers";
+import { hasPerDelegateAttribution, getExactGroupAmounts } from "../../utils/delegationExact";
+import {
+  computeVotiumRawPayouts,
+  hasClaimedVotiumBounties,
+  MIN_VOTIUM_RAW_PAYOUT_USD,
+} from "../../utils/votiumRawPayouts";
 
 const SCRVUSD = "0x0655977feb2f289a4ab78af67bab0d17aab84367";
 const LATEST_FORWARDERS_MERKLE = path.join(
@@ -117,48 +125,69 @@ function verifyGroupSplit(timestamp: number): { allOk: boolean; results: string[
   return { allOk, results };
 }
 
-// ── Check 3: Share Ratio ──────────────────────────────────────────────────────
+// ── Check 3: Attribution Consistency ─────────────────────────────────────────
+// Per-token group ratios legitimately diverge from the global VP scalar — the
+// binding invariants are:
+//   a. per delegate, per token: forwarder + non-forwarder wallet amounts sum
+//      EXACTLY to the delegate's pool (checked by the reader),
+//   b. across delegates: pools sum EXACTLY to totalTokens,
+//   c. flattened wallet amounts sum EXACTLY to totalPerGroup (reader-checked).
+// Files from before the on-chain cutover carry no perDelegate section and are
+// skipped with a notice (historical periods only).
 
-function verifyShareRatio(timestamp: number): { allOk: boolean; results: string[] } {
+function verifyAttribution(timestamp: number): { allOk: boolean; results: string[] } {
   let allOk = true;
   const results: string[] = [];
 
   for (const cfg of GROUP_SPLIT_CHECKS) {
-    results.push(`\n  === ${cfg.label}: Share Ratio ===`);
+    results.push(`\n  === ${cfg.label}: Attribution ===`);
 
     const delegPath = bp(timestamp, cfg.delegation);
-    if (!fs.existsSync(delegPath)) { results.push(`  ⚠️  File not found — skipping`); continue; }
-
-    const data = readJSON(delegPath);
-    const dist = data.distribution;
-    const expectedRatio = parseFloat(dist.totalForwardersShare || "0");
-
-    if (!dist.totalPerGroup || !dist.totalTokens) {
-      results.push(`  ⚠️  No totalPerGroup — skipping`);
+    if (!fs.existsSync(delegPath)) {
+      results.push(`  ⚠️  File not found — skipping`);
       continue;
     }
 
-    let maxError = 0;
-    let checkOk = true;
-    for (const [token, amounts] of Object.entries(dist.totalPerGroup) as [string, any][]) {
-      const fwd = Number(BigInt(amounts.forwarders));
-      const total = Number(BigInt(dist.totalTokens[token]));
-      if (total === 0) continue;
+    const data = readJSON(delegPath);
+    const dist = data.distribution;
 
-      const actualRatio = fwd / total;
-      const error = Math.abs(actualRatio - expectedRatio);
-      maxError = Math.max(maxError, error);
-
-      if (error > 1e-4) {
-        checkOk = false;
-        allOk = false;
-        results.push(
-          `  ❌ ${shortAddr(token.toLowerCase())} | actual=${actualRatio.toFixed(6)} expected=${expectedRatio.toFixed(6)} err=${error.toExponential(2)}`
-        );
-      }
+    if (!hasPerDelegateAttribution(dist)) {
+      results.push(`  ⚠️  No perDelegate attribution (pre-cutover file) — skipping`);
+      continue;
     }
 
-    if (checkOk) results.push(`  ✅ All tokens within 1e-4 (max error: ${maxError.toExponential(2)})`);
+    try {
+      // Reader throws unless wallet sums == totalPerGroup, token by token.
+      getExactGroupAmounts(dist, "forwarders");
+      getExactGroupAmounts(dist, "nonForwarders");
+
+      // Pools must sum exactly to totalTokens.
+      const poolSums: Record<string, bigint> = {};
+      for (const d of Object.values(dist.perDelegate) as any[]) {
+        for (const [token, amount] of Object.entries(d.poolTokens as Record<string, string>)) {
+          const key = token.toLowerCase();
+          poolSums[key] = (poolSums[key] || 0n) + BigInt(amount);
+        }
+      }
+      let poolOk = true;
+      for (const [token, totalStr] of Object.entries(dist.totalTokens) as [string, string][]) {
+        if ((poolSums[token.toLowerCase()] || 0n) !== BigInt(totalStr)) {
+          poolOk = false;
+          allOk = false;
+          results.push(
+            `  ❌ ${shortAddr(token.toLowerCase())} | delegate pools ${poolSums[token.toLowerCase()] || 0n} != totalTokens ${totalStr}`
+          );
+        }
+      }
+      if (poolOk) {
+        results.push(
+          `  ✅ ${Object.keys(dist.perDelegate).length} delegate pool(s) conserve exactly (wallet sums == totalPerGroup == totalTokens)`
+        );
+      }
+    } catch (e: any) {
+      allOk = false;
+      results.push(`  ❌ Attribution inconsistent: ${e.message}`);
+    }
   }
 
   return { allOk, results };
@@ -226,6 +255,34 @@ function verifyCumulativeMerkle(timestamp: number): { allOk: boolean; results: s
       }
     }
 
+    // Raw Votium leaves enter the CURVE merkle on claim weeks — recompute
+    // them from the same inputs as createCombinedMerkle.
+    const votiumPerToken: Record<string, bigint> = {};
+    if (cfg.gaugeType === "curve") {
+      const votiumDir = path.join(
+        __dirname,
+        `../../../weekly-bounties/${timestamp}/votium`
+      );
+      const claimsFile = path.join(votiumDir, "claimed_bounties_convex.json");
+      const attributionFile = path.join(votiumDir, "forwarders_voted_rewards.json");
+      try {
+        const claims = fs.existsSync(claimsFile) ? readJSON(claimsFile) : null;
+        if (claims !== null && hasClaimedVotiumBounties(claims) && fs.existsSync(attributionFile)) {
+          const attribution = readJSON(attributionFile);
+          const raw = computeVotiumRawPayouts({
+            claimedBounties: claims,
+            minimumPayoutUsd: MIN_VOTIUM_RAW_PAYOUT_USD,
+            tokenAllocations: attribution.tokenAllocations ?? {},
+          });
+          for (const [token, amount] of Object.entries(raw.totalsPerToken)) {
+            votiumPerToken[token] = amount;
+          }
+        }
+      } catch (e: any) {
+        results.push(`  ⚠️  Votium raw term could not be computed: ${e.message}`);
+      }
+    }
+
     const allTokens = new Set([...Object.keys(currTotals), ...Object.keys(prevTotals)]);
     let checkOk = true;
     let tokenCount = 0;
@@ -236,7 +293,8 @@ function verifyCumulativeMerkle(timestamp: number): { allOk: boolean; results: s
       const prev = prevTotals[token] || 0n;
       const repart = repartPerToken[token] || 0n;
       const nonFwd = nonFwdPerToken[token] || 0n;
-      const expected = prev + repart + nonFwd;
+      const votiumRaw = votiumPerToken[token] || 0n;
+      const expected = prev + repart + nonFwd + votiumRaw;
       const diff = curr - expected;
 
       if (diff !== 0n) {
@@ -251,7 +309,7 @@ function verifyCumulativeMerkle(timestamp: number): { allOk: boolean; results: s
       }
     }
 
-    if (checkOk) results.push(`  ✅ All ${tokenCount} tokens: prev + repart + nonFwd = curr`);
+    if (checkOk) results.push(`  ✅ All ${tokenCount} tokens: prev + repart + nonFwd + votiumRaw = curr`);
   }
 
   return { allOk, results };
@@ -351,7 +409,7 @@ Options:
   for (const line of splitResult.results) console.log(line);
   if (!splitResult.allOk) allOk = false;
 
-  const ratioResult = verifyShareRatio(timestamp);
+  const ratioResult = verifyAttribution(timestamp);
   for (const line of ratioResult.results) console.log(line);
   if (!ratioResult.allOk) allOk = false;
 

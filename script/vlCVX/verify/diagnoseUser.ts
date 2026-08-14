@@ -16,6 +16,7 @@ import {
   VOTIUM_FORWARDER_REGISTRY,
   CVX_SPACE,
 } from "../../utils/constants";
+import { isPooledDelegate } from "../../utils/delegationExact";
 
 const SNAPSHOT_ENDPOINT = "https://hub.snapshot.org/graphql";
 const SCORE_ENDPOINT = "https://score.snapshot.org/api/scores";
@@ -804,6 +805,10 @@ interface UserShareInfo {
   type: "forwarder" | "non-forwarder" | "direct-voter";
   share: number;
   totalGroupRewardUSD: number;
+  /** Exact per-token amounts (wei strings) from the per-delegate attribution. */
+  exactTokens?: Record<string, string>;
+  /** Delegate whose vote earned those amounts. */
+  delegate?: string;
 }
 
 
@@ -828,13 +833,29 @@ function findUserShare(repartitionPath: string, address: string): UserShareInfo 
     }
   }
 
+  // Exact per-token amounts from the per-delegate attribution (absent only
+  // in files written before the on-chain cutover).
+  const findExact = (
+    group: "forwarders" | "nonForwarders"
+  ): { exactTokens: Record<string, string>; delegate: string } | null => {
+    for (const [delegate, section] of Object.entries(dist.perDelegate || {}) as any) {
+      for (const [addr, tokens] of Object.entries(section[group] || {})) {
+        if (addr.toLowerCase() === lowerAddr) {
+          return { exactTokens: tokens as Record<string, string>, delegate };
+        }
+      }
+    }
+    return null;
+  };
+
   if (dist.forwarders) {
     for (const [addr, share] of Object.entries(dist.forwarders)) {
       if (addr.toLowerCase() === lowerAddr) {
         return {
           type: "forwarder",
           share: parseFloat(share as string),
-          totalGroupRewardUSD: forwardersUSD
+          totalGroupRewardUSD: forwardersUSD,
+          ...findExact("forwarders")
         };
       }
     }
@@ -846,7 +867,8 @@ function findUserShare(repartitionPath: string, address: string): UserShareInfo 
         return {
           type: "non-forwarder",
           share: parseFloat(share as string),
-          totalGroupRewardUSD: nonForwardersUSD
+          totalGroupRewardUSD: nonForwardersUSD,
+          ...findExact("nonForwarders")
         };
       }
     }
@@ -984,11 +1006,23 @@ async function main() {
   let prices: Record<string, TokenInfo> = {};
 
   if (userShare && aprs) {
-    const groupRewardUSD = userShare.type === "forwarder" ? aprs.rewardValueUSD : userShare.totalGroupRewardUSD;
-    thisWeekReward = groupRewardUSD * userShare.share;
+    if (userShare.exactTokens) {
+      // Price the wallet's own attributed amounts — its actual reward, not a
+      // pool-share estimate.
+      prices = await getTokenPrices(Object.keys(userShare.exactTokens));
+      for (const [token, amount] of Object.entries(userShare.exactTokens)) {
+        const info = prices[token.toLowerCase()];
+        const decimals = info?.decimals || 18;
+        thisWeekReward += (Number(amount) / Math.pow(10, decimals)) * (info?.price || 0);
+      }
+    } else {
+      const groupRewardUSD = userShare.type === "forwarder" ? aprs.rewardValueUSD : userShare.totalGroupRewardUSD;
+      thisWeekReward = groupRewardUSD * userShare.share;
+    }
     if (nextSnapshotVP.total > snapshotVP.total && snapshotVP.total > 0) {
       const totalGroupVP = snapshotVP.total / userShare.share;
       const nextShare = nextSnapshotVP.total / totalGroupVP;
+      const groupRewardUSD = userShare.type === "forwarder" ? aprs.rewardValueUSD : userShare.totalGroupRewardUSD;
       nextWeekReward = groupRewardUSD * nextShare;
     }
   } else if (directVoterInfo) {
@@ -1032,7 +1066,20 @@ async function main() {
   if (userShare) {
     const typeLabel = userShare.type.toUpperCase();
     console.log(`>>> ${typeLabel} (delegator) <<<`);
-    console.log(`    Share: ${(userShare.share * 100).toFixed(4)}% of pool`);
+    console.log(`    Share: ${(userShare.share * 100).toFixed(4)}% of pool (VP)`);
+    if (userShare.delegate) {
+      const route =
+        userShare.type === "forwarder"
+          ? isPooledDelegate(userShare.delegate)
+            ? "pooled → Tuesday sCRVUSD delegators merkle"
+            : "raw → Thursday combined merkle"
+          : "raw → Thursday combined merkle";
+      console.log(`    Delegate: ${userShare.delegate}`);
+      console.log(`    Payment route: ${route}`);
+    }
+    if (userShare.exactTokens) {
+      console.log(`    Attributed tokens: ${Object.keys(userShare.exactTokens).length} (exact per-delegate amounts)`);
+    }
     console.log(`    Snapshot VP: ${formatVP(snapshotVP)} vlCVX`);
     console.log(`\nThis Week: $${thisWeekReward.toFixed(2)}  →  APR: ${poolAPR.toFixed(2)}% ✓`);
     if (nextWeekReward > thisWeekReward) {

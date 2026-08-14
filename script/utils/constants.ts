@@ -31,6 +31,11 @@ export const DELEGATE_REGISTRY = "0x469788fE6E9E9681C6ebF3bF78e7Fd26Fc015446";
 export const VOTIUM_FORWARDER = "0xAe86A3993D13C8D77Ab77dBB8ccdb9b7Bc18cd09"; // 0xCC2a0F5e95C88AAbD7b8E0Db5C5252820Cd47f91 => The Union
 export const VOTIUM_FORWARDER_REGISTRY =
   "0x92e6E43f99809dF84ed2D533e1FD8017eb966ee2";
+// Shared swap executor (automation-jobs ContractRegistry.ALL_MIGHT_V2). The
+// Votium swap withdraws the vault's tokens to it in the same transaction that
+// mints the delegators' sCRVUSD, which is what makes those deposits
+// identifiable among the other sources feeding the same distributor.
+export const ALL_MIGHT_V2 = "0xDBd24b092f686b12650EC1450e3A7138F714506c";
 
 export const DELEGATE_REGISTRY_CREATION_BLOCK_ETH = 11225329;
 export const DELEGATE_REGISTRY_CREATION_BLOCK_BSC = 10963355;
@@ -41,6 +46,14 @@ export const DELEGATE_REGISTRY_CREATION_BLOCK_BASE = 17894724;
 // has ZERO on-chain weight — on-chain reads must use this address instead.
 export const VLCVX_ONCHAIN_DELEGATION_ADDRESS =
   "0xbB06fEFB8f23A7c60C93fe20464DB6687C51955f";
+// Delegates operated by Stake DAO. Only THEIR delegators who forward to our
+// Votium forwarder are paid through the pooled Tuesday sCRVUSD delegators
+// merkle. A forwarder behind any other delegate — and any wallet that voted
+// itself — is paid raw tokens in the Thursday combined merkle.
+export const VLCVX_POOLED_DELEGATES = [
+  VLCVX_ONCHAIN_DELEGATION_ADDRESS,
+  DELEGATION_ADDRESS,
+];
 // Gauge vote platforms were redeployed 2026-07-25 (weights now ppm 0-1_000_000
 // instead of bps 0-10000; read ABI unchanged). Proposal history restarted at 0:
 // rounds voted before the redeploy live on the old contracts
@@ -91,6 +104,22 @@ export const SDFXS_UNIVERSAL_MERKLE =
 export const DELEGATION_RECIPIENT = "0x8898502BA35AB64b3562aBC509Befb7Eb178D4df";
 export const WEEK = 604800;
 export const TWOWEEKS = WEEK * 2;
+
+/**
+ * First weekly period whose delegators merkle splits the Votium swap proceeds
+ * across two distributions (ENG-2105): half paid that Tuesday, half carried to
+ * the next one. Before it — and while this is null — every period distributes
+ * whatever arrived, exactly as it did before the change.
+ *
+ * Set it to the week-A period of the first round that runs with the
+ * full-in-one-window swap job, so both sides of the change start on the same
+ * round. `VOTIUM_MERKLE_SPLIT_FROM` overrides it for tests and backfills.
+ *
+ * 1785974400 = epoch-230 week A (2026-08-06), the first round whose whole
+ * Votium claim was swapped in its ending window (stable remainder completed
+ * on 2026-08-11 before the delegators merkle regeneration).
+ */
+export const VOTIUM_MERKLE_SPLIT_FROM_PERIOD: number | null = 1785974400;
 
 
 

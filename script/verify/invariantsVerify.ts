@@ -26,7 +26,7 @@ dotenv.config();
 
 import { getClient } from "../utils/getClients";
 import { parseCliArgs } from "./invariants/cli";
-import { loadArtifact } from "./invariants/artifact";
+import { loadArtifact, loadArchivedPairs } from "./invariants/artifact";
 import { resolveBaseline } from "./invariants/baseline";
 import {
   checkPreservation,
@@ -34,6 +34,10 @@ import {
   unionPairKeys,
 } from "./invariants/preservation";
 import { checkDeltaExclusivity, positiveDeltas } from "./invariants/exclusivity";
+import {
+  checkAddressDeltaExclusivity,
+  loadWeeklyAttribution,
+} from "./invariants/addressExclusivity";
 import { applyWaivers, loadWaivers } from "./invariants/waivers";
 import {
   ArtifactSpec,
@@ -156,7 +160,26 @@ async function main() {
     checkPreservation(ctx, artifact.pairs, baseline.pairs, claimed, violations);
 
     if (spec.chainId === 1) {
-      mainnetDeltas[spec.target] = positiveDeltas(artifact.pairs, baseline.pairs);
+      // Cross-tree deltas must measure THIS ROUND's additions. The
+      // preservation baseline is the ACTIVE root — right for claims
+      // protection, but once this artifact is published the active root IS
+      // this artifact and its delta reads zero, silencing the
+      // voters∩delegators exclusivity checks for whichever tree published
+      // first (voters on Thursday runs, delegators after Tuesday). Fall back
+      // to the previous period's archived artifact for the delta baseline.
+      let deltaBaseline = baseline.pairs;
+      if (
+        baseline.artifactPath &&
+        path.resolve(baseline.artifactPath) === path.resolve(absPath)
+      ) {
+        const archived = loadArchivedPairs(REPORTS_ROOT, timestamp, spec.relPath);
+        deltaBaseline = archived.pairs;
+        console.log(
+          `   already published — cross-tree delta baseline: ` +
+            `${archived.foundAt ?? "none (fresh distributor)"}`
+        );
+      }
+      mainnetDeltas[spec.target] = positiveDeltas(artifact.pairs, deltaBaseline);
     }
   }
 
@@ -167,6 +190,29 @@ async function main() {
       mainnetDeltas.voters,
       mainnetDeltas.delegators,
       violations
+    );
+
+    // Address-level pass: the per-token check above is blind to the realistic
+    // double-pay shape (Tuesday pays sCRVUSD, Thursday pays raw tokens — the
+    // token sets never collide). Platform splits are auto-cleared from the
+    // week's own artifacts; everything unprovable fails closed.
+    const attribution = loadWeeklyAttribution(REPORTS_ROOT, timestamp);
+    const addrStats = checkAddressDeltaExclusivity(
+      1,
+      mainnetDeltas.voters,
+      mainnetDeltas.delegators,
+      attribution,
+      violations
+    );
+    for (const cleared of addrStats.cleared) {
+      console.log(
+        `   🟢 platform split: ${cleared.account} — Tuesday [${cleared.tuesday.join(", ")}] ` +
+          `vs Thursday [${cleared.thursday.join(", ")}]`
+      );
+    }
+    console.log(
+      `   address-level: ${addrStats.overlaps} cross-tree recipient(s), ` +
+        `${addrStats.cleared.length} platform split(s) cleared`
     );
   } else if (target === "both") {
     console.log(
