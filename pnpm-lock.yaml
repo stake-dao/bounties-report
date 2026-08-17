@@ -55,7 +55,7 @@ dependencies:
     version: 1.1.1
   viem:
     specifier: ^2.21.3
-    version: 2.55.17
+    version: 2.55.18
   yargs:
     specifier: ^17.7.2
     version: 17.7.3
@@ -2017,8 +2017,8 @@ packages:
     resolution: {integrity: sha512-lKxKYG6H03yCZUpAGOPOsMcGxd1RHCu1iKvEHYDPmTyq2HueGhD73ssNBqqQWfvYs04G9iUFRvmAVLW20Jw6ow==}
     dev: false
 
-  /viem@2.55.17:
-    resolution: {integrity: sha512-XKASpfG9jznxsU/J7Bj2k9aS0UZgU3sBcwVoQ6slD5T1RmNJHh3khmFVJuRKjrOe3uqHb0FJKbb6jwE49WtVDQ==}
+  /viem@2.55.18:
+    resolution: {integrity: sha512-7XJtcMueFo4dQz+VK5mhY3GV9lvQkyrMbM/P/IghE0d8oZ/xbhgMXdTpc+ra4ZtDOGsLKu+0/EOD7BetVmVBsw==}
     peerDependencies:
       typescript: '>=5.0.4'
     peerDependenciesMeta:
