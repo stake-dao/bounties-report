@@ -35,6 +35,7 @@ const NON_WAIVABLE: ReadonlySet<InvariantId> = new Set([
   "STRUCT_ROOT_MISMATCH",
   "STRUCT_PROOF_INVALID",
   "BASELINE_UNRESOLVED",
+  "RESTATEMENT_CREDITS_INVALID",
 ] as InvariantId[]);
 
 export function loadWaivers(path: string): Waiver[] {
