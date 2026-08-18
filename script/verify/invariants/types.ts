@@ -15,7 +15,8 @@ export type InvariantId =
   | "PRESERVE_PAIR_REMOVED"
   | "PRESERVE_BELOW_CLAIMED"
   | "EXCL_DELTA_OVERLAP"
-  | "EXCL_ADDR_DELTA_OVERLAP";
+  | "EXCL_ADDR_DELTA_OVERLAP"
+  | "RESTATEMENT_CREDITS_INVALID";
 
 export interface Violation {
   invariant: InvariantId;

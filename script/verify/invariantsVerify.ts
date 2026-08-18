@@ -40,6 +40,11 @@ import {
 } from "./invariants/addressExclusivity";
 import { applyWaivers, loadWaivers } from "./invariants/waivers";
 import {
+  applyRestatementCredits,
+  clearJustifiedRemovals,
+  loadRestatements,
+} from "./invariants/restatements";
+import {
   ArtifactSpec,
   InvariantReport,
   PairMap,
@@ -93,6 +98,13 @@ async function main() {
 
   const specs = VLCVX_SPECS.filter(
     (s) => target === "both" || s.target === target
+  );
+
+  // Epoch-scoped restatement credits (repo-reviewed, root-pinned): amounts a
+  // committed restatement moved between accounts THIS epoch, credited out of
+  // the cross-tree deltas so moved principal is not read as a new payment.
+  const restatements = loadRestatements(
+    path.join("script", "verify", "invariants", "restatements.vlcvx.json")
   );
 
   // Per-spec deltas kept for the cross-merkle exclusivity check on mainnet.
@@ -159,6 +171,23 @@ async function main() {
     const claimed = await fetchClaimed(client, ctx, pairKeys);
     checkPreservation(ctx, artifact.pairs, baseline.pairs, claimed, violations);
 
+    // Removals a committed restatement moved elsewhere are justified ONLY
+    // against that restatement's own pre-state tree, at the exact baseline
+    // amount, with an exactly-matching deficit (proves claimed == 0).
+    const removalSplit = clearJustifiedRemovals(violations, restatements, {
+      target: spec.target,
+      chainId: spec.chainId,
+      baselineRoot: baseline.activeRoot,
+      baselinePairs: baseline.pairs,
+    });
+    violations.length = 0;
+    violations.push(...removalSplit.remaining);
+    for (const { violation } of removalSplit.cleared) {
+      console.log(
+        `   🟢 justified removal (restatement, claimed==0): ${violation.subject}`
+      );
+    }
+
     if (spec.chainId === 1) {
       // Cross-tree deltas must measure THIS ROUND's additions. The
       // preservation baseline is the ACTIVE root — right for claims
@@ -179,7 +208,19 @@ async function main() {
             `${archived.foundAt ?? "none (fresh distributor)"}`
         );
       }
-      mainnetDeltas[spec.target] = positiveDeltas(artifact.pairs, deltaBaseline);
+      const { deltas: creditedDeltas, applied } = applyRestatementCredits(
+        positiveDeltas(artifact.pairs, deltaBaseline),
+        restatements,
+        { target: spec.target, chainId: spec.chainId, epoch: timestamp },
+        violations
+      );
+      for (const app of applied) {
+        console.log(
+          `   restatement credits: ${app.entry.creditsFile} — ` +
+            `${app.creditedPairs} pair(s) across ${app.creditedAddresses} address(es) credited out of the delta`
+        );
+      }
+      mainnetDeltas[spec.target] = creditedDeltas;
     }
   }
 

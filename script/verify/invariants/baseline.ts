@@ -56,21 +56,30 @@ export async function resolveBaseline(
   // Fresh distributor: nothing distributed yet, the empty baseline is valid.
   if (activeRoot === ZERO_ROOT) return resolution;
 
+  // A restatement rewrites an epoch's artifact in place; while its root is
+  // not yet accepted on-chain, the active root's tree is preserved next to it
+  // as `<name>.superseded.json`. Still exact-match provenance: a superseded
+  // candidate only ever resolves if it recomputes to the active root, which
+  // binds its full content.
+  const supersededRelPath = spec.relPath.replace(/\.json$/, ".superseded.json");
+
   for (let weeksBack = 0; weeksBack <= MAX_WEEKS_BACK; weeksBack++) {
     const ts = currentTimestamp - weeksBack * WEEK;
-    const candidate = path.join(reportsRoot, String(ts), spec.relPath);
-    if (!fs.existsSync(candidate)) continue;
-    try {
-      const data: MerkleData = JSON.parse(fs.readFileSync(candidate, "utf8"));
-      const pairs = toPairMap(data);
-      if (computeRoot(pairs).toLowerCase() === activeRoot) {
-        resolution.artifactPath = candidate;
-        resolution.pairs = pairs;
-        return resolution;
+    for (const relPath of [spec.relPath, supersededRelPath]) {
+      const candidate = path.join(reportsRoot, String(ts), relPath);
+      if (!fs.existsSync(candidate)) continue;
+      try {
+        const data: MerkleData = JSON.parse(fs.readFileSync(candidate, "utf8"));
+        const pairs = toPairMap(data);
+        if (computeRoot(pairs).toLowerCase() === activeRoot) {
+          resolution.artifactPath = candidate;
+          resolution.pairs = pairs;
+          return resolution;
+        }
+      } catch {
+        // Unreadable candidates are simply not a match; provenance failure is
+        // reported below if nothing matches.
       }
-    } catch {
-      // Unreadable candidates are simply not a match; provenance failure is
-      // reported below if nothing matches.
     }
   }
 
@@ -81,8 +90,8 @@ export async function resolveBaseline(
     chainId: spec.chainId,
     subject: `${spec.distributor} root=${activeRoot} block=${pinnedBlock}`,
     detail:
-      `no artifact under ${reportsRoot}/*/${spec.relPath} recomputes to the active on-chain root; ` +
-      "baseline provenance cannot be established — failing closed",
+      `no artifact under ${reportsRoot}/*/${spec.relPath} (nor a .superseded.json sibling) ` +
+      "recomputes to the active on-chain root; baseline provenance cannot be established — failing closed",
   });
   return resolution;
 }

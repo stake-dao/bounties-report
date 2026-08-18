@@ -1,0 +1,25 @@
+[
+  {
+    "target": "voters",
+    "chainId": 1,
+    "epoch": 1786579200,
+    "creditsFile": "script/vlCVX/union_reassign/out/union_end_user_merkle.json",
+    "creditsRoot": "0xca626d48f61dc2717ef80ded5933b087c06d7dfd128e068e40fa0d0c1896c9df",
+    "supersededRoot": "0xd07fb101bd769d74671b7e303cb0ec707cb7d04853485c505a739faad9dc7273",
+    "justifiedRemovals": [
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4", "amount": "333161059320471964827" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0x501eBf66d76A96D4FB26ccead42957653e16B8B8", "amount": "203453348" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "amount": "261171744" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0x2A8e1E676Ec238d8A992307B495b45B3fEAa5e86", "amount": "33289164887034104742" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0x04ACaF8D2865c0714F79da09645C13FD2888977f", "amount": "6087531058185009714248" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF", "amount": "16321566742370975753" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0xD533a949740bb3306d119CC777fa900bA034cd52", "amount": "2126648936039893118754" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B", "amount": "882543957294615478162" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09", "amount": "455579937191805484243" },
+      { "account": "0xde1E6A7ED0ad3F61D531a8a78E83CcDdbd6E0c49", "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f", "amount": "3538838046842540096556" }
+    ],
+    "reason": "ENG-1973 Union reassignment: prior-round Union entitlements (source period 1785974400) restated to 1,635 end users inside the 1786579200 voters artifact (root 0xbaa42699); Union's 10 non-dead-token pairs removed at source, credited to end users wei-exact. Deliberately left unpublished until the 2026-08-20 weekly run carries it; pre-restatement tree preserved as vlcvx_merkle.superseded.json for baseline provenance while root 0xd07fb101 is still active.",
+    "addedBy": "invariants-gate failure assert 2026-08-18",
+    "addedAt": "2026-08-18"
+  }
+]
