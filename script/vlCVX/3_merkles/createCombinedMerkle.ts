@@ -20,6 +20,7 @@ import { hasPerDelegateAttribution, getExactGroupAmounts } from "../../utils/del
 import {
   computeVotiumRawPayouts,
   hasClaimedVotiumBounties,
+  isVotiumClaimPeriod,
   MIN_VOTIUM_RAW_PAYOUT_USD,
 } from "../../utils/votiumRawPayouts";
 import { VOTIUM_FORWARDER } from "../../utils/constants";
@@ -451,6 +452,22 @@ function applyVotiumRawLeaves(
   // describing leaves that no longer exist. The fresh instruction is staged
   // here and written by main() only after every merkle output landed.
   fs.rmSync(votiumWithdrawalPath(), { force: true });
+
+  // Invariant: on a biweekly claim period the claims data must EXIST (it may
+  // record zero claims, but its absence means the convex-votium claims job
+  // never ran — 2026-08-20 incident: the update-votium-claims dispatch was
+  // dropped, the merkle silently omitted the votium raw leaves and the
+  // Thursday batch skipped the vault withdraw). Absence is only a valid
+  // "no claim this period" signal on non-claim (even) weeks.
+  if (!fs.existsSync(claimsFile) && isVotiumClaimPeriod(currentPeriodTimestamp)) {
+    throw new Error(
+      `Period ${currentPeriodTimestamp} is a Votium claim week but ` +
+        `${claimsFile} is missing — the convex-votium claims job has not run ` +
+        `for this period. Dispatch claims.yaml with platform=convex-votium ` +
+        `(past_week=1 when running on/after Thursday) before generating ` +
+        `this merkle.`
+    );
+  }
 
   const claims: unknown = fs.existsSync(claimsFile)
     ? JSON.parse(fs.readFileSync(claimsFile, "utf8"))

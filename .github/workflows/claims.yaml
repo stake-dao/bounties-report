@@ -1,6 +1,13 @@
 name: "Claims"
 
 on:
+  # Fired by stake-dao/workflows bribes-vlcvx-votium-claim.yaml right after
+  # the biweekly (even-week) Wednesday on-chain Votium claim. Runs the
+  # convex-votium generation so the claim data exists before Thursday's
+  # voters merkle (createCombinedMerkle refuses to build a claim-week merkle
+  # without it).
+  repository_dispatch:
+    types: [update-votium-claims]
   workflow_dispatch:
     inputs:
       platform:
@@ -33,6 +40,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # repository_dispatch carries no inputs: the platform is hardcoded (the
+      # client payload is deliberately ignored) and past_week stays 0 — fired
+      # on Wednesday, generateConvexVotium targets the upcoming Thursday
+      # period (floor(now / WEEK) * WEEK + WEEK).
+      PLATFORM: ${{ github.event_name == 'repository_dispatch' && 'convex-votium' || inputs.platform }}
+      PAST_WEEK: ${{ github.event_name == 'repository_dispatch' && '0' || inputs.past_week }}
+      DISPATCH_ID: ${{ github.event_name == 'repository_dispatch' && 'update-votium-claims' || inputs.dispatch_id }}
 
     steps:
       - name: Checkout repository
@@ -41,7 +56,7 @@ jobs:
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
           fetch-depth: 0
 
-      - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
+      - name: "dispatch_id:${{ github.event_name == 'repository_dispatch' && 'update-votium-claims' || inputs.dispatch_id || 'manual' }}"
         run: echo "Tracked"
 
       - name: Setup environment
@@ -52,23 +67,23 @@ jobs:
       # Must run BEFORE claims generation: generateConvexVotium discovers
       # non-voting forwarders from this index.
       - name: Refresh Votium forwarders index (convex-votium only)
-        if: inputs.platform == 'convex-votium'
+        if: env.PLATFORM == 'convex-votium'
         run: make -f automation/indexer.mk get-forwarders
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
       - name: Generate claims
         run: |
-          case "${{ inputs.platform }}" in
+          case "$PLATFORM" in
             # sdTkns
-            votemarket)            make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=${{ inputs.past_week }} ;;
-            votemarket-v2)         make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=${{ inputs.past_week }} ;;
-            warden)                make -f automation/weekly-bounties.mk run-warden PAST_WEEK=${{ inputs.past_week }} ;;
-            hiddenhand)            make -f automation/weekly-bounties.mk run-hiddenhand PAST_WEEK=${{ inputs.past_week }} ;;
-            spectra)               make -f automation/weekly-bounties.mk run-spectra PAST_WEEK=${{ inputs.past_week }} ;;
+            votemarket)            make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=$PAST_WEEK ;;
+            votemarket-v2)         make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=$PAST_WEEK ;;
+            warden)                make -f automation/weekly-bounties.mk run-warden PAST_WEEK=$PAST_WEEK ;;
+            hiddenhand)            make -f automation/weekly-bounties.mk run-hiddenhand PAST_WEEK=$PAST_WEEK ;;
+            spectra)               make -f automation/weekly-bounties.mk run-spectra PAST_WEEK=$PAST_WEEK ;;
             # vlCVX
-            convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 PAST_WEEK=${{ inputs.past_week }} ;;
-            convex-votium)         make -f automation/weekly-bounties.mk run-convex-votium PAST_WEEK=${{ inputs.past_week }} ;;
+            convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 PAST_WEEK=$PAST_WEEK ;;
+            convex-votium)         make -f automation/weekly-bounties.mk run-convex-votium PAST_WEEK=$PAST_WEEK ;;
           esac
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -78,7 +93,7 @@ jobs:
           TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
 
       - name: Run delegators indexer (convex-votium only)
-        if: inputs.platform == 'convex-votium'
+        if: env.PLATFORM == 'convex-votium'
         run: make -f automation/indexer.mk get-delegators
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -88,12 +103,12 @@ jobs:
       - name: Commit and push
         uses: ./.github/actions/commit-and-push
         with:
-          message: "chore: ${{ inputs.platform }} claims [${{ inputs.dispatch_id }}]"
+          message: "chore: ${{ env.PLATFORM }} claims [${{ env.DISPATCH_ID }}]"
 
       - name: Notify on failure
         if: failure()
         uses: ./.github/actions/notify-failure
         with:
-          workflow_name: "Claims: ${{ inputs.platform }}"
-          dispatch_id: ${{ inputs.dispatch_id }}
+          workflow_name: "Claims: ${{ env.PLATFORM }}"
+          dispatch_id: ${{ env.DISPATCH_ID }}
           telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}

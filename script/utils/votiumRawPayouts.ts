@@ -1,6 +1,18 @@
 import { getAddress } from "viem";
+import { WEEK } from "./constants";
 
 const USD_MICRO_DECIMALS = 6n;
+
+/**
+ * True when `period` (a Thursday distribution period) follows a biweekly
+ * Votium claim. The on-chain claim runs Wednesdays on EVEN epoch weeks
+ * (workflows _is-even-week.yaml: floor(now / WEEK) % 2 == 0); the Thursday
+ * period consuming that claim starts one day later, i.e. one week index
+ * higher — so claim periods are the ODD weeks. On such a period the
+ * convex-votium claims data MUST exist before a voters merkle is built.
+ */
+export const isVotiumClaimPeriod = (period: number): boolean =>
+	Math.floor(period / WEEK) % 2 === 1;
 
 // Votium payees whose attributed value is below this USD amount are not paid
 // raw leaves; their value stays with the pool and settles through the Tuesday
