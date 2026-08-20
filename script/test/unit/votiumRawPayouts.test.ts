@@ -7,6 +7,7 @@ import { describe, it, expect } from "vitest";
 import {
   computeVotiumRawPayouts,
   hasClaimedVotiumBounties,
+  isVotiumClaimPeriod,
 } from "../../utils/votiumRawPayouts";
 
 const A = "0xAAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa";
@@ -32,6 +33,21 @@ describe("hasClaimedVotiumBounties", () => {
     expect(() =>
       hasClaimedVotiumBounties({ curve: { "0": { rewardToken: YB, amount: "x" } } })
     ).toThrow();
+  });
+});
+
+describe("isVotiumClaimPeriod", () => {
+  it("marks odd-week periods as claim periods (claim ran the Wednesday before)", () => {
+    // Real history: on-chain Votium claims ran Wed 2026-08-05 and Wed
+    // 2026-08-19 (even weeks 2952/2954 per workflows _is-even-week.yaml);
+    // their data lands in the following Thursday periods (odd weeks).
+    expect(isVotiumClaimPeriod(1785974400)).toBe(true); // week 2953
+    expect(isVotiumClaimPeriod(1787184000)).toBe(true); // week 2955
+  });
+
+  it("marks even-week periods as no-claim periods", () => {
+    expect(isVotiumClaimPeriod(1786579200)).toBe(false); // week 2954
+    expect(isVotiumClaimPeriod(1785369600)).toBe(false); // week 2952
   });
 });
 
