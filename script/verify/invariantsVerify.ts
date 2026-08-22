@@ -268,9 +268,13 @@ async function main() {
     process.exit(1);
   }
 
-  const waivers = loadWaivers(
-    path.join("script", "verify", "invariants", "waivers.vlcvx.json")
-  );
+  const waivers = [
+    ...loadWaivers(path.join("script", "verify", "invariants", "waivers.vlcvx.json")),
+    // Emitted by an applied aged sweep (script/shared/merkle/agedSweep.ts):
+    // quantified per-pair caps for the reductions the sweep just made.
+    // Transient — the file is removed once the swept root is accepted.
+    ...loadWaivers(path.join("script", "verify", "invariants", "waivers.aged-sweep.json")),
+  ];
   const { active, waived } = applyWaivers(violations, waivers);
   report.violations = active;
 

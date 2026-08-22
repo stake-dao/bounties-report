@@ -16,6 +16,7 @@ import {
 } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
+import { maybeApplyAgedSweep } from "../../shared/merkle/agedSweep";
 import { hasPerDelegateAttribution, getExactGroupAmounts } from "../../utils/delegationExact";
 import {
   computeVotiumRawPayouts,
@@ -98,6 +99,38 @@ async function main() {
   // Process each gauge type.
   for (const gaugeType of gaugeTypes) {
     processGaugeType(gaugeType);
+  }
+
+  // >6-month aged-reward sweep. INERT unless AGED_SWEEP_MODE=apply (see
+  // script/shared/merkle/agedSweep.ts): when an announced sweep is effective it
+  // reduces both mainnet bases and credits the recipient, so the bases are
+  // rewritten and the combined merkle below derives from the swept ones.
+  const mainnetMerkles = merkleDataByChain["1"];
+  if (mainnetMerkles?.curve && mainnetMerkles?.fxn) {
+    const swept = await maybeApplyAgedSweep({
+      curve: mainnetMerkles.curve,
+      fxn: mainnetMerkles.fxn,
+      period: currentPeriodTimestamp,
+    });
+    if (swept) {
+      for (const gaugeType of gaugeTypes as ("curve" | "fxn")[]) {
+        const data = swept.merkleByProtocol[gaugeType];
+        merkleDataByChain["1"][gaugeType] = data;
+        const outputPath = path.join(
+          "bounties-reports",
+          currentPeriodTimestamp.toString(),
+          "vlCVX",
+          gaugeType,
+          "merkle_data_non_delegators.json"
+        );
+        fs.writeFileSync(outputPath, JSON.stringify(data, null, 2));
+        console.log(`aged sweep: rewrote ${outputPath} (root ${data.merkleRoot})`);
+      }
+      console.log(
+        "aged sweep: note — the distributionVerifier report above ran on the PRE-sweep bases; " +
+          "invariantsVerify against the written artifacts is the authoritative gate"
+      );
+    }
   }
 
   // After processing, generate the global merkle for each chain.
