@@ -67,6 +67,11 @@ interface SwapData {
  * 3) Derive WETH→Native ratio and native equivalents
  * 4) Allocate sd: direct sd first, remainder by bounty shares
  * 5) Merge by (gauge, rewardToken) for CSV
+ *
+ * guardNativeValues (protocol -> sell token -> native amount) carries tokens
+ * sold on the guard SwapExecutor lane: those swaps happen in separate
+ * transactions with no WETH hop, and their Swapped events already price the
+ * token in native terms — used directly instead of WETH matching.
  */
 function processReport(
   chainId: number,
@@ -74,7 +79,8 @@ function processReport(
   swapsOut: ProcessedSwapEvent[],
   aggregatedBounties: Record<string, Bounty[]>,
   tokenInfos: Record<string, TokenInfo>,
-  excludedSwapsInBlockNumbers: number[]
+  excludedSwapsInBlockNumbers: number[],
+  guardNativeValues?: Record<string, Record<string, number>>
 ): { [protocol: string]: CSVRow[] } {
   // Step 1: Organize swaps by protocol and block
   const swapsData: Record<string, Record<number, SwapData>> = {};
@@ -334,19 +340,34 @@ function processReport(
       } else if (rewardToken === WETH_CHAIN_IDS[chainId].toLowerCase()) {
         nativeEquivalent = formattedAmount * effectiveWethToNativeRatio;
       } else {
-        // Use the token values from WETH matching
-        const tokenWethValue = tokenValues[protocol][rewardToken];
-        if (tokenWethValue) {
-          // Pro‑rate by this token’s share of its total amount
+        const guardNativeValue = guardNativeValues?.[protocol]?.[rewardToken];
+        if (guardNativeValue && guardNativeValue > 0) {
+          // Guard swap lane: Swapped events measured the native output for
+          // this token directly — no WETH hop exists to match against.
           const totalForToken = bounties
             .filter((b) => b.rewardToken.toLowerCase() === rewardToken)
             .reduce((sum, b) => {
               const dec = tokenInfos[rewardToken]?.decimals || 18;
               return sum + Number(b.amount) / 10 ** dec;
             }, 0);
-          const localShare = formattedAmount / totalForToken;
-          nativeEquivalent =
-            tokenWethValue * localShare * effectiveWethToNativeRatio;
+          const localShare =
+            totalForToken > 0 ? formattedAmount / totalForToken : 0;
+          nativeEquivalent = guardNativeValue * localShare;
+        } else {
+          // Use the token values from WETH matching
+          const tokenWethValue = tokenValues[protocol][rewardToken];
+          if (tokenWethValue) {
+            // Pro‑rate by this token’s share of its total amount
+            const totalForToken = bounties
+              .filter((b) => b.rewardToken.toLowerCase() === rewardToken)
+              .reduce((sum, b) => {
+                const dec = tokenInfos[rewardToken]?.decimals || 18;
+                return sum + Number(b.amount) / 10 ** dec;
+              }, 0);
+            const localShare = formattedAmount / totalForToken;
+            nativeEquivalent =
+              tokenWethValue * localShare * effectiveWethToNativeRatio;
+          }
         }
       }
 
