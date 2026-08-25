@@ -114,6 +114,14 @@ export const HH_BALANCER_MARKET = getAddress(
 export const BOTMARKET = getAddress(
   "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF"
 );
+// Guard swap lane (stake-dao/automation-guard ContractRegistry.SWAP_EXECUTOR).
+// Sell-token bounties are swapped to the protocol's native token in dedicated
+// per-token transactions here — dual-quote minBuy, output measured at
+// ALL_MIGHT_V2 — instead of inside a legacy AllMight weiroll batch. The
+// Swapped events price each sell token directly in native terms.
+export const SWAP_EXECUTOR = getAddress(
+  "0xCE1d84E654DB546e3EdFf1481bA3d4c9394ba1C5"
+);
 export const BSC_BOTMARKET = getAddress(
   "0x1F18E2A3fB75D5f8d2a879fe11D7c30730236B8d"
 );
@@ -822,6 +830,74 @@ export async function fetchSwapOutEvents(
     debug("[fetchSwapOutEvents] params", { chainId, blockMin, blockMax, tokens: rewardTokens.length, contractAddress });
     debug("[fetchSwapOutEvents] count", sorted.length);
     debug("[fetchSwapOutEvents] sample", sampleArray(sorted.map((s) => ({ block: s.blockNumber, logIndex: s.logIndex, token: s.token, tx: s.transactionHash })), 5));
+  }
+  return sorted;
+}
+
+export interface GuardSwapEvent {
+  blockNumber: number;
+  logIndex: number;
+  transactionHash: string;
+  sellToken: string;
+  buyToken: string;
+  amountIn: bigint;
+  amountOut: bigint;
+}
+
+/**
+ * Swapped events from the guard SwapExecutor lane, filtered to one buy token.
+ *
+ * Swapped(address,address,address,uint256,uint256): topics[1] = sell token,
+ * topics[2] = buy token, data = [amountIn, measuredOut] — measuredOut is the
+ * buy-token delta observed at ALL_MIGHT_V2, i.e. each sell token priced
+ * directly in native terms (mirrors automation-guard's convert.swapped_sums).
+ */
+export async function fetchGuardExecutorSwaps(
+  chainId: number,
+  blockMin: number,
+  blockMax: number,
+  buyToken: string
+): Promise<GuardSwapEvent[]> {
+  const explorerUtils = createBlockchainExplorerUtils();
+  const swappedSig = "Swapped(address,address,address,uint256,uint256)";
+  const swappedHash = keccak256(encodePacked(["string"], [swappedSig]));
+  const paddedBuyToken = pad(buyToken as `0x${string}`, {
+    size: 32,
+  }).toLowerCase();
+  const topics = { "0": swappedHash, "2": paddedBuyToken };
+
+  const response = await explorerUtils.getLogsByAddressesAndTopics(
+    [SWAP_EXECUTOR],
+    blockMin,
+    blockMax,
+    topics,
+    chainId
+  );
+
+  const events: GuardSwapEvent[] = response.result.map((log) => {
+    const [amountIn, amountOut] = decodeAbiParameters(
+      [{ type: "uint256" }, { type: "uint256" }],
+      log.data
+    );
+    return {
+      blockNumber: parseInt(log.blockNumber, 16),
+      logIndex: parseInt(log.logIndex, 16),
+      transactionHash: log.transactionHash,
+      sellToken: `0x${log.topics[1].slice(26)}`.toLowerCase(),
+      buyToken: `0x${log.topics[2].slice(26)}`.toLowerCase(),
+      amountIn,
+      amountOut,
+    };
+  });
+  const sorted = events.sort((a, b) =>
+    a.blockNumber === b.blockNumber
+      ? a.logIndex - b.logIndex
+      : a.blockNumber - b.blockNumber
+  );
+  if (isDebugEnabled()) {
+    debug("[fetchGuardExecutorSwaps] params", { chainId, blockMin, blockMax, buyToken });
+    debug("[fetchGuardExecutorSwaps] count", sorted.length);
+    debug("[fetchGuardExecutorSwaps] sample", sampleArray(sorted.map((s) => ({ block: s.blockNumber, tx: s.transactionHash, sell: s.sellToken, out: s.amountOut.toString() })), 5));
   }
   return sorted;
 }

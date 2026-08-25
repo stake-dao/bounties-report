@@ -22,6 +22,7 @@ import {
   isDustSweepTx,
   distributeSweepSd,
   BOTMARKET,
+  fetchGuardExecutorSwaps,
 } from "../utils/reportUtils";
 import { getClient } from "../utils/getClients";
 import { ALL_MIGHT_V2 } from "../utils/reportUtils";
@@ -543,6 +544,51 @@ async function main() {
     Array.from(allTokens),
     ALL_MIGHT_V2
   );
+
+  // Guard swap lane (stake-dao/automation-guard): sell tokens are swapped to
+  // native in separate SwapExecutor transactions — they never transit
+  // ALL_MIGHT_V2, so the WETH-matching model can't see them. The Swapped
+  // events price each sell token directly in native terms; that basis feeds
+  // processReport (nativeEquivalent), the not-swapped drop, and the sd
+  // attribution of the conversion tx below.
+  const guardNativeAddr =
+    PROTOCOLS_TOKENS[protocol as string].native.toLowerCase();
+  const guardSwaps = (
+    await fetchGuardExecutorSwaps(1, blockNumber1, blockNumber2, guardNativeAddr)
+  ).filter(
+    (s) => !excludedTxHashes.has((s.transactionHash || "").toLowerCase())
+  );
+  const guardNativeByToken: Record<string, number> = {};
+  for (const s of guardSwaps) {
+    guardNativeByToken[s.sellToken] =
+      (guardNativeByToken[s.sellToken] || 0) + Number(s.amountOut) / 1e18;
+  }
+  // Native bounties withdrawn from Botmarket to the vault (fund txs) — the
+  // other leg of the guard basis for splitting the conversion tx's sd.
+  const guardNativeFromBotmarket = swapIn
+    .filter(
+      (e) =>
+        e.token.toLowerCase() === guardNativeAddr &&
+        e.from.toLowerCase() === BOTMARKET.toLowerCase() &&
+        !excludedTxHashes.has((e.transactionHash || "").toLowerCase())
+    )
+    .reduce((a, b) => a + Number(b.amount) / 1e18, 0);
+  const guardBasis: Record<string, number> = { ...guardNativeByToken };
+  if (guardNativeFromBotmarket > 0) {
+    guardBasis[guardNativeAddr] =
+      (guardBasis[guardNativeAddr] || 0) + guardNativeFromBotmarket;
+  }
+  const guardBasisTotal = Object.values(guardBasis).reduce((a, b) => a + b, 0);
+  const guardFlowActive = guardSwaps.length > 0;
+  if (isDebugEnabled()) {
+    debug("[guard-flow]", {
+      protocol,
+      swaps: guardSwaps.length,
+      nativeByToken: guardNativeByToken,
+      nativeFromBotmarket: guardNativeFromBotmarket,
+    });
+  }
+
   if (isDebugEnabled()) {
     debug("[swaps] fetched", {
       inCount: swapIn.length,
@@ -848,7 +894,8 @@ async function main() {
     swapOutFiltered,
     filteredBountiesArray,
     tokenInfos,
-    vlcvxRecipientSwapsInBlockNumbers
+    vlcvxRecipientSwapsInBlockNumbers,
+    guardFlowActive ? { [protocol as string]: guardNativeByToken } : undefined
   );
 
   // Generic: drop tokens that were not swapped for this protocol (all protocols)
@@ -911,6 +958,9 @@ async function main() {
 
     const tokensNotSwapped: string[] = [];
     for (const t of includedTokens) {
+      // Tokens sold on the guard SwapExecutor lane never route through WETH
+      // at ALL_MIGHT_V2 — their Swapped events prove they were swapped.
+      if (guardNativeByToken[t] > 0) continue;
       if (!tokenSwapWeth[t] || tokenSwapWeth[t] === 0) tokensNotSwapped.push(t);
     }
     const tokensNotSwappedFiltered = tokensNotSwapped.filter((t) => t !== wethAddr);
@@ -978,6 +1028,18 @@ async function main() {
         .reduce((a, b) => a + b.formattedAmount, 0);
 
       if (sdInTx <= 0) continue;
+
+      // Guard flow: the conversion tx mints sd from native already sitting
+      // at ALL_MIGHT_V2 (fund tx withdrawals + SwapExecutor outputs from
+      // separate txs). It has no Botmarket inflow, so the dust-sweep test
+      // would misclassify it; split its sd over the guard basis instead.
+      if (guardFlowActive && guardBasisTotal > 0) {
+        for (const [tok, nativeAmt] of Object.entries(guardBasis)) {
+          includedSdByToken[tok] =
+            (includedSdByToken[tok] || 0) + (sdInTx * nativeAmt) / guardBasisTotal;
+        }
+        continue;
+      }
 
       // Anti-dust sweep: sd minted from WETH residue, no BOTMARKET input.
       // Collect and re-spread over WETH-contributing tokens after the loop.
@@ -1343,6 +1405,41 @@ async function main() {
         sdInTotal += sdInTx;
       }
 
+      // Guard flow: attribute the conversion tx's sd over the guard basis
+      // (SwapExecutor outputs per sell token + native withdrawn from
+      // Botmarket) — its swaps live in other txs, so the per-receipt WETH
+      // decode below has nothing to find and the dust-sweep test misfires.
+      if (guardFlowActive && guardBasisTotal > 0) {
+        const tokenWeth: Record<string, number> = {};
+        const tokenSd: Record<string, number> = {};
+        let nativeShareSdGuard = 0;
+        for (const [tok, nativeAmt] of Object.entries(guardBasis)) {
+          const sd = (sdInTx * nativeAmt) / guardBasisTotal;
+          tokenSd[tok] = (tokenSd[tok] || 0) + sd;
+          includedSdByToken[tok] = (includedSdByToken[tok] || 0) + sd;
+          if (tok === nativeAddr) nativeShareSdGuard += sd;
+        }
+        const nativeInGuardTx = inTx
+          .filter((ev) => ev.token.toLowerCase() === nativeAddr)
+          .reduce((a, b) => a + b.formattedAmount, 0);
+        const nativeOutGuardTx = outTx
+          .filter((ev) => ev.token.toLowerCase() === nativeAddr)
+          .reduce((a, b) => a + b.formattedAmount, 0);
+        txAttributions.push({
+          tx,
+          wethIn: totalWethInTx,
+          wethOut: totalWethOutTx,
+          sdIn: sdInTx,
+          nativeIn: nativeInGuardTx,
+          nativeOut: nativeOutGuardTx,
+          nativeShareSd: nativeShareSdGuard,
+          wethBasis: 0,
+          tokenWeth,
+          tokenSd,
+        });
+        continue;
+      }
+
       // Anti-dust sweep: record it and fill tokenSd once batch attribution is known
       if (isDustSweepTx(tx, swapIn, swapOut, sdAddr, BOTMARKET.toLowerCase())) {
         const nativeInSweep = inTx
@@ -1501,17 +1598,25 @@ async function main() {
     }
 
     const tokensNotSwapped = Array.from(includedTokens).filter(
-      (t) => !tokenMappedWeth[t] || tokenMappedWeth[t] === 0
+      (t) =>
+        (!tokenMappedWeth[t] || tokenMappedWeth[t] === 0) &&
+        !(guardNativeByToken[t] > 0)
     );
     // Do not flag WETH as "not swapped"—we still want to keep the row even if it
     // ended up being a pure passthrough.
     const tokensNotSwappedFiltered = tokensNotSwapped.filter((t) => t !== wethAddr);
-    const perToken: Record<string, { mappedWeth: number; sd: number }> = {};
+    const perToken: Record<
+      string,
+      { mappedWeth: number; sd: number; mappedNative?: number }
+    > = {};
     for (const t of includedTokens) {
       perToken[t] = {
         mappedWeth: tokenMappedWeth[t] || 0,
         sd: includedSdByToken[t] || 0,
       };
+      if (guardNativeByToken[t] > 0) {
+        perToken[t].mappedNative = guardNativeByToken[t];
+      }
     }
     if (finalTokenTotals) {
       for (const [addr, sdValue] of Object.entries(finalTokenTotals)) {
