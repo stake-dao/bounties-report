@@ -22,7 +22,7 @@ Raw token rows can be added under `bounties-reports/{timestamp}/raw/{protocol}/`
 - `generateMerkle.ts` - legacy sdToken merkle generator. It reads protocol CSVs, applies Snapshot vote weights and delegation rules, carries unclaimed balances, writes `merkle.json`, `delegationsAPRs.json`, and `log.json`, and prepares root update calldata.
 - `generateUniversalMerkleFrax.ts` - cumulative Fraxtal sdFXS merkle generator. Outputs `bounties-reports/{timestamp}/sdTkns/sdtkns_merkle_252.json` and may refresh `latest/sdTkns/sdtkns_merkle_252.json` locally.
 - `generateUniversalMerkleSpectra.ts` - cumulative Base sdSpectra merkle generator. Reads Spectra repartition output and writes `bounties-reports/{timestamp}/sdTkns/sdtkns_merkle_8453.json` plus `bounties-reports/{timestamp}/spectra/merkle_data.json`.
-- `claims/` - claim fetchers for Votemarket, Votemarket v2, Hidden Hand, Warden, and Spectra.
+- `claims/` - claim fetchers for Votemarket, Votemarket v2, and Spectra.
 
 Shared merkle logic lives in `script/utils/merkle/` and `script/shared/merkle/`.
 

@@ -15,12 +15,6 @@ export interface VotemarketV2Bounty extends VotemarketBounty {
   isWrapped: boolean;
 }
 
-export interface WardenBounty extends Bounty {
-  questID: BigInt;
-  period: BigInt;
-  distributor: string;
-}
-
 export interface GaugeShare {
   voted: number;
   share: number;

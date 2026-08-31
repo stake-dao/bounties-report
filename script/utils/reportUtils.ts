@@ -47,8 +47,6 @@ export interface ClaimedBounties {
   blockNumber2: number;
   votemarket: Record<string, Record<string, Bounty>>;
   votemarket_v2: Record<string, Record<string, Bounty>>;
-  warden: Record<string, Record<string, Bounty>>;
-  hiddenhand: Record<string, Record<string, Bounty>>;
 }
 
 export interface SwapEvent {
@@ -272,13 +270,6 @@ export const MAINNET_VM_PLATFORMS: {
     platforms: [getAddress("0x00000007D987c2Ea2e02B48be44EC8F92B8B06e8")],
     locker: getAddress("0x75736518075a01034fa72D675D36a47e9B06B2Fb"),
   },
-};
-
-export const WARDEN_PATHS: { [key: string]: string } = {
-  curve: "crv",
-  balancer: "bal",
-  frax: "frax",
-  fxn: "fxn",
 };
 
 export const PROTOCOLS_TOKENS: {
@@ -624,8 +615,6 @@ export function aggregateBounties(
     aggregated[protocol] = [
       ...Object.values(claimedBounties.votemarket[protocol] || {}),
       ...Object.values(claimedBounties.votemarket_v2[protocol] || {}),
-      ...Object.values(claimedBounties.warden[protocol] || {}),
-      ...Object.values(claimedBounties.hiddenhand[protocol] || {}),
     ];
   }
   return aggregated;

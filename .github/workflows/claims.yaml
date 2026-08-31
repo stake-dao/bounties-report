@@ -18,8 +18,6 @@ on:
           # sdTkns
           - votemarket
           - votemarket-v2
-          - warden
-          - hiddenhand
           - spectra
           # vlCVX
           - convex-votemarket-v2
@@ -78,8 +76,6 @@ jobs:
             # sdTkns
             votemarket)            make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=$PAST_WEEK ;;
             votemarket-v2)         make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=$PAST_WEEK ;;
-            warden)                make -f automation/weekly-bounties.mk run-warden PAST_WEEK=$PAST_WEEK ;;
-            hiddenhand)            make -f automation/weekly-bounties.mk run-hiddenhand PAST_WEEK=$PAST_WEEK ;;
             spectra)               make -f automation/weekly-bounties.mk run-spectra PAST_WEEK=$PAST_WEEK ;;
             # vlCVX
             convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 PAST_WEEK=$PAST_WEEK ;;
