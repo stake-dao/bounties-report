@@ -3,8 +3,8 @@
   "period": 1787788800,
   "aggregator": "0xDBd24b092f686b12650EC1450e3A7138F714506c",
   "totals": {
-    "sdInTotal": 50.91591607236157,
-    "sdAssigned": 50.91591607236157,
+    "sdInTotal": 66.44440767287549,
+    "sdAssigned": 66.44440767287549,
     "wethInTotal": 0,
     "wethOutTotal": 0
   },
@@ -39,5 +39,20 @@
         "0x365accfca291e7d3914637abf1f7635db165bb09": 47.341032149283684
       }
     }
-  ]
+  ],
+  "cleanupTransactions": [
+    {
+      "tx": "0xf8cd1f3b7cb711b29a7b893942daa13fd5a6b0c86938614231a47c4e8c5fd57a",
+      "sdReceived": 15.528491600513924,
+      "perTokenSd": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": 15.528491600513924
+      },
+      "residualWethConsumed": {
+        "0x365accfca291e7d3914637abf1f7635db165bb09": 15.355980998834488
+      }
+    }
+  ],
+  "residualWethByToken": {
+    "0x365accfca291e7d3914637abf1f7635db165bb09": 0
+  }
 }

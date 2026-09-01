@@ -615,9 +615,19 @@ function main(): void {
   const expectedGrandTotal =
     oldGrandTotal + actualSdReceivedWei * weiToMathMultiplier;
   const grandTotalDifference = absolute(newGrandTotal - expectedGrandTotal);
+  // The CSV only stores rewardSdDecimals of precision, so rendering the per-row
+  // deltas back to that precision can drift the reconstructed total by up to one
+  // CSV unit per touched row. That drift is below what the file can represent, so
+  // accept it alongside the strict relative check (which guards larger corruption).
+  const csvUnit = pow10(mathScale - csv.rewardSdDecimals);
+  const touchedRowCount = new Set(
+    rowAllocations.map((allocation) => allocation.rowIndex)
+  ).size;
+  const roundingFloor = csvUnit * BigInt(touchedRowCount);
   const withinTolerance =
+    grandTotalDifference <= roundingFloor ||
     grandTotalDifference * RELATIVE_TOLERANCE_DENOMINATOR <=
-    absolute(expectedGrandTotal);
+      absolute(expectedGrandTotal);
   gate(
     withinTolerance,
     "CSV grand total",
