@@ -2,7 +2,7 @@ include automation/setup/dotenv.mk
 include automation/setup/node.mk
 
 .PHONY: all setup install-deps run-all \
-       run-votemarket run-votemarket-v2 run-warden run-hiddenhand run-spectra \
+       run-votemarket run-votemarket-v2 run-spectra \
        run-convex-votemarket-v2 run-convex-votium \
        clean commit-and-push
 
@@ -19,7 +19,7 @@ install-deps:
 	@$(PNPM) add -D tsx
 
 # Run all protocols
-run-all: run-votemarket run-votemarket-v2 run-warden run-hiddenhand run-spectra
+run-all: run-votemarket run-votemarket-v2 run-spectra
 
 # Individual protocol targets for mainnet
 run-votemarket: setup install-deps
@@ -29,14 +29,6 @@ run-votemarket: setup install-deps
 run-votemarket-v2: setup install-deps
 	@echo "Running Votemarket V2 bounty generation..."
 	@$(PNPM) tsx script/sdTkns/claims/generateVotemarketV2.ts $(PAST_WEEK)
-
-run-warden: setup install-deps
-	@echo "Running Warden bounty generation..."
-	@$(PNPM) tsx script/sdTkns/claims/generateWarden.ts $(PAST_WEEK)
-
-run-hiddenhand: setup install-deps
-	@echo "Running Hidden Hand bounty generation..."
-	@$(PNPM) tsx script/sdTkns/claims/generateHiddenHand.ts $(PAST_WEEK)
 
 run-spectra: setup install-deps
 	@echo "Running Spectra bounty generation..."

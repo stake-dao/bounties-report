@@ -27,8 +27,6 @@ interface ClaimedBounties {
   blockNumber2: number;
   votemarket: Record<string, any>;
   votemarket_v2: Record<string, any>;
-  warden: Record<string, any>;
-  hiddenhand: Record<string, any>;
 }
 
 // Define raw tokens that should be distributed as-is without wrapping
@@ -45,8 +43,6 @@ async function fetchBountiesData(
   const paths = {
     votemarket: `weekly-bounties/${currentPeriod}/votemarket/claimed_bounties.json`,
     votemarket_v2: `weekly-bounties/${currentPeriod}/votemarket-v2/claimed_bounties.json`,
-    warden: `weekly-bounties/${currentPeriod}/warden/claimed_bounties.json`,
-    hiddenhand: `weekly-bounties/${currentPeriod}/hiddenhand/claimed_bounties.json`,
   };
 
   const readJsonFile = (filePath: string) => {
@@ -60,8 +56,6 @@ async function fetchBountiesData(
 
   const votemarket = readJsonFile(paths.votemarket);
   const votemarket_v2 = readJsonFile(paths.votemarket_v2);
-  const warden = readJsonFile(paths.warden);
-  const hiddenhand = readJsonFile(paths.hiddenhand);
 
   // Filter out v2 bounties that are explicitly unwrapped
   const filteredV2 = Object.entries(votemarket_v2).reduce(
@@ -81,8 +75,6 @@ async function fetchBountiesData(
     blockNumber2: votemarket.blockNumber2 || 0,
     votemarket,
     votemarket_v2: filteredV2,
-    warden,
-    hiddenhand,
   };
 }
 

@@ -46,8 +46,6 @@ interface ClaimedBounties {
   blockNumber2: number;
   votemarket: Record<string, Record<string, Bounty>>;
   votemarket_v2: Record<string, Record<string, Bounty>>;
-  warden: Record<string, Record<string, Bounty>>;
-  hiddenhand: Record<string, Record<string, Bounty>>;
 }
 
 interface SwapEvent {
@@ -138,8 +136,6 @@ function aggregateBounties(
     aggregated[protocol] = [
       ...Object.values(claimedBounties.votemarket[protocol] || {}),
       ...Object.values(claimedBounties.votemarket_v2[protocol] || {}),
-      ...Object.values(claimedBounties.warden[protocol] || {}),
-      ...Object.values(claimedBounties.hiddenhand[protocol] || {}),
     ];
   }
 
@@ -207,8 +203,6 @@ async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties
   const paths = {
     votemarket: `weekly-bounties/${currentPeriod}/votemarket/claimed_bounties.json`,
     votemarket_v2: `weekly-bounties/${currentPeriod}/votemarket-v2/claimed_bounties.json`,
-    warden: `weekly-bounties/${currentPeriod}/warden/claimed_bounties.json`,
-    hiddenhand: `weekly-bounties/${currentPeriod}/hiddenhand/claimed_bounties.json`,
   };
 
   const readJsonFile = (path: string) => {
@@ -221,7 +215,7 @@ async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties
   };
 
   const votemarket = readJsonFile(paths.votemarket);
-  const hiddenhand = readJsonFile(paths.hiddenhand);
+  const votemarket_v2 = readJsonFile(paths.votemarket_v2);
 
   return {
     timestamp1: votemarket.timestamp1 || 0,
@@ -229,7 +223,7 @@ async function fetchBountiesData(currentPeriod: number): Promise<ClaimedBounties
     blockNumber1: votemarket.blockNumber1 || 0,
     blockNumber2: votemarket.blockNumber2 || 0,
     votemarket,
-    hiddenhand,
+    votemarket_v2,
   };
 }
 
