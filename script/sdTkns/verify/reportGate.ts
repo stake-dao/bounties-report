@@ -106,7 +106,10 @@ function median(values: bigint[]): bigint {
 }
 
 export function withinVolumeBand(current: bigint, history: bigint[]): boolean {
-  if (current <= 0n || history.length !== 4) return false;
+  if (history.length !== 4) return false;
+  // Steady-state zero: no volume now and none across the whole trailing window is a
+  // consistently unused source (e.g. a retired platform), not a collapse.
+  if (current <= 0n) return history.every((value) => value <= 0n);
   const middle = median(history);
   if (middle <= 0n) return false;
   const difference = current > middle ? current - middle : middle - current;
@@ -347,7 +350,12 @@ export function wethResidual(attribution: Attribution): number {
     (sum, cleanup) => sum + Object.values(cleanup.residualWethConsumed ?? {}).reduce((inner, value) => inner + value, 0),
     0,
   );
-  return attribution.totals.wethInTotal - attribution.totals.wethOutTotal - settled;
+  // Cleanup transactions reconcile leftover WETH, so they can only pull the residual
+  // toward zero — never create one. A native-token recovery (no WETH flow at all)
+  // records its basis here but leaves wethIn/wethOut untouched, so the clamp keeps the
+  // ledger balanced instead of manufacturing a spurious residual.
+  const raw = attribution.totals.wethInTotal - attribution.totals.wethOutTotal;
+  return Math.sign(raw) * Math.max(0, Math.abs(raw) - settled);
 }
 
 export function runR5(
