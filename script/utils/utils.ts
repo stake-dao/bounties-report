@@ -820,18 +820,19 @@ export const getAllAccountClaimed = async (
 export const getAllAccountClaimedSinceLastFreeze = async (
   merkleContract: string,
   tokenAddress: string,
-  chainId: string
+  chainId: string,
+  options: { readOnly?: boolean } = {},
 ): Promise<Record<string, boolean>> => {
   const cacheDir = path.join(__dirname, "../../data/merkle_updates");
-  if (!fs.existsSync(cacheDir)) {
+  if (!options.readOnly && !fs.existsSync(cacheDir)) {
     fs.mkdirSync(cacheDir, { recursive: true });
   }
   const chainDir = path.join(cacheDir, chainId);
-  if (!fs.existsSync(chainDir)) {
+  if (!options.readOnly && !fs.existsSync(chainDir)) {
     fs.mkdirSync(chainDir);
   }
   const merkleDir = path.join(chainDir, merkleContract.toLowerCase());
-  if (!fs.existsSync(merkleDir)) {
+  if (!options.readOnly && !fs.existsSync(merkleDir)) {
     fs.mkdirSync(merkleDir);
   }
   const cacheFile = path.join(merkleDir, `${tokenAddress.toLowerCase()}.json`);
@@ -907,21 +908,24 @@ export const getAllAccountClaimedSinceLastFreeze = async (
   }
 
   if (latestMerkleUpdate) {
-    // Update the cache
-    if (!fs.existsSync(cacheDir)) {
-      fs.mkdirSync(cacheDir, { recursive: true });
+    // Generation advances the cache; verification must observe chain state
+    // without changing the committed claim-window anchor.
+    if (!options.readOnly) {
+      if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+      }
+      fs.writeFileSync(
+        cacheFile,
+        JSON.stringify(
+          {
+            blockNumber: Number(latestMerkleUpdate.blockNumber),
+            timestamp: Number(latestMerkleUpdate.timeStamp),
+          },
+          null,
+          2
+        )
+      );
     }
-    fs.writeFileSync(
-      cacheFile,
-      JSON.stringify(
-        {
-          blockNumber: Number(latestMerkleUpdate.blockNumber),
-          timestamp: Number(latestMerkleUpdate.timeStamp),
-        },
-        null,
-        2
-      )
-    );
 
     startBlock = Number(latestMerkleUpdate.blockNumber);
   } else if (cachedMerkleUpdate) {

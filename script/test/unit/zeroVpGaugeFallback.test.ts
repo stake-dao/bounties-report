@@ -8,7 +8,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { formatUnits } from "viem";
 import { BigNumber } from "ethers";
-import { DELEGATION_ADDRESS, SDCRV_SPACE } from "../../utils/constants";
+import { DELEGATION_ADDRESS, SD_CRV, SDCRV_SPACE } from "../../utils/constants";
+
+const mocks = vi.hoisted(() => ({
+  getAllAccountClaimedSinceLastFreeze: vi.fn(async () => ({})),
+}));
 
 const GAUGE_A = "0xaaaa11110000000000000000000000000000aaaa"; // bribed, zero-weight voter only
 const GAUGE_B = "0xbbbb22220000000000000000000000000000bbbb"; // bribed, voted by delegation
@@ -62,7 +66,8 @@ vi.mock("../../utils/utils", async (importOriginal) => {
       [DELEGATOR_1]: 60,
       [DELEGATOR_2]: 40,
     }),
-    getAllAccountClaimedSinceLastFreeze: async () => ({}),
+    getAllAccountClaimedSinceLastFreeze:
+      mocks.getAllAccountClaimedSinceLastFreeze,
   };
 });
 
@@ -115,5 +120,27 @@ describe("createMultiMerkle zero-vp gauge fallback", () => {
     expect(total).toBeCloseTo(80, 6);
     expect(leafAmount(result.merkle, DELEGATOR_1)).toBeCloseTo(48, 6);
     expect(leafAmount(result.merkle, DELEGATOR_2)).toBeCloseTo(32, 6);
+  });
+
+  it("forwards read-only cache mode without changing generation defaults", async () => {
+    mocks.getAllAccountClaimedSinceLastFreeze.mockClear();
+    await createMultiMerkle(
+      ["0xproposal"],
+      SDCRV_SPACE,
+      [{ address: SD_CRV, merkle: {} }],
+      { [GAUGE_B]: 50 },
+      { total_vp: 1 },
+      { total_vp: 1 },
+      {},
+      undefined,
+      { readOnlyClaimCache: true },
+    );
+
+    expect(mocks.getAllAccountClaimedSinceLastFreeze).toHaveBeenCalledWith(
+      expect.any(String),
+      SD_CRV,
+      "1",
+      { readOnly: true },
+    );
   });
 });
