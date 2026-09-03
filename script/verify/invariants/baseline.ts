@@ -1,9 +1,6 @@
-import fs from "fs";
-import path from "path";
 import { PublicClient } from "viem";
-import { MerkleData } from "../../interfaces/MerkleData";
-import { WEEK } from "../../utils/constants";
-import { computeRoot, toPairMap, ZERO_ROOT } from "./artifact";
+import { findMerkleMatchingRoot } from "../../utils/merkle/findPreviousMerkle";
+import { toPairMap, ZERO_ROOT } from "./artifact";
 import { ArtifactSpec, BaselineResolution, Violation } from "./types";
 
 const URD_ABI = [
@@ -15,8 +12,6 @@ const URD_ABI = [
     outputs: [{ name: "", type: "bytes32" }],
   },
 ] as const;
-
-const MAX_WEEKS_BACK = 26;
 
 /**
  * Resolve the baseline for an artifact: read the ACTIVE on-chain root at a
@@ -56,31 +51,16 @@ export async function resolveBaseline(
   // Fresh distributor: nothing distributed yet, the empty baseline is valid.
   if (activeRoot === ZERO_ROOT) return resolution;
 
-  // A restatement rewrites an epoch's artifact in place; while its root is
-  // not yet accepted on-chain, the active root's tree is preserved next to it
-  // as `<name>.superseded.json`. Still exact-match provenance: a superseded
-  // candidate only ever resolves if it recomputes to the active root, which
-  // binds its full content.
-  const supersededRelPath = spec.relPath.replace(/\.json$/, ".superseded.json");
-
-  for (let weeksBack = 0; weeksBack <= MAX_WEEKS_BACK; weeksBack++) {
-    const ts = currentTimestamp - weeksBack * WEEK;
-    for (const relPath of [spec.relPath, supersededRelPath]) {
-      const candidate = path.join(reportsRoot, String(ts), relPath);
-      if (!fs.existsSync(candidate)) continue;
-      try {
-        const data: MerkleData = JSON.parse(fs.readFileSync(candidate, "utf8"));
-        const pairs = toPairMap(data);
-        if (computeRoot(pairs).toLowerCase() === activeRoot) {
-          resolution.artifactPath = candidate;
-          resolution.pairs = pairs;
-          return resolution;
-        }
-      } catch {
-        // Unreadable candidates are simply not a match; provenance failure is
-        // reported below if nothing matches.
-      }
-    }
+  const baseline = findMerkleMatchingRoot(
+    currentTimestamp,
+    spec.relPath,
+    activeRoot,
+    { reportsRoot, includeCurrent: true }
+  );
+  if (baseline.foundAt) {
+    resolution.artifactPath = baseline.foundAt;
+    resolution.pairs = toPairMap(baseline.data);
+    return resolution;
   }
 
   violations.push({

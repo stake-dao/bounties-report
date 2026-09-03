@@ -2,11 +2,15 @@ import fs from "fs";
 import path from "path";
 import * as moment from "moment";
 import * as dotenv from "dotenv";
+import type { PublicClient } from "viem";
 dotenv.config();
 
 import { mainnet } from "../../utils/chains";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
-import { generateMerkleTree, mergeMerkleData } from "../../shared/merkle/generateMerkleTree";
+import {
+  generateMerkleTree,
+  mergeMerkleData,
+} from "../../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../../interfaces/MerkleData";
 import {
   CVX_SPACE,
@@ -15,8 +19,15 @@ import {
   CVX_GAUGE_VOTE_PLATFORM_FXN,
 } from "../../utils/constants";
 import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
-import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
-import { hasPerDelegateAttribution, getExactGroupAmounts } from "../../utils/delegationExact";
+import {
+  findMerkleMatchingRoot,
+  findPreviousMerkle,
+} from "../../utils/merkle/findPreviousMerkle";
+import { canUseStandardGaugeMerge } from "../../utils/merkle/activeGaugeBaseline";
+import {
+  hasPerDelegateAttribution,
+  getExactGroupAmounts,
+} from "../../utils/delegationExact";
 import {
   computeVotiumRawPayouts,
   hasClaimedVotiumBounties,
@@ -33,7 +44,33 @@ import { getClient } from "../../utils/getClients";
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
-const VOTERS_DISTRIBUTOR = "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
+const VOTERS_DISTRIBUTOR =
+  "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db" as const;
+const ZERO_ROOT = `0x${"0".repeat(64)}`;
+
+const URD_ABI = [
+  {
+    name: "root",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    name: "claimed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "account", type: "address" },
+      { name: "reward", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
+
+type RawDistribution = {
+  [address: string]: { tokens: { [token: string]: bigint } };
+};
 
 // Ops instruction for the raw Votium leaves, staged during the curve pass and
 // written by main() only after EVERY merkle output landed — a half-finished
@@ -59,6 +96,26 @@ let merkleDataByChain: {
   [chainId: string]: {
     curve?: MerkleData;
     fxn?: MerkleData;
+  };
+} = {};
+
+// Per-gauge bases used to build the current per-gauge artifacts. They are not
+// trusted as a decomposition of the live global root until their merged claims
+// recompute to that exact root.
+let previousMerkleDataByChain: {
+  [chainId: string]: {
+    curve?: MerkleData;
+    fxn?: MerkleData;
+  };
+} = {};
+
+// Current-week deltas, kept separately from the per-gauge cumulative artifacts.
+// The global Merkle is based on the single active global root plus these deltas;
+// merging two per-gauge cumulative trees would add the historical base twice.
+let currentDistributionByChain: {
+  [chainId: string]: {
+    curve?: RawDistribution;
+    fxn?: RawDistribution;
   };
 } = {};
 
@@ -93,6 +150,8 @@ async function main() {
   // Initialize the merkle data structure for all chains
   supportedChainIds.forEach((chainId) => {
     merkleDataByChain[chainId] = {};
+    previousMerkleDataByChain[chainId] = {};
+    currentDistributionByChain[chainId] = {};
   });
 
   // Process each gauge type.
@@ -102,7 +161,7 @@ async function main() {
 
   // After processing, generate the global merkle for each chain.
   for (const chainId of supportedChainIds) {
-    generateGlobalMerkleForChain(chainId);
+    await generateGlobalMerkleForChain(chainId);
   }
 
   // Every merkle output landed — the ops withdrawal instruction may now be
@@ -121,58 +180,256 @@ async function main() {
  *
  * @param chainId - The chain identifier (e.g. "1", "42161")
  */
-function generateGlobalMerkleForChain(chainId: string) {
-  const chainData = merkleDataByChain[chainId];
-  if (!chainData) {
-    console.log(`No merkle data structure initialized for chain ${chainId}`);
-    return;
-  }
-
-  // If both curve and fxn are available, merge them; otherwise, use whichever exists.
-  let globalMerkle: MerkleData | undefined;
-  if (chainData.curve && chainData.fxn) {
-    globalMerkle = mergeMerkleData(chainData.curve, chainData.fxn);
-    console.log(
-      `Chain ${chainId}: Both gauge types available; merged global merkle data created.`
-    );
-  } else if (chainData.curve) {
-    globalMerkle = chainData.curve;
-    console.log(
-      `Chain ${chainId}: Only curve merkle data available; using curve merkle data as global.`
-    );
-  } else if (chainData.fxn) {
-    globalMerkle = chainData.fxn;
-    console.log(
-      `Chain ${chainId}: Only fxn merkle data available; using fxn merkle data as global.`
-    );
-  } else {
+async function generateGlobalMerkleForChain(chainId: string) {
+  const chainDeltas = currentDistributionByChain[chainId];
+  if (!chainDeltas?.curve && !chainDeltas?.fxn) {
     console.log(`No merkle data available for chain ${chainId}.`);
     return;
   }
 
-  if (globalMerkle) {
-    const reportsDir = path.join(
-      "bounties-reports",
-      currentPeriodTimestamp.toString(),
-      "vlCVX"
-    );
-
-    // Create the directory if it doesn't exist
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
+  const currentDistribution: RawDistribution = {};
+  for (const gaugeDistribution of [chainDeltas.curve, chainDeltas.fxn]) {
+    if (!gaugeDistribution) continue;
+    for (const [account, claim] of Object.entries(gaugeDistribution)) {
+      const normalizedAccount = account.toLowerCase();
+      currentDistribution[normalizedAccount] ??= { tokens: {} };
+      for (const [token, amount] of Object.entries(claim.tokens)) {
+        const normalizedToken = token.toLowerCase();
+        currentDistribution[normalizedAccount].tokens[normalizedToken] =
+          (currentDistribution[normalizedAccount].tokens[normalizedToken] ?? 0n) +
+          amount;
+      }
     }
+  }
 
-    // For Mainnet (chainId "1"), use "vlcvx_merkle.json"
-    // For other chains, use "vlcvx_merkle_${chainId}.json"
-    const outputName =
-      chainId === "1" ? "vlcvx_merkle.json" : `vlcvx_merkle_${chainId}.json`;
+  const numericChainId = Number(chainId);
+  const client = await getClient(numericChainId);
+  const pinnedBlock = await client.getBlockNumber();
+  const activeRoot = (
+    await client.readContract({
+      address: VOTERS_DISTRIBUTOR,
+      abi: URD_ABI,
+      functionName: "root",
+      blockNumber: pinnedBlock,
+    })
+  ).toLowerCase();
 
-    const outputPath = path.join(reportsDir, outputName);
-    fs.writeFileSync(outputPath, JSON.stringify(globalMerkle, null, 2));
+  const globalRelPath = path.join(
+    "vlCVX",
+    chainId === "1" ? "vlcvx_merkle.json" : `vlcvx_merkle_${chainId}.json`
+  );
+  let previousMerkleData: MerkleData = { merkleRoot: "", claims: {} };
+  let matchedPeriod: number | null = null;
+  if (activeRoot !== ZERO_ROOT) {
+    const resolved = findMerkleMatchingRoot(
+      currentPeriodTimestamp,
+      globalRelPath,
+      activeRoot
+    );
+    if (!resolved.foundAt) {
+      throw new Error(
+        `Chain ${chainId}: active root ${activeRoot} at block ${pinnedBlock} ` +
+          `does not match any prior ${globalRelPath} artifact; refusing to reset cumulative state`
+      );
+    }
+    previousMerkleData = resolved.data;
+    matchedPeriod = Number(
+      path.relative("bounties-reports", resolved.foundAt).split(path.sep)[0]
+    );
     console.log(
-      `Global merkle for chain ${chainId} generated and saved as ${outputName}`
+      `Chain ${chainId}: active root ${activeRoot} @ ${pinnedBlock} ` +
+        `matches ${resolved.foundAt}`
+    );
+  } else {
+    console.log(
+      `Chain ${chainId}: distributor has a zero root; using an empty baseline`
     );
   }
+
+  const previousGaugeGlobal = mergeGaugeMerkles(
+    previousMerkleDataByChain[chainId]
+  );
+  const canUseStandardMerge = canUseStandardGaugeMerge(
+    currentPeriodTimestamp,
+    matchedPeriod,
+    activeRoot,
+    previousGaugeGlobal
+  );
+
+  let globalMerkle: MerkleData;
+  if (canUseStandardMerge) {
+    // The per-gauge history is safe only when its merged claims reproduce the
+    // live global root AND that root is from the immediately previous period.
+    // Both conditions are required: an old tree can match the active root while
+    // claimedOnChain has advanced during a long distribution gap.
+    globalMerkle = mergeGaugeMerkles(merkleDataByChain[chainId])!;
+    console.log(
+      `Chain ${chainId}: merged per-gauge baseline matches the active root; ` +
+        `using the standard weekly merge`
+    );
+  } else {
+    const preparedBaseline = await prepareActiveBaseline(
+      client,
+      currentDistribution,
+      previousMerkleData,
+      pinnedBlock
+    );
+    globalMerkle = generateMerkleTree(
+      createCombineDistribution(
+        { distribution: currentDistribution },
+        preparedBaseline.previousMerkleData,
+        preparedBaseline.reappearingClaimed
+      )
+    );
+    console.log(
+      `Chain ${chainId}: no continuous, root-matched per-gauge baseline; ` +
+        `rebuilt from the exact active global artifact`
+    );
+  }
+
+  const reportsDir = path.join(
+    "bounties-reports",
+    currentPeriodTimestamp.toString(),
+    "vlCVX"
+  );
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
+
+  const outputName =
+    chainId === "1" ? "vlcvx_merkle.json" : `vlcvx_merkle_${chainId}.json`;
+  const outputPath = path.join(reportsDir, outputName);
+  fs.writeFileSync(outputPath, JSON.stringify(globalMerkle, null, 2));
+  console.log(`Global merkle for chain ${chainId} saved as ${outputName}`);
+}
+
+function mergeGaugeMerkles(
+  gaugeData: { curve?: MerkleData; fxn?: MerkleData } | undefined
+): MerkleData | null {
+  if (!gaugeData?.curve && !gaugeData?.fxn) return null;
+  return mergeMerkleData(
+    gaugeData.curve ?? { merkleRoot: "", claims: {} },
+    gaugeData.fxn ?? { merkleRoot: "", claims: {} }
+  );
+}
+
+function pairKey(account: string, token: string): string {
+  return `${account.toLowerCase()}:${token.toLowerCase()}`;
+}
+
+/**
+ * Prepare the active tree for the next cumulative root:
+ * - keep every open entitlement from the active root;
+ * - omit stale leaves whose amount is already below claimedOnChain;
+ * - restore claimedOnChain as the base when a pruned pair reappears.
+ *
+ * Leaves exactly equal to claimed are retained. This keeps ordinary weekly
+ * trees stable and leaves deliberate cleanup to the existing verifier policy.
+ */
+async function prepareActiveBaseline(
+  client: PublicClient,
+  currentDistribution: RawDistribution,
+  previousMerkleData: MerkleData,
+  pinnedBlock: bigint
+): Promise<{
+  previousMerkleData: MerkleData;
+  reappearingClaimed: Map<string, bigint>;
+}> {
+  const activePairs = new Map<
+    string,
+    { account: `0x${string}`; token: `0x${string}`; amount: bigint }
+  >();
+  for (const [account, claim] of Object.entries(
+    previousMerkleData.claims ?? {}
+  )) {
+    for (const [token, tokenClaim] of Object.entries(claim.tokens ?? {})) {
+      activePairs.set(pairKey(account, token), {
+        account: account as `0x${string}`,
+        token: token as `0x${string}`,
+        amount: BigInt(tokenClaim.amount),
+      });
+    }
+  }
+
+  const currentPairs = new Map<
+    string,
+    { account: `0x${string}`; token: `0x${string}` }
+  >();
+  for (const [account, claim] of Object.entries(currentDistribution)) {
+    for (const token of Object.keys(claim.tokens)) {
+      currentPairs.set(pairKey(account, token), {
+        account: account as `0x${string}`,
+        token: token as `0x${string}`,
+      });
+    }
+  }
+
+  const pairsToRead = new Map<
+    string,
+    { account: `0x${string}`; token: `0x${string}` }
+  >();
+  for (const [key, pair] of activePairs) pairsToRead.set(key, pair);
+  for (const [key, pair] of currentPairs) pairsToRead.set(key, pair);
+
+  const entries = [...pairsToRead.entries()];
+  const claimedByPair = new Map<string, bigint>();
+  const chunkSize = 400;
+  for (let i = 0; i < entries.length; i += chunkSize) {
+    const chunk = entries.slice(i, i + chunkSize);
+    const results = await client.multicall({
+      contracts: chunk.map(([, { account, token }]) => ({
+        address: VOTERS_DISTRIBUTOR,
+        abi: URD_ABI,
+        functionName: "claimed" as const,
+        args: [account, token],
+      })),
+      blockNumber: pinnedBlock,
+      allowFailure: false,
+    });
+    chunk.forEach(([key], index) => {
+      claimedByPair.set(key, results[index] as bigint);
+    });
+  }
+
+  const preparedClaims: MerkleData["claims"] = {};
+  let staleLeavesRemoved = 0;
+  for (const [key, { account, token, amount }] of activePairs) {
+    const claimed = claimedByPair.get(key) ?? 0n;
+    if (!currentPairs.has(key) && claimed > amount) {
+      staleLeavesRemoved++;
+      continue;
+    }
+    preparedClaims[account] ??= { tokens: {} };
+    preparedClaims[account].tokens[token] = {
+      amount: amount.toString(),
+      proof: [],
+    };
+  }
+
+  const reappearingClaimed = new Map<string, bigint>();
+  for (const [key] of currentPairs) {
+    if (activePairs.has(key)) continue;
+    const claimed = claimedByPair.get(key) ?? 0n;
+    if (claimed > 0n) reappearingClaimed.set(key, claimed);
+  }
+
+  if (staleLeavesRemoved > 0) {
+    console.log(
+      `Removed ${staleLeavesRemoved} stale active leaf/leaves already below claimedOnChain`
+    );
+  }
+  if (reappearingClaimed.size > 0) {
+    console.log(
+      `Restored claimed cumulative bases for ${reappearingClaimed.size} reappearing pair(s)`
+    );
+  }
+  return {
+    previousMerkleData: {
+      merkleRoot: previousMerkleData.merkleRoot,
+      claims: preparedClaims,
+    },
+    reappearingClaimed,
+  };
 }
 
 main().catch((error) => {
@@ -353,18 +610,25 @@ function processChain(
     return;
   }
 
-  // 4. Load previous Merkle data, scanning back up to 12 weeks to handle skipped periods
+  currentDistributionByChain[chainId][gaugeType as "curve" | "fxn"] = combined;
+
+  // 4. Load the newest prior per-gauge artifact, however old it is.
   const merkleFileName =
     chainId === "1"
       ? "merkle_data_non_delegators.json"
       : `merkle_data_non_delegators_${chainId}.json`;
   const relPath = path.join("vlCVX", gaugeType, merkleFileName);
-  const { data: previousMerkleData, foundAt } = findPreviousMerkle(currentPeriodTimestamp, relPath);
+  const { data: previousMerkleData, foundAt } = findPreviousMerkle(
+    currentPeriodTimestamp,
+    relPath
+  );
   if (foundAt) {
     console.log(`Loaded previous merkle data for chain ${chainId} from ${foundAt}`);
   } else {
     console.log(`No previous merkle data found for chain ${chainId} (${relPath})`);
   }
+  previousMerkleDataByChain[chainId][gaugeType as "curve" | "fxn"] =
+    previousMerkleData;
 
   // 5. Generate the new Merkle tree
   const currentDistribution = { distribution: combined };

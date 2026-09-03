@@ -5,7 +5,9 @@ import { UniversalMerkle } from "../interfaces/UniversalMerkle";
 
 export const createCombineDistribution = (
     currentDistribution: { distribution: Distribution },
-    previousMerkleData: MerkleData
+    previousMerkleData: MerkleData,
+    /** Claimed cumulative base for pairs absent from the active Merkle. */
+    reappearingClaimed: Map<string, bigint> = new Map()
 ): UniversalMerkle => {
     const normalizedMerkleDistribution: UniversalMerkle = {};
 
@@ -31,9 +33,18 @@ export const createCombineDistribution = (
         ).toString();
     };
 
-    // Normalize the new distribution first
+    // Normalize the new distribution first. A fully claimed pair may have been
+    // pruned from the active root and later reappear. Its new leaf must start at
+    // claimed(account, token), otherwise the distributor sees only the fresh
+    // weekly delta and claim() reverts (or underpays when delta > claimed).
     Object.entries(currentDistribution.distribution).forEach(([address, data]) => {
         Object.entries(data.tokens).forEach(([tokenAddress, amount]) => {
+            const pairKey = `${address.toLowerCase()}:${tokenAddress.toLowerCase()}`;
+            addPositiveAmount(
+                address,
+                tokenAddress,
+                reappearingClaimed.get(pairKey) ?? 0n
+            );
             addPositiveAmount(address, tokenAddress, amount);
         });
     });
