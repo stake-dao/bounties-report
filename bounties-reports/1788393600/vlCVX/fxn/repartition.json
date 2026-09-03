@@ -1,0 +1,21 @@
+{
+  "proposalId": "2",
+  "snapshotBlock": 234,
+  "distribution": {
+    "0x96c68d861ada016ed98c30c810879f9df7c64154": {
+      "tokens": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "855390310168108240088895"
+      }
+    },
+    "0x5275817b74021e97c980e95ede6bbac0d0d6f3a2": {
+      "tokens": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "8440612982293997735505"
+      }
+    },
+    "0x181ae03a7f3f320ec1255c913c9cb63fce12f77a": {
+      "tokens": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "33201007597366855794218"
+      }
+    }
+  }
+}
