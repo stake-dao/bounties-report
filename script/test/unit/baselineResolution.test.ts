@@ -33,14 +33,18 @@ afterEach(() => {
 });
 
 /** Write a MerkleData file and return its recomputed root. */
-function writeTree(relPath: string, entries: [string, string, string][]): string {
+function writeTree(
+  relPath: string,
+  entries: [string, string, string][],
+  timestamp = EPOCH
+): string {
   const claims: Record<string, { tokens: Record<string, { amount: string }> }> = {};
   for (const [account, token, amount] of entries) {
     claims[account] ??= { tokens: {} };
     claims[account].tokens[token] = { amount };
   }
   const data = { merkleRoot: "", claims };
-  const file = path.join(root, String(EPOCH), relPath);
+  const file = path.join(root, String(timestamp), relPath);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(data));
   return computeRoot(toPairMap(data as any)).toLowerCase();
@@ -75,6 +79,19 @@ describe("resolveBaseline", () => {
     expect(violations).toEqual([]);
     expect(res.artifactPath).toBe(
       path.join(root, String(EPOCH), "vlCVX", "vlcvx_merkle.superseded.json")
+    );
+    expect(res.pairs.get(ACCT)?.get(CRV)).toBe(100n);
+  });
+
+  it("resolves an active artifact older than 26 weeks", async () => {
+    const oldTimestamp = EPOCH - 37 * 604800;
+    const oldRoot = writeTree(SPEC.relPath, [[ACCT, CRV, "100"]], oldTimestamp);
+
+    const { res, violations } = await resolve(oldRoot);
+
+    expect(violations).toEqual([]);
+    expect(res.artifactPath).toBe(
+      path.join(root, String(oldTimestamp), SPEC.relPath)
     );
     expect(res.pairs.get(ACCT)?.get(CRV)).toBe(100n);
   });

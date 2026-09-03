@@ -10,6 +10,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { WEEK } from "./constants";
+import { findPreviousMerkle } from "./merkle/findPreviousMerkle";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -207,17 +208,12 @@ export function checkCumulativeRegression(
     const currPath = path.join(REPORTS_DIR, timestamp.toString(), cfg.path);
     if (!fileExists(currPath)) continue;
 
-    // Find the most recent previous merkle for this path (up to 12 weeks back)
-    let prevData: Record<string, any> | null = null;
-    let prevFoundAt: string | null = null;
-    for (let w = 1; w <= 12; w++) {
-      const prevPath = path.join(REPORTS_DIR, (timestamp - w * WEEK).toString(), cfg.path);
-      if (fileExists(prevPath)) {
-        prevData = readJSON(prevPath);
-        prevFoundAt = prevPath;
-        break;
-      }
-    }
+    // Find the newest prior artifact without imposing an arbitrary week limit.
+    const previous = findPreviousMerkle(timestamp, cfg.path, REPORTS_DIR);
+    const prevData = previous.foundAt
+      ? (previous.data as unknown as Record<string, any>)
+      : null;
+    const prevFoundAt = previous.foundAt;
 
     if (!prevData) {
       results.push({

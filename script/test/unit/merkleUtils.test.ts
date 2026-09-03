@@ -79,6 +79,32 @@ describe("createCombineDistribution", () => {
     expect(result[checksumA][checksumUsdc]).toBe("3000000");
   });
 
+  it("restores the claimed base when a pruned pair reappears", () => {
+    const currentDistribution = {
+      distribution: {
+        [ADDR_A]: {
+          tokens: {
+            [TOKEN_USDC]: 4_159_895n,
+          },
+        },
+      },
+    };
+    const previousMerkle = { merkleRoot: "0xabc", claims: {} };
+    const claimed = new Map([
+      [`${ADDR_A.toLowerCase()}:${TOKEN_USDC.toLowerCase()}`, 484_017_566n],
+    ]);
+
+    const result = createCombineDistribution(
+      currentDistribution,
+      previousMerkle,
+      claimed
+    );
+
+    expect(result[getAddress(ADDR_A)][getAddress(TOKEN_USDC)]).toBe(
+      "488177461"
+    );
+  });
+
   it("adds new addresses from previous merkle that are not in current distribution", () => {
     const currentDistribution = {
       distribution: {
