@@ -34,6 +34,37 @@ import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 import { processAllDelegators } from "../cacheUtils";
 
+export interface MerkleGenerationOptions {
+  readOnlyClaimCache?: boolean;
+}
+
+export function removeDirectVoterPowerFromDelegators(
+  delegatorsVotingPower: Record<string, number>,
+  voters: Array<{ voter: string; vp: number }>,
+): void {
+  for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
+    const directVote = voters.find(
+      (voter) => voter.voter.toLowerCase() === delegatorAddress.toLowerCase(),
+    );
+    if (!directVote) continue;
+    delegatorsVotingPower[delegatorAddress] = Math.max(
+      0,
+      delegatorsVotingPower[delegatorAddress] - directVote.vp,
+    );
+  }
+}
+
+export function eligibleDelegatorCount(
+  delegatorsVotingPower: Record<string, number>,
+  delegationVotingPower: number,
+): number {
+  const vpThreshold = delegationVotingPower * 0.00000002;
+  const epsilon = 1e-9;
+  return Object.values(delegatorsVotingPower).filter(
+    (vp) => vp > vpThreshold - epsilon,
+  ).length - 1;
+}
+
 /**
  * Creates a merkle tree for token distribution based on voting results
  *
@@ -55,7 +86,8 @@ export const createMultiMerkle = async (
   sdFXSWorkingData: any,
   sdCakeWorkingData: any,
   additionalDelegatorRewards: Record<string, number> = {},
-  overrideTokenAddress?: string
+  overrideTokenAddress?: string,
+  options: MerkleGenerationOptions = {},
 ): Promise<MerkleStat> => {
   const userRewards: Record<string, number> = {};
   const aprs: any[] = [];
@@ -119,18 +151,7 @@ export const createMultiMerkle = async (
     );
 
     // Reduce delegator voting power if some guys voted directly
-    for (const delegatorAddress of Object.keys(delegatorsVotingPower)) {
-      const da = delegatorAddress.toLowerCase();
-      for (const vote of voters) {
-        if (vote.voter.toLowerCase() === da) {
-          delegatorsVotingPower[delegatorAddress] -= vote.vp;
-          if (delegatorsVotingPower[delegatorAddress] <= 0) {
-            delegatorsVotingPower[delegatorAddress] = 0;
-          }
-          break;
-        }
-      }
-    }
+    removeDirectVoterPowerFromDelegators(delegatorsVotingPower, voters);
 
     const delegatorSumVotingPower = Object.values(delegatorsVotingPower).reduce(
       (acc, vp) => acc + vp,
@@ -147,17 +168,11 @@ export const createMultiMerkle = async (
       };
     }
 
-    // Compute only those with voting power > 0.00000002% of delegation voting power
-    // Use a small epsilon for floating-point comparison to ensure deterministic results
-    const vpThreshold = delegationVote.vp * 0.00000002;
-    const epsilon = 1e-9; // Small tolerance for floating-point comparison
-    const filteredDelegatorsVotingPower = Object.fromEntries(
-      Object.entries(delegatorsVotingPower).filter(
-        ([_, vp]) => vp > vpThreshold - epsilon
-      )
+    // Use the same eligible count in generation and reconstruction verification.
+    const amountOfDelegators = eligibleDelegatorCount(
+      delegatorsVotingPower,
+      delegationVote.vp,
     );
-    const amountOfDelegators =
-      Object.keys(filteredDelegatorsVotingPower).length - 1; // Delegation
 
     logs.push({
       id: "Delegators",
@@ -388,7 +403,8 @@ export const createMultiMerkle = async (
     const usersClaimedAddress = await getAllAccountClaimedSinceLastFreeze(
       NETWORK_TO_MERKLE[network],
       tokenToDistribute,
-      SPACE_TO_CHAIN_ID[space]
+      SPACE_TO_CHAIN_ID[space],
+      { readOnly: options.readOnlyClaimCache },
     );
 
     const userAddressesLastMerkle = Object.keys(lastMerkle.merkle);
