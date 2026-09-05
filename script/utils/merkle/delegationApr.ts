@@ -14,3 +14,20 @@ export function computeSdFxsDelegationAPR(
   }
   return (weeklyDelegationSdFxsRewards / totalVotingPower) * 52 * 100 * 4;
 }
+
+/**
+ * Delegation APR for URD-migrated mainnet sdTokens (sdCRV, sdFXN).
+ *
+ * Annualizes the delegation's weekly sdToken rewards against the delegation
+ * address's voting power in the week's gauge proposal. Matches the legacy
+ * createMultiMerkle computation for these spaces (52 weeks, no multiplier).
+ */
+export function computeDelegationAPR(
+  weeklyDelegationRewards: number,
+  delegationVotingPower: number
+): number {
+  if (delegationVotingPower <= 0 || weeklyDelegationRewards <= 0) {
+    return 0;
+  }
+  return (weeklyDelegationRewards / delegationVotingPower) * 52 * 100;
+}
