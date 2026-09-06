@@ -57,6 +57,9 @@ export interface SdTokensMerkleResult {
   // Weekly rewards earned by the delegation address, keyed by token, before
   // being split across delegators. Used to compute the delegation APR.
   delegationRewards: { [tokenAddress: string]: number };
+  // Voting power of the delegation address's vote in the week's proposal.
+  // Used with delegationRewards to compute the delegation APR.
+  delegationVotingPower: number;
 }
 
 /**
@@ -298,6 +301,9 @@ export async function generateSdTokensMerkle(
   // Handle delegation rewards
   const delegationAddressLower = DELEGATION_ADDRESS.toLowerCase();
   const delegationRewards = userRewards[delegationAddressLower];
+  const delegationVoter = voters.find(
+    (v) => v.voter.toLowerCase() === delegationAddressLower
+  );
   
   if (delegationRewards && delegatorSumVotingPower > 0) {
     console.log(`Distributing delegation rewards to ${Object.keys(delegatorsVotingPower).length} delegators`);
@@ -402,5 +408,6 @@ export async function generateSdTokensMerkle(
     merkleData,
     statistics,
     delegationRewards: delegationRewards || {},
+    delegationVotingPower: delegationVoter?.vp ?? 0,
   };
 }
