@@ -23,17 +23,15 @@ import {
 } from "../utils/utils";
 import { createMultiMerkle } from "../utils/merkle/createMultiMerkle";
 import {
-  Chain,
-  createPublicClient,
   formatUnits,
-  http,
 } from "viem";
 import * as fs from "fs";
 import * as path from "path";
 import { BigNumber } from "ethers";
 import { ethers } from "ethers";
-import { bsc, mainnet } from "../utils/chains";
+import { mainnet } from "../utils/chains";
 import { Merkle } from "../utils/types";
+import { getClient } from "../utils/getClients";
 
 dotenv.config();
 
@@ -447,7 +445,7 @@ const main = async () => {
  * Check, for each token, that the tokens held in the Merkle contract plus
  * the tokens slated for distribution are not less than the total expected.
  */
-const checkDistribution = async (
+export const checkDistribution = async (
   newMerkles: Merkle[],
   logData: Record<string, any>,
   currentPeriodTimestamp: number,
@@ -471,28 +469,7 @@ const checkDistribution = async (
       formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18)
     );
 
-    let chain: Chain | null = null;
-    let rpcUrl = "";
-
-    switch (merkle.chainId) {
-      case mainnet.id:
-        chain = mainnet;
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-        break;
-      case bsc.id:
-        chain = bsc;
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-        break;
-      default:
-        throw new Error("Chain not found");
-    }
-
-    const publicClient = createPublicClient({
-      chain,
-      transport: http(rpcUrl),
-    });
+    const publicClient = await getClient(merkle.chainId);
 
     // Check if the token is frozen.
     const merkleRootRes = await publicClient.readContract({
@@ -510,16 +487,8 @@ const checkDistribution = async (
       args: [merkle.address as `0x${string}`],
     });
 
-    // Guard against COMMITTING a distribution before the token was actually
-    // frozen (re-rooted on-chain) for this period. Only applies to the
-    // post-freeze commit run (isPostFreezeRun) — the pre-freeze dry-run
-    // (--log) legitimately generates the merkle before any freeze exists for
-    // this period, e.g. to produce the multiFreeze/multiSet calldata itself.
-    // getAllAccountClaimedSinceLastFreeze, called earlier in this run,
-    // refreshes this cache with the latest known on-chain MerkleRootUpdated
-    // timestamp for the token — if that update still predates the current
-    // period on the post-freeze run, the freeze never landed and the numbers
-    // computed below aren't safe to publish.
+    // The claim window starts at the last nonzero root; freeze freshness
+    // uses its own timestamp so a zero-root update never erases claim history.
     if (isPostFreezeRun) {
       const freezeCacheFile = path.join(
         __dirname,
@@ -532,10 +501,10 @@ const checkDistribution = async (
         `${(merkle.address as string).toLowerCase()}.json`
       );
       if (fs.existsSync(freezeCacheFile)) {
-        const { timestamp: lastFreezeTimestamp } = JSON.parse(
+        const { freezeTimestamp: lastFreezeTimestamp } = JSON.parse(
           fs.readFileSync(freezeCacheFile, "utf8")
         );
-        if (lastFreezeTimestamp < currentPeriodTimestamp) {
+        if (!Number.isFinite(lastFreezeTimestamp) || lastFreezeTimestamp < currentPeriodTimestamp) {
           const daysStale = Math.floor(
             (currentPeriodTimestamp - lastFreezeTimestamp) / 86400
           );
@@ -558,6 +527,11 @@ const checkDistribution = async (
       "0x0000000000000000000000000000000000000000000000000000000000000000"
     ) {
       continue;
+    }
+
+    if (isPostFreezeRun) {
+      console.error(`Distribution is not ok for token ${tokenSymbol}: root is not frozen`);
+      return false;
     }
 
     const sdTknBalanceBn = await publicClient.readContract({
@@ -639,31 +613,10 @@ async function compareMerkleTrees(
       continue;
     }
 
-    // Set up blockchain client details.
-    let chain: Chain | null = null;
-    let rpcUrl = "";
-    switch (chainId) {
-      case mainnet.id:
-        chain = mainnet;
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-        break;
-      case bsc.id:
-        chain = bsc;
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-        break;
-      default:
-        throw new Error("Chain not supported for merkle " + merkle.symbol);
-    }
-
     // Fetch the current contract balance.
     let sdTknBalanceRaw: bigint;
     try {
-      const publicClient = createPublicClient({
-        chain,
-        transport: http(rpcUrl),
-      });
+      const publicClient = await getClient(chainId);
       sdTknBalanceRaw = await publicClient.readContract({
         address: merkle.address as `0x${string}`,
         abi: [

@@ -3,6 +3,14 @@ name: "sdTokens: Post-freeze"
 on:
   workflow_dispatch:
     inputs:
+      stage:
+        description: "Prepare the freeze token set, or verify the frozen distribution"
+        required: true
+        type: choice
+        default: post-freeze
+        options:
+          - check
+          - post-freeze
       mode:
         description: "Test or execute directly"
         required: true
@@ -20,6 +28,8 @@ on:
 jobs:
   post-freeze:
     runs-on: ubuntu-latest
+    env:
+      EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
     permissions:
       contents: write
 
@@ -53,7 +63,26 @@ jobs:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
+      - name: Preserve an already verified distribution
+        id: existing
+        env:
+          PERIOD: ${{ steps.period.outputs.current }}
+        run: |
+          FILE="bounties-reports/${PERIOD}/sdtokens-distribution.json"
+          if [ -f "$FILE" ] && jq -e --argjson period "$PERIOD" '.period == $period and .verified == true and .postFreeze == true' "$FILE" >/dev/null; then
+            echo "reuse=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate pre-freeze merkle
+        if: inputs.stage == 'check' && steps.existing.outputs.reuse != 'true'
+        run: pnpm tsx script/sdTkns/generateMerkle.ts --log
+        env:
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+          BOTS_ENVIO_GRAPHQL_URL_WORKER: ${{ secrets.BOTS_ENVIO_GRAPHQL_URL_WORKER }}
+
       - name: Generate post-freeze merkle
+        if: inputs.stage == 'post-freeze' && steps.existing.outputs.reuse != 'true'
         run: pnpm tsx script/sdTkns/generateMerkle.ts --log --post-freeze
         env:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
@@ -61,10 +90,29 @@ jobs:
           BOTS_ENVIO_GRAPHQL_URL_WORKER: ${{ secrets.BOTS_ENVIO_GRAPHQL_URL_WORKER }}
 
       - name: Reconstruct sdMerkle
+        if: inputs.stage == 'post-freeze'
         run: pnpm tsx script/sdTkns/verify/reconstructSdMerkle.ts --period "${{ steps.period.outputs.current }}"
         env:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+
+      - name: Verify before submission
+        if: inputs.stage == 'post-freeze'
+        run: pnpm tsx script/sdTkns/verify/checkBeforeSetRoots.ts --period "${{ steps.period.outputs.current }}"
+        env:
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+
+      - name: Export checked guard distribution
+        if: steps.existing.outputs.reuse != 'true'
+        env:
+          STAGE: ${{ inputs.stage }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+        run: |
+          args=()
+          if [ "$STAGE" = post-freeze ]; then args+=(--verified); fi
+          pnpm tsx script/sdTkns/prepareDistribution.ts "${args[@]}"
 
       - name: Commit verified post-freeze artifacts
         if: inputs.mode == 'execute'
@@ -73,7 +121,7 @@ jobs:
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "Stake DAO Automation"
-          git add "bounties-reports/${PERIOD}/" log.json
+          git add "bounties-reports/${PERIOD}/" log.json data/merkle_updates/
           if git diff --cached --quiet; then
             echo "No post-freeze changes to commit"
             exit 0
