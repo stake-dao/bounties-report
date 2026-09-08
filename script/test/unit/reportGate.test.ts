@@ -31,6 +31,14 @@ describe("Run 8 report gate", () => {
     expect(fxn.ok).toBe(true);
   });
 
+  it("resolves a root gauge absent from the current cvx.csv through the trailing weeks", () => {
+    // 1788393600: base-WETH+superOETHb has a VoteMarket claim on its root gauge but no
+    // Convex-side claim, so the current cvx.csv has no row to map root -> child.
+    const curve = runR2(1788393600, ["curve"]);
+    expect(curve.detail).not.toContain("0x92106dcfa053a8283213a062735649cbf0e718a2");
+    expect(curve.ok).toBe(true);
+  });
+
   it("checks each WETH batch against the peg-aware reference", () => {
     const attribution = {
       totals: { sdInTotal: 100, sdAssigned: 100, wethInTotal: 1, wethOutTotal: 1 },
