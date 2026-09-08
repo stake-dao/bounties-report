@@ -79582,5 +79582,38 @@
     "0x7abbb0056110f9c74bd25a90e254912a73551224",
     "0xd18327bb6d6de9241bed63bb5e78459325fbbd70"
   ],
+  "platformsPaid": {
+    "0x181ae03a7f3f320ec1255c913c9cb63fce12f77a": [
+      "curve"
+    ],
+    "0x2a4c7d66583b89e81229c3d42cb523a716df09af": [
+      "curve"
+    ],
+    "0x2ba8c59c99c94ac5d3b2af7019d2861c640e91f7": [
+      "curve"
+    ],
+    "0x307cfaad607bb9afc4148a07b163c21a7b7e7bbd": [
+      "curve",
+      "fxn"
+    ],
+    "0x3293e1958cc0275f76449426896740b20ea74cd7": [
+      "curve"
+    ],
+    "0x47874ee03c47697aadb57771022a80bd30a2ec85": [
+      "curve",
+      "fxn"
+    ],
+    "0x788e72ac24344ce7b7725421f468a043866d6ccd": [
+      "curve",
+      "fxn"
+    ],
+    "0x7abbb0056110f9c74bd25a90e254912a73551224": [
+      "curve",
+      "fxn"
+    ],
+    "0xd18327bb6d6de9241bed63bb5e78459325fbbd70": [
+      "curve"
+    ]
+  },
   "belowFloor": []
 }

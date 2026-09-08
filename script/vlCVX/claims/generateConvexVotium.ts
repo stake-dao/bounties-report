@@ -400,7 +400,8 @@ async function processGaugeVotes(
   perAddressTokenAllocations: Record<string, Record<string, bigint>>,
   matchingBribesAggregated: any,
   bribesType: "curve" | "fxn",
-  transformGauges = false
+  transformGauges = false,
+  individualLegs: Record<string, Set<"curve" | "fxn">> = {}
 ): Promise<number> {
   // Proposal and votes are fetched ONCE in main and passed down (pinned round)
   const proposalId = proposal.id;
@@ -569,6 +570,14 @@ async function processGaugeVotes(
             perAddressTokenAllocations[forwarder.address][tokenAddress] = BigInt(0);
           }
           perAddressTokenAllocations[forwarder.address][tokenAddress] += amountInWei;
+          // Provenance: this platform's bribes actually fund the wallet's
+          // individually attributed leg (a positive allocation, not merely
+          // an "individual" routing tag on a platform it never voted on).
+          if (amountInWei > 0n) {
+            (individualLegs[forwarder.address.toLowerCase()] ??= new Set()).add(
+              bribesType
+            );
+          }
         }
       }
     }
@@ -996,6 +1005,13 @@ export async function generateConvexVotiumBounties(
       Record<string, bigint>
     > = {};
     const matchingBribesAggregated: any = {};
+    // Per-platform route provenance of every individually attributed leg
+    // with a positive allocation. tokenAllocations merges curve and fxn value
+    // per wallet, so the platform is lost there; the verifier's address-level
+    // exclusivity check needs it to clear a platform split (own Curve vote
+    // paid raw on Thursday + pooled FXN slice paid sCRVUSD on Tuesday)
+    // without manual review.
+    const individualLegsByWallet: Record<string, Set<"curve" | "fxn">> = {};
 
     curveForwarders.forEach((f) => {
       tokenAllocations[f.address] = {};
@@ -1030,7 +1046,8 @@ export async function generateConvexVotiumBounties(
       perAddressTokenAllocations,
       matchingBribesAggregated,
       "curve",
-      false
+      false,
+      individualLegsByWallet
     );
     console.log(`Processed ${curveGaugesProcessed} Curve gauges with bribes`);
 
@@ -1116,7 +1133,8 @@ export async function generateConvexVotiumBounties(
         perAddressTokenAllocations,
         matchingBribesAggregated,
         "fxn",
-        true
+        true,
+        individualLegsByWallet
       );
       console.log(`Processed ${fxnGaugesProcessed} FXN gauges with bribes`);
     } catch (error) {
@@ -1297,10 +1315,20 @@ export async function generateConvexVotiumBounties(
       }
     }
 
+    // Serialised platform provenance (sorted, lowercase keys) for the
+    // combined-merkle builder and the verifier.
+    const individualLegs: Record<string, ("curve" | "fxn")[]> = Object.fromEntries(
+      Object.entries(individualLegsByWallet).map(([wallet, platforms]) => [
+        wallet,
+        [...platforms].sort(),
+      ])
+    );
+
     const perAddressOutput = {
       curveVotes: curveAddressBreakdown,
       fxnVotes: fxnAddressBreakdown,
       tokenAllocations: tokenAllocationsWithWei,
+      individualLegs,
       // Traceability: which pinned round produced this file (extra top-level
       // key, ignored by the existing consumers)
       meta: {
@@ -1315,6 +1343,7 @@ export async function generateConvexVotiumBounties(
     // re-attach the meta block afterwards)
     const cleanedPerAddressOutput = {
       ...cleanPerAddressOutput(perAddressOutput),
+      individualLegs: perAddressOutput.individualLegs,
       meta: perAddressOutput.meta,
     };
 

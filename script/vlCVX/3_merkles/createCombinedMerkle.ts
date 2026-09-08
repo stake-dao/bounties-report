@@ -32,6 +32,7 @@ import {
   computeVotiumRawPayouts,
   hasClaimedVotiumBounties,
   isVotiumClaimPeriod,
+  parseVotiumPlatformList,
   MIN_VOTIUM_RAW_PAYOUT_USD,
 } from "../../utils/votiumRawPayouts";
 import { VOTIUM_FORWARDER } from "../../utils/constants";
@@ -792,6 +793,22 @@ function applyVotiumRawLeaves(
     tokenAllocations,
   });
 
+  // Platform provenance of each paid leg (generator ≥ individualLegs). The
+  // verifier clears a platform split from it; a paid wallet without one
+  // stays a manual-review (HIGH) case there — never silently cleared.
+  const individualLegs: Record<string, string[]> | null =
+    forwardersData.individualLegs && typeof forwardersData.individualLegs === "object"
+      ? Object.fromEntries(
+          Object.entries<unknown>(forwardersData.individualLegs).map(
+            ([wallet, platforms]) => [
+              wallet.toLowerCase(),
+              parseVotiumPlatformList(platforms),
+            ]
+          )
+        )
+      : null;
+  const platformsPaid: Record<string, string[]> = {};
+
   let paidWallets = 0;
   for (const [address, tokens] of Object.entries(raw.payouts)) {
     const addr = address.toLowerCase();
@@ -802,6 +819,14 @@ function applyVotiumRawLeaves(
         (combined[addr].tokens[token] || 0n) + amount;
     }
     paidWallets++;
+    const platforms = individualLegs?.[addr] ?? [];
+    if (platforms.length > 0) platformsPaid[addr] = platforms;
+    else
+      console.warn(
+        `⚠️  Votium raw leg for ${addr} has no platform provenance in ` +
+          `forwarders_voted_rewards.json (individualLegs) — the address-level ` +
+          `exclusivity invariant will demand manual review for it`
+      );
   }
 
   const totalsAsStrings = Object.fromEntries(
@@ -833,6 +858,7 @@ function applyVotiumRawLeaves(
         forwardersData,
         totalRewardsPaid: totalsAsStrings,
         addressesPaid: Object.keys(raw.payouts),
+        platformsPaid,
         belowFloor: raw.belowFloor,
       },
       null,
