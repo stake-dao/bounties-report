@@ -1,7 +1,7 @@
 {
   "period": 1788393600,
-  "postFreeze": false,
-  "verified": false,
+  "postFreeze": true,
+  "verified": true,
   "distributor": "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4",
   "owner": "0xbd2A781f11A32929393e6959D08F78346bEDA8f6",
   "tokens": [
