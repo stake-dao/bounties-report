@@ -2,7 +2,7 @@ include automation/setup/python.mk
 
 # Node.js configuration
 NODE_VERSION := 22.9.0
-PNPM_VERSION := 8.15.4
+PNPM_VERSION := 10.33.0
 NODEENV_DIR := $(shell pwd)/temp/.nodeenv
 NODE := $(NODEENV_DIR)/bin/node
 PNPM := $(NODEENV_DIR)/bin/pnpm
@@ -14,7 +14,7 @@ setup-node: setup-python $(NODE)
 $(NODE): $(VENV_DIR)/bin/activate
 	@if [ ! -f "$(NODE)" ]; then \
 		echo "Setting up Node.js $(NODE_VERSION) virtual environment..."; \
-		. $(VENV_DIR)/bin/activate && nodeenv --node=$(NODE_VERSION) --npm=$(PNPM_VERSION) $(NODEENV_DIR); \
+		. $(VENV_DIR)/bin/activate && nodeenv --node=$(NODE_VERSION) --npm=none $(NODEENV_DIR); \
 		. $(NODEENV_DIR)/bin/activate && npm install -g pnpm@$(PNPM_VERSION); \
 	else \
 		echo "Node.js $(NODE_VERSION) virtual environment already exists. Skipping setup."; \
