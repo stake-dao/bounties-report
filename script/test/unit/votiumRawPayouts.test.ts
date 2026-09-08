@@ -6,6 +6,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computeVotiumRawPayouts,
+  parseVotiumPlatformList,
   hasClaimedVotiumBounties,
   isVotiumClaimPeriod,
 } from "../../utils/votiumRawPayouts";
@@ -166,4 +167,19 @@ describe("computeVotiumRawPayouts", () => {
       })
     ).toThrow("unsigned integer");
   });
+});
+
+describe("parseVotiumPlatformList", () => {
+	it("accepts arrays and the replacer's index-keyed object shape", () => {
+		expect(parseVotiumPlatformList(["fxn", "curve"])).toEqual(["curve", "fxn"]);
+		expect(parseVotiumPlatformList({ "0": "curve" })).toEqual(["curve"]);
+		expect(parseVotiumPlatformList({ "0": "curve", "1": "fxn" })).toEqual(["curve", "fxn"]);
+	});
+
+	it("drops unknown platforms, duplicates and non-list inputs", () => {
+		expect(parseVotiumPlatformList(["curve", "curve", "bogus"])).toEqual(["curve"]);
+		expect(parseVotiumPlatformList("curve")).toEqual([]);
+		expect(parseVotiumPlatformList(undefined)).toEqual([]);
+		expect(parseVotiumPlatformList(null)).toEqual([]);
+	});
 });

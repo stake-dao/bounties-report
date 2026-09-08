@@ -19,6 +19,34 @@ export const isVotiumClaimPeriod = (period: number): boolean =>
 // delegators pot. Builder and verifiers must share this floor.
 export const MIN_VOTIUM_RAW_PAYOUT_USD = 1;
 
+export type VotiumPlatform = "curve" | "fxn";
+const VOTIUM_PLATFORMS: readonly VotiumPlatform[] = ["curve", "fxn"];
+
+/**
+ * Normalises a per-wallet platform list from `individualLegs`
+ * (forwarders_voted_rewards.json) or `platformsPaid` (votium_forwarders_log).
+ * generateConvexVotium serialises with a replacer that rewrites arrays as
+ * index-keyed objects (`["curve"]` → `{"0":"curve"}`), so both shapes must
+ * be accepted; anything else — unknown platform names included — is dropped,
+ * and an empty result means "no provenance" (manual review at the verifier).
+ */
+export const parseVotiumPlatformList = (value: unknown): VotiumPlatform[] => {
+	const raw: unknown[] = Array.isArray(value)
+		? value
+		: value && typeof value === "object"
+			? Object.values(value as Record<string, unknown>)
+			: [];
+	const out: VotiumPlatform[] = [];
+	for (const entry of raw) {
+		if (typeof entry !== "string") continue;
+		const platform = entry.toLowerCase() as VotiumPlatform;
+		if (VOTIUM_PLATFORMS.includes(platform) && !out.includes(platform)) {
+			out.push(platform);
+		}
+	}
+	return out.sort();
+};
+
 type TokenAllocation = {
 	amountWei?: unknown;
 	usd?: unknown;

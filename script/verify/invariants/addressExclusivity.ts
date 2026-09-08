@@ -18,9 +18,13 @@
  *     the raw "nonForwarders" route of repartition_delegation.json, per
  *     platform (both feed the per-platform merkle that merges into
  *     vlcvx_merkle.json);
- *   - individually attributed Votium legs (votium_forwarders_log addressesPaid)
- *     carry no platform in the log — an overlap involving one demands manual
- *     review (HIGH) rather than silent clearing.
+ *   - individually attributed Votium legs: votium_forwarders_log
+ *     `platformsPaid` records the platform(s) of each paid wallet's own /
+ *     non-pooled vote, so the leg counts as a Thursday source on that
+ *     platform (own Curve vote paid raw + pooled FXN slice paid Tuesday is
+ *     the same platform split as a repartition leg). A paid wallet without
+ *     a recorded platform (pre-upgrade log) demands manual review (HIGH)
+ *     rather than silent clearing.
  *
  * Every unattributable state fails closed: missing breakdown provenance
  * (pre-upgrade artifact), unreadable repartition inputs, or a delta with no
@@ -30,6 +34,7 @@
 import fs from "fs";
 import path from "path";
 import { getExactGroupAmounts } from "../../utils/delegationExact";
+import { parseVotiumPlatformList } from "../../utils/votiumRawPayouts";
 import { PairMap, Violation } from "./types";
 
 export type PlatformKey = "curve" | "fxn";
@@ -46,7 +51,10 @@ export interface WeeklyAttribution {
   thursdaySources: Map<string, Set<PlatformKey>>;
   /** false when the repartition inputs were absent or unreadable — fail closed. */
   thursdayLoaded: boolean;
-  /** Wallets paid an individually attributed Votium leg (platform not recorded). */
+  /**
+   * Wallets paid an individually attributed Votium leg whose platform is NOT
+   * recorded in the log (pre-upgrade artifact) — cannot be auto-cleared.
+   */
   votiumPaid: Set<string>;
 }
 
@@ -146,8 +154,25 @@ export const loadWeeklyAttribution = (
     const logPath = path.join(base, "curve", "votium_forwarders_log.json");
     if (fs.existsSync(logPath)) {
       const log = JSON.parse(fs.readFileSync(logPath, "utf8"));
+      const platformsPaid: Record<string, unknown> =
+        log.platformsPaid && typeof log.platformsPaid === "object"
+          ? Object.fromEntries(
+              Object.entries(log.platformsPaid).map(([w, p]) => [
+                w.toLowerCase(),
+                p,
+              ])
+            )
+          : {};
       for (const wallet of log.addressesPaid ?? []) {
-        votiumPaid.add(String(wallet).toLowerCase());
+        const key = String(wallet).toLowerCase();
+        const platforms = parseVotiumPlatformList(platformsPaid[key]);
+        if (platforms.length === 0) {
+          votiumPaid.add(key);
+          continue;
+        }
+        for (const platform of platforms) {
+          addSource(thursdaySources, key, platform);
+        }
       }
     }
   } catch {
@@ -238,9 +263,9 @@ export function checkAddressDeltaExclusivity(
 
     if (attribution.votiumPaid.has(acc)) {
       flag(
-        `wallet holds an individually attributed Votium leg (platform not ` +
-          `recorded in votium_forwarders_log) alongside a Tuesday payment — ` +
-          `platform split cannot be proven, manual review required`,
+        `wallet holds an individually attributed Votium leg with no platform ` +
+          `recorded in votium_forwarders_log (platformsPaid) alongside a ` +
+          `Tuesday payment — platform split cannot be proven, manual review required`,
         "HIGH"
       );
       continue;

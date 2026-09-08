@@ -175,6 +175,7 @@ describe("loadWeeklyAttribution", () => {
   const C = "0xc000000000000000000000000000000000000003";
   const D = "0xd000000000000000000000000000000000000004";
   const V1 = "0xe000000000000000000000000000000000000005";
+  const V2 = "0xf000000000000000000000000000000000000006";
 
   const delegationSummary = {
     totalTokens: { [T]: "200" },
@@ -197,7 +198,10 @@ describe("loadWeeklyAttribution", () => {
     },
   };
 
-  const writeFixture = (breakdownPerWallet: unknown) => {
+  const writeFixture = (
+    breakdownPerWallet: unknown,
+    votiumLog: Record<string, unknown> = { addressesPaid: [getAddress(V1)] }
+  ) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "attr-"));
     const ts = 1785974400;
     const curveDir = path.join(root, String(ts), "vlCVX", "curve");
@@ -221,7 +225,7 @@ describe("loadWeeklyAttribution", () => {
     );
     fs.writeFileSync(
       path.join(curveDir, "votium_forwarders_log.json"),
-      JSON.stringify({ timestamp: ts, addressesPaid: [getAddress(V1)] })
+      JSON.stringify({ timestamp: ts, ...votiumLog })
     );
     return { root, ts };
   };
@@ -247,6 +251,61 @@ describe("loadWeeklyAttribution", () => {
     // pooled forwarder A is Tuesday-routed, not a Thursday source
     expect(attr.thursdaySources.has(A)).toBe(false);
     expect(attr.votiumPaid).toEqual(new Set([V1]));
+  });
+
+  it("turns a Votium leg with a recorded platform into a Thursday source", () => {
+    const { root, ts } = writeFixture({}, {
+      addressesPaid: [getAddress(V1), getAddress(V2)],
+      platformsPaid: { [getAddress(V1)]: ["curve"], [getAddress(V2)]: ["bogus"] },
+    });
+    const attr = loadWeeklyAttribution(root, ts);
+    expect(attr.thursdaySources.get(V1)).toEqual(new Set(["curve"]));
+    expect(attr.votiumPaid.has(V1)).toBe(false);
+    // unknown / empty platform lists fall back to manual review
+    expect(attr.votiumPaid).toEqual(new Set([V2]));
+    expect(attr.thursdaySources.has(V2)).toBe(false);
+  });
+
+  it("clears the Votium platform split end to end (Tuesday fxn vs Thursday curve Votium leg)", () => {
+    const { root, ts } = writeFixture(
+      {
+        [getAddress(V2)]: { valuePico: "1", total: "1", sources: { curve: "0", fxn: "9" } },
+      },
+      { addressesPaid: [getAddress(V2)], platformsPaid: { [V2]: ["curve"] } }
+    );
+    const attr = loadWeeklyAttribution(root, ts);
+    const violations: Violation[] = [];
+    const stats = checkAddressDeltaExclusivity(
+      1,
+      pairs([[getAddress(V2), USDC, 100n]]),
+      pairs([[getAddress(V2), SCRVUSD, 9n]]),
+      attr,
+      violations
+    );
+    expect(violations).toEqual([]);
+    expect(stats.cleared).toEqual([
+      { account: getAddress(V2), tuesday: ["fxn"], thursday: ["curve"] },
+    ]);
+  });
+
+  it("flags a Votium leg on the same platform as the Tuesday pool as CRITICAL", () => {
+    const { root, ts } = writeFixture(
+      {
+        [getAddress(V2)]: { valuePico: "1", total: "1", sources: { curve: "9", fxn: "0" } },
+      },
+      { addressesPaid: [getAddress(V2)], platformsPaid: { [V2]: ["curve"] } }
+    );
+    const violations: Violation[] = [];
+    checkAddressDeltaExclusivity(
+      1,
+      pairs([[getAddress(V2), USDC, 100n]]),
+      pairs([[getAddress(V2), SCRVUSD, 9n]]),
+      loadWeeklyAttribution(root, ts),
+      violations
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0].severity).toBe("CRITICAL");
+    expect(violations[0].detail).toMatch(/\[curve\] paid this wallet in BOTH trees/);
   });
 
   it("returns null Tuesday sources for a pre-upgrade breakdown (fail closed)", () => {
