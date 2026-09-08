@@ -150,6 +150,13 @@ export const SD_ANGLE = getAddress(
 );
 export const SD_FXN = getAddress("0xe19d1c837B8A1C83A56cD9165b2c0256D39653aD");
 export const SD_CAKE = getAddress("0x6a1c1447F97B27dA23dC52802F5f1435b5aC821A");
+export const SD_PENDLE = getAddress("0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9");
+export const TAC_IOU = getAddress("0x4df454443d6e9a888e9b1571b2375e8ab4118d9d");
+export const SD_MAV_ETH = getAddress("0x50687515e93C43964733282f9DB8683F80BB02f9");
+export const SD_MAV_BSC = getAddress("0x75289388d50364c3013583d97bd70cED0e183e32");
+
+export const SD_CRV_POOL = getAddress("0xca0253a98d16e9c1e3614cafda19318ee69772d0");
+export const SD_FXN_POOL = getAddress("0x28ca243dc0ac075dd012fcf9375c25d18a844d96");
 
 export const SCRVUSD = getAddress("0x0655977FEb2f289A4aB78af67BAB0d17aAb84367");
 export const CRVUSD = getAddress("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E");
@@ -234,6 +241,20 @@ export const BOTMARKETS: Record<string, string> = {
   [BSC]: "0x1F18E2A3fB75D5f8d2a879fe11D7c30730236B8d",
 };
 
+export const LEGACY_SD_MERKLE_TOKENS = [
+  { symbol: "sdCRV", address: SD_CRV, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "sdFXN", address: SD_FXN, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "sdBAL", address: SD_BAL, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "sdPENDLE", address: SD_PENDLE, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "sdFXS", address: SD_FXS, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "tacIOU", address: TAC_IOU, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "sdCAKE", address: SD_CAKE, chainId: 56, merkleContract: MERKLE_BSC_ADDRESS },
+  { symbol: "SDT", address: SDT, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "sdANGLE", address: SD_ANGLE, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "sdMAV", address: SD_MAV_ETH, chainId: 1, merkleContract: MERKLE_ADDRESS },
+  { symbol: "sdMAV", address: SD_MAV_BSC, chainId: 56, merkleContract: MERKLE_BSC_ADDRESS },
+] as const;
+
 export const WETH_CHAIN_IDS: Record<number, `0x${string}`> = {
   1: getAddress("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"), // Ethereum
   56: getAddress("0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"), // BSC
@@ -264,6 +285,23 @@ export const SPACES_UNDERLYING_TOKEN: Record<string, string> = {
   [SDCAKE_SPACE]: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82",
   [SDFXN_SPACE]: "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09",
 };
+
+export const SD_SWAP_REFERENCES = {
+  curve: {
+    sdToken: SD_CRV,
+    native: SPACES_UNDERLYING_TOKEN[SDCRV_SPACE],
+    pool: SD_CRV_POOL,
+    probeSize: 10_000,
+    peg: 0.99,
+  },
+  fxn: {
+    sdToken: SD_FXN,
+    native: SPACES_UNDERLYING_TOKEN[SDFXN_SPACE],
+    pool: SD_FXN_POOL,
+    probeSize: 500,
+    peg: 0.99,
+  },
+} as const;
 
 export const CHAINS_IDS_TO_SHORTS: Record<number, string> = {
   1: "ethereum",

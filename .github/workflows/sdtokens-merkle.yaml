@@ -115,14 +115,25 @@ jobs:
             exit 1
           fi
 
+      - name: Verify legacy on-chain roots
+        id: verify
+        if: inputs.token == 'legacy' && inputs.step == 'publish'
+        run: pnpm tsx script/helpers/verifyLegacyRoot.ts --period ${{ steps.period.outputs.current }}
+        env:
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+
       - name: "Legacy: publish to latest"
-        if: inputs.token == 'legacy' && (inputs.step == 'publish')
+        if: inputs.token == 'legacy' && inputs.step == 'publish' && steps.verify.outputs.skip != 'true'
         run: |
           PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/sdTkns"
 
           cp "bounties-reports/${PERIOD}/merkle.json" "bounties-reports/latest/merkle.json"
           cp "bounties-reports/${PERIOD}/delegationsAPRs.json" "bounties-reports/latest/delegationsAPRs.json"
+          if [ -f "bounties-reports/${PERIOD}/sdtokens-distribution.json" ]; then
+            cp "bounties-reports/${PERIOD}/sdtokens-distribution.json" "bounties-reports/latest/sdtokens-distribution.json"
+          fi
 
           if [ -d "bounties-reports/${PERIOD}/sdTkns" ]; then
             for file in bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_*.json; do
@@ -162,7 +173,7 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       - name: Commit publish
-        if: inputs.step == 'publish'
+        if: inputs.step == 'publish' && (inputs.token != 'legacy' || steps.verify.outputs.skip != 'true')
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ${{ inputs.token }} publish [${{ inputs.dispatch_id }}]"

@@ -55,6 +55,38 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
 
+      - name: Notify report verification (R1-R5)
+        if: inputs.protocol == 'curve' || inputs.protocol == 'fxn'
+        continue-on-error: true
+        run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+          pnpm tsx script/sdTkns/verify/reportGate.ts \
+            --period "$PERIOD" \
+            --protocol "${{ inputs.protocol }}" \
+            --notify-only
+        env:
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+
+      # OTC is the final Monday-evening lane after the weekly report. It is
+      # the last point at which both CSV lanes and attribution are complete.
+      - name: Gate final report (R1-R5)
+        if: (inputs.protocol == 'curve' || inputs.protocol == 'fxn') && inputs.type == 'otc'
+        run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          PERIOD=$(( CURRENT_TIMESTAMP / WEEK * WEEK ))
+          pnpm tsx script/sdTkns/verify/reportGate.ts \
+            --period "$PERIOD" \
+            --protocol "${{ inputs.protocol }}"
+        env:
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+
       - name: Commit and push
         uses: ./.github/actions/commit-and-push
         with:

@@ -3,7 +3,6 @@ import * as dotenv from "dotenv";
 import { fetchLastProposalsIds } from "../utils/snapshot";
 import { fetchGlobalTotalVp } from "../utils/envioClient";
 import {
-  abi,
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDFXS_SPACE,
@@ -24,18 +23,15 @@ import {
 } from "../utils/utils";
 import { createMultiMerkle } from "../utils/merkle/createMultiMerkle";
 import {
-  Chain,
-  createPublicClient,
-  encodeFunctionData,
   formatUnits,
-  http,
 } from "viem";
 import * as fs from "fs";
 import * as path from "path";
 import { BigNumber } from "ethers";
 import { ethers } from "ethers";
-import { bsc, mainnet } from "../utils/chains";
+import { mainnet } from "../utils/chains";
 import { Merkle } from "../utils/types";
+import { getClient } from "../utils/getClients";
 
 dotenv.config();
 
@@ -61,6 +57,18 @@ const convertToProperHex = (value: any): string => {
   }
   return value.hex || "0x0";
 };
+
+export function buildTransactionLog(
+  network: string,
+  tokenAddressesToFreeze: string[],
+  newMerkleRoots: string[],
+) {
+  return {
+    network,
+    tokenAddressesToFreeze,
+    newMerkleRoots,
+  };
+}
 
 const main = async () => {
   const now = moment.utc().unix();
@@ -321,42 +329,9 @@ const main = async () => {
 
   // Now generate transactions after all tokens (including raw) have been processed
   for (const network of Object.keys(toFreeze)) {
-    let multiSetName: undefined | string = undefined;
-    if (network === "ethereum") {
-      multiSetName = "multiSet";
-    } else {
-      multiSetName = "multiUpdateMerkleRoot";
-    }
-
-    const freezeData = encodeFunctionData({
-      abi,
-      functionName: "multiFreeze",
-      args: [toFreeze[network] as `0x${string}`[]],
-    });
-
-    const multiSetData = encodeFunctionData({
-      abi,
-      functionName: multiSetName as any,
-      args: [
-        toFreeze[network] as `0x${string}`[],
-        toSet[network] as `0x${string}`[],
-      ],
-    });
-
-    logData["Transactions"].push({
-      network: network,
-      tokenAddressesToFreeze: toFreeze[network],
-      newMerkleRoots: toSet[network],
-      toFreeze: {
-        contract: NETWORK_TO_STASH[network],
-        data: freezeData,
-      },
-      toSet: {
-        contract: NETWORK_TO_STASH[network],
-        function: multiSetName,
-        data: multiSetData,
-      },
-    });
+    logData["Transactions"].push(
+      buildTransactionLog(network, toFreeze[network], toSet[network]),
+    );
   }
 
   for (const lastMerkle of lastMerkles) {
@@ -387,6 +362,8 @@ const main = async () => {
   // ("Generate Merkle" vs "Generate Merkle and Commit After Freeze" steps)
   // and merkle-distrib-update.md.
   const isPostFreezeRun = process.argv.includes("--post-freeze");
+  logData["period"] = currentPeriodTimestamp;
+  logData["postFreeze"] = isPostFreezeRun;
   const isDistributionOk = await checkDistribution(
     newMerkles,
     logData,
@@ -468,7 +445,7 @@ const main = async () => {
  * Check, for each token, that the tokens held in the Merkle contract plus
  * the tokens slated for distribution are not less than the total expected.
  */
-const checkDistribution = async (
+export const checkDistribution = async (
   newMerkles: Merkle[],
   logData: Record<string, any>,
   currentPeriodTimestamp: number,
@@ -492,28 +469,7 @@ const checkDistribution = async (
       formatUnits(BigInt(BigNumber.from(merkle.total).toString()), 18)
     );
 
-    let chain: Chain | null = null;
-    let rpcUrl = "";
-
-    switch (merkle.chainId) {
-      case mainnet.id:
-        chain = mainnet;
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-        break;
-      case bsc.id:
-        chain = bsc;
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-        break;
-      default:
-        throw new Error("Chain not found");
-    }
-
-    const publicClient = createPublicClient({
-      chain,
-      transport: http(rpcUrl),
-    });
+    const publicClient = await getClient(merkle.chainId);
 
     // Check if the token is frozen.
     const merkleRootRes = await publicClient.readContract({
@@ -531,23 +487,8 @@ const checkDistribution = async (
       args: [merkle.address as `0x${string}`],
     });
 
-    if (
-      merkleRootRes ===
-      "0x0000000000000000000000000000000000000000000000000000000000000000"
-    ) {
-      continue;
-    }
-
-    // Guard against COMMITTING a distribution before the token was actually
-    // frozen (re-rooted on-chain) for this period. Only applies to the
-    // post-freeze commit run (isPostFreezeRun) — the pre-freeze dry-run
-    // (--log) legitimately generates the merkle before any freeze exists for
-    // this period, e.g. to produce the multiFreeze/multiSet calldata itself.
-    // getAllAccountClaimedSinceLastFreeze, called earlier in this run,
-    // refreshes this cache with the latest known on-chain MerkleRootUpdated
-    // timestamp for the token — if that update still predates the current
-    // period on the post-freeze run, the freeze never landed and the numbers
-    // computed below aren't safe to publish.
+    // The claim window starts at the last nonzero root; freeze freshness
+    // uses its own timestamp so a zero-root update never erases claim history.
     if (isPostFreezeRun) {
       const freezeCacheFile = path.join(
         __dirname,
@@ -560,10 +501,10 @@ const checkDistribution = async (
         `${(merkle.address as string).toLowerCase()}.json`
       );
       if (fs.existsSync(freezeCacheFile)) {
-        const { timestamp: lastFreezeTimestamp } = JSON.parse(
+        const { freezeTimestamp: lastFreezeTimestamp } = JSON.parse(
           fs.readFileSync(freezeCacheFile, "utf8")
         );
-        if (lastFreezeTimestamp < currentPeriodTimestamp) {
+        if (!Number.isFinite(lastFreezeTimestamp) || lastFreezeTimestamp < currentPeriodTimestamp) {
           const daysStale = Math.floor(
             (currentPeriodTimestamp - lastFreezeTimestamp) / 86400
           );
@@ -574,10 +515,23 @@ const checkDistribution = async (
           return false;
         }
       } else {
-        console.warn(
-          `No cached freeze timestamp found for token ${tokenSymbol} — skipping freeze-freshness check`
+        console.error(
+          `Distribution is not ok for token ${tokenSymbol}: missing post-freeze cache ${freezeCacheFile}`
         );
+        return false;
       }
+    }
+
+    if (
+      merkleRootRes ===
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ) {
+      continue;
+    }
+
+    if (isPostFreezeRun) {
+      console.error(`Distribution is not ok for token ${tokenSymbol}: root is not frozen`);
+      return false;
     }
 
     const sdTknBalanceBn = await publicClient.readContract({
@@ -659,31 +613,10 @@ async function compareMerkleTrees(
       continue;
     }
 
-    // Set up blockchain client details.
-    let chain: Chain | null = null;
-    let rpcUrl = "";
-    switch (chainId) {
-      case mainnet.id:
-        chain = mainnet;
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-        break;
-      case bsc.id:
-        chain = bsc;
-        rpcUrl =
-          "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
-        break;
-      default:
-        throw new Error("Chain not supported for merkle " + merkle.symbol);
-    }
-
     // Fetch the current contract balance.
     let sdTknBalanceRaw: bigint;
     try {
-      const publicClient = createPublicClient({
-        chain,
-        transport: http(rpcUrl),
-      });
+      const publicClient = await getClient(chainId);
       sdTknBalanceRaw = await publicClient.readContract({
         address: merkle.address as `0x${string}`,
         abi: [
@@ -859,4 +792,9 @@ async function compareMerkleTrees(
   return output;
 }
 
-main();
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
