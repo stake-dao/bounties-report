@@ -896,6 +896,9 @@ export const getAllAccountClaimedSinceLastFreeze = async (
     Number(chainId)
   );
 
+  const latestFreeze = [...merkleUpdates.result].reverse().find(
+    (update) => update.topics[2] === "0x" + "00".repeat(32),
+  );
   let latestMerkleUpdate: any = null;
   for (let i = merkleUpdates.result.length - 1; i >= 0; i--) {
     if (
@@ -920,6 +923,7 @@ export const getAllAccountClaimedSinceLastFreeze = async (
           {
             blockNumber: Number(latestMerkleUpdate.blockNumber),
             timestamp: Number(latestMerkleUpdate.timeStamp),
+            freezeTimestamp: latestFreeze ? Number(latestFreeze.timeStamp) : 0,
           },
           null,
           2

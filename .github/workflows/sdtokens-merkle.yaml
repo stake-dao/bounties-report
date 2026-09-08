@@ -131,6 +131,9 @@ jobs:
 
           cp "bounties-reports/${PERIOD}/merkle.json" "bounties-reports/latest/merkle.json"
           cp "bounties-reports/${PERIOD}/delegationsAPRs.json" "bounties-reports/latest/delegationsAPRs.json"
+          if [ -f "bounties-reports/${PERIOD}/sdtokens-distribution.json" ]; then
+            cp "bounties-reports/${PERIOD}/sdtokens-distribution.json" "bounties-reports/latest/sdtokens-distribution.json"
+          fi
 
           if [ -d "bounties-reports/${PERIOD}/sdTkns" ]; then
             for file in bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_*.json; do

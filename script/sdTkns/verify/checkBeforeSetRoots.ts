@@ -139,7 +139,7 @@ function normalizeRoot(value: unknown, label: string): string {
   return value.toLowerCase();
 }
 
-function toBigInt(value: unknown, label: string): bigint {
+export function toBigInt(value: unknown, label: string): bigint {
   if (typeof value === "bigint") return value;
   if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
     return BigInt(value);
