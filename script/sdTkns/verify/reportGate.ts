@@ -174,24 +174,31 @@ function readCsvRows(period: number, protocol: ReportProtocol): CsvRow[] {
 }
 
 function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[]): Map<string, string> {
-  const auxiliary = path.join(
-    REPORTS_DIR,
-    String(period),
-    protocol === "curve" ? "cvx.csv" : "cvx_fxn.csv",
-  );
-  if (!existsSync(auxiliary)) return new Map();
+  // claimed_bounties.json records the L2 root gauge; the CSV reports the child gauge.
+  // The vlCVX report (cvx.csv) lists gauges by root address under the same name, so it
+  // resolves root -> child by name. A gauge with no Convex-side claim this week is
+  // missing from the current cvx.csv, so the trailing four weeks are consulted too,
+  // the current period taking precedence.
   const actualByName = new Map(rows.map((row) => [row.gaugeName, row.gauge]));
-  const parsed = parseCsv(readFileSync(auxiliary, "utf8"), {
-    columns: true,
-    delimiter: ";",
-    skip_empty_lines: true,
-  }) as Array<Record<string, string>>;
   const mapping = new Map<string, string>();
-  for (const row of parsed) {
-    const name = (row["Gauge Name"] ?? "").trim().toLowerCase();
-    const root = lc(row["Gauge Address"] ?? "");
-    const actual = actualByName.get(name);
-    if (root && actual) mapping.set(root, actual);
+  for (const back of [0, 1, 2, 3, 4]) {
+    const auxiliary = path.join(
+      REPORTS_DIR,
+      String(period - back * WEEK),
+      protocol === "curve" ? "cvx.csv" : "cvx_fxn.csv",
+    );
+    if (!existsSync(auxiliary)) continue;
+    const parsed = parseCsv(readFileSync(auxiliary, "utf8"), {
+      columns: true,
+      delimiter: ";",
+      skip_empty_lines: true,
+    }) as Array<Record<string, string>>;
+    for (const row of parsed) {
+      const name = (row["Gauge Name"] ?? "").trim().toLowerCase();
+      const root = lc(row["Gauge Address"] ?? "");
+      const actual = actualByName.get(name);
+      if (root && actual && !mapping.has(root)) mapping.set(root, actual);
+    }
   }
   return mapping;
 }
