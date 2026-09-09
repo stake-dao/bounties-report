@@ -114,6 +114,29 @@ jobs:
           if [ "$STAGE" = post-freeze ]; then args+=(--verified); fi
           pnpm tsx script/sdTkns/prepareDistribution.ts "${args[@]}"
 
+      # IPFS mirror of the evidence the watchdog/Hypernative verify; the pin map
+      # (bounties-reports/<period>/ipfs/sdtokens.json) rides the commit below.
+      - name: Pin post-freeze evidence to IPFS
+        if: inputs.mode == 'execute' && inputs.stage == 'post-freeze'
+        continue-on-error: true
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          PINATA_GATEWAY: ${{ vars.PINATA_GATEWAY }}
+          PINNING_SERVICE_URL: ${{ vars.PINNING_SERVICE_URL }}
+          PINNING_SERVICE_TOKEN: ${{ secrets.PINNING_SERVICE_TOKEN }}
+          PERIOD: ${{ steps.period.outputs.current }}
+        run: |
+          # Exactly the files the watchdog reads (merkle-watchdog docs/GUARDIAN.md).
+          pnpm tsx script/helpers/pinToIpfs.ts --pipeline sdtokens --period "$PERIOD" \
+            "bounties-reports/$PERIOD/merkle.json" \
+            "bounties-reports/$PERIOD/sdtokens-distribution.json" \
+            log.json \
+            bounties-reports/$PERIOD/{curve,fxn}.csv \
+            bounties-reports/$PERIOD/{curve,fxn}-otc.csv \
+            bounties-reports/$PERIOD/{curve,fxn}-attribution.json \
+            data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xd1b5651e55d4ceed36251c61c50c889b36f6abb5.json \
+            data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad.json
+
       - name: Commit verified post-freeze artifacts
         if: inputs.mode == 'execute'
         env:

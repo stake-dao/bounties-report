@@ -68,6 +68,24 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           BOTS_ENVIO_GRAPHQL_URL_WORKER: ${{ secrets.BOTS_ENVIO_GRAPHQL_URL_WORKER }}
 
+      - name: Pin merkle evidence to IPFS
+        if: inputs.step == 'merkle' && inputs.token != 'legacy'
+        continue-on-error: true
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          PINATA_GATEWAY: ${{ vars.PINATA_GATEWAY }}
+          PINNING_SERVICE_URL: ${{ vars.PINNING_SERVICE_URL }}
+          PINNING_SERVICE_TOKEN: ${{ secrets.PINNING_SERVICE_TOKEN }}
+          TOKEN: ${{ inputs.token }}
+        run: |
+          WEEK=604800
+          PERIOD=$(( $(date +%s) / WEEK * WEEK ))
+          case "$TOKEN" in
+            spectra) CHAIN=8453 ;;
+            sdfxs) CHAIN=252 ;;
+          esac
+          pnpm tsx script/helpers/pinToIpfs.ts --pipeline "$TOKEN" --period "$PERIOD" "bounties-reports/$PERIOD/sdTkns/sdtkns_merkle_$CHAIN.json"
+
       # ── Commit after merkle ──
       - name: Commit merkle
         if: inputs.step == 'merkle'
