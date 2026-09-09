@@ -1,0 +1,62 @@
+{
+  "bounties-reports/1788393600/curve-attribution.json": {
+    "cid": "QmQhsMaKSBw64q4uGSB8p7d3n3VVpNLf7XcuzgYqoYr95n",
+    "ipfsHash": "0x2326dea6d574bef5cdf04802f54f4ae48079b5b7a334eaad36a9cb193565ce0d",
+    "sha256": "4bba8ac276eaf0923311500cf629ffaf20ef92f39e58222d97c2fc10e72ccb9f",
+    "size": 31375
+  },
+  "bounties-reports/1788393600/curve-otc.csv": {
+    "cid": "QmTRYhJF94ssoFUFRDErnJa8UpHznXvwYCZ3qjvEqrU6dU",
+    "ipfsHash": "0x4b8b89e7d2109643160d09d361066cd032efde8cda6a83d51e1334efaee6b9ff",
+    "sha256": "6a2d5a46a6ba843da229c6caf49bab5262e5d80aae1398f7be0341e0c3d0ebbe",
+    "size": 110
+  },
+  "bounties-reports/1788393600/curve.csv": {
+    "cid": "QmW6JUbV6VJVgsf1yHu9DaBbVBKKQYwAMHpXuqwAmnh5S1",
+    "ipfsHash": "0x73307c928a9509b84e50e5248e8351f2f8d2a7a5453661f3dadbb57acf5c8b0a",
+    "sha256": "a05a020343a73198cc97064665850a33532233ef2c0020977f8ffabb1e51c169",
+    "size": 3557
+  },
+  "bounties-reports/1788393600/fxn-attribution.json": {
+    "cid": "QmREmAvdAEJDv1mZcxr8GTbp6cKHc4ToZNZ4j7pScoPpDf",
+    "ipfsHash": "0x2b10e20a98a68ec60a0c86b21ac677cba50bcdfe9187fed94784b7d062e5e96a",
+    "sha256": "f4608182e1ca08efece633712ffb9a09aea63e8fb1bbefe152a19f6f0fba94d8",
+    "size": 1186
+  },
+  "bounties-reports/1788393600/fxn.csv": {
+    "cid": "QmYejwpv2bRAMmUy6ivMh5my5MrRstbByUoYL3AML7K8hn",
+    "ipfsHash": "0x99373eac8b7842e47f407732611d888d6daf9c0280fa76d6d58ef8cace6c8cc9",
+    "sha256": "c0953afeb7d7aa2648e826f412cfc14b546adc0a9d3def70a80654a31e2a2e8b",
+    "size": 484
+  },
+  "bounties-reports/1788393600/merkle.json": {
+    "cid": "QmbYM7TwnSDqmUQ8P6jegjwjiGnuzDr6jAP2ZwsPgczs28",
+    "ipfsHash": "0xc42700a16396d964f902f40348a1243fb902c45b1947e8c82ea5f0ea54738941",
+    "sha256": "7e0335ef38676245bf01e3b16c98f712b53560e9fc7b5fdae2f77ebea1d6bf0a",
+    "size": 1659374
+  },
+  "bounties-reports/1788393600/sdtokens-distribution.json": {
+    "cid": "QmXUABU3sGdEDbojrw2bsZnjC4RXWjH6HCTnBDMCS4xPkS",
+    "ipfsHash": "0x87a5926139dfbd580b54dc87cba03b1bf8a861d95085360b5b158b488bc94817",
+    "sha256": "904e2b83e1c60f41a349bac90d9184a58bf4dc0140e5c3f09382dcbec8427a3c",
+    "size": 703
+  },
+  "data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xd1b5651e55d4ceed36251c61c50c889b36f6abb5.json": {
+    "cid": "QmXhoGXUBkUW4Swq1x6Gpc23VxJNAmeqoYgCXUG9gJzW3a",
+    "ipfsHash": "0x8b240e95a91794a63560036af98dc1e1ae9642a133f6e739155ffd1c2ddfa481",
+    "sha256": "f7bf73e93169dd011ca71dda807bbb953470dc87b5350fce8f1484959676736a",
+    "size": 80
+  },
+  "data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad.json": {
+    "cid": "QmXhoGXUBkUW4Swq1x6Gpc23VxJNAmeqoYgCXUG9gJzW3a",
+    "ipfsHash": "0x8b240e95a91794a63560036af98dc1e1ae9642a133f6e739155ffd1c2ddfa481",
+    "sha256": "f7bf73e93169dd011ca71dda807bbb953470dc87b5350fce8f1484959676736a",
+    "size": 80
+  },
+  "log.json": {
+    "cid": "QmSzEpKpaesLPTBmxM1bHWegirJwWqTc9MDeDLqj5fUwUt",
+    "ipfsHash": "0x450fcd8408c635524f4c2129122891c9bf08e4b4265e9b810280a08635ec3281",
+    "sha256": "4c422bbf147a2917a892f89a90b7eeb9d64d98aca1c740c2addb923740f3273d",
+    "size": 9043
+  }
+}

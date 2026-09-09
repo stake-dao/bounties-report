@@ -12,6 +12,7 @@ bounties-reports/
 │   ├── {protocol}-attribution.json
 │   ├── merkle.json
 │   ├── delegationsAPRs.json
+│   ├── ipfs/{pipeline}.json      # CID, ipfsHash (bytes32) and sha256 per pinned file (see ../README.md)
 │   ├── raw/{protocol}/{protocol}.csv
 │   ├── sdTkns/sdtkns_merkle_{chainId}.json
 │   ├── spectra/

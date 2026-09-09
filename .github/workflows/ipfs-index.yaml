@@ -1,0 +1,56 @@
+name: "IPFS: evidence index"
+
+# Single writer of data/ipfs-index.json: rebuilds and pins the evidence index
+# whenever a pipeline commits its pin map, serialized so concurrent merkle
+# runs never race on the shared pointer. automation-guard ens-publish mirrors
+# the pointer into the contenthash of rewards.stakedao.eth.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bounties-reports/*/ipfs/*.json"
+  workflow_dispatch:
+
+concurrency:
+  group: ipfs-index
+  cancel-in-progress: false
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
+        with:
+          frozen-lockfile: 'true'
+
+      - name: Pin evidence index
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          PINATA_GATEWAY: ${{ vars.PINATA_GATEWAY }}
+          PINNING_SERVICE_URL: ${{ vars.PINNING_SERVICE_URL }}
+          PINNING_SERVICE_TOKEN: ${{ secrets.PINNING_SERVICE_TOKEN }}
+        run: pnpm tsx script/helpers/pinToIpfs.ts --index
+
+      - name: Commit pointer
+        uses: ./.github/actions/commit-and-push
+        with:
+          message: "chore: ipfs evidence index"
+
+      - name: Notify on failure
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          workflow_name: "IPFS: evidence index"
+          dispatch_id: manual
+          telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}

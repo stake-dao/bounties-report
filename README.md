@@ -111,6 +111,12 @@ Current workflow entry points are:
 - `Compute APR` - recomputes latest vlCVX APR files.
 - `System: Index Delegators` - refreshes delegation caches.
 
+### IPFS evidence pins
+
+Every merkle step pins the files a verifier needs to IPFS through `script/helpers/pinToIpfs.ts`, one Pinata pin per file with a CIDv0, so they stay readable while `raw.githubusercontent.com` is down. Each pin carries the keyvalues `repo`, `pipeline`, `period`, `path` (repo-relative) and `sha256`, so a reader lists `GET https://api.pinata.cloud/v3/files/public?keyvalues[pipeline]=sdtokens&keyvalues[period]=<timestamp>&limit=50` without GitHub, fetches `<gateway>/ipfs/<cid>` and checks the hash. The same map lands in `bounties-reports/{timestamp}/ipfs/{pipeline}.json` (one file per pipeline, so concurrent runs never conflict) together with `ipfsHash`, the bytes32 a URD `submitRoot(root, ipfsHash)` slot takes (the CIDv0 minus its `0x1220` prefix). Pinned sets: sdtokens (tree, distribution, `log.json`, curve/fxn CSVs and attributions, the two `merkle_updates` entries), vlCVX voters (`vlcvx_merkle*.json`), vlCVX delegators (`merkle_data_delegators.json`), the sdSpectra and sdFXS trees. The step needs the `PINATA_JWT` secret (legacy scope `pinFileToIPFS`) and skips with a warning when it is unset.
+
+A push of those maps triggers `IPFS: evidence index`, the single writer that pins a browsable index (`index.json`, `index.html`) built from every map and commits its CID and EIP-1577 contenthash to `data/ipfs-index.json`. automation-guard's `ens-publish` job mirrors that pointer into the contenthash of `rewards.stakedao.eth`, so `https://rewards.stakedao.eth.limo/` and any ENS-aware client reach the evidence without GitHub or a Pinata key. With `PINNING_SERVICE_URL` (variable, e.g. `https://api.filebase.io/v1/ipfs`) and `PINNING_SERVICE_TOKEN` (secret) set, every CID is replicated on that second provider through the IPFS Pinning Service API.
+
 ## Claude Commands
 
 Reusable Claude commands live in `.claude/commands/`:

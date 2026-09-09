@@ -102,6 +102,19 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           FORCE_MERKLE: ${{ inputs.force_merkle && 'true' || 'false' }}
 
+      - name: Pin delegators evidence to IPFS
+        if: inputs.type == 'delegators' && inputs.step == 'merkle'
+        continue-on-error: true
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          PINATA_GATEWAY: ${{ vars.PINATA_GATEWAY }}
+          PINNING_SERVICE_URL: ${{ vars.PINNING_SERVICE_URL }}
+          PINNING_SERVICE_TOKEN: ${{ secrets.PINNING_SERVICE_TOKEN }}
+        run: |
+          WEEK=604800
+          PERIOD=$(( $(date +%s) / WEEK * WEEK ))
+          pnpm tsx script/helpers/pinToIpfs.ts --pipeline vlcvx-delegators --period "$PERIOD" "bounties-reports/$PERIOD/vlCVX/merkle_data_delegators.json"
+
       - name: Commit merkle delegators
         if: inputs.type == 'delegators' && inputs.step == 'merkle'
         uses: ./.github/actions/commit-and-push
@@ -155,8 +168,23 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           FORCE_UPDATE: ${{ inputs.force_merkle && 'true' || 'false' }}
 
+      # Not gated on voters_merkle_state.skip: a pin that failed once must be
+      # retried by a rerun that reuses the committed artifacts.
+      - name: Pin voters evidence to IPFS
+        if: inputs.type == 'voters' && inputs.step == 'merkle'
+        continue-on-error: true
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          PINATA_GATEWAY: ${{ vars.PINATA_GATEWAY }}
+          PINNING_SERVICE_URL: ${{ vars.PINNING_SERVICE_URL }}
+          PINNING_SERVICE_TOKEN: ${{ secrets.PINNING_SERVICE_TOKEN }}
+        run: |
+          WEEK=604800
+          PERIOD=$(( $(date +%s) / WEEK * WEEK ))
+          pnpm tsx script/helpers/pinToIpfs.ts --pipeline vlcvx-voters --period "$PERIOD" bounties-reports/$PERIOD/vlCVX/vlcvx_merkle*.json
+
       - name: Commit merkle voters
-        if: inputs.type == 'voters' && inputs.step == 'merkle' && steps.voters_merkle_state.outputs.skip != 'true'
+        if: inputs.type == 'voters' && inputs.step == 'merkle'
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX voters-merkle [${{ inputs.dispatch_id }}]"
