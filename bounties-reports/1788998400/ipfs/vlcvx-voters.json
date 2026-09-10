@@ -1,0 +1,14 @@
+{
+  "bounties-reports/1788998400/vlCVX/vlcvx_merkle.json": {
+    "cid": "QmVfugB41YZ99bkVt2Pw1SvTKCYZRR1a9fMxnUCpABh3WA",
+    "ipfsHash": "0x6cf0c448dcae6ad68936af9dbe8bd4ab4b1a5c782aa9dcb239b2017d6eae9ea3",
+    "sha256": "633d057f22fde6b851278920dd8b70ef93bd533d1d20ae96c761ac1e7f3f92f6",
+    "size": 12972660
+  },
+  "bounties-reports/1788998400/vlCVX/vlcvx_merkle_42161.json": {
+    "cid": "QmSJ8UMc2jxN1if9eTSXH8pHJ9sxRme47mDciWMb4NZNBj",
+    "ipfsHash": "0x3ac9659c1764f8185cdb3019d1f7742ab86a415059c5faf21cdcbffadcef6812",
+    "sha256": "099b9d7d4277c69347566c801e557eedcf2cdc4ae34aa7fd7a3943f66b3d8a8d",
+    "size": 14406
+  }
+}
