@@ -13,6 +13,7 @@ import {
   readPins,
   replicatePin,
   sha256,
+  staleEntries,
 } from "../../helpers/pinToIpfs";
 
 // CIDv0 of the digest 0x11 * 32 (0x1220 prefix, base58btc).
@@ -197,5 +198,38 @@ describe("readBack", () => {
     await expect(readBack(other, gateway, CID, digest, 3, 0)).rejects.toThrow("serves other bytes");
     const down = (async () => new Response("", { status: 404 })) as typeof fetch;
     await expect(readBack(down, gateway, CID, digest, 2, 0)).rejects.toThrow("unavailable after 2 attempts (HTTP 404)");
+  });
+});
+
+describe("staleEntries", () => {
+  let root: string;
+  const bytes = Buffer.from("hello\n");
+
+  beforeAll(() => {
+    root = mkdtempSync(path.join(tmpdir(), "pin-stale-"));
+    mkdirSync(path.join(root, "bounties-reports", "1788393600"), { recursive: true });
+    writeFileSync(path.join(root, "bounties-reports", "1788393600", "fresh.json"), bytes);
+    writeFileSync(path.join(root, "bounties-reports", "1788393600", "rewritten.json"), Buffer.from("other\n"));
+  });
+
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+  it("reports entries whose committed bytes differ from the pin and entries whose file is gone", () => {
+    const good = { ...entry, sha256: sha256(bytes), size: bytes.length };
+    const periods = {
+      "1788393600": {
+        sdtokens: {
+          "bounties-reports/1788393600/fresh.json": good,
+          "bounties-reports/1788393600/rewritten.json": good,
+          "bounties-reports/1788393600/gone.json": good,
+        },
+      },
+    };
+    const stale = staleEntries(periods, root);
+    expect(stale.map((s) => [s.file, s.reason])).toEqual([
+      ["bounties-reports/1788393600/rewritten.json", "sha256"],
+      ["bounties-reports/1788393600/gone.json", "missing"],
+    ]);
+    expect(stale[0].actual).toEqual({ sha256: sha256(Buffer.from("other\n")), size: 6 });
   });
 });

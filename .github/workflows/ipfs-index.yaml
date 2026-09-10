@@ -1,16 +1,26 @@
 name: "IPFS: evidence index"
 
-# Single writer of data/ipfs-index.json: rebuilds and pins the evidence index
-# whenever a pipeline commits its pin map, serialized so concurrent merkle
-# runs never race on the shared pointer, then dispatches automation-jobs'
-# ens_publish (workflows: bribes-ens-publish.yaml) to mirror the pointer into
-# the contenthash of rewards.stakedao.eth.
+# Single writer of data/ipfs-index.json: whenever a pipeline commits its pin
+# map or rewrites a pinned file, checks every map against the committed tree
+# and re-pins what drifted (pinToIpfs --heal), rebuilds and pins the evidence
+# index, serialized so concurrent merkle runs never race on the shared
+# pointer, then dispatches automation-jobs' ens_publish (workflows:
+# bribes-ens-publish.yaml) to mirror the pointer into the contenthash of
+# rewards.stakedao.eth. Invariant on main: map entry == committed bytes.
 
 on:
   push:
     branches: [main]
     paths:
       - "bounties-reports/*/ipfs/*.json"
+      - "bounties-reports/*/merkle.json"
+      - "bounties-reports/*/sdtokens-distribution.json"
+      - "bounties-reports/*/*.csv"
+      - "bounties-reports/*/*-attribution.json"
+      - "bounties-reports/*/vlCVX/vlcvx_merkle*.json"
+      - "bounties-reports/*/vlCVX/merkle_data_delegators.json"
+      - "log.json"
+      - "data/merkle_updates/**"
   workflow_dispatch:
 
 concurrency:
@@ -35,6 +45,14 @@ jobs:
         with:
           frozen-lockfile: 'true'
 
+      - name: Re-pin map entries that no longer match the committed tree
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          PINATA_GATEWAY: ${{ vars.PINATA_GATEWAY }}
+          PINNING_SERVICE_URL: ${{ vars.PINNING_SERVICE_URL }}
+          PINNING_SERVICE_TOKEN: ${{ secrets.PINNING_SERVICE_TOKEN }}
+        run: pnpm tsx script/helpers/pinToIpfs.ts --heal
+
       - name: Pin evidence index
         env:
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
@@ -43,7 +61,10 @@ jobs:
           PINNING_SERVICE_TOKEN: ${{ secrets.PINNING_SERVICE_TOKEN }}
         run: pnpm tsx script/helpers/pinToIpfs.ts --index
 
-      - name: Commit pointer
+      - name: Every map now matches the tree
+        run: pnpm tsx script/helpers/pinToIpfs.ts --check
+
+      - name: Commit maps and pointer
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ipfs evidence index"
