@@ -13,10 +13,19 @@
 // With PINNING_SERVICE_URL/TOKEN set, every CID is also replicated on a second
 // provider through the IPFS Pinning Service API.
 //
+// Invariant on main: every pin-map entry equals the committed bytes of its path. A map is written
+// from the working tree at pin time, so a stale checkout or a later rewrite of a pinned file breaks
+// the link silently (2026-09-10: the 1788393600 sdtokens map carried pre-freeze bytes). `--check`
+// reports such entries, `--heal` re-pins them from the checkout and rewrites the maps; the index
+// workflow runs both on every push that touches a map or a pinned file, and `--pipeline` refuses a
+// checkout that is behind origin/main.
+//
 // Usage: pnpm tsx script/helpers/pinToIpfs.ts --pipeline <name> --period <timestamp> <file...>
-//        pnpm tsx script/helpers/pinToIpfs.ts --index
+//        pnpm tsx script/helpers/pinToIpfs.ts --check | --heal | --index
 // Env: PINATA_JWT (required; the step is skipped when unset), PINATA_GATEWAY (read-back, optional),
-//      PINNING_SERVICE_URL + PINNING_SERVICE_TOKEN (second pinner, optional).
+//      PINNING_SERVICE_URL + PINNING_SERVICE_TOKEN (second pinner, optional),
+//      PIN_ALLOW_STALE=1 (pin from a checkout behind origin/main anyway).
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -158,6 +167,43 @@ export function buildIndex(periods: Record<string, PeriodPins>): EvidenceIndex {
   return { periods, latest };
 }
 
+export interface StaleEntry {
+  period: string;
+  pipeline: Pipeline;
+  file: string;
+  reason: "sha256" | "missing";
+  actual?: { sha256: string; size: number };
+}
+
+/** Map entries whose recorded sha256 is not the sha256 of the file in the checkout, or whose file is gone. */
+export function staleEntries(periods: Record<string, PeriodPins>, root = process.cwd()): StaleEntry[] {
+  const stale: StaleEntry[] = [];
+  for (const [period, pipelines] of Object.entries(periods)) {
+    for (const [pipeline, map] of Object.entries(pipelines) as [Pipeline, PinMap][]) {
+      for (const [file, entry] of Object.entries(map)) {
+        const abs = path.join(root, file);
+        if (!existsSync(abs) || !statSync(abs).isFile()) {
+          stale.push({ period, pipeline, file, reason: "missing" });
+          continue;
+        }
+        const bytes = readFileSync(abs);
+        const digest = sha256(bytes);
+        if (digest !== entry.sha256) stale.push({ period, pipeline, file, reason: "sha256", actual: { sha256: digest, size: bytes.length } });
+      }
+    }
+  }
+  return stale;
+}
+
+/** Commits on origin/main that this checkout lacks; null when git cannot tell (no remote ref). */
+export function commitsBehindOriginMain(root = process.cwd()): number | null {
+  try {
+    return Number(execFileSync("git", ["rev-list", "--count", "HEAD..origin/main"], { cwd: root, stdio: ["ignore", "pipe", "ignore"] }).toString().trim());
+  } catch {
+    return null;
+  }
+}
+
 /** Human entry point on rewards.stakedao.eth: renders index.json as gateway links. */
 export function indexHtml(): string {
   return `<!doctype html><meta charset="utf-8"><title>Stake DAO reward distributions</title>
@@ -278,6 +324,55 @@ async function pinPipeline(env: Env, pipeline: Pipeline, period: number, paths: 
   await replicateAll(env, Object.entries(pinned).map(([file, pin]) => [`${pipeline}-${period}-${path.posix.basename(file)}`, pin.cid]));
 }
 
+function mapPath(period: string, pipeline: Pipeline): string {
+  return path.join("bounties-reports", period, "ipfs", `${pipeline}.json`);
+}
+
+/** Exit 1 when a map entry no longer matches the checkout; needs no credentials. */
+function checkPins(): StaleEntry[] {
+  const stale = staleEntries(readPins());
+  for (const s of stale) {
+    console.log(
+      s.reason === "missing"
+        ? `::error::${s.pipeline} ${s.period}: ${s.file} is pinned but no longer in the tree`
+        : `::error::${s.pipeline} ${s.period}: ${s.file} committed sha256 ${s.actual!.sha256} != pinned`,
+    );
+  }
+  if (stale.length === 0) console.log("::notice::every pin map matches the committed tree");
+  return stale;
+}
+
+/** Re-pin every stale entry from the checkout and rewrite its map; a missing file keeps its (still pinned) entry. */
+async function healPins(env: Env): Promise<void> {
+  const periods = readPins();
+  const stale = staleEntries(periods);
+  const touched = new Set<string>();
+  for (const s of stale) {
+    if (s.reason === "missing") {
+      console.log(`::warning::${s.pipeline} ${s.period}: ${s.file} is pinned but no longer in the tree; entry kept`);
+      continue;
+    }
+    const bytes = readFileSync(s.file);
+    const digest = sha256(bytes);
+    const name = `${s.pipeline}-${s.period}-${path.posix.basename(s.file)}`;
+    const pin = await pinFile(fetch, env.jwt, s.file, bytes, {
+      name,
+      keyvalues: { repo: "bounties-report", pipeline: s.pipeline, period: s.period, path: s.file, sha256: digest },
+    });
+    await readBack(fetch, env.gateway, pin.cid, digest);
+    const previous = periods[s.period][s.pipeline]![s.file];
+    periods[s.period][s.pipeline]![s.file] = { cid: pin.cid, ipfsHash: cidToBytes32(pin.cid), sha256: digest, size: bytes.length };
+    touched.add(`${s.period}/${s.pipeline}`);
+    console.log(`::warning::${s.pipeline} ${s.period}: ${s.file} re-pinned ${previous.cid} -> ${pin.cid} (committed bytes differed from the pin)`);
+    await replicateAll(env, [[name, pin.cid]]);
+  }
+  for (const key of touched) {
+    const [period, pipeline] = key.split("/") as [string, Pipeline];
+    writeFileSync(mapPath(period, pipeline), JSON.stringify(periods[period][pipeline], null, 2) + "\n");
+  }
+  console.log(`::notice::heal: ${stale.length} stale entries, ${touched.size} maps rewritten`);
+}
+
 async function pinIndex(env: Env): Promise<void> {
   const indexJson = Buffer.from(JSON.stringify(buildIndex(readPins()), null, 2) + "\n");
   const folder = await pinFolder(
@@ -294,8 +389,10 @@ async function pinIndex(env: Env): Promise<void> {
   await replicateAll(env, [["bounties-report-index", folder.cid]]);
 }
 
-function parseArgs(argv: string[]): { index: true } | { index: false; pipeline: Pipeline; period: number; paths: string[] } {
-  if (argv.length === 1 && argv[0] === "--index") return { index: true };
+type Args = { mode: "index" | "check" | "heal" } | { mode: "pipeline"; pipeline: Pipeline; period: number; paths: string[] };
+
+function parseArgs(argv: string[]): Args {
+  if (argv.length === 1 && ["--index", "--check", "--heal"].includes(argv[0])) return { mode: argv[0].slice(2) as "index" | "check" | "heal" };
   const paths: string[] = [];
   let pipeline: string | undefined;
   let period = NaN;
@@ -305,13 +402,24 @@ function parseArgs(argv: string[]): { index: true } | { index: false; pipeline: 
     else paths.push(argv[i]);
   }
   if (!PIPELINES.includes(pipeline as Pipeline) || !Number.isInteger(period) || period <= 0 || paths.length === 0) {
-    throw new Error(`Usage: pinToIpfs --pipeline <${PIPELINES.join("|")}> --period <timestamp> <file...> | pinToIpfs --index`);
+    throw new Error(`Usage: pinToIpfs --pipeline <${PIPELINES.join("|")}> --period <timestamp> <file...> | pinToIpfs --check | --heal | --index`);
   }
-  return { index: false, pipeline: pipeline as Pipeline, period, paths };
+  return { mode: "pipeline", pipeline: pipeline as Pipeline, period, paths };
 }
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  if (args.mode === "check") {
+    process.exitCode = checkPins().length ? 1 : 0;
+    return;
+  }
+  if (args.mode === "pipeline") {
+    const behind = commitsBehindOriginMain();
+    if (behind === null) console.log("::warning::origin/main unknown; cannot tell whether this checkout is stale");
+    else if (behind > 0 && process.env.PIN_ALLOW_STALE !== "1") {
+      throw new Error(`checkout is ${behind} commit(s) behind origin/main: pull first (PIN_ALLOW_STALE=1 to override)`);
+    }
+  }
   const jwt = process.env.PINATA_JWT;
   if (!jwt) {
     console.log("::warning::PINATA_JWT is not set; IPFS pin skipped");
@@ -324,8 +432,9 @@ async function main(): Promise<void> {
     gateway: (process.env.PINATA_GATEWAY || DEFAULT_GATEWAY).replace(/\/$/, ""),
     service: serviceUrl && serviceToken ? { url: serviceUrl, token: serviceToken } : undefined,
   };
-  if (args.index) await pinIndex(env);
-  else await pinPipeline(env, args.pipeline, args.period, args.paths);
+  if (args.mode === "index") await pinIndex(env);
+  else if (args.mode === "heal") await healPins(env);
+  else if (args.mode === "pipeline") await pinPipeline(env, args.pipeline, args.period, args.paths);
 }
 
 if (require.main === module) {
