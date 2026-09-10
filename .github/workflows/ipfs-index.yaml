@@ -48,9 +48,11 @@ jobs:
         with:
           message: "chore: ipfs evidence index"
 
+      # GIT_ACCESS_TOKEN cannot see the private workflows repo; this fine-grained
+      # PAT is scoped to stake-dao/workflows with Actions: read and write.
       - name: Publish pointer to rewards.stakedao.eth
         env:
-          GH_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.WORKFLOWS_DISPATCH_TOKEN }}
         run: |
           gh workflow run bribes-ens-publish.yaml \
             --repo stake-dao/workflows \
