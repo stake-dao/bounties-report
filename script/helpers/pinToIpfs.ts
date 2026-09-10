@@ -9,7 +9,7 @@
 // `--index` (one writer: .github/workflows/ipfs-index.yaml, on push of those
 // maps) pins the browsable index folder (index.json + index.html over every
 // map) and writes its CID and EIP-1577 contenthash to data/ipfs-index.json;
-// the automation-guard ens-publish job points rewards.stakedao.eth at it.
+// then dispatches automation-jobs' ens_publish to point rewards.stakedao.eth at it.
 // With PINNING_SERVICE_URL/TOKEN set, every CID is also replicated on a second
 // provider through the IPFS Pinning Service API.
 //

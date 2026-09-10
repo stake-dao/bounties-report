@@ -2,8 +2,9 @@ name: "IPFS: evidence index"
 
 # Single writer of data/ipfs-index.json: rebuilds and pins the evidence index
 # whenever a pipeline commits its pin map, serialized so concurrent merkle
-# runs never race on the shared pointer. automation-guard ens-publish mirrors
-# the pointer into the contenthash of rewards.stakedao.eth.
+# runs never race on the shared pointer, then dispatches automation-jobs'
+# ens_publish (workflows: bribes-ens-publish.yaml) to mirror the pointer into
+# the contenthash of rewards.stakedao.eth.
 
 on:
   push:
@@ -46,6 +47,15 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ipfs evidence index"
+
+      - name: Publish pointer to rewards.stakedao.eth
+        env:
+          GH_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+        run: |
+          gh workflow run bribes-ens-publish.yaml \
+            --repo stake-dao/workflows \
+            --field mode=execute \
+            --field dispatch_id="ipfs-index-${{ github.run_id }}"
 
       - name: Notify on failure
         if: failure()
