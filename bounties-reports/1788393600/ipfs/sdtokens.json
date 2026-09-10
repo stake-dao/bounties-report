@@ -36,27 +36,27 @@
     "size": 1659374
   },
   "bounties-reports/1788393600/sdtokens-distribution.json": {
-    "cid": "QmXUABU3sGdEDbojrw2bsZnjC4RXWjH6HCTnBDMCS4xPkS",
-    "ipfsHash": "0x87a5926139dfbd580b54dc87cba03b1bf8a861d95085360b5b158b488bc94817",
-    "sha256": "904e2b83e1c60f41a349bac90d9184a58bf4dc0140e5c3f09382dcbec8427a3c",
-    "size": 703
+    "cid": "QmYQ72tGXtiiZ3uh73BTXk16VLVH2PLpHtmG13wXRR5NFk",
+    "ipfsHash": "0x957760459196aa2581b87d92a6ed02182ab406f9ad55652b3cdd4f8f5f04e0eb",
+    "sha256": "78ed2500a8b0d0208c9d4f340775e3a400822e355daa70d023568b285d9b1f50",
+    "size": 701
   },
   "data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xd1b5651e55d4ceed36251c61c50c889b36f6abb5.json": {
-    "cid": "QmXhoGXUBkUW4Swq1x6Gpc23VxJNAmeqoYgCXUG9gJzW3a",
-    "ipfsHash": "0x8b240e95a91794a63560036af98dc1e1ae9642a133f6e739155ffd1c2ddfa481",
-    "sha256": "f7bf73e93169dd011ca71dda807bbb953470dc87b5350fce8f1484959676736a",
-    "size": 80
+    "cid": "QmU2EMLyXyfprLRmxGWQRr8koBKWxQtQNoao76nuqZNY5P",
+    "ipfsHash": "0x546e201803840b81e8c3f4f9aac43f14caeb4f77da3b19e3c7469fe6dd446c22",
+    "sha256": "a58ea69a67ba333b3ac0f50eee0968050919b52334f121a19804210389506649",
+    "size": 89
   },
   "data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad.json": {
-    "cid": "QmXhoGXUBkUW4Swq1x6Gpc23VxJNAmeqoYgCXUG9gJzW3a",
-    "ipfsHash": "0x8b240e95a91794a63560036af98dc1e1ae9642a133f6e739155ffd1c2ddfa481",
-    "sha256": "f7bf73e93169dd011ca71dda807bbb953470dc87b5350fce8f1484959676736a",
-    "size": 80
+    "cid": "QmU2EMLyXyfprLRmxGWQRr8koBKWxQtQNoao76nuqZNY5P",
+    "ipfsHash": "0x546e201803840b81e8c3f4f9aac43f14caeb4f77da3b19e3c7469fe6dd446c22",
+    "sha256": "a58ea69a67ba333b3ac0f50eee0968050919b52334f121a19804210389506649",
+    "size": 89
   },
   "log.json": {
-    "cid": "QmSzEpKpaesLPTBmxM1bHWegirJwWqTc9MDeDLqj5fUwUt",
-    "ipfsHash": "0x450fcd8408c635524f4c2129122891c9bf08e4b4265e9b810280a08635ec3281",
-    "sha256": "4c422bbf147a2917a892f89a90b7eeb9d64d98aca1c740c2addb923740f3273d",
-    "size": 9043
+    "cid": "QmcbqYM31v3LeWrc4ECw6E5w44SLkECgm1VN1zCwnHLwko",
+    "ipfsHash": "0xd3e79399e282a71eee424434ace58f9b11719ac7d5e42a8d4f9359be0386709c",
+    "sha256": "1a4ea16d2636156872440212f7f80a137d5990a3d37459f14098db6f0fdc4b68",
+    "size": 9042
   }
 }
