@@ -1064,36 +1064,31 @@ export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
 async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
   try {
     const response = await axios.get(
-      "https://raw.githubusercontent.com/stake-dao/votemarket-data/main/gauges/curve.json"
+      "https://hub.stakedao.org/v1/votemarket/curve/gauges"
     );
-    if (response.status === 200 && response.data.success) {
-      const data = response.data.data;
+    if (response.status === 200 && Array.isArray(response.data.gauges)) {
+      const data = response.data.gauges;
       const gaugeInfos: GaugeInfo[] = [];
 
-      Object.entries(data)
-        .filter(
-          ([_, gauge]: [string, any]) =>
-            !(gauge.hasNoCrv || !gauge.gauge_controller)
-        )
-        .forEach(([_, gauge]: [string, any]) => {
-          let gaugeName = gauge.shortName || "";
+      data
+        .filter((gauge: any) => gauge.inController !== false)
+        .forEach((gauge: any) => {
+          let gaugeName = gauge.shortName || gauge.name || "";
           const firstIndex = gaugeName.indexOf("(");
           if (firstIndex > -1) gaugeName = gaugeName.slice(0, firstIndex);
 
           // Add the regular gauge
           gaugeInfos.push({
             name: gaugeName,
-            address: gauge.gauge.toLowerCase(),
-            price: gauge.lpTokenPrice,
+            address: (gauge.childGauge || gauge.gauge).toLowerCase(),
           });
 
           // If there's a rootGauge, also add an entry for it that maps to the actual gauge
-          if (gauge.rootGauge) {
+          if (gauge.childGauge && gauge.childGauge.toLowerCase() !== gauge.gauge.toLowerCase()) {
             gaugeInfos.push({
               name: gaugeName,
-              address: gauge.rootGauge.toLowerCase(),
-              actualGauge: gauge.gauge.toLowerCase(), // Store the actual gauge address
-              price: gauge.lpTokenPrice,
+              address: gauge.gauge.toLowerCase(),
+              actualGauge: gauge.childGauge.toLowerCase(), // Store the actual gauge address
             });
           }
         });
@@ -1101,7 +1096,7 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
       return gaugeInfos;
     }
     console.error(
-      "Failed to fetch Curve gauges: API responded with success: false"
+      "Failed to fetch Curve gauges: Invalid response format"
     );
     return [];
   } catch (error) {
@@ -1157,57 +1152,24 @@ async function getFraxGaugesInfos(): Promise<GaugeInfo[]> {
 
 async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
   try {
-    // First attempt to get data from the primary API
     const response = await axios.get(
-      "https://api.aladdin.club/api1/get_fx_gauge_list"
+      "https://hub.stakedao.org/v1/votemarket/fxn/gauges"
     );
-    if (response.status === 200 && response.data.data) {
-      return Object.entries(response.data.data).map(
-        ([address, gauge]: [string, any]) => ({
+    if (response.status === 200 && Array.isArray(response.data.gauges)) {
+      return response.data.gauges.map(
+        (gauge: any) => ({
           name: gauge.name || "",
-          address,
+          address: gauge.gauge.toLowerCase(),
         })
       );
     }
 
-    // If primary API fails, try the fallback GitHub repository
-    console.log("Primary FXN API failed, trying GitHub fallback source");
-    return await getFxnGaugesFromGithub();
+    console.error("Failed to fetch FXN gauges: Invalid response format");
+    return [];
   } catch (error) {
-    console.error("Error fetching FXN gauges from primary API:", error);
-
-    // Try fallback on any error
-    try {
-      console.log("Attempting to fetch FXN gauges from GitHub fallback");
-      return await getFxnGaugesFromGithub();
-    } catch (fallbackError) {
-      console.error("Error fetching FXN gauges from fallback:", fallbackError);
-      return [];
-    }
+    console.error("Error fetching FXN gauges:", error);
+    return [];
   }
-}
-
-/**
- * Fetches FXN gauge information from the GitHub repository as a fallback.
- */
-async function getFxnGaugesFromGithub(): Promise<GaugeInfo[]> {
-  const response = await axios.get(
-    "https://raw.githubusercontent.com/stake-dao/votemarket-data/main/gauges/fxn.json"
-  );
-
-  if (response.status === 200 && response.data.data) {
-    return Object.entries(response.data.data).map(
-      ([address, gauge]: [string, any]) => ({
-        name: gauge.name || "",
-        address: address.toLowerCase(),
-      })
-    );
-  }
-
-  console.error(
-    "Failed to fetch FXN gauges from GitHub: Invalid response format"
-  );
-  return [];
 }
 
 export async function getCakeGaugesInfos(): Promise<GaugeInfo[]> {

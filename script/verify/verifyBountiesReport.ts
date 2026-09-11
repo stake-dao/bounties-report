@@ -20,26 +20,16 @@ import * as path from "path";
 import { createPublicClient, http, fallback, getAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { getAvailableEndpoints } from "../utils/rpcConfig";
+import { getGaugesInfos } from "../utils/reportUtils";
 
 // ── Root gauge map ─────────────────────────────────────────────────────────────
-// Curve (and potentially other protocols) have "root gauges" on L2 chains.
-// claimed_bounties.json records the L2 root gauge address, but the CSV reports
-// the actual mainnet gauge address. We resolve root→actual before cross-checking.
 
 async function buildRootGaugeMap(): Promise<Map<string, string>> {
   const map = new Map<string, string>(); // rootGauge (lowercase) → actualGauge (lowercase)
-  try {
-    const res = await fetch("https://raw.githubusercontent.com/stake-dao/votemarket-data/main/gauges/curve.json");
-    if (!res.ok) return map;
-    const json: any = await res.json();
-    const data = json.data ?? json;
-    for (const gauge of Object.values(data) as any[]) {
-      if (gauge.rootGauge && gauge.gauge) {
-        map.set(gauge.rootGauge.toLowerCase(), gauge.gauge.toLowerCase());
-      }
+  for (const gauge of await getGaugesInfos("curve")) {
+    if (gauge.actualGauge) {
+      map.set(gauge.address.toLowerCase(), gauge.actualGauge.toLowerCase());
     }
-  } catch {
-    // Non-fatal — fall through with empty map
   }
   return map;
 }
