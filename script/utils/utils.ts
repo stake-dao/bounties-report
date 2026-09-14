@@ -453,12 +453,11 @@ export const getChoiceWhereExistsBribe = (
     }
   }
 
-  if (Object.keys(newAddressesPerChoice).length !== addresses.length) {
-    for (const addr of addresses) {
-      if (!newAddressesPerChoice[addr]) {
-        console.log("Gauge ", addr, "not found");
-      }
-    }
+  const missing = addresses.filter(
+    (addr) => !newAddressesPerChoice[addr] && cvsResultLowerCase[addr] > 0
+  );
+  if (missing.length > 0) {
+    throw new Error(`Paid gauges missing from proposal choices: ${missing.join(", ")}`);
   }
 
   return newAddressesPerChoice;

@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { parse as parseCsv } from "csv-parse/sync";
 import { formatUnits, parseUnits, type PublicClient } from "viem";
@@ -11,6 +12,7 @@ import { getClient } from "../../utils/getClients";
 import { sendTelegramMessage } from "../../utils/telegramUtils";
 import { checkSdAttribution } from "./reconstructSdMerkle";
 import type { SdTransferDestination } from "./reconstructSdMerkle";
+import volumeAcknowledgments from "../../../data/report-volume-acknowledgments.json";
 
 const REPORTS_DIR = "bounties-reports";
 const WEEKLY_DIR = "weekly-bounties";
@@ -116,8 +118,21 @@ export function withinVolumeBand(current: bigint, history: bigint[]): boolean {
   return difference * 2n <= middle;
 }
 
+export function isAcknowledgedVolume(
+  period: number, protocol: ReportProtocol, source: (typeof SOURCES)[number],
+  claims: Uint8Array, history: bigint[],
+): boolean {
+  const claimsSha256 = createHash("sha256").update(claims).digest("hex");
+  return volumeAcknowledgments.some((entry) =>
+    entry.period === period && entry.protocol === protocol && entry.source === source &&
+    entry.claimsSha256 === claimsSha256 && entry.history.length === history.length &&
+    history.every((value, index) => value.toString() === entry.history[index]),
+  );
+}
+
 export function runR1(period: number, protocols: readonly ReportProtocol[]): ReportGateResult {
   const failures: string[] = [];
+  const acknowledged: string[] = [];
   let checked = 0;
   for (const protocol of protocols) {
     for (const source of SOURCES) {
@@ -135,10 +150,14 @@ export function runR1(period: number, protocols: readonly ReportProtocol[]): Rep
       const current = claimedVolume(currentFile, protocol);
       const history = historyFiles.map((file) => claimedVolume(file, protocol));
       if (!withinVolumeBand(current, history)) {
-        failures.push(
-          `${protocol}/${source}: collapsed/outlier volume current=${current} trailing=[${history.join(",")}]`,
-        );
-        continue;
+        if (current > median(history) && isAcknowledgedVolume(period, protocol, source, readFileSync(currentFile), history)) {
+          acknowledged.push(`${protocol}/${source}`);
+        } else {
+          failures.push(
+            `${protocol}/${source}: collapsed/outlier volume current=${current} trailing=[${history.join(",")}]`,
+          );
+          continue;
+        }
       }
       checked++;
     }
@@ -147,7 +166,10 @@ export function runR1(period: number, protocols: readonly ReportProtocol[]): Rep
     id: "R1",
     name: "Source completeness",
     ok: failures.length === 0,
-    detail: failures.length === 0 ? `${checked} protocol-source volumes complete and within ±50%` : failures.join("; "),
+    detail: failures.length === 0
+      ? `${checked - acknowledged.length} protocol-source volumes complete and within ±50%` +
+        (acknowledged.length ? `; reviewed volume exception: ${acknowledged.join(", ")}` : "")
+      : failures.join("; "),
   };
 }
 
