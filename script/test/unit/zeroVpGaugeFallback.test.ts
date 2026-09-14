@@ -84,6 +84,15 @@ const leafAmount = (merkle: any, address: string): number => {
 };
 
 describe("createMultiMerkle zero-vp gauge fallback", () => {
+  it("rejects a paid root gauge absent from proposal choices", async () => {
+    const root = "0x92106dcfa053a8283213a062735649cbf0e718a2";
+    await expect(createMultiMerkle(
+      ["0xproposal"], SDCRV_SPACE, [],
+      { [GAUGE_B]: 50, [root]: 2399.160770 },
+      { total_vp: 1 }, { total_vp: 1 },
+    )).rejects.toThrow(`Paid gauges missing from proposal choices: ${root}`);
+  });
+
   it("routes rewards of a gauge with only zero-weight entries to the delegation", async () => {
     const result = await createMultiMerkle(
       ["0xproposal"],

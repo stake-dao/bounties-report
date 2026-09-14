@@ -1090,7 +1090,7 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
     const response = await axios.get(
       "https://hub.stakedao.org/v1/votemarket/curve/gauges"
     );
-    if (response.status === 200 && Array.isArray(response.data.gauges)) {
+    if (response.status === 200 && Array.isArray(response.data.gauges) && response.data.gauges.length > 0) {
       const data = response.data.gauges;
       const gaugeInfos: GaugeInfo[] = [];
 
@@ -1119,13 +1119,10 @@ async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
 
       return gaugeInfos;
     }
-    console.error(
-      "Failed to fetch Curve gauges: Invalid response format"
-    );
-    return [];
+    throw new Error("Failed to fetch Curve gauges: empty or invalid response");
   } catch (error) {
     console.error("Error fetching Curve gauges:", error);
-    return [];
+    throw error;
   }
 }
 

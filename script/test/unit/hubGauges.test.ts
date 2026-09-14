@@ -46,7 +46,17 @@ describe("hub gauge metadata", () => {
     expect(get).toHaveBeenCalledExactlyOnceWith("https://hub.stakedao.org/v1/votemarket/fxn/gauges");
   });
 
-  it.each(["curve", "fxn"])("%s preserves empty results without a stale fallback", async (protocol) => {
+  it("rejects unavailable Curve metadata instead of losing root aliases", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const get = vi.spyOn(axios, "get").mockResolvedValue({ status: 200, data: { gauges: [] } });
+    await expect(getGaugesInfos("curve")).rejects.toThrow("Curve gauges");
+    get.mockResolvedValue({ status: 200, data: { message: "unavailable" } });
+    await expect(getGaugesInfos("curve")).rejects.toThrow("Curve gauges");
+    get.mockRejectedValue(new Error("503"));
+    await expect(getGaugesInfos("curve")).rejects.toThrow("503");
+  });
+
+  it.each(["fxn"])("%s preserves empty results without a stale fallback", async (protocol) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const get = vi.spyOn(axios, "get").mockResolvedValue({ status: 200, data: { gauges: [] } });
     expect(await getGaugesInfos(protocol)).toEqual([]);
