@@ -6,11 +6,26 @@ const root = `0x${"11".repeat(32)}`;
 const period = 1788393600;
 const log = {
   period, postFreeze: true,
+  DistributionSurplus: { sdCRV: 0 },
   Transactions: [{ network: "ethereum", tokenAddressesToFreeze: [sdCRV], newMerkleRoots: [root] }],
 };
-const merkle = [{ chainId: 1, address: sdCRV, root, total: "100", merkle: { [sdCRV]: { amount: "100" } }, merkleContract: "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4" }];
+const merkle = [{ symbol: "sdCRV", chainId: 1, address: sdCRV, root, total: "100", merkle: { [sdCRV]: { amount: "100" } }, merkleContract: "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4" }];
 
 describe("guard distribution artifact", () => {
+  it.each([false, true])("blocks surplus before export with verified=%s", (verified) => {
+    expect(() => buildDistribution(
+      { ...log, postFreeze: verified, DistributionSurplus: { sdCRV: 2399.160770 } },
+      merkle, period, verified, new Map([[sdCRV.toLowerCase(), [60n, 50n]]]),
+    )).toThrow(/DistributionSurplus.sdCRV.*exceeds 1.0/);
+  });
+
+  it.each([undefined, {}, { sdCRV: NaN }])("blocks missing or invalid surplus evidence: %s", (surplus) => {
+    expect(() => buildDistribution(
+      { ...log, postFreeze: false, DistributionSurplus: surplus },
+      merkle, period, false, new Map([[sdCRV.toLowerCase(), [60n, 50n]]]),
+    )).toThrow(/DistributionSurplus/);
+  });
+
   it("uses integer liabilities and caps the exact shortfall", () => {
     const result = buildDistribution(log, merkle, period, true, new Map([[sdCRV.toLowerCase(), [60n, 50n]]]));
     expect(result.tokens[0]).toEqual({ address: sdCRV.toLowerCase(), root, total: "100", maxFunding: "40" });

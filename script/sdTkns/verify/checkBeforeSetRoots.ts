@@ -803,7 +803,7 @@ async function checkV5(
   };
 }
 
-function checkV6(
+export function checkV6(
   log: LogData,
   merkle: MerkleEntry[],
   targets: EthereumTargets,

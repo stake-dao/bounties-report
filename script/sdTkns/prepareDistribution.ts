@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { erc20Abi } from "viem";
 import { BOTMARKETS } from "../utils/constants";
 import { getClient } from "../utils/getClients";
-import { checkV1, ethereumTargets, toBigInt, type LogData, type MerkleEntry, type MerkleClaim } from "./verify/checkBeforeSetRoots";
+import { checkV1, checkV6, ethereumTargets, toBigInt, type LogData, type MerkleEntry, type MerkleClaim } from "./verify/checkBeforeSetRoots";
 
 const DISTRIBUTOR = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
 const OWNER = "0xbd2A781f11A32929393e6959D08F78346bEDA8f6";
@@ -20,6 +20,7 @@ export function buildDistribution(
   }
   const targets = ethereumTargets(log);
   if (new Set(targets.tokens).size !== targets.tokens.length) throw new Error("duplicate targets");
+  checkV6(log, merkle, targets);
   const tokens = targets.tokens.map((address, index) => {
     if (!TOKENS.has(address)) throw new Error(`unsupported token ${address}`);
     const entries = merkle.filter((m) => m.chainId === 1 && String(m.address).toLowerCase() === address);
@@ -56,6 +57,12 @@ async function main() {
     ]));
   }
   const distribution = buildDistribution(log, merkle, period, process.argv.includes("--verified"), balances);
+  console.log(JSON.stringify({
+    event: "sdtokens_distribution_checked", period,
+    postFreeze: distribution.postFreeze,
+    distributionSurplus: log.DistributionSurplus,
+    tokens: distribution.tokens,
+  }));
   writeFileSync(`bounties-reports/${period}/sdtokens-distribution.json`, JSON.stringify(distribution, null, 2) + "\n");
 }
 
