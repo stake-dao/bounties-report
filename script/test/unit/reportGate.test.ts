@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
+  isAcknowledgedVolume,
   rateFailures,
   runR1,
   runR2,
@@ -11,6 +13,18 @@ import {
 const PERIOD = 1787184000;
 
 describe("Run 8 report gate", () => {
+  it("accepts only the reviewed current FXN claims and historical volumes", () => {
+    const claims = readFileSync("weekly-bounties/1788998400/votemarket-v2/claimed_bounties.json");
+    const history = [645997748921064259184873n, 203398567948654088426924n, 204391388015880953399792n, 860946469779437414414380n];
+    expect(isAcknowledgedVolume(1788998400, "fxn", "votemarket_v2", claims, history)).toBe(true);
+    expect(runR1(1788998400, ["curve", "fxn"]).ok).toBe(true);
+    expect(isAcknowledgedVolume(1788393600, "fxn", "votemarket_v2", claims, history)).toBe(false);
+    expect(isAcknowledgedVolume(1788998400, "curve", "votemarket_v2", claims, history)).toBe(false);
+    expect(isAcknowledgedVolume(1788998400, "fxn", "votemarket_v1", claims, history)).toBe(false);
+    expect(isAcknowledgedVolume(1788998400, "fxn", "votemarket_v2", Buffer.concat([claims, Buffer.from(" ")]), history)).toBe(false);
+    expect(isAcknowledgedVolume(1788998400, "fxn", "votemarket_v2", claims, history.map((v) => v + 1n))).toBe(false);
+  });
+
   it("applies the ±50% trailing-volume band", () => {
     expect(withinVolumeBand(100n, [90n, 100n, 100n, 110n])).toBe(true);
     expect(withinVolumeBand(49n, [100n, 100n, 100n, 100n])).toBe(false);

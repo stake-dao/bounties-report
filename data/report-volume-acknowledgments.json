@@ -1,0 +1,15 @@
+[
+  {
+    "period": 1788998400,
+    "protocol": "fxn",
+    "source": "votemarket_v2",
+    "claimsSha256": "4bf808de379c1b58c61216373a5ae80e6061482190b15cb73151dfce9514f954",
+    "history": [
+      "645997748921064259184873",
+      "203398567948654088426924",
+      "204391388015880953399792",
+      "860946469779437414414380"
+    ],
+    "reason": "Approved by Quentin on 2026-09-15: all five claims match Arbitrum transaction 0xb5ba7c3d75b561fff784091ada79d2ea50a635160164882cca28d638dd438b2a exactly. The +51.7927% median outlier is driven by SDEX; current volume is 0.0903% below the previous week."
+  }
+]
