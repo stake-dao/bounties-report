@@ -30,12 +30,12 @@ import { VLCVX_DELEGATORS_RECIPIENT, DELEGATION_RECIPIENT } from "../utils/const
 import processReport from "./processReport";
 import { debug, sampleArray, isDebugEnabled } from "../utils/logger";
 import { WETH_CHAIN_IDS } from "../utils/constants";
+import { loadCompletion, verifySources, verifyReportEvents } from "./fxnCompletion";
 
 dotenv.config();
 
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const WEEK = 604800;
-const currentPeriod = Math.floor(Date.now() / 1000 / WEEK) * WEEK;
 
 interface TxExclusionEntry {
   hash: string;
@@ -354,6 +354,7 @@ async function main() {
     excludeTx?: (string | number)[];
     excludeTxFile?: (string | number)[];
     noDefaultExclusions?: boolean;
+    completion?: string;
   }>(hideBin(process.argv))
     .scriptName("generateReport")
     .usage("$0 <protocol> [options]")
@@ -387,11 +388,16 @@ async function main() {
       describe: `Ignore ${DEFAULT_TX_EXCLUSION_FILE} when building the exclusion list`,
     })
     .alias("noDefaultExclusions", "no-default-exclusions")
+    .option("completion", { type: "string" })
     .help()
     .strict()
     .parseSync();
 
   const protocol = argv.protocol;
+  const completion = argv.completion ? loadCompletion(argv.completion) : undefined;
+  if (completion && protocol !== "fxn") throw new Error("Completion evidence requires protocol fxn");
+  if (completion) verifySources(completion);
+  const currentPeriod = completion?.epoch ?? Math.floor(Date.now() / 1000 / WEEK) * WEEK;
   const inlineExcludedTxs = parseInlineTxArgs(argv.excludeTx);
   const excludeTxFilesRaw = (argv.excludeTxFile || []) as (string | number)[];
   const excludeTxFiles = excludeTxFilesRaw.map((value) =>
@@ -404,6 +410,9 @@ async function main() {
     filePaths: excludeTxFiles,
     useDefaultFile: !argv.noDefaultExclusions,
   });
+  if (completion?.transactions.some((tx) => excludedTxHashes.has(tx.hash))) {
+    throw new Error("A completed FXN transaction is excluded from the report");
+  }
 
   if (excludedTxHashes.size > 0) {
     console.log(
@@ -418,7 +427,9 @@ async function main() {
   const publicClient = await getClient(1);
 
   // Get block numbers and timestamps (timestamps are not used later)
-  const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
+  const { blockNumber1, blockNumber2 } = completion ? {
+    blockNumber1: completion.fromBlock, blockNumber2: completion.checkedBlock,
+  } : await getTimestampsBlocks(
     publicClient,
     0
   );
@@ -548,6 +559,7 @@ async function main() {
   ).filter(
     (s) => !excludedTxHashes.has((s.transactionHash || "").toLowerCase())
   );
+  if (completion) verifyReportEvents(completion, swapIn, swapOut, guardSwaps);
   const guardNativeByToken: Record<string, number> = {};
   for (const s of guardSwaps) {
     guardNativeByToken[s.sellToken] =
@@ -569,7 +581,7 @@ async function main() {
       (guardBasis[guardNativeAddr] || 0) + guardNativeFromBotmarket;
   }
   const guardBasisTotal = Object.values(guardBasis).reduce((a, b) => a + b, 0);
-  const guardFlowActive = guardSwaps.length > 0;
+  const guardFlowActive = guardSwaps.length > 0 || Boolean(completion && guardNativeFromBotmarket > 0);
   if (isDebugEnabled()) {
     debug("[guard-flow]", {
       protocol,
@@ -974,6 +986,7 @@ async function main() {
     }
   } catch (e) {
     debug("[not-swapped detection] error", String(e));
+    if (completion) throw e;
   }
 
   let finalTokenTotals: Record<string, number> | undefined;
@@ -1298,6 +1311,7 @@ async function main() {
     }
   } catch (e) {
     debug("[generic per-token reallocation] error", String(e));
+    if (completion) throw e;
   }
 
 
@@ -1623,6 +1637,21 @@ async function main() {
       0
     );
 
+    if (completion) {
+      const rows = processedReport.fxn || [];
+      for (const [token, amount] of Object.entries(completion.expected)) {
+        if (BigInt(amount) === 0n) continue;
+        const matching = rows.filter((row) => row.rewardAddress.toLowerCase() === token);
+        const reported = matching.reduce((sum, row) => sum + row.rewardAmount, 0);
+        const expected = Number(amount) / 10 ** tokenInfos[token].decimals;
+        if (!matching.length || !Number.isFinite(reported) || Math.abs(reported - expected) > Math.max(expected * 1e-12, matching.length * 1e-6)) {
+          throw new Error(`Completed FXN claim missing from report: ${token}`);
+        }
+      }
+      if (rows.some((row) => !Number.isFinite(row.rewardSdValue) || row.rewardSdValue < 0)) {
+        throw new Error("Invalid FXN report allocation");
+      }
+    }
     const sidecar = {
       protocol,
       period: currentPeriod,
@@ -1645,6 +1674,7 @@ async function main() {
     if (isDebugEnabled()) debug("[sidecar written]", jsonPath);
   } catch (e) {
     debug("[sidecar error]", String(e));
+    if (completion) throw e;
   }
 
   // Process raw token bounties
@@ -1657,6 +1687,13 @@ async function main() {
     currentPeriod.toString()
   );
   fs.mkdirSync(dirPath, { recursive: true });
+  if (completion) {
+    if (Object.keys(delegatedTokensByBounty).length) throw new Error("Verified FXN report contains delegated rewards");
+    for (const file of ["fxn.csv", "raw/fxn/fxn.csv", "delegation/fxn.csv"]) {
+      fs.rmSync(path.join(dirPath, file), { force: true });
+    }
+    processedReport.fxn ??= [];
+  }
 
   // Create raw subdirectory for raw token reports
   const rawDirPath = path.join(dirPath, "raw");
@@ -1672,7 +1709,7 @@ async function main() {
   // Generate regular CSV reports
   for (const [protocol, rows] of Object.entries(processedReport)) {
     // Skip if no data
-    if (!rows || rows.length === 0) {
+    if ((!rows || rows.length === 0) && !completion) {
       console.log(`No data to report for ${protocol}`);
       continue;
     }
