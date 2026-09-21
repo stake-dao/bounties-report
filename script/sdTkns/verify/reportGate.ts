@@ -335,6 +335,7 @@ async function runR3(
 export function runR4(
   period: number,
   protocols: readonly ReportProtocol[],
+  completion?: FxnCompletion,
 ): ReportGateResult {
   const failures: string[] = [];
   let batches = 0;
@@ -396,6 +397,20 @@ export function runR4(
     }
     const dust = ATTRIBUTION_DUST_WEI * BigInt(allocations.length + 1);
     if (amountDifference(receivedTotal, reportAmount(attribution.totals.sdInTotal, "sdInTotal")) > dust) failures.push(`${protocol}: transaction proceeds differ from sdInTotal`);
+    if (protocol === "fxn" && completion) {
+      const proceeds = new Map<string, bigint>([[native, BigInt(completion.nativeFunded)]]);
+      for (const tx of completion.transactions) {
+        for (const swap of tx.swaps) {
+          const token = lc(swap.sellToken);
+          proceeds.set(token, (proceeds.get(token) ?? 0n) + BigInt(swap.amountOut));
+        }
+      }
+      const totalNative = [...proceeds.values()].reduce((sum, amount) => sum + amount, 0n);
+      for (const token of new Set([...proceeds.keys(), ...budgets.keys()])) {
+        const expected = totalNative > 0n ? BigInt(completion.sdDelivered) * (proceeds.get(token) ?? 0n) / totalNative : 0n;
+        if (amountDifference(budgets.get(token) ?? 0n, expected) > dust) failures.push(`${protocol}/${token}: token budget differs from confirmed FXN proceeds`);
+      }
+    }
     for (const token of new Set([...budgets.keys(), ...Object.keys(attribution.perToken ?? {}).map(lc), ...rows.map((row) => row.rewardToken)])) {
       const budget = budgets.get(token) ?? 0n;
       const summary = reportAmount(attribution.perToken?.[token]?.sd ?? 0, `${token} budget`);
@@ -575,7 +590,7 @@ async function main(): Promise<void> {
     return result;
   }));
   results.push(await runCheck("R3", "Swap conservation", async () => runR3(period, protocols, await clientPromise, destination, completion)));
-  results.push(await runCheck("R4", "Allocation weights", () => runR4(period, protocols)));
+  results.push(await runCheck("R4", "Allocation weights", () => runR4(period, protocols, completion)));
   results.push(await runCheck("R5", "WETH ledger", async () => {
     const residuals = protocols.map((protocol) => wethResidual(readJson<Attribution>(path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`))));
     const price = residuals.every((value) => Math.abs(value) < 0.0005) ? 100_000 : await wethUsdPrice();

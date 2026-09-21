@@ -90,6 +90,40 @@ describe("Report allocation gates", () => {
     expect(runR4(PERIOD, ["curve"]).ok).toBe(false);
   });
 
+  it("checks FXN token budgets against confirmed native proceeds, even when every report total agrees", () => {
+    const native = "0x365accfca291e7d3914637abf1f7635db165bb09";
+    const sell = "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef";
+    const proof = {
+      nativeFunded: parseUnits("80", 18).toString(), sdDelivered: parseUnits("120", 18).toString(),
+      transactions: [{ swaps: [{ sellToken: sell, amountOut: parseUnits("20", 18).toString() }] }],
+    } as any;
+    for (const source of ["votemarket", "votemarket-v2", "warden", "hiddenhand"]) {
+      files.set(`weekly-bounties/${PERIOD}/${source}/claimed_bounties.json`, JSON.stringify({ fxn: source === "votemarket" ? {
+        a: { gauge: "0x01", rewardToken: native, amount: parseUnits("80", 18).toString() },
+        b: { gauge: "0x02", rewardToken: sell, amount: parseUnits("1000", 18).toString() },
+      } : {} }));
+    }
+    const report = (nativeSd: number, sellSd: number) => {
+      files.set(`bounties-reports/${PERIOD}/fxn.csv`, [
+        readFileSync(CSV, "utf8").split("\n")[0],
+        `Native;0x01;FXN;${native};80;${nativeSd};${(nativeSd / 1.2).toFixed(2)}`,
+        `Sell;0x02;SDEX;${sell};1000;${sellSd};${(sellSd / 1.2).toFixed(2)}`,
+      ].join("\n"));
+      files.set(`bounties-reports/${PERIOD}/fxn-attribution.json`, JSON.stringify({
+        protocol: "fxn", period: PERIOD, totals: { sdInTotal: 120 },
+        perToken: { [native]: { sd: nativeSd }, [sell]: { sd: sellSd } },
+        txs: [{ tx: `0x${"1".repeat(64)}`, sdIn: 120, tokenSd: { [native]: nativeSd, [sell]: sellSd } }],
+      }));
+    };
+    report(96, 24);
+    expect(runR4(PERIOD, ["fxn"], proof).ok).toBe(true);
+    report(60, 60);
+    expect(runR4(PERIOD, ["fxn"]).ok).toBe(true);
+    const result = runR4(PERIOD, ["fxn"], proof);
+    expect(result.ok).toBe(false);
+    expect(result.detail).toContain("confirmed FXN proceeds");
+  });
+
   it("rejects a 100 sdCRV shortfall instead of allowing 0.1%", async () => {
     changeRows((rows) => { rows[1][5] = (Number(rows[1][5]) - 100).toFixed(6); });
     await expect(checkSdAttribution(PERIOD, client as any, ["curve"])).rejects.toThrow(/CSV/);
