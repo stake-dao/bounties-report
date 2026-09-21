@@ -7,7 +7,7 @@ import { getClient } from "../utils/getClients";
 import { BOTMARKET, PROTOCOLS_TOKENS, type SwapEvent } from "../utils/reportUtils";
 
 const INPUT = "/tmp/fxn-swaps-completion.input.json";
-const RESULT = "/tmp/job_result.json";
+const RESULT = process.env.JOB_RESULT_PATH || "/tmp/job_result.json";
 const SOURCES = { votemarket_v1: "votemarket", votemarket_v2: "votemarket-v2", warden: "warden", hiddenhand: "hiddenhand" };
 const SHA = /^[0-9a-f]{40}$/;
 const HASH = /^0x[0-9a-f]{64}$/;
@@ -258,7 +258,9 @@ if (require.main === module) {
     if (command === "publish") return publish();
     throw new Error("Expected fetch or publish");
   }).catch((error) => {
-    fs.writeFileSync(RESULT, JSON.stringify({ status: "error", reason: error instanceof Error ? error.message : String(error) }));
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error(JSON.stringify({ event: "fxn_completion_failed", command, reason }));
+    fs.writeFileSync(RESULT, JSON.stringify({ status: "error", reason }));
     process.exitCode = 1;
   });
 }

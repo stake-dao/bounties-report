@@ -187,7 +187,10 @@ jobs:
 
       - name: Record failure
         if: failure()
-        run: echo '{"status":"error","reason":"FXN completion, report verification or publication failed"}' > /tmp/job_result.json
+        run: |
+          if [ ! -f /tmp/job_result.json ]; then
+            echo '{"status":"error","reason":"FXN completion, report verification or publication failed"}' > /tmp/job_result.json
+          fi
 
       - name: Upload job result
         if: always()
