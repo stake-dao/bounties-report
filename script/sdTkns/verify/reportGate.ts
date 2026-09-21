@@ -11,6 +11,7 @@ import {
 import { getClient } from "../../utils/getClients";
 import { sendTelegramMessage } from "../../utils/telegramUtils";
 import { checkSdAttribution } from "./reconstructSdMerkle";
+import { loadCompletion, type FxnCompletion } from "../../reports/fxnCompletion";
 import type { SdTransferDestination } from "./reconstructSdMerkle";
 import volumeAcknowledgments from "../../../data/report-volume-acknowledgments.json";
 
@@ -291,8 +292,9 @@ async function runR3(
   protocols: readonly ReportProtocol[],
   client: PublicClient,
   destination: SdTransferDestination,
+  completion?: FxnCompletion,
 ): Promise<ReportGateResult> {
-  await checkSdAttribution(period, client, protocols, destination);
+  await checkSdAttribution(period, client, protocols, destination, completion);
   const details: string[] = [];
   for (const protocol of protocols) {
     const attr = readJson<Attribution>(
@@ -454,12 +456,17 @@ async function main(): Promise<void> {
     throw new Error("--sd-destination must be botmarket or distributor");
   }
   const notifyOnly = process.argv.includes("--notify-only");
+  const completionPath = argValue("--completion");
+  const completion = completionPath ? loadCompletion(completionPath) : undefined;
+  if (completion && (requested !== "fxn" || completion.epoch !== period || destination !== "botmarket" || notifyOnly)) {
+    throw new Error("FXN completion requires a blocking weekly gate for the same epoch and Botmarket destination");
+  }
   const clientPromise = getClient(1);
 
   const results: ReportGateResult[] = [];
   results.push(await runCheck("R1", "Source completeness", () => runR1(period, protocols)));
   results.push(await runCheck("R2", "Row provenance", () => runR2(period, protocols)));
-  results.push(await runCheck("R3", "Swap conservation", async () => runR3(period, protocols, await clientPromise, destination)));
+  results.push(await runCheck("R3", "Swap conservation", async () => runR3(period, protocols, await clientPromise, destination, completion)));
   results.push(await runCheck("R4", "Rate sanity", async () => runR4(period, protocols, await clientPromise, tolerance)));
   results.push(await runCheck("R5", "WETH ledger", async () => {
     const residuals = protocols.map((protocol) => wethResidual(readJson<Attribution>(path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`))));

@@ -27,14 +27,22 @@ on:
         required: false
         type: string
         default: ''
+      check_run_id:
+        description: 'Successful Guard completion run for a manual FXN weekly report'
+        required: false
+        type: string
 
 jobs:
   run:
+    if: inputs.protocol != 'fxn' || inputs.type != 'weekly'
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
+      - name: dispatch_id:${{ inputs.dispatch_id || 'manual' }}
+        run: echo "dispatch tracking"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -97,5 +105,102 @@ jobs:
         uses: ./.github/actions/notify-failure
         with:
           workflow_name: "Reports: ${{ inputs.protocol }} ${{ inputs.type }}"
+          dispatch_id: ${{ inputs.dispatch_id }}
+          telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}
+
+  fxn:
+    if: inputs.protocol == 'fxn' && inputs.type == 'weekly'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: fxn-weekly-report
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+      ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+      WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+      UPSTASH_REDIS_HOST: ${{ secrets.UPSTASH_REDIS_HOST }}
+      UPSTASH_REDIS_PORT: ${{ secrets.UPSTASH_REDIS_PORT }}
+      UPSTASH_REDIS_PASSWORD: ${{ secrets.UPSTASH_REDIS_PASSWORD }}
+      UPSTASH_REDIS_USERNAME: ${{ secrets.UPSTASH_REDIS_USERNAME }}
+
+    steps:
+      - name: dispatch_id:${{ inputs.dispatch_id || 'manual' }}
+        run: echo "dispatch tracking"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
+        with:
+          frozen-lockfile: 'true'
+
+      - name: Download matching completion proof
+        id: proof
+        run: pnpm tsx script/reports/fxnCompletion.ts fetch
+        env:
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+          CHECK_RUN_ID: ${{ inputs.check_run_id }}
+
+      - name: Checkout verified Guard checker
+        uses: actions/checkout@v4
+        with:
+          repository: stake-dao/automation-guard
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          ref: ${{ steps.proof.outputs.guard_commit }}
+          path: .fxn-guard
+          persist-credentials: false
+
+      - name: Move checker outside report checkout
+        run: mv .fxn-guard "$RUNNER_TEMP/fxn-guard"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.10'
+
+      - name: Revalidate completion without signing
+        run: uv run --project "$RUNNER_TEMP/fxn-guard/jobs" --frozen fxn-swaps --check-only --completion /tmp/fxn-swaps-completion.input.json
+
+      - name: Generate report from confirmed snapshot
+        run: pnpm tsx script/reports/generateReport.ts fxn --completion /tmp/fxn-swaps-completion.input.json
+        env:
+          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
+
+      - name: Gate FXN report (R1-R5)
+        run: pnpm tsx script/sdTkns/verify/reportGate.ts --period "$FXN_PERIOD" --protocol fxn --completion /tmp/fxn-swaps-completion.input.json
+        env:
+          FXN_PERIOD: ${{ steps.proof.outputs.period }}
+
+      - name: Revalidate before publication
+        run: uv run --project "$RUNNER_TEMP/fxn-guard/jobs" --frozen fxn-swaps --check-only --completion /tmp/fxn-swaps-completion.input.json
+
+      - name: Publish verified FXN files
+        run: pnpm tsx script/reports/fxnCompletion.ts publish
+
+      - name: Record failure
+        if: failure()
+        run: echo '{"status":"error","reason":"FXN completion, report verification or publication failed"}' > /tmp/job_result.json
+
+      - name: Upload job result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: job-result
+          path: /tmp/job_result.json
+          if-no-files-found: error
+
+      - name: Notify on failure
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          workflow_name: 'Reports: fxn weekly'
           dispatch_id: ${{ inputs.dispatch_id }}
           telegram_token: ${{ secrets.TG_API_KEY_BOT_ERROR }}

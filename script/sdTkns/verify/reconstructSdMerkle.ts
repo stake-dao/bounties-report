@@ -384,9 +384,10 @@ export async function sumTransfersIntoDestinations(
   destinations: string[],
   startTimestamp: number,
   endTimestamp: number,
+  window?: { fromBlock: number; checkedBlock: number },
 ): Promise<{ total: bigint; events: number }> {
-  const fromBlock = await blockAtOrAfter(client, startTimestamp);
-  const endBlock = await blockAtOrAfter(client, endTimestamp);
+  const fromBlock = window ? BigInt(window.fromBlock) : await blockAtOrAfter(client, startTimestamp);
+  const endBlock = window ? BigInt(window.checkedBlock) + 1n : await blockAtOrAfter(client, endTimestamp);
   let total = 0n;
   let events = 0;
   for (const destination of new Set(destinations.map(lc))) {
@@ -418,9 +419,9 @@ export function attributionDestinations(
     : [BOTMARKETS[ETHEREUM]];
 }
 
-function csvSdTotal(period: number, protocol: string): bigint {
+function csvSdTotal(period: number, protocol: string, weeklyOnly = false): bigint {
   let total = 0n;
-  for (const suffix of [".csv", "-otc.csv"]) {
+  for (const suffix of weeklyOnly ? [".csv"] : [".csv", "-otc.csv"]) {
     const file = path.join(REPORTS_DIR, String(period), `${protocol}${suffix}`);
     if (!existsSync(file)) continue;
     const rows = parseCsv(readFileSync(file, "utf8"), {
@@ -448,6 +449,7 @@ export async function checkSdAttribution(
   client: PublicClient,
   protocols: readonly ("curve" | "fxn")[] = ["curve", "fxn"],
   destination: SdTransferDestination = "botmarket",
+  completion?: { fromBlock: number; checkedBlock: number; sdDelivered: string },
 ): Promise<{ ok: boolean; detail: string }> {
   const details: string[] = [];
   for (const protocol of protocols) {
@@ -465,8 +467,12 @@ export async function checkSdAttribution(
       attributionDestinations(destination),
       period,
       period + WEEK,
+      completion,
     );
-    const csv = csvSdTotal(period, protocol);
+    if (completion && events.total !== BigInt(completion.sdDelivered)) {
+      throw new Error("FXN delivery changed from the completion proof");
+    }
+    const csv = csvSdTotal(period, protocol, Boolean(completion));
     const attributed = parseUnits(attribution.totals.sdInTotal.toFixed(18), 18);
     if (!withinOneTenthPercent(events.total, csv) || !withinOneTenthPercent(events.total, attributed)) {
       throw new Error(
