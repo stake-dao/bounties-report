@@ -12,6 +12,7 @@ import {
 } from "../../sdTkns/verify/checkBeforeSetRoots";
 import {
   attributionDestinations,
+  blockAtOrAfter,
   checkAprPresence,
   compareClaimAwareWeeklyDistributions,
   compareDistributions,
@@ -26,6 +27,25 @@ const HOLDERS = [
   "0x2000000000000000000000000000000000000002",
   "0x3000000000000000000000000000000000000003",
 ];
+
+describe("Report block windows", () => {
+  it("includes the latest block when the report period has not ended", async () => {
+    const client = { getBlockNumber: async () => 10n, getBlock: async ({ blockNumber }: any) => ({ timestamp: blockNumber }) } as any;
+    expect(await blockAtOrAfter(client, 20)).toBe(11n);
+    expect(await blockAtOrAfter(client, 10)).toBe(10n);
+  });
+
+  it("finds recent boundaries without querying pruned ancient L2 blocks", async () => {
+    const client = {
+      getBlockNumber: async () => 2_000_000n,
+      getBlock: async ({ blockNumber }: any) => {
+        if (blockNumber < 1_800_000n) throw new Error("ancient block unavailable");
+        return { timestamp: blockNumber };
+      },
+    } as any;
+    expect(await blockAtOrAfter(client, 1_925_000)).toBe(1_925_000n);
+  });
+});
 
 function fixtureEntry(amounts = [11n, 22n, 33n]): MerkleEntry {
   const leaves = HOLDERS.map((holder, index) =>

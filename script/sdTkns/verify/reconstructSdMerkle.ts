@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parse as parseCsv } from "csv-parse/sync";
-import { formatUnits, parseUnits, toHex, type PublicClient } from "viem";
+import { formatUnits, toHex, type PublicClient } from "viem";
+import { amountDifference, ATTRIBUTION_DUST_WEI, CSV_ROUNDING_WEI, reportAmount } from "./reportAmounts";
 import {
   AUTO_VOTER_DELEGATION_ADDRESS,
   BOTMARKETS,
@@ -72,6 +73,8 @@ interface ReconstructionLog extends LogData {
 
 interface Attribution {
   totals?: { sdInTotal?: unknown };
+  txs?: Array<{ tx: string; sdIn: unknown }>;
+  cleanupTransactions?: Array<{ tx: string; sdReceived: unknown }>;
 }
 
 interface SnapshotLogEntry {
@@ -81,6 +84,8 @@ interface SnapshotLogEntry {
 
 interface RawTransferLog {
   data: string;
+  transactionHash: string;
+  logIndex: string;
 }
 
 export type SdTransferDestination = "botmarket" | "distributor";
@@ -362,9 +367,19 @@ async function checkV2(
   };
 }
 
-async function blockAtOrAfter(client: PublicClient, timestamp: number): Promise<bigint> {
-  let low = 0n;
-  let high = await client.getBlockNumber();
+export async function blockAtOrAfter(client: PublicClient, timestamp: number): Promise<bigint> {
+  const head = await client.getBlockNumber();
+  let high = head;
+  if ((await client.getBlock({ blockNumber: high })).timestamp < BigInt(timestamp)) return high + 1n;
+  // Bound recent report windows from the head: some L2 providers cannot serve
+  // pre-upgrade blocks, which a binary search starting at genesis would request.
+  let step = LOG_BLOCK_CHUNK;
+  let low = head > step ? head - step : 0n;
+  while (low > 0n && (await client.getBlock({ blockNumber: low })).timestamp >= BigInt(timestamp)) {
+    high = low;
+    step *= 2n;
+    low = head > step ? head - step : 0n;
+  }
   while (low < high) {
     const mid = (low + high) / 2n;
     const block = await client.getBlock({ blockNumber: mid });
@@ -385,11 +400,13 @@ export async function sumTransfersIntoDestinations(
   startTimestamp: number,
   endTimestamp: number,
   window?: { fromBlock: number; checkedBlock: number },
-): Promise<{ total: bigint; events: number }> {
+): Promise<{ total: bigint; events: number; byTransaction: Map<string, bigint> }> {
   const fromBlock = window ? BigInt(window.fromBlock) : await blockAtOrAfter(client, startTimestamp);
   const endBlock = window ? BigInt(window.checkedBlock) + 1n : await blockAtOrAfter(client, endTimestamp);
   let total = 0n;
   let events = 0;
+  const byTransaction = new Map<string, bigint>();
+  const seen = new Set<string>();
   for (const destination of new Set(destinations.map(lc))) {
     for (let start = fromBlock; start < endBlock; start += LOG_BLOCK_CHUNK) {
       const end = start + LOG_BLOCK_CHUNK < endBlock ? start + LOG_BLOCK_CHUNK - 1n : endBlock - 1n;
@@ -403,12 +420,17 @@ export async function sumTransfersIntoDestinations(
         }],
       })) as RawTransferLog[];
       for (const log of logs) {
+        if (!/^0x[0-9a-f]{64}$/i.test(log.transactionHash) || !/^0x[0-9a-f]+$/i.test(log.logIndex)) throw new Error("Transfer log is missing transaction identity");
+        const key = `${lc(log.transactionHash)}/${log.logIndex}`;
+        if (seen.has(key)) throw new Error(`Duplicate transfer log: ${key}`);
+        seen.add(key);
         total += BigInt(log.data);
+        byTransaction.set(lc(log.transactionHash), (byTransaction.get(lc(log.transactionHash)) ?? 0n) + BigInt(log.data));
         events++;
       }
     }
   }
-  return { total, events };
+  return { total, events, byTransaction };
 }
 
 export function attributionDestinations(
@@ -419,8 +441,10 @@ export function attributionDestinations(
     : [BOTMARKETS[ETHEREUM]];
 }
 
-function csvSdTotal(period: number, protocol: string, weeklyOnly = false): bigint {
+function csvSdTotal(period: number, protocol: string, weeklyOnly = false): { total: bigint; rows: number } {
   let total = 0n;
+  let count = 0;
+  if (!existsSync(path.join(REPORTS_DIR, String(period), `${protocol}.csv`))) throw new Error(`${protocol} CSV is missing`);
   for (const suffix of weeklyOnly ? [".csv"] : [".csv", "-otc.csv"]) {
     const file = path.join(REPORTS_DIR, String(period), `${protocol}${suffix}`);
     if (!existsSync(file)) continue;
@@ -431,17 +455,12 @@ function csvSdTotal(period: number, protocol: string, weeklyOnly = false): bigin
     }) as Array<Record<string, string>>;
     for (const row of rows) {
       const value = row["Reward sd Value"];
-      if (value) total += parseUnits(Number(value).toFixed(18), 18);
+      total += reportAmount(value, `${file} sd amount`);
+      count++;
     }
   }
-  return total;
-}
-
-function withinOneTenthPercent(left: bigint, right: bigint): boolean {
-  const scale = left > right ? left : right;
-  if (scale === 0n) return true;
-  const difference = left > right ? left - right : right - left;
-  return difference * 1_000n <= scale;
+  if (!count) throw new Error(`${protocol} CSV is empty`);
+  return { total, rows: count };
 }
 
 export async function checkSdAttribution(
@@ -473,11 +492,25 @@ export async function checkSdAttribution(
       throw new Error("FXN delivery changed from the completion proof");
     }
     const csv = csvSdTotal(period, protocol, Boolean(completion));
-    const attributed = parseUnits(attribution.totals.sdInTotal.toFixed(18), 18);
-    if (!withinOneTenthPercent(events.total, csv) || !withinOneTenthPercent(events.total, attributed)) {
+    const attributed = reportAmount(attribution.totals.sdInTotal, "sdInTotal");
+    const allocations = [...(attribution.txs ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdIn })),
+      ...(attribution.cleanupTransactions ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdReceived }))];
+    const dust = BigInt(allocations.length + 1) * ATTRIBUTION_DUST_WEI;
+    if (amountDifference(events.total, csv.total) > BigInt(csv.rows) * CSV_ROUNDING_WEI + dust || amountDifference(events.total, attributed) > dust) {
       throw new Error(
-        `${protocol}: events=${formatUnits(events.total, 18)}, CSV=${formatUnits(csv, 18)}, attribution=${formatUnits(attributed, 18)}`,
+        `${protocol}: events=${formatUnits(events.total, 18)}, CSV=${formatUnits(csv.total, 18)}, attribution=${formatUnits(attributed, 18)}`,
       );
+    }
+    if (destination === "botmarket") {
+      const seen = new Set<string>();
+      for (const allocation of allocations) {
+        const hash = lc(allocation.tx);
+        if (seen.has(hash)) throw new Error(`${protocol}: duplicate attributed transaction ${hash}`);
+        seen.add(hash);
+        const received = events.byTransaction.get(hash);
+        if (received === undefined || amountDifference(received, reportAmount(allocation.amount, `${hash} sd amount`)) > ATTRIBUTION_DUST_WEI) throw new Error(`${protocol}: attributed proceeds differ from transfer ${hash}`);
+      }
+      for (const hash of events.byTransaction.keys()) if (!seen.has(hash)) throw new Error(`${protocol}: received proceeds missing from attribution ${hash}`);
     }
     details.push(
       `${protocol} ${events.events} ${destination} events=${formatUnits(events.total, 18)}`,

@@ -192,6 +192,10 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
         priority: 1,
       },
       {
+        url: "https://polygon.gateway.tenderly.co",
+        priority: 2,
+      },
+      {
         url: "https://polygon-rpc.com",
         priority: 2,
       },
