@@ -1,0 +1,56 @@
+{
+  "bounties-reports/1789603200/curve-attribution.json": {
+    "cid": "QmdJq9krpXHtaqAbWLQ6BVkSyWWCeZeZZBt1yFQ5i3WJiN",
+    "ipfsHash": "0xde67f309889375b34063c0a468c11e882ad66579d20859329e321fdf74f1b08b",
+    "sha256": "a4532ae895578bd49cb3a4f4dbbdaa305636bac5db5bcc600eff9f8ac51d540b",
+    "size": 41727
+  },
+  "bounties-reports/1789603200/curve.csv": {
+    "cid": "QmdatJPEhC3EX9mLBiY481mGn8NF84EeusKDq2fpKAqAMN",
+    "ipfsHash": "0xe284cd779cc2d32349528ec7b088abe875c9dd0689c04b774dbda9968669f2f1",
+    "sha256": "f37cb4fb6874ba13569fa42e3650c2cdf9561389df80c7646433ff15f8945e3d",
+    "size": 4881
+  },
+  "bounties-reports/1789603200/fxn-attribution.json": {
+    "cid": "QmehBysAsV8sxSWV4tbAz1DxBuFBqSLGHVhgZygibExXf9",
+    "ipfsHash": "0xf2fdf74e4a018e9901fa5ad20a11480bebe53ad09deaf5e866bb11a241ca0844",
+    "sha256": "2100d8bd398c2be5d2fc67b18dcab6cb45f02974e97375a0fefcf4b8f853482d",
+    "size": 1124
+  },
+  "bounties-reports/1789603200/fxn.csv": {
+    "cid": "QmSfE6bJ3NwygZ1AMYXMdfZGR16sQPZzhHvmiDYyvuabuj",
+    "ipfsHash": "0x4030f42ecbeed8796fe3973edcbe39e8cdb0733f1b8243f77e222c70acc31cc2",
+    "sha256": "01aca13ec9d111105837be73cf545b5b1bd9ba5af5a4d9f1694f616ccad5b208",
+    "size": 616
+  },
+  "bounties-reports/1789603200/merkle.json": {
+    "cid": "QmTvQSwHTprEzniUJWy93pAkad5Hz1DmqYRyY4ttgmDfpr",
+    "ipfsHash": "0x52f00e7a596f7953e0786bb627138c55077381796f974dcbb1385d52caae716f",
+    "sha256": "2e75c906d2043b3602778749a27893184dd01f1da76ad95c78d824d07034ce14",
+    "size": 1661046
+  },
+  "bounties-reports/1789603200/sdtokens-distribution.json": {
+    "cid": "QmR2QaDz28ZSHVeVJXc4kixv5yAnwWZKbwgARzhvEcoR3W",
+    "ipfsHash": "0x27e69f69b927227b4a2e90f95539ed2d355ec291562c1b36b7e87fa6793365b1",
+    "sha256": "ef9bfac5fd33e2ba6fd68f3d939634a4704d601e5a9910ca6ca62bc5702cc490",
+    "size": 701
+  },
+  "data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xd1b5651e55d4ceed36251c61c50c889b36f6abb5.json": {
+    "cid": "QmUZXKx9sQY8oz354Sz3gfdBJbKDeBytVKKpb12iy2q7d7",
+    "ipfsHash": "0x5c725343251153409b3cbd777004b2572be67fb0587418fdd148afad716bf156",
+    "sha256": "cad38ef4a097d639867268d95c44f8a54c9fe164023556fa6f719d84dd57d2b2",
+    "size": 89
+  },
+  "data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad.json": {
+    "cid": "QmUZXKx9sQY8oz354Sz3gfdBJbKDeBytVKKpb12iy2q7d7",
+    "ipfsHash": "0x5c725343251153409b3cbd777004b2572be67fb0587418fdd148afad716bf156",
+    "sha256": "cad38ef4a097d639867268d95c44f8a54c9fe164023556fa6f719d84dd57d2b2",
+    "size": 89
+  },
+  "log.json": {
+    "cid": "QmSySFJ23PnvNbeB636RxnNcEjiqZqxw8vG6myCfy4F8de",
+    "ipfsHash": "0x44db25808f9afb58da6484fe4ec7110274ccbb90899e6f63a8eb85be057741a9",
+    "sha256": "3b3ba906f22369182ddbc544939e7a8449ff360917c37b76bdca625fe1c50991",
+    "size": 9049
+  }
+}
