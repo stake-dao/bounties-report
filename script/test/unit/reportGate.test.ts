@@ -15,7 +15,7 @@ describe("Report gate historical regressions", () => {
     expect(runR1(1788998400, ["curve", "fxn"]).ok).toBe(true);
     const historical = runR1(1787184000, ["curve", "fxn"]);
     expect(historical.ok).toBe(true);
-    expect(historical.warnings?.some((warning) => warning.startsWith("fxn/"))).toBe(true);
+    expect(historical.advisories?.some((advisory) => advisory.protocol === "fxn")).toBe(true);
   });
 
   it("resolves a root gauge absent from the current cvx.csv through the trailing weeks", async () => {

@@ -13,6 +13,12 @@ vi.mock("node:fs", async (importOriginal) => {
     readFileSync: (file: any, ...args: any[]) => files.get(String(file)) ?? original.readFileSync(file, ...args),
   };
 });
+vi.mock("../../utils/tokenService", () => ({
+  tokenService: {
+    getTokenByAddress: async (address: string, chainId: string) =>
+      chainId === "1" && address === "0x501ebf66d76a96d4fb26ccead42957653e16b8b8" ? { symbol: "USDC", decimals: 6 } : undefined,
+  },
+}));
 afterEach(() => files.clear());
 
 const PERIOD = 1789603200;
@@ -42,7 +48,7 @@ describe("Report allocation gates", () => {
   it("keeps valid high volume advisory and compares tokens separately", () => {
     const result = runR1(PERIOD, ["curve"]);
     expect(result.ok).toBe(true);
-    expect(result.warnings?.length).toBeGreaterThan(0);
+    expect(result.advisories?.length).toBeGreaterThan(0);
   });
 
   it("accepts this week's actual allocations, including favorable swaps", async () => {
@@ -155,13 +161,29 @@ describe("Report allocation gates", () => {
     await expect(checkSdAttribution(PERIOD, { ...client, request: async () => logs } as any, ["curve"])).rejects.toThrow(/transfer/);
   });
 
-  it("escapes report notifications and keeps each message within Telegram's limit", () => {
-    const messages = formatReportGateMessages([
+  it("escapes report notifications and keeps each message within Telegram's limit", async () => {
+    const messages = await formatReportGateMessages(PERIOD, ["curve"], [
       { id: "R5", name: "WETH ledger", ok: true, detail: "residual (<$50) & checked" },
       { id: "R1", name: "Sources", ok: true, detail: "complete", warnings: ["<large & unusual>".repeat(1000)] },
     ]);
     expect(messages.join("\n")).toContain("&lt;$50");
     expect(messages.join("\n")).not.toContain("<$50");
+    expect(messages.join("\n")).toContain("2/2 PASS");
     expect(messages.every((message) => message.length <= 4000)).toBe(true);
+  });
+
+  it("resolves wrapped advisories on mainnet and lists new and absent tokens", async () => {
+    const usdc = "0x501ebf66d76a96d4fb26ccead42957653e16b8b8";
+    const [message] = await formatReportGateMessages(PERIOD, ["curve", "fxn"], [{
+      id: "R1", name: "Source completeness", ok: false, detail: "fxn/votemarket_v2: weekly claims file missing", advisories: [
+        { protocol: "curve", source: "votemarket_v2", chainId: 42161, token: usdc, wrapped: true, amount: 1861575543n, median: 748838347n },
+        { protocol: "curve", source: "votemarket_v2", chainId: 42161, token: usdc, wrapped: true, amount: 0n, median: 748838347n },
+        { protocol: "fxn", source: "votemarket_v2", chainId: 42161, token: usdc, wrapped: false, amount: 5n * 10n ** 18n, median: 0n },
+      ],
+    }]);
+    expect(message).toContain("❌ R1 Source completeness — fxn/votemarket_v2: weekly claims file missing");
+    expect(message).toContain("<b>0/1 FAIL</b>");
+    expect(message).toContain("<pre>curve · votemarket_v2 · arbitrum\n  USDC           1,861.58   2.49× (748.84)\n  absent: USDC</pre>");
+    expect(message).toContain(`<pre>fxn · votemarket_v2 · arbitrum\n  ${usdc}              5   new</pre>`);
   });
 });

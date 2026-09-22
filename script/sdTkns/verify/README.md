@@ -16,7 +16,7 @@ Use `--protocol curve` or `--protocol fxn` to inspect one protocol. FXN report p
 | R4 Allocation weights | Conversion proceeds, per-token budgets, gauge allocations or printed percentages disagree. WETH conversions must follow their input weights. With an FXN completion proof, token budgets must follow confirmed swap proceeds and native funding. Gauge allocations follow each token's raw claim weights. |
 | R5 WETH ledger | Declared WETH totals differ from the transaction ledger, or the signed residual is worth at least $50. Cleanup settlement uses actual WETH transfers, not legacy native-token basis labels. |
 
-Historical volume is compared separately per chain/token against its four-week median. Changes outside ±50% and missing history produce warnings, not completeness failures. Source completeness is established by events rather than volume heuristics.
+Historical volume is compared separately per chain/token against its four-week median. Changes outside ±50% are advisories (grouped per protocol/source/chain in the notification) and missing history is a warning; neither is a completeness failure. Source completeness is established by events rather than volume heuristics.
 
 Allocation checks use actual converted proceeds. A favorable conversion therefore increases the budget rather than failing a comparison with a later pool quote. No current pool-rate tolerance or volume acknowledgment is needed.
 

@@ -3,12 +3,14 @@ import path from "node:path";
 import { parse as parseCsv } from "csv-parse/sync";
 import { erc20Abi, formatUnits, type PublicClient } from "viem";
 import {
+  CHAINS_IDS_TO_SHORTS,
   WEEK,
   WETH_CHAIN_IDS,
 } from "../../utils/constants";
 import { getClient } from "../../utils/getClients";
 import { PROTOCOLS_TOKENS } from "../../utils/reportUtils";
 import { sendTelegramMessage } from "../../utils/telegramUtils";
+import { tokenService } from "../../utils/tokenService";
 import { checkSdAttribution } from "./reconstructSdMerkle";
 import { loadCompletion, type FxnCompletion } from "../../reports/fxnCompletion";
 import type { SdTransferDestination } from "./reconstructSdMerkle";
@@ -27,12 +29,23 @@ const PROTOCOLS = ["curve", "fxn"] as const;
 
 export type ReportProtocol = (typeof PROTOCOLS)[number];
 
+export interface VolumeAdvisory {
+  protocol: ReportProtocol;
+  source: (typeof SOURCES)[number];
+  chainId: number;
+  token: string;
+  wrapped: boolean;
+  amount: bigint;
+  median: bigint;
+}
+
 export interface ReportGateResult {
   id: "R1" | "R2" | "R3" | "R4" | "R5";
   name: string;
   ok: boolean;
   detail: string;
   warnings?: string[];
+  advisories?: VolumeAdvisory[];
 }
 
 interface Claim {
@@ -115,7 +128,8 @@ function claimedVolumes(file: string, protocol: ReportProtocol): Map<string, big
         throw new Error(`${file} ${protocol} claim has invalid gauge/token`);
       }
     }
-    const key = `${claim.chainId ?? 1}/${lc(claim.rewardToken as string)}`;
+    // Wrapped V2 claims carry the mainnet token address under the source chain id.
+    const key = `${claim.chainId ?? 1}/${lc(claim.rewardToken as string)}/${claim.isWrapped === true ? "wrapped" : "native"}`;
     volumes.set(key, (volumes.get(key) ?? 0n) + BigInt(claim.amount));
   }
   return volumes;
@@ -140,6 +154,7 @@ export function withinVolumeBand(current: bigint, history: bigint[]): boolean {
 export function runR1(period: number, protocols: readonly ReportProtocol[]): ReportGateResult {
   const failures: string[] = [];
   const warnings: string[] = [];
+  const advisories: VolumeAdvisory[] = [];
   let checked = 0;
   for (const protocol of protocols) {
     for (const source of SOURCES) {
@@ -160,7 +175,8 @@ export function runR1(period: number, protocols: readonly ReportProtocol[]): Rep
           const value = current.get(token) ?? 0n;
           const trailing = history.map((entry) => entry.get(token) ?? 0n);
           if (!withinVolumeBand(value, trailing)) {
-            warnings.push(`${protocol}/${source}/${token}: unusual volume, raw amount=${value}, trailing median=${median(trailing)}`);
+            const [chainId, address, wrapping] = token.split("/");
+            advisories.push({ protocol, source, chainId: Number(chainId), token: address, wrapped: wrapping === "wrapped", amount: value, median: median(trailing) });
           }
         }
       }
@@ -172,9 +188,10 @@ export function runR1(period: number, protocols: readonly ReportProtocol[]): Rep
     name: "Source files",
     ok: failures.length === 0,
     detail: failures.length === 0
-      ? `${checked} protocol-source files valid; token volume changes are advisory`
+      ? `${checked} protocol-source files valid`
       : failures.join("; "),
     warnings,
+    advisories,
   };
 }
 
@@ -540,18 +557,67 @@ function argValue(name: string): string | undefined {
   return index < 0 ? undefined : process.argv[index + 1];
 }
 
-export function formatReportGateMessages(results: ReportGateResult[]): string[] {
-  const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const messages = ["<b>sdToken report verification</b>"];
-  for (const result of results) {
-    const lines = [`${result.ok ? "PASS" : "FAIL"} ${result.id}: ${result.detail}`,
-      ...(result.warnings ?? []).map((warning) => `WARN ${result.id}: ${warning}`)];
-    for (const line of lines) {
-      // Bound before escaping, so an HTML entity is never split between messages.
-      const safe = escape(line.length > 600 ? `${line.slice(0, 600)}… (see job log)` : line);
-      if (messages[messages.length - 1].length + safe.length + 1 > 4000) messages.push(safe);
-      else messages[messages.length - 1] += `\n${safe}`;
+const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Bound before escaping, so an HTML entity is never split.
+const bound = (value: string, max: number) => escapeHtml(value.length > max ? `${value.slice(0, max)}… (see job log)` : value);
+
+function formatAmount(value: bigint, decimals: number): string {
+  return Number(formatUnits(value, decimals)).toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+async function formatAdvisories(advisories: VolumeAdvisory[]): Promise<string[]> {
+  const groups = new Map<string, VolumeAdvisory[]>();
+  for (const advisory of advisories) {
+    const key = `${advisory.protocol} · ${advisory.source} · ${CHAINS_IDS_TO_SHORTS[advisory.chainId] ?? advisory.chainId}`;
+    groups.set(key, [...(groups.get(key) ?? []), advisory]);
+  }
+  const blocks: string[] = [];
+  for (const [group, entries] of groups) {
+    const rows: string[] = [];
+    const absent: string[] = [];
+    for (const entry of entries) {
+      const info = await tokenService.getTokenByAddress(entry.token, entry.wrapped ? "1" : String(entry.chainId));
+      const symbol = info?.symbol ?? entry.token;
+      const decimals = info?.decimals ?? 18;
+      if (entry.amount === 0n) {
+        absent.push(symbol);
+        continue;
+      }
+      const change = entry.median === 0n
+        ? "new"
+        : `${(Number(entry.amount) / Number(entry.median)).toFixed(2)}× (${formatAmount(entry.median, decimals)})`;
+      rows.push(`  ${symbol.padEnd(8)} ${formatAmount(entry.amount, decimals).padStart(14)}   ${change}`);
     }
+    if (absent.length) rows.push(`  absent: ${absent.join(", ")}`);
+    // A <pre> block is never split across messages; an oversize one is cut whole.
+    blocks.push(`<pre>${bound([group, ...rows].join("\n"), 3900)}</pre>`);
+  }
+  return blocks;
+}
+
+export async function formatReportGateMessages(
+  period: number,
+  protocols: readonly ReportProtocol[],
+  results: ReportGateResult[],
+): Promise<string[]> {
+  const date = new Date(period * 1000).toISOString().slice(0, 10);
+  const passed = results.filter((result) => result.ok).length;
+  const chunks = [
+    `<b>sdToken report gate</b> · ${period} (${date}) · ${protocols.join(", ")}`,
+    ...results.flatMap((result) => [
+      `${result.ok ? "✅" : "❌"} ${result.id} ${result.name} — ${bound(result.detail, 600)}`,
+      ...(result.warnings ?? []).map((warning) => `⚠️ ${result.id}: ${bound(warning, 600)}`),
+    ]),
+    `<b>${passed}/${results.length} ${passed === results.length ? "PASS" : "FAIL"}</b>`,
+  ];
+  const advisories = results.flatMap((result) => result.advisories ?? []);
+  if (advisories.length) {
+    chunks.push("", "<b>Volume advisories</b> (vs 4-week median, ±50%)", ...(await formatAdvisories(advisories)));
+  }
+  const messages = [""];
+  for (const chunk of chunks) {
+    if (messages[messages.length - 1].length + chunk.length + 1 > 4000) messages.push(chunk);
+    else messages[messages.length - 1] += messages[messages.length - 1] ? `\n${chunk}` : chunk;
   }
   return messages;
 }
@@ -577,7 +643,7 @@ async function main(): Promise<void> {
     const result = runR1(period, protocols);
     if (!result.ok) return result;
     const claims = await verifySourceClaims(period, protocols);
-    return { ...result, name: "Source completeness", detail: `${claims} claims match on-chain events; volume changes are advisory` };
+    return { ...result, name: "Source completeness", detail: `${claims} claims match on-chain events` };
   }));
   const clientPromise = getClient(1);
   results.push(await runCheck("R2", "Claim amounts", async () => {
@@ -597,15 +663,11 @@ async function main(): Promise<void> {
     return runR5(period, protocols, price, await clientPromise);
   }));
 
-  console.log(`sdToken report gate: period=${period} protocols=${protocols.join(",")}`);
-  for (const result of results) {
-    console.log(`[${result.ok ? "PASS" : "FAIL"}] ${result.id} ${result.name} — ${result.detail}`);
-    for (const warning of result.warnings ?? []) console.log(`[WARN] ${result.id} — ${warning}`);
-  }
-  console.log(`RESULT: ${results.every((result) => result.ok) ? "PASS" : "FAIL"} — ${results.filter((result) => result.ok).length}/${results.length} checks passed`);
+  const messages = await formatReportGateMessages(period, protocols, results);
+  console.log(messages.join("\n").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"));
 
   if (notifyOnly) {
-    for (const message of formatReportGateMessages(results)) await sendTelegramMessage(message, "HTML");
+    for (const message of messages) await sendTelegramMessage(message, "HTML");
   } else if (results.some((result) => !result.ok)) {
     process.exitCode = 1;
   }
