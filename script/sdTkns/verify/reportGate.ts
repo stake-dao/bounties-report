@@ -13,6 +13,7 @@ import { sendTelegramMessage } from "../../utils/telegramUtils";
 import { tokenService } from "../../utils/tokenService";
 import { checkSdAttribution } from "./reconstructSdMerkle";
 import { loadCompletion, type FxnCompletion } from "../../reports/fxnCompletion";
+import { loadHistoricalRecovery, verifyHistoricalSettlement, verifyHistoricalSources } from "../../reports/historicalOtc";
 import type { SdTransferDestination } from "./reconstructSdMerkle";
 import { amountDifference, ATTRIBUTION_DUST_WEI, CSV_ROUNDING_WEI, reportAmount } from "./reportAmounts";
 import { verifySourceClaims } from "./reportSources";
@@ -257,6 +258,7 @@ function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[]):
 const provenanceKey = (gauge: string, token: string) => `${lc(gauge)}|${lc(token)}`;
 
 export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient): Promise<ReportGateResult> {
+  if (protocols.includes("curve")) await verifyHistoricalSettlement(period, client);
   const failures: string[] = [];
   const warnings: string[] = [];
   const decimals = new Map<string, number>();
@@ -356,6 +358,8 @@ export function runR4(
 ): ReportGateResult {
   const failures: string[] = [];
   let batches = 0;
+  const recovery = protocols.includes("curve") ? loadHistoricalRecovery(period) : undefined;
+  if (recovery) verifyHistoricalSources(recovery);
   for (const protocol of protocols) {
     const attribution = readJson<Attribution>(
       path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`),

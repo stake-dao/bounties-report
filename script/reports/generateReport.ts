@@ -31,6 +31,7 @@ import processReport from "./processReport";
 import { debug, sampleArray, isDebugEnabled } from "../utils/logger";
 import { WETH_CHAIN_IDS } from "../utils/constants";
 import { loadCompletion, verifySources, verifyReportEvents } from "./fxnCompletion";
+import { recoveryFillTransactions } from "./historicalOtc";
 
 dotenv.config();
 
@@ -193,7 +194,7 @@ function buildExcludedTxSet(options: {
   filePaths: string[];
   useDefaultFile: boolean;
 }): Set<string> {
-  const hashes: string[] = [];
+  const hashes: string[] = recoveryFillTransactions(options.protocol, options.period);
   if (options.useDefaultFile) {
     hashes.push(...loadDefaultTxExclusions(options.protocol, options.period));
   }

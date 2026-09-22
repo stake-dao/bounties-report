@@ -32,6 +32,7 @@ import { ethers } from "ethers";
 import { mainnet } from "../utils/chains";
 import { Merkle } from "../utils/types";
 import { getClient } from "../utils/getClients";
+import { historicalRecoveryRewards } from "../reports/historicalOtc";
 
 dotenv.config();
 
@@ -74,6 +75,7 @@ const main = async () => {
   const now = moment.utc().unix();
   const filter: string = "*Gauge vote.*$";
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+  const recoveryRewards = await historicalRecoveryRewards(currentPeriodTimestamp);
 
   // Resolve `lastMerkles` from the PREVIOUS period's archived merkle, not from
   // `latest/`. `latest/` is overwritten by the publish step in the current period,
@@ -192,7 +194,8 @@ const main = async () => {
     const ids = [proposalIdPerSpace[space]];
 
     // Save using the token symbol as key
-    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
+    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken + (space === "sdcrv.eth"
+      ? Number(formatUnits(Object.values(recoveryRewards).reduce((sum, amount) => sum + amount, 0n), 18)) : 0);
 
     logData["SnapshotIds"].push({
       space,
@@ -207,7 +210,9 @@ const main = async () => {
       csvResult,
       sdFXSWorkingData,
       sdCakeWorkingData,
-      {}
+      {},
+      undefined,
+      { additionalUserRewards: space === "sdcrv.eth" ? recoveryRewards : undefined }
     );
 
     newMerkles.push(merkleStat.merkle);

@@ -56,6 +56,8 @@ import {
   type MerkleEntry,
 } from "./checkBeforeSetRoots";
 
+import { historicalRecoveryRewards, loadHistoricalRecovery, verifyHistoricalSettlement } from "../../reports/historicalOtc";
+
 const REPORTS_DIR = "bounties-reports";
 const ETHEREUM_CHAIN_ID = 1;
 const LOG_BLOCK_CHUNK = 50_000n;
@@ -297,6 +299,7 @@ async function checkV2(
   claimContext: ClaimAwareContext,
 ): Promise<CheckResult> {
   const rebuilt: MerkleEntry[] = [];
+  const recoveryRewards = await historicalRecoveryRewards(period);
   let sourceBuckets = 0;
 
   for (const { space, ids } of snapshotEntries(log)) {
@@ -312,7 +315,7 @@ async function checkV2(
       { total_vp: 1 },
       {},
       undefined,
-      { readOnlyClaimCache: true },
+      { readOnlyClaimCache: true, additionalUserRewards: space === "sdcrv.eth" ? recoveryRewards : undefined },
     );
     rebuilt.push(result.merkle);
   }
@@ -492,11 +495,15 @@ export async function checkSdAttribution(
       throw new Error("FXN delivery changed from the completion proof");
     }
     const csv = csvSdTotal(period, protocol, Boolean(completion));
-    const attributed = reportAmount(attribution.totals.sdInTotal, "sdInTotal");
+    const recovery = protocol === "curve" ? loadHistoricalRecovery(period)?.settlement : undefined;
+    if (recovery) await verifyHistoricalSettlement(period, client);
+    const recovered = recovery ? BigInt(recovery.sdAmount) : 0n;
+    const attributed = reportAmount(attribution.totals.sdInTotal, "sdInTotal") + recovered;
     const allocations = [...(attribution.txs ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdIn })),
-      ...(attribution.cleanupTransactions ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdReceived }))];
+      ...(attribution.cleanupTransactions ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdReceived })),
+      ...(recovery ? [{ tx: recovery.fillTransaction, amount: formatUnits(recovered, 18) }] : [])];
     const dust = BigInt(allocations.length + 1) * ATTRIBUTION_DUST_WEI;
-    if (amountDifference(events.total, csv.total) > BigInt(csv.rows) * CSV_ROUNDING_WEI + dust || amountDifference(events.total, attributed) > dust) {
+    if (amountDifference(events.total, csv.total + recovered) > BigInt(csv.rows) * CSV_ROUNDING_WEI + dust || amountDifference(events.total, attributed) > dust) {
       throw new Error(
         `${protocol}: events=${formatUnits(events.total, 18)}, CSV=${formatUnits(csv.total, 18)}, attribution=${formatUnits(attributed, 18)}`,
       );
