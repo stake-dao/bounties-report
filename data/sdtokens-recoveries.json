@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "recoveries": [
+    {
+      "id": "ENG-2178",
+      "reason": "Arbitrum Curve rewards from three historical epochs; 1201.032387 USDC bridged into 0.436072337174991503 WETH. The separate 1.202234 USDC remainder is not included.",
+      "protocol": "curve",
+      "sources": [
+        {
+          "chainId": 42161,
+          "transaction": "0x49a2b7b3f624e92221d5152410ded11eda14429cc9e856b10cc455241f851ada",
+          "logIndex": 9,
+          "token": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+          "from": "0x8c2c5a295450ddff4cb360ca73fccc12243d14d9",
+          "to": "0x0000000014814b037cf4a091fe00cba2defc6115",
+          "amount": "481918878",
+          "usedAmount": "481436959"
+        },
+        {
+          "chainId": 42161,
+          "transaction": "0xd463e6bac15b091d8aec0d82775c88051379d1371000daaaf5833af3e5dba81a",
+          "logIndex": 10,
+          "token": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+          "from": "0x8c2c5a295450ddff4cb360ca73fccc12243d14d9",
+          "to": "0x0000000014814b037cf4a091fe00cba2defc6115",
+          "amount": "481671424",
+          "usedAmount": "481189753"
+        },
+        {
+          "chainId": 42161,
+          "transaction": "0xd7bbf741f362106d8c03ed8be8ad93bc9f481cbd93dcade58a39f0b84b48f45b",
+          "logIndex": 19,
+          "token": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+          "from": "0x8c2c5a295450ddff4cb360ca73fccc12243d14d9",
+          "to": "0x0000000014814b037cf4a091fe00cba2defc6115",
+          "amount": "238644319",
+          "usedAmount": "238405675"
+        }
+      ],
+      "trail": [
+        {
+          "chainId": 42161,
+          "transaction": "0x4a51bef50c642a25026ecca44f25ba67ec9e8b3f5532fdb4f625ce1fd13cf28f",
+          "logIndex": 4,
+          "token": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+          "from": "0x0000000014814b037cf4a091fe00cba2defc6115",
+          "to": "0x8898502ba35ab64b3562abc509befb7eb178d4df",
+          "amount": "1202234621"
+        },
+        {
+          "chainId": 42161,
+          "transaction": "0xa62950fdf3f2684ef596216b57daa97198e5645e94e9e6a066a113cbba938692",
+          "logIndex": 7,
+          "token": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+          "from": "0x8898502ba35ab64b3562abc509befb7eb178d4df",
+          "to": "0x4cd00e387622c35bddb9b4c962c136462338bc31",
+          "amount": "1201032387"
+        },
+        {
+          "chainId": 1,
+          "transaction": "0xe2e87732b3212a0145dbdbe3f976bd1697ce7c9ee1d1dbae14d34a7a4f61b205",
+          "logIndex": 130,
+          "token": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+          "from": "0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f",
+          "to": "0x8898502ba35ab64b3562abc509befb7eb178d4df",
+          "amount": "436072337174991503"
+        }
+      ],
+      "allocation": {
+        "type": "historical-votes",
+        "votes": [
+          {
+            "source": 0,
+            "epoch": 1788393600,
+            "gauge": "0x1211b5cb09ba1ada8f11de757d5a13c5ca407162",
+            "campaignId": "1905",
+            "claimLogIndex": 11,
+            "sourceCommit": "076067ef56426cfa987372dea2ddd2f494239aca",
+            "proposalId": "0x2c419a19e18ea1fdd676fd1e58d7a8c865f86d3e9e877aba4bc6ff9f64545a79",
+            "proposalLogCommit": "54493348ebdba45bf27390a627ab3c9d1938e03e"
+          },
+          {
+            "source": 1,
+            "epoch": 1788998400,
+            "gauge": "0x1211b5cb09ba1ada8f11de757d5a13c5ca407162",
+            "campaignId": "1905",
+            "claimLogIndex": 12,
+            "sourceCommit": "076067ef56426cfa987372dea2ddd2f494239aca",
+            "proposalId": "0x2c419a19e18ea1fdd676fd1e58d7a8c865f86d3e9e877aba4bc6ff9f64545a79",
+            "proposalLogCommit": "7e2cb56df7087b3f3e4bd4c8472e30e692cfcec0"
+          },
+          {
+            "source": 2,
+            "epoch": 1789603200,
+            "gauge": "0x1211b5cb09ba1ada8f11de757d5a13c5ca407162",
+            "campaignId": "1963",
+            "claimLogIndex": 21,
+            "sourceCommit": "076067ef56426cfa987372dea2ddd2f494239aca",
+            "proposalId": "0xd726426f17e97209632065a9fc498537392b438478218bc44bfd55cfdff5fca3",
+            "proposalLogCommit": "bb578d07dbef845ffac15573cea0f13dc490635e"
+          }
+        ]
+      },
+      "funding": null
+    }
+  ]
+}

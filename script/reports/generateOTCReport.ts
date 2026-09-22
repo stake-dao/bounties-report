@@ -25,7 +25,6 @@ import { ALL_MIGHT_V2, OTC_REGISTRY } from "../utils/reportUtils";
 import { VLCVX_DELEGATORS_RECIPIENT } from "../utils/constants";
 import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
 import processOTCReport from "./processOTCReport";
-import { excludeHistoricalOtc, recoveryFillTransactions, verifyHistoricalSettlement } from "./historicalOtc";
 
 dotenv.config();
 
@@ -81,7 +80,6 @@ async function fetchOTCWithdrawals(
     withdrawer: string;
     amount: bigint;
     block: number;
-    transaction: string;
   }[] = [];
   for (const log of response.result) {
     const decodedLog = decodeEventLog({
@@ -95,7 +93,6 @@ async function fetchOTCWithdrawals(
       withdrawer: decodedLog.args.withdrawer,
       amount: decodedLog.args.amount,
       block: Number(log.blockNumber),
-      transaction: log.transactionHash.toLowerCase(),
     });
   }
 
@@ -135,8 +132,6 @@ async function fetchOTCWithdrawals(
       args: [BigInt(Number(id))],
     });
 
-    if (excludeHistoricalOtc(id, otcData, decoded.transaction)) continue;
-    if (recoveryFillTransactions("curve", currentPeriod).includes(decoded.transaction)) throw new Error("Recovery fill contains another OTC");
     const protocol = otcData[1].toLowerCase();
     const bounty: Bounty = {
       bountyId: id.toString(),
@@ -216,8 +211,6 @@ async function main() {
   }
 
   const publicClient = await getClient(1);
-  if (protocol === "curve") await verifyHistoricalSettlement(currentPeriod, publicClient);
-  const recoveryTransactions = new Set(recoveryFillTransactions(protocol, currentPeriod));
 
   // Get block numbers
   const { blockNumber1, blockNumber2 } = await getTimestampsBlocks(
@@ -280,20 +273,20 @@ async function main() {
   }
 
   // Fetch swap events
-  const swapIn = (await fetchSwapInEvents(
+  const swapIn = await fetchSwapInEvents(
     1,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
     ALL_MIGHT_V2
-  )).filter((swap) => !recoveryTransactions.has((swap.transactionHash ?? "").toLowerCase()));
-  const swapOut = (await fetchSwapOutEvents(
+  );
+  const swapOut = await fetchSwapOutEvents(
     1,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
     ALL_MIGHT_V2
-  )).filter((swap) => !recoveryTransactions.has((swap.transactionHash ?? "").toLowerCase()));
+  );
 
   const vlcvxRecipientSwapsIn = await fetchSwapInEvents(
     1,
