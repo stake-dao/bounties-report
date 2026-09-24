@@ -152,4 +152,7 @@ async function generateVotemarketV2Bounties(pastWeek: number = 0) {
 }
 
 const pastWeek = process.argv[2] ? parseInt(process.argv[2]) : 0;
-generateVotemarketV2Bounties(pastWeek);
+generateVotemarketV2Bounties(pastWeek).catch((error) => {
+  console.error("Error generating votemarket v2 bounties:", error);
+  process.exit(1);
+});
