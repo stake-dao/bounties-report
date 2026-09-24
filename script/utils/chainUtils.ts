@@ -24,34 +24,36 @@ export const getBlockNumberByTimestamp = async (
   closest: "before" | "after" = "before",
   chain_id: number
 ): Promise<number> => {
+  const failures: string[] = [];
   try {
-    // Try explorer utils first
     const explorerUtils = createBlockchainExplorerUtils();
     const block = await explorerUtils.getBlockNumberByTimestamp(timestamp, closest, chain_id);
-    
     if (block > 0) {
       return block;
     }
-
-    // Fallback to Llama API with correct endpoint
-    try {
-      const chainName = CHAINS_IDS_TO_SHORTS[chain_id];
-      const url = `https://coins.llama.fi/block/${chainName}/${timestamp}`;
-      const response = await fetch(url, { 
-        signal: AbortSignal.timeout(10000)
-      });
-      
-      if (!response.ok) {
-        return 0;
-      }
-      
+    failures.push("explorer: no closest block");
+  } catch (error) {
+    failures.push(`explorer: ${error}`);
+  }
+  try {
+    const chainName = CHAINS_IDS_TO_SHORTS[chain_id];
+    const url = `https://coins.llama.fi/block/${chainName}/${timestamp}`;
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10000)
+    });
+    if (response.ok) {
       const data = await response.json();
-      return data.height || 0;
-    } catch {
-      return 0;
+      if (data.height > 0) {
+        return data.height;
+      }
+      failures.push("llama: no height");
+    } else {
+      failures.push(`llama: HTTP ${response.status}`);
     }
   } catch (error) {
-    console.error('Error fetching block number:', error);
-    return 0;
+    failures.push(`llama: ${error}`);
   }
+  throw new Error(
+    `No block ${closest} timestamp ${timestamp} on chain ${chain_id} (${failures.join("; ")})`
+  );
 };

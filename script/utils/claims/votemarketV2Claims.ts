@@ -35,6 +35,51 @@ async function retryContractRead<T>(
   throw lastError;
 }
 
+const CLAIM_EVENT = parseAbi([
+  "event Claim(uint256 indexed campaignId, address indexed account, uint256 amount, uint256 fee, uint256 epoch)",
+])[0];
+const RPC_LOG_CHUNK = 5_000;
+
+const logKey = (log: { transactionHash: string; logIndex: number | string }) =>
+  `${String(log.transactionHash).toLowerCase()}:${Number(log.logIndex)}`;
+
+export async function assertClaimLogsMatchRpc(
+  chain: number,
+  vmAddresses: string[],
+  fromBlock: number,
+  toBlock: number,
+  account: `0x${string}`,
+  explorerLogs: Array<{ transactionHash: string; logIndex: number | string }>
+): Promise<void> {
+  const client = await getClientWithFallback(chain);
+  const rpcKeys = new Set<string>();
+  for (let start = fromBlock; start <= toBlock; start += RPC_LOG_CHUNK) {
+    const end = Math.min(start + RPC_LOG_CHUNK - 1, toBlock);
+    const logs = await client.getLogs({
+      address: vmAddresses.map((a) => getAddress(a)),
+      event: CLAIM_EVENT,
+      args: { account },
+      fromBlock: BigInt(start),
+      toBlock: BigInt(end),
+    });
+    for (const log of logs) {
+      rpcKeys.add(logKey({ transactionHash: log.transactionHash as string, logIndex: log.logIndex as number }));
+    }
+  }
+  const explorerKeys = new Set(explorerLogs.map(logKey));
+  const missing = [...rpcKeys].filter((key) => !explorerKeys.has(key));
+  const extra = [...explorerKeys].filter((key) => !rpcKeys.has(key));
+  if (missing.length || extra.length) {
+    throw new Error(
+      `[Chain ${chain}] Claim logs mismatch for ${account} in ${fromBlock}-${toBlock}: ` +
+        `explorer ${explorerKeys.size}, rpc ${rpcKeys.size}; ` +
+        `missing from explorer ${missing.slice(0, 3).join(",")}${missing.length > 3 ? "…" : ""}; ` +
+        `unknown to rpc ${extra.slice(0, 3).join(",")}${extra.length > 3 ? "…" : ""}`
+    );
+  }
+  console.log(`[Chain ${chain}] ${rpcKeys.size} Claim logs, explorer and rpc agree`);
+}
+
 export const fetchVotemarketV2ClaimedBounties = async (
   protocol: string,
   fromTimestamp: number,
@@ -64,11 +109,20 @@ export const fetchVotemarketV2ClaimedBounties = async (
   ]);
 
   // Get block numbers for all chains in parallel
-  const blockPromises = chains.map(async (chain) => ({
-    chain,
-    fromBlock: await getBlockNumberByTimestamp(fromTimestamp, "before", chain),
-    toBlock: await getBlockNumberByTimestamp(toTimestamp, "after", chain),
-  }));
+  const now = Math.floor(Date.now() / 1000);
+  const blockPromises = chains.map(async (chain) => {
+    const fromBlock = await getBlockNumberByTimestamp(fromTimestamp, "before", chain);
+    const toBlock =
+      toTimestamp >= now - 300
+        ? Number(await (await getClientWithFallback(chain)).getBlockNumber())
+        : await getBlockNumberByTimestamp(toTimestamp, "after", chain);
+    if (!(fromBlock > 0) || !(toBlock >= fromBlock)) {
+      throw new Error(
+        `[Chain ${chain}] invalid claim window ${fromBlock}-${toBlock} for ${fromTimestamp}-${toTimestamp}`
+      );
+    }
+    return { chain, fromBlock, toBlock };
+  });
 
   const blockNumbers = await Promise.all(blockPromises);
   const blockMap = Object.fromEntries(
@@ -151,6 +205,8 @@ export const fetchVotemarketV2ClaimedBounties = async (
         }
         return acc;
       }, []);
+
+      await assertClaimLogsMatchRpc(chain, vmAddresses, fromBlock, toBlock, toAddress, mergedLogs);
 
       if (!mergedLogs.length) {
         console.log(`[Chain ${chain}] No logs found`);
