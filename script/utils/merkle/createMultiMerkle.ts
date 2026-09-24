@@ -36,6 +36,7 @@ import { processAllDelegators } from "../cacheUtils";
 
 export interface MerkleGenerationOptions {
   readOnlyClaimCache?: boolean;
+  additionalUserRewards?: Record<string, bigint>;
 }
 
 export function removeDirectVoterPowerFromDelegators(
@@ -431,7 +432,7 @@ export const createMultiMerkle = async (
 
   // Since this point, userRewards map contains the new reward amount for each user
   // We have to generate the merkle
-  const userRewardAddresses = Object.keys(userRewards);
+  const userRewardAddresses = [...new Set([...Object.keys(userRewards), ...Object.keys(options.additionalUserRewards ?? {})])];
 
   // Define a threshold below which numbers are considered too small and should be set to 0
   const threshold = 2e-8;
@@ -447,10 +448,10 @@ export const createMultiMerkle = async (
   for (let i = 0; i < userRewardAddresses.length; i++) {
     const userAddress = userRewardAddresses[i];
 
-    const rewardValue = adjustedUserRewards[userAddress.toLowerCase()];
+    const rewardValue = adjustedUserRewards[userAddress.toLowerCase()] ?? 0;
     // Convert to fixed decimal notation to avoid scientific notation
     const rewardString = rewardValue.toFixed(18);
-    const amount = parseEther(rewardString);
+    const amount = parseEther(rewardString) + (options.additionalUserRewards?.[userAddress.toLowerCase()] ?? 0n);
 
     elements.push(
       utils.solidityKeccak256(
@@ -470,10 +471,10 @@ export const createMultiMerkle = async (
   let totalAmount = BigNumber.from(0);
   for (let i = 0; i < userRewardAddresses.length; i++) {
     const userAddress = userRewardAddresses[i];
-    const rewardValue = adjustedUserRewards[userAddress.toLowerCase()];
+    const rewardValue = adjustedUserRewards[userAddress.toLowerCase()] ?? 0;
     // Convert to fixed decimal notation to avoid scientific notation
     const rewardString = rewardValue.toFixed(18);
-    const amount = BigNumber.from(parseEther(rewardString));
+    const amount = BigNumber.from(parseEther(rewardString) + (options.additionalUserRewards?.[userAddress.toLowerCase()] ?? 0n));
     totalAmount = totalAmount.add(amount);
 
     merkle[userAddress.toLowerCase()] = {

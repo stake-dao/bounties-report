@@ -13,6 +13,7 @@ import { sendTelegramMessage } from "../../utils/telegramUtils";
 import { tokenService } from "../../utils/tokenService";
 import { checkSdAttribution } from "./reconstructSdMerkle";
 import { loadCompletion, type FxnCompletion } from "../../reports/fxnCompletion";
+import { loadRecoveries, verifyRecoveryFunding, verifyRecoverySources } from "../recoveries";
 import type { SdTransferDestination } from "./reconstructSdMerkle";
 import { amountDifference, ATTRIBUTION_DUST_WEI, CSV_ROUNDING_WEI, reportAmount } from "./reportAmounts";
 import { verifySourceClaims } from "./reportSources";
@@ -257,6 +258,8 @@ function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[]):
 const provenanceKey = (gauge: string, token: string) => `${lc(gauge)}|${lc(token)}`;
 
 export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient): Promise<ReportGateResult> {
+  const recoveries = loadRecoveries(period).filter((entry) => protocols.includes(entry.protocol));
+  for (const recovery of recoveries) await verifyRecoveryFunding(recovery, client);
   const failures: string[] = [];
   const warnings: string[] = [];
   const decimals = new Map<string, number>();
@@ -321,7 +324,7 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
     id: "R2",
     name: "Claim amounts",
     ok: failures.length === 0,
-    detail: failures.length === 0 ? `${rowCount} rows reconcile with ${claimCount} claimed bounties` : failures.join("; "),
+    detail: failures.length === 0 ? `${rowCount} rows reconcile with ${claimCount} claimed bounties${recoveries.length ? `; ${recoveries.length} direct-funded recoveries verified` : ""}` : failures.join("; "),
     warnings,
   };
 }
@@ -356,6 +359,7 @@ export function runR4(
 ): ReportGateResult {
   const failures: string[] = [];
   let batches = 0;
+  for (const recovery of loadRecoveries(period).filter((entry) => protocols.includes(entry.protocol))) verifyRecoverySources(recovery);
   for (const protocol of protocols) {
     const attribution = readJson<Attribution>(
       path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`),

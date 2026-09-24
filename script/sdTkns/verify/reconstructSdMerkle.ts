@@ -56,6 +56,8 @@ import {
   type MerkleEntry,
 } from "./checkBeforeSetRoots";
 
+import { buildRecoveries, loadRecoveries, recoveryRewards, verifyRecoveryFunding } from "../recoveries";
+
 const REPORTS_DIR = "bounties-reports";
 const ETHEREUM_CHAIN_ID = 1;
 const LOG_BLOCK_CHUNK = 50_000n;
@@ -297,6 +299,7 @@ async function checkV2(
   claimContext: ClaimAwareContext,
 ): Promise<CheckResult> {
   const rebuilt: MerkleEntry[] = [];
+  const recoveries = await buildRecoveries(period);
   let sourceBuckets = 0;
 
   for (const { space, ids } of snapshotEntries(log)) {
@@ -312,7 +315,7 @@ async function checkV2(
       { total_vp: 1 },
       {},
       undefined,
-      { readOnlyClaimCache: true },
+      { readOnlyClaimCache: true, additionalUserRewards: recoveryRewards(recoveries, space) },
     );
     rebuilt.push(result.merkle);
   }
@@ -488,10 +491,23 @@ export async function checkSdAttribution(
       period + WEEK,
       completion,
     );
+    const csv = csvSdTotal(period, protocol, Boolean(completion));
+    for (const recovery of loadRecoveries(period).filter((entry) => entry.protocol === protocol)) {
+      const funding = await verifyRecoveryFunding(recovery, client);
+      const inWindow = funding && (completion
+        ? BigInt(funding.blockNumber) >= BigInt(completion.fromBlock) && BigInt(funding.blockNumber) <= BigInt(completion.checkedBlock)
+        : funding.timestamp >= period && funding.timestamp < period + WEEK);
+      if (destination === "distributor" && inWindow) {
+        const receipt = recovery.funding!;
+        if (events.byTransaction.get(receipt.transaction) !== BigInt(receipt.amount)) throw new Error("Recovery funding differs from distributor events");
+        events.total -= BigInt(receipt.amount);
+        events.byTransaction.delete(receipt.transaction);
+        events.events--;
+      }
+    }
     if (completion && events.total !== BigInt(completion.sdDelivered)) {
       throw new Error("FXN delivery changed from the completion proof");
     }
-    const csv = csvSdTotal(period, protocol, Boolean(completion));
     const attributed = reportAmount(attribution.totals.sdInTotal, "sdInTotal");
     const allocations = [...(attribution.txs ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdIn })),
       ...(attribution.cleanupTransactions ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdReceived }))];
@@ -699,6 +715,9 @@ export function buildNotifyDigest(
   const totals = (log.TotalRewards ?? {}) as Record<string, number>;
   for (const [symbol, delta] of Object.entries(reported)) {
     lines.push(`- ${symbol}: +${abbreviate(delta)} -> ${abbreviate(totals[symbol] ?? 0)} on merkle`);
+  }
+  for (const recovery of (log.Recoveries ?? []) as Array<{ id: string; protocol: string; amount: string; recipients: number; fundingTransaction: string }>) {
+    lines.push(`Recovery ${recovery.id}: ${formatUnits(BigInt(recovery.amount), 18)} ${SPACES_SYMBOL[LABELS_TO_SPACE[recovery.protocol]]}, ${recovery.recipients} recipients, funding ${recovery.fundingTransaction}`);
   }
   const aprs = (log.DelegationsAPRsDetails ?? {}) as Record<string, number>;
   lines.push(`APRs: ${Object.entries(aprs).map(([space, value]) => {

@@ -5,6 +5,7 @@ import { fetchGlobalTotalVp } from "../utils/envioClient";
 import {
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
+  LABELS_TO_SPACE,
   SDFXS_SPACE,
   SPACE_TO_NETWORK,
   SPACES,
@@ -32,6 +33,7 @@ import { ethers } from "ethers";
 import { mainnet } from "../utils/chains";
 import { Merkle } from "../utils/types";
 import { getClient } from "../utils/getClients";
+import { buildRecoveries, recoveryRewards, recoverySummary, recoveryTotals, writeRecoveryEvidence } from "./recoveries";
 
 dotenv.config();
 
@@ -74,6 +76,10 @@ const main = async () => {
   const now = moment.utc().unix();
   const filter: string = "*Gauge vote.*$";
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+  const recoveries = await buildRecoveries(currentPeriodTimestamp);
+  const prefunded = recoveryTotals(currentPeriodTimestamp);
+  logData["PrefundedRewards"] = Object.fromEntries(Object.entries(prefunded).map(([symbol, amount]) => [symbol, amount.toString()]));
+  logData["Recoveries"] = recoverySummary(recoveries);
 
   // Resolve `lastMerkles` from the PREVIOUS period's archived merkle, not from
   // `latest/`. `latest/` is overwritten by the publish step in the current period,
@@ -182,6 +188,7 @@ const main = async () => {
     const network = SPACE_TO_NETWORK[space];
 
     if (!csvResult) {
+      if (Object.keys(recoveryRewards(recoveries, space)).length) throw new Error(`Recovery requires the ${space} report`);
       continue;
     }
 
@@ -192,7 +199,7 @@ const main = async () => {
     const ids = [proposalIdPerSpace[space]];
 
     // Save using the token symbol as key
-    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
+    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken + Number(formatUnits(prefunded[SPACES_SYMBOL[space]] ?? 0n, 18));
 
     logData["SnapshotIds"].push({
       space,
@@ -207,7 +214,9 @@ const main = async () => {
       csvResult,
       sdFXSWorkingData,
       sdCakeWorkingData,
-      {}
+      {},
+      undefined,
+      { additionalUserRewards: recoveryRewards(recoveries, space) }
     );
 
     newMerkles.push(merkleStat.merkle);
@@ -375,6 +384,11 @@ const main = async () => {
     throw new Error("Distribution is not ok");
   }
 
+  for (const entry of recoveries.entries) {
+    if (!Object.keys(proposalIdPerSpace).includes(LABELS_TO_SPACE[entry.input.protocol])) throw new Error("Recovery token was not generated");
+  }
+  writeRecoveryEvidence(recoveries);
+
   fs.writeFileSync(
     `./bounties-reports/${currentPeriodTimestamp}/merkle.json`,
     JSON.stringify(newMerkles)
@@ -455,9 +469,10 @@ export const checkDistribution = async (
     throw new Error("Total reported does not exist in log");
   }
 
+  const prefunded = logData["PrefundedRewards"] ?? {};
   // Now TotalReported is keyed by token symbol.
   for (const tokenSymbol of Object.keys(logData["TotalReported"])) {
-    const amountToDistribute = logData["TotalReported"][tokenSymbol];
+    const amountToDistribute = logData["TotalReported"][tokenSymbol] - Number(formatUnits(BigInt(prefunded[tokenSymbol] ?? "0"), 18));
 
     // Find the merkle object using token symbol.
     const merkle = newMerkles.find((merkle) => merkle.symbol === tokenSymbol);
@@ -585,6 +600,7 @@ async function compareMerkleTrees(
   logData["TopHolders"] = {};
 
   let output = "\nComparing Merkle Trees:\n";
+  const prefunded = logData["PrefundedRewards"] ?? {};
 
   for (const merkle of newMerkles) {
     output += "\n" + "=".repeat(80) + "\n";
@@ -650,12 +666,13 @@ async function compareMerkleTrees(
     // Compute Distribution Surplus = max(Weekly Reported Reward - Pending Allocation, 0)
     const distributionSurplus =
       weeklyReportedReward > 0
-        ? Math.max(weeklyReportedReward - pendingAllocation, 0)
+        ? Math.max(weeklyReportedReward - Number(formatUnits(BigInt(prefunded[merkle.symbol] ?? "0"), 18)) - pendingAllocation, 0)
         : 0;
 
     output += "\nDistribution Changes:\n";
     output += `Weekly Reported Reward: ${weeklyReportedReward.toFixed(2)} ${merkle.symbol
       }\n`;
+    if (prefunded[merkle.symbol]) output += `Already funded recovery: ${formatUnits(BigInt(prefunded[merkle.symbol]), 18)} ${merkle.symbol}\n`;
     output += `Pending Allocation (Cumulative Total - Contract Balance): ${pendingAllocation.toFixed(
       2
     )} ${merkle.symbol}\n`;
