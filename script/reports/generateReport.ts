@@ -582,6 +582,12 @@ async function main() {
   }
   const guardBasisTotal = Object.values(guardBasis).reduce((a, b) => a + b, 0);
   const guardFlowActive = guardSwaps.length > 0 || Boolean(completion && guardNativeFromBotmarket > 0);
+  // sd the guard pulled from the votemarket recipient inside a fire, per tx
+  // (proof records): delivered as is, never split over the proceeds.
+  const guardPulledByTx = new Map<string, number>(
+    (completion?.transactions ?? []).map((record) => [record.hash.toLowerCase(), Number(record.sdPulled ?? "0") / 1e18])
+  );
+  const guardPulledSd = (hash: string) => guardPulledByTx.get((hash || "").toLowerCase()) || 0;
   if (isDebugEnabled()) {
     debug("[guard-flow]", {
       protocol,
@@ -1036,10 +1042,14 @@ async function main() {
       // at ALL_MIGHT_V2 (fund tx withdrawals + SwapExecutor outputs from
       // separate txs). It has no Botmarket inflow, so the dust-sweep test
       // would misclassify it; split its sd over the guard basis instead.
+      // sd pulled from the votemarket recipient in the same tx is delivered
+      // as is: it belongs to the sd-denominated claims, not to the proceeds.
       if (guardFlowActive && guardBasisTotal > 0) {
+        const pulledInTx = guardPulledSd(tx);
+        if (pulledInTx > 0) includedSdByToken[sdAddr] = (includedSdByToken[sdAddr] || 0) + pulledInTx;
         for (const [tok, nativeAmt] of Object.entries(guardBasis)) {
           includedSdByToken[tok] =
-            (includedSdByToken[tok] || 0) + (sdInTx * nativeAmt) / guardBasisTotal;
+            (includedSdByToken[tok] || 0) + ((sdInTx - pulledInTx) * nativeAmt) / guardBasisTotal;
         }
         continue;
       }
@@ -1149,9 +1159,11 @@ async function main() {
         const tok = row.rewardAddress.toLowerCase();
         (rowsByToken[tok] ||= []).push(row);
       }
-      // Re-target sd onto tokens traced back to WETH outflows
+      // Re-target sd onto tokens traced back to WETH outflows. sd-denominated
+      // claims keep their face value, except under a completion proof: they
+      // share what the guard pulled from the votemarket recipient.
       for (const [tok, tokenRows] of Object.entries(rowsByToken)) {
-        if (tok === sdAddr) continue;
+        if (tok === sdAddr && !completion) continue;
         if (!(tok in includedSdByToken)) {
           continue;
         }
@@ -1417,8 +1429,13 @@ async function main() {
         const tokenWeth: Record<string, number> = {};
         const tokenSd: Record<string, number> = {};
         let nativeShareSdGuard = 0;
+        const pulledInTx = guardPulledSd(tx);
+        if (pulledInTx > 0) {
+          tokenSd[sdAddr] = pulledInTx;
+          includedSdByToken[sdAddr] = (includedSdByToken[sdAddr] || 0) + pulledInTx;
+        }
         for (const [tok, nativeAmt] of Object.entries(guardBasis)) {
-          const sd = (sdInTx * nativeAmt) / guardBasisTotal;
+          const sd = ((sdInTx - pulledInTx) * nativeAmt) / guardBasisTotal;
           tokenSd[tok] = (tokenSd[tok] || 0) + sd;
           includedSdByToken[tok] = (includedSdByToken[tok] || 0) + sd;
           if (tok === nativeAddr) nativeShareSdGuard += sd;

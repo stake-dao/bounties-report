@@ -130,6 +130,54 @@ describe("Report allocation gates", () => {
     expect(result.detail).toContain("confirmed FXN proceeds");
   });
 
+  it("credits sdCRV pulled from the votemarket recipient to the sd claims, not to the converted proceeds", () => {
+    const native = "0xd533a949740bb3306d119cc777fa900ba034cd52";
+    const sd = "0xd1b5651e55d4ceed36251c61c50c889b36f6abb5";
+    const sell = "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef";
+    const proof = {
+      nativeFunded: parseUnits("80", 18).toString(), sdDelivered: parseUnits("130", 18).toString(), sdPulled: parseUnits("10", 18).toString(),
+      transactions: [{ swaps: [{ sellToken: sell, amountOut: parseUnits("20", 18).toString() }] }],
+    } as any;
+    for (const source of ["votemarket", "votemarket-v2", "warden", "hiddenhand"]) {
+      files.set(`weekly-bounties/${PERIOD}/${source}/claimed_bounties.json`, JSON.stringify({ curve: source === "votemarket" ? {
+        a: { gauge: "0x01", rewardToken: native, amount: parseUnits("80", 18).toString() },
+        b: { gauge: "0x02", rewardToken: sell, amount: parseUnits("1000", 18).toString() },
+        c: { gauge: "0x03", rewardToken: sd, amount: parseUnits("10", 18).toString() },
+      } : {} }));
+    }
+    const report = (sdBudget: Record<string, number>) => {
+      const total = Object.values(sdBudget).reduce((sum, value) => sum + value, 0);
+      files.set(CSV, [
+        readFileSync(CSV, "utf8").split("\n")[0],
+        `Native;0x01;CRV;${native};80;${sdBudget[native] ?? 0};${((sdBudget[native] ?? 0) / total * 100).toFixed(2)}`,
+        `Sell;0x02;SDEX;${sell};1000;${sdBudget[sell] ?? 0};${((sdBudget[sell] ?? 0) / total * 100).toFixed(2)}`,
+        `Pulled;0x03;sdCRV;${sd};10;10;${(10 / total * 100).toFixed(2)}`,
+      ].join("\n"));
+      files.set(ATTR, JSON.stringify({
+        protocol: "curve", period: PERIOD, totals: { sdInTotal: 130 },
+        perToken: Object.fromEntries(Object.entries(sdBudget).map(([token, value]) => [token, { sd: value }])),
+        txs: [{ tx: `0x${"1".repeat(64)}`, sdIn: 130, tokenSd: sdBudget }],
+      }));
+    };
+    // 120 converted split 80:20 over native proceeds, 10 pulled to the sd claim.
+    report({ [native]: 96, [sell]: 24, [sd]: 10 });
+    expect(runR4(PERIOD, ["curve"], proof).ok).toBe(true);
+    // The pulled sd spread over the proceeds instead: budgets no longer match.
+    report({ [native]: 104, [sell]: 26 });
+    expect(runR4(PERIOD, ["curve"], proof).ok).toBe(false);
+  });
+
+  it("lets a claim the completion carried over in full have no report row", async () => {
+    const rows = readFileSync(CSV, "utf8").trimEnd().split("\n").map((line) => line.split(";"));
+    const token = rows[1][3].toLowerCase();
+    changeRows((all) => { all.splice(1, all.length - 1, ...all.slice(1).filter((row) => row[3].toLowerCase() !== token)); });
+    expect((await runR2(PERIOD, ["curve"], client as any)).ok).toBe(false);
+    const proof = { expected: { [token]: "1" }, remaining: { [token]: "1" } } as any;
+    expect((await runR2(PERIOD, ["curve"], client as any, proof)).ok).toBe(true);
+    const partial = { expected: { [token]: "2" }, remaining: { [token]: "1" } } as any;
+    expect((await runR2(PERIOD, ["curve"], client as any, partial)).ok).toBe(false);
+  });
+
   it("rejects a 100 sdCRV shortfall instead of allowing 0.1%", async () => {
     changeRows((rows) => { rows[1][5] = (Number(rows[1][5]) - 100).toFixed(6); });
     await expect(checkSdAttribution(PERIOD, client as any, ["curve"])).rejects.toThrow(/CSV/);

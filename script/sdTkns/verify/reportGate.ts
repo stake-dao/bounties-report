@@ -256,12 +256,23 @@ function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[]):
 
 const provenanceKey = (gauge: string, token: string) => `${lc(gauge)}|${lc(token)}`;
 
-export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient): Promise<ReportGateResult> {
+export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient, completion?: GuardCompletion): Promise<ReportGateResult> {
   const failures: string[] = [];
   const warnings: string[] = [];
   const decimals = new Map<string, number>();
   let rowCount = 0;
   let claimCount = 0;
+  // A claim the completion check carried over in full has no row: the report
+  // drops it as not swapped and next epoch's plan sells it.
+  const carried = new Set(Object.entries(completion?.remaining ?? {})
+    .filter(([token, left]) => BigInt(left) >= BigInt(completion?.expected[token] ?? "0"))
+    .map(([token]) => lc(token)));
+  // Units carried in from the previous epoch sell on this epoch's lane and
+  // their proceeds follow this epoch's rows of the token: the previous
+  // epoch's gauges are not re-credited. Say so where the report is read.
+  for (const [token, amount] of Object.entries(completion?.carryIn ?? {})) {
+    if (BigInt(amount) > 0n) warnings.push(`${token}: ${amount} carried in from the previous epoch, proceeds attributed to this epoch's gauges`);
+  }
   for (const protocol of protocols) {
     const rows = readCsvRows(period, protocol, true);
     if (!rows.some((row) => row.lane === "sd")) failures.push(`${protocol}: sd report missing or empty`);
@@ -306,6 +317,7 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
       const token = key.split("|")[1];
       const matching = rows.filter((row) => provenanceKey(row.gauge, row.rewardToken) === key);
       if (!matching.length) {
+        if (carried.has(lc(token))) continue;
         failures.push(`${protocol} raw claim has no report allocation: ${key}`);
         continue;
       }
@@ -423,10 +435,13 @@ export function runR4(
         }
       }
       const totalNative = [...proceeds.values()].reduce((sum, amount) => sum + amount, 0n);
-      // sd pulled from the votemarket recipient is delivered as is, not converted proceeds.
-      const converted = BigInt(completion.sdDelivered) - BigInt(completion.sdPulled ?? "0");
-      for (const token of new Set([...proceeds.keys(), ...budgets.keys()])) {
-        const expected = totalNative > 0n ? converted * (proceeds.get(token) ?? 0n) / totalNative : 0n;
+      // sd pulled from the votemarket recipient is delivered as is to the
+      // sd-denominated claims; only the rest is converted proceeds.
+      const sd = lc(PROTOCOLS_TOKENS[protocol].sdToken);
+      const pulled = BigInt(completion.sdPulled ?? "0");
+      const converted = BigInt(completion.sdDelivered) - pulled;
+      for (const token of new Set([...proceeds.keys(), ...budgets.keys(), ...(pulled > 0n ? [sd] : [])])) {
+        const expected = token === sd ? pulled : totalNative > 0n ? converted * (proceeds.get(token) ?? 0n) / totalNative : 0n;
         if (amountDifference(budgets.get(token) ?? 0n, expected) > dust) failures.push(`${protocol}/${token}: token budget differs from confirmed ${protocol.toUpperCase()} proceeds`);
       }
     }
@@ -650,8 +665,10 @@ async function main(): Promise<void> {
   const clientPromise = getClient(1);
   results.push(await runCheck("R2", "Claim amounts", async () => {
     const client = await clientPromise;
-    const result = await runR2(period, protocols, client);
-    if (result.ok && protocols.includes("curve")) {
+    const result = await runR2(period, protocols, client, completion);
+    // The guard lane sells from Botmarket straight into the SwapExecutor,
+    // never through the vault: its quantities are proven by the completion.
+    if (result.ok && protocols.includes("curve") && !completion) {
       const tokens = await verifyCurveReportInputs(period, client);
       result.detail += `; ${tokens} Curve token quantities consumed by attributed conversions`;
     }
