@@ -119,7 +119,14 @@ export const SWAP_EXECUTOR = getAddress(
 export const LEGACY_SWAP_EXECUTOR = getAddress(
   "0xCE1d84E654DB546e3EdFf1481bA3d4c9394ba1C5"
 );
-const FXN_SWAPS_LANE = "0xb47ff6b6acbeb1889cd35f85691ba66fa3aa69d4b8ca79c2e9ceae71005cb304";
+// Atomic SwapExecutor lanes, keyed by the protocol's native (buy) token.
+// Pinning the lane keeps other jobs' swaps out of a protocol's attribution.
+const GUARD_SWAP_LANES: Record<string, string> = {
+  "0x365accfca291e7d3914637abf1f7635db165bb09": // FXN
+    "0xb47ff6b6acbeb1889cd35f85691ba66fa3aa69d4b8ca79c2e9ceae71005cb304",
+  "0xd533a949740bb3306d119cc777fa900ba034cd52": // CRV, keccak256("CRV_BOUNTIES_BOTMARKET_TO_ALL_MIGHT")
+    "0xbfd0de0506324efd10b243ea8db0915acf69b162b5c81651b2ea2dcc494e4d97",
+};
 export const BSC_BOTMARKET = getAddress(
   "0x1F18E2A3fB75D5f8d2a879fe11D7c30730236B8d"
 );
@@ -838,7 +845,7 @@ export interface GuardSwapEvent {
  *
  * Both executor generations measure buy-token output at ALL_MIGHT_V2.
  * The atomic executor indexes the lane and sell token; its buy token is
- * in data. Pin the FXN lane so other jobs cannot enter its attribution.
+ * in data. Protocols with an atomic lane (GUARD_SWAP_LANES) read it too.
  */
 export async function fetchGuardExecutorSwaps(
   chainId: number,
@@ -877,13 +884,14 @@ export async function fetchGuardExecutorSwaps(
       amountOut,
     };
   });
-  if (buyToken.toLowerCase() === PROTOCOLS_TOKENS.fxn.native.toLowerCase()) {
+  const lane = GUARD_SWAP_LANES[buyToken.toLowerCase()];
+  if (lane) {
     const atomicHash = keccak256(encodePacked(
       ["string"], ["Swapped(bytes32,bytes32,address,address,address,uint256,uint256)"]
     ));
     const atomic = await explorerUtils.getLogsByAddressesAndTopics(
       [SWAP_EXECUTOR], blockMin, blockMax,
-      { "0": atomicHash, "2": FXN_SWAPS_LANE }, chainId
+      { "0": atomicHash, "2": lane }, chainId
     );
     for (const log of atomic.result) {
       const [eventBuy, , amountIn, amountOut] = decodeAbiParameters(
