@@ -12,7 +12,7 @@ import { PROTOCOLS_TOKENS } from "../../utils/reportUtils";
 import { sendTelegramMessage } from "../../utils/telegramUtils";
 import { tokenService } from "../../utils/tokenService";
 import { checkSdAttribution } from "./reconstructSdMerkle";
-import { loadCompletion, type FxnCompletion } from "../../reports/fxnCompletion";
+import { loadCompletion, type GuardCompletion } from "../../reports/guardCompletion";
 import type { SdTransferDestination } from "./reconstructSdMerkle";
 import { amountDifference, ATTRIBUTION_DUST_WEI, CSV_ROUNDING_WEI, reportAmount } from "./reportAmounts";
 import { verifySourceClaims } from "./reportSources";
@@ -331,7 +331,7 @@ async function runR3(
   protocols: readonly ReportProtocol[],
   client: PublicClient,
   destination: SdTransferDestination,
-  completion?: FxnCompletion,
+  completion?: GuardCompletion,
 ): Promise<ReportGateResult> {
   await checkSdAttribution(period, client, protocols, destination, completion);
   const details: string[] = [];
@@ -352,7 +352,7 @@ async function runR3(
 export function runR4(
   period: number,
   protocols: readonly ReportProtocol[],
-  completion?: FxnCompletion,
+  completion?: GuardCompletion,
 ): ReportGateResult {
   const failures: string[] = [];
   let batches = 0;
@@ -414,7 +414,7 @@ export function runR4(
     }
     const dust = ATTRIBUTION_DUST_WEI * BigInt(allocations.length + 1);
     if (amountDifference(receivedTotal, reportAmount(attribution.totals.sdInTotal, "sdInTotal")) > dust) failures.push(`${protocol}: transaction proceeds differ from sdInTotal`);
-    if (protocol === "fxn" && completion) {
+    if (completion) {
       const proceeds = new Map<string, bigint>([[native, BigInt(completion.nativeFunded)]]);
       for (const tx of completion.transactions) {
         for (const swap of tx.swaps) {
@@ -423,9 +423,11 @@ export function runR4(
         }
       }
       const totalNative = [...proceeds.values()].reduce((sum, amount) => sum + amount, 0n);
+      // sd pulled from the votemarket recipient is delivered as is, not converted proceeds.
+      const converted = BigInt(completion.sdDelivered) - BigInt(completion.sdPulled ?? "0");
       for (const token of new Set([...proceeds.keys(), ...budgets.keys()])) {
-        const expected = totalNative > 0n ? BigInt(completion.sdDelivered) * (proceeds.get(token) ?? 0n) / totalNative : 0n;
-        if (amountDifference(budgets.get(token) ?? 0n, expected) > dust) failures.push(`${protocol}/${token}: token budget differs from confirmed FXN proceeds`);
+        const expected = totalNative > 0n ? converted * (proceeds.get(token) ?? 0n) / totalNative : 0n;
+        if (amountDifference(budgets.get(token) ?? 0n, expected) > dust) failures.push(`${protocol}/${token}: token budget differs from confirmed ${protocol.toUpperCase()} proceeds`);
       }
     }
     for (const token of new Set([...budgets.keys(), ...Object.keys(attribution.perToken ?? {}).map(lc), ...rows.map((row) => row.rewardToken)])) {
@@ -634,9 +636,9 @@ async function main(): Promise<void> {
   }
   const notifyOnly = process.argv.includes("--notify-only");
   const completionPath = argValue("--completion");
-  const completion = completionPath ? loadCompletion(completionPath) : undefined;
-  if (completion && (requested !== "fxn" || completion.epoch !== period || destination !== "botmarket" || notifyOnly)) {
-    throw new Error("FXN completion requires a blocking weekly gate for the same epoch and Botmarket destination");
+  const completion = completionPath ? loadCompletion(completionPath, requested) : undefined;
+  if (completion && (!requested || completion.epoch !== period || destination !== "botmarket" || notifyOnly)) {
+    throw new Error("A completion proof requires a blocking weekly gate for its protocol, the same epoch and the Botmarket destination");
   }
   const results: ReportGateResult[] = [];
   results.push(await runCheck("R1", "Source completeness", async () => {

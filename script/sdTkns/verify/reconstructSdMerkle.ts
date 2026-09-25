@@ -25,6 +25,7 @@ import {
   removeDirectVoterPowerFromDelegators,
 } from "../../utils/merkle/createMultiMerkle";
 import { getClient } from "../../utils/getClients";
+import { ALL_MIGHT_V2 } from "../../utils/reportUtils";
 import {
   formatVotingPowerResult,
   getLastClosedProposals,
@@ -400,6 +401,7 @@ export async function sumTransfersIntoDestinations(
   startTimestamp: number,
   endTimestamp: number,
   window?: { fromBlock: number; checkedBlock: number },
+  sender?: string,
 ): Promise<{ total: bigint; events: number; byTransaction: Map<string, bigint> }> {
   const fromBlock = window ? BigInt(window.fromBlock) : await blockAtOrAfter(client, startTimestamp);
   const endBlock = window ? BigInt(window.checkedBlock) + 1n : await blockAtOrAfter(client, endTimestamp);
@@ -416,7 +418,7 @@ export async function sumTransfersIntoDestinations(
           address: token as `0x${string}`,
           fromBlock: toHex(start),
           toBlock: toHex(end),
-          topics: [TRANSFER_TOPIC, null, addressTopic(destination)],
+          topics: [TRANSFER_TOPIC, sender ? addressTopic(sender) : null, addressTopic(destination)],
         }],
       })) as RawTransferLog[];
       for (const log of logs) {
@@ -487,9 +489,12 @@ export async function checkSdAttribution(
       period,
       period + WEEK,
       completion,
+      // The proof counts what the vault delivered; another lane (OTC) may
+      // land sd on Botmarket in the same window.
+      completion ? ALL_MIGHT_V2 : undefined,
     );
     if (completion && events.total !== BigInt(completion.sdDelivered)) {
-      throw new Error("FXN delivery changed from the completion proof");
+      throw new Error(`${protocol} delivery changed from the completion proof`);
     }
     const csv = csvSdTotal(period, protocol, Boolean(completion));
     const attributed = reportAmount(attribution.totals.sdInTotal, "sdInTotal");
