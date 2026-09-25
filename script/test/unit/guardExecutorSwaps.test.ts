@@ -14,6 +14,9 @@ const LANE = "0xb47ff6b6acbeb1889cd35f85691ba66fa3aa69d4b8ca79c2e9ceae71005cb304
 const FXN = "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09";
 const SDEX = "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF";
 const CRV = "0xD533a949740bb3306d119CC777fa900bA034cd52";
+const CRV_LANE = "0xbfd0de0506324efd10b243ea8db0915acf69b162b5c81651b2ea2dcc494e4d97";
+const DOLA = "0x865377367054516e17014CcdED1e7d814EDC9ce4";
+const BAL = "0xba100000625a3754423978a60c9317c58a424e3D";
 const ROUTER = "0x0000000000000000000000000000000000000001";
 const ATOMIC_TOPIC = keccak256(toHex("Swapped(bytes32,bytes32,address,address,address,uint256,uint256)"));
 const LEGACY_TOPIC = keccak256(toHex("Swapped(address,address,address,uint256,uint256)"));
@@ -68,11 +71,26 @@ describe("guard executor report events", () => {
     expect(await fetchGuardExecutorSwaps(1, 100, 1000, FXN)).toEqual([]);
   });
 
-  it("keeps the legacy Curve scan unchanged", async () => {
-    getLogs.mockResolvedValue({ result: [] });
-    await fetchGuardExecutorSwaps(1, 100, 1000, CRV);
-    expect(getLogs).toHaveBeenCalledTimes(1);
+  it("reads the Curve atomic lane next to the legacy Curve scan", async () => {
+    const crvLog = { ...atomicLog, topics: [ATOMIC_TOPIC, pad("0x01"), CRV_LANE, pad(DOLA)], data: encodeAbiParameters(
+      [{ type: "address" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }],
+      [CRV, ROUTER, 3000000000000000000000n, 8870000000000000000000n],
+    ) };
+    getLogs.mockImplementation(async ([address]) => ({ result: address === ATOMIC ? [crvLog] : [] }));
+    const events = await fetchGuardExecutorSwaps(1, 100, 1000, CRV);
+    expect(events.map((event) => [event.sellToken, event.buyToken, event.amountIn, event.amountOut])).toEqual([
+      [DOLA.toLowerCase(), CRV.toLowerCase(), 3000000000000000000000n, 8870000000000000000000n],
+    ]);
+    expect(getLogs).toHaveBeenCalledTimes(2);
+    expect(getLogs).toHaveBeenCalledWith([ATOMIC], 100, 1000, { "0": ATOMIC_TOPIC, "2": CRV_LANE }, 1);
     expect(getLogs).toHaveBeenCalledWith([LEGACY], 100, 1000, { "0": LEGACY_TOPIC, "2": pad(CRV).toLowerCase() }, 1);
+  });
+
+  it("scans only the legacy executor for a protocol without an atomic lane", async () => {
+    getLogs.mockResolvedValue({ result: [] });
+    await fetchGuardExecutorSwaps(1, 100, 1000, BAL);
+    expect(getLogs).toHaveBeenCalledTimes(1);
+    expect(getLogs).toHaveBeenCalledWith([LEGACY], 100, 1000, { "0": LEGACY_TOPIC, "2": pad(BAL).toLowerCase() }, 1);
   });
 
   it("fails when the atomic event request fails", async () => {
