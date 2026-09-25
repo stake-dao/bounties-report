@@ -5,12 +5,12 @@ import { spawnSync } from "node:child_process";
 import { expect, it } from "vitest";
 
 it("reports the completion failure in both the job log and the result artifact", () => {
-  const directory = mkdtempSync(path.join(tmpdir(), "fxn-completion-error-"));
+  const directory = mkdtempSync(path.join(tmpdir(), "guard-completion-error-"));
   const resultPath = path.join(directory, "result.json");
   try {
-    const processResult = spawnSync("pnpm", ["exec", "tsx", "script/reports/fxnCompletion.ts", "invalid"], {
+    const processResult = spawnSync("pnpm", ["exec", "tsx", "script/reports/guardCompletion.ts", "invalid"], {
       encoding: "utf8",
-      env: { ...process.env, JOB_RESULT_PATH: resultPath },
+      env: { ...process.env, JOB_RESULT_PATH: resultPath, PROTOCOL: "curve" },
     });
     expect(processResult.status).toBe(1);
     expect(existsSync(resultPath), processResult.stderr).toBe(true);

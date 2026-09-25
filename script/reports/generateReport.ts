@@ -30,7 +30,7 @@ import { VLCVX_DELEGATORS_RECIPIENT, DELEGATION_RECIPIENT } from "../utils/const
 import processReport from "./processReport";
 import { debug, sampleArray, isDebugEnabled } from "../utils/logger";
 import { WETH_CHAIN_IDS } from "../utils/constants";
-import { loadCompletion, verifySources, verifyReportEvents } from "./fxnCompletion";
+import { loadCompletion, verifySources, verifyReportEvents } from "./guardCompletion";
 
 dotenv.config();
 
@@ -394,8 +394,8 @@ async function main() {
     .parseSync();
 
   const protocol = argv.protocol;
-  const completion = argv.completion ? loadCompletion(argv.completion) : undefined;
-  if (completion && protocol !== "fxn") throw new Error("Completion evidence requires protocol fxn");
+  const protocolKey = String(protocol);
+  const completion = argv.completion ? loadCompletion(argv.completion, protocolKey) : undefined;
   if (completion) verifySources(completion);
   const currentPeriod = completion?.epoch ?? Math.floor(Date.now() / 1000 / WEEK) * WEEK;
   const inlineExcludedTxs = parseInlineTxArgs(argv.excludeTx);
@@ -1638,18 +1638,21 @@ async function main() {
     );
 
     if (completion) {
-      const rows = processedReport.fxn || [];
+      const rows: any[] = processedReport[protocolKey] || [];
       for (const [token, amount] of Object.entries(completion.expected)) {
         if (BigInt(amount) === 0n) continue;
+        // A claim the check carried over in full is dropped above as not
+        // swapped; it is next epoch's, not this report's.
+        if (BigInt(completion.remaining[token] ?? "0") >= BigInt(amount)) continue;
         const matching = rows.filter((row) => row.rewardAddress.toLowerCase() === token);
         const reported = matching.reduce((sum, row) => sum + row.rewardAmount, 0);
         const expected = Number(amount) / 10 ** tokenInfos[token].decimals;
         if (!matching.length || !Number.isFinite(reported) || Math.abs(reported - expected) > Math.max(expected * 1e-12, matching.length * 1e-6)) {
-          throw new Error(`Completed FXN claim missing from report: ${token}`);
+          throw new Error(`Completed ${protocolKey} claim missing from report: ${token}`);
         }
       }
       if (rows.some((row) => !Number.isFinite(row.rewardSdValue) || row.rewardSdValue < 0)) {
-        throw new Error("Invalid FXN report allocation");
+        throw new Error(`Invalid ${protocolKey} report allocation`);
       }
     }
     const sidecar = {
@@ -1688,11 +1691,11 @@ async function main() {
   );
   fs.mkdirSync(dirPath, { recursive: true });
   if (completion) {
-    if (Object.keys(delegatedTokensByBounty).length) throw new Error("Verified FXN report contains delegated rewards");
-    for (const file of ["fxn.csv", "raw/fxn/fxn.csv", "delegation/fxn.csv"]) {
+    if (Object.keys(delegatedTokensByBounty).length) throw new Error(`Verified ${protocolKey} report contains delegated rewards`);
+    for (const file of [`${protocolKey}.csv`, `raw/${protocolKey}/${protocolKey}.csv`, `delegation/${protocolKey}.csv`]) {
       fs.rmSync(path.join(dirPath, file), { force: true });
     }
-    processedReport.fxn ??= [];
+    processedReport[protocolKey] ??= [];
   }
 
   // Create raw subdirectory for raw token reports
