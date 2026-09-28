@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parse as parseCsv } from "csv-parse/sync";
@@ -17,6 +18,7 @@ import type { SdTransferDestination } from "./reconstructSdMerkle";
 import { amountDifference, ATTRIBUTION_DUST_WEI, CSV_ROUNDING_WEI, reportAmount } from "./reportAmounts";
 import { verifySourceClaims } from "./reportSources";
 import { verifyCurveReportInputs } from "./reportInputs";
+import { readOtcLanes, type OtcLane, type OtcLanes } from "./reportOtc";
 
 const REPORTS_DIR = "bounties-reports";
 const WEEKLY_DIR = "weekly-bounties";
@@ -65,7 +67,7 @@ interface CsvRow {
   sdAmount: bigint;
   share: bigint;
   file: string;
-  lane: "sd" | "raw" | "delegation";
+  lane: "sd" | "otc" | "raw" | "delegation";
 }
 
 interface Attribution {
@@ -197,7 +199,7 @@ export function runR1(period: number, protocols: readonly ReportProtocol[]): Rep
 
 function readCsvRows(period: number, protocol: ReportProtocol, includeOtherLanes = false): CsvRow[] {
   const rows: CsvRow[] = [];
-  const files: Array<[string, CsvRow["lane"]]> = [[`${protocol}.csv`, "sd"], [`${protocol}-otc.csv`, "sd"]];
+  const files: Array<[string, CsvRow["lane"]]> = [[`${protocol}.csv`, "sd"], [`${protocol}-otc.csv`, "otc"]];
   if (includeOtherLanes) files.push([`raw/${protocol}/${protocol}.csv`, "raw"], [`delegation/${protocol}.csv`, "delegation"]);
   for (const [relative, lane] of files) {
     const file = path.join(REPORTS_DIR, String(period), relative);
@@ -207,6 +209,7 @@ function readCsvRows(period: number, protocol: ReportProtocol, includeOtherLanes
       delimiter: ";",
       skip_empty_lines: true,
     }) as Array<Record<string, string>>;
+    const priced = lane === "sd" || lane === "otc";
     for (const row of parsed) {
       rows.push({
         period: row.Period,
@@ -214,8 +217,8 @@ function readCsvRows(period: number, protocol: ReportProtocol, includeOtherLanes
         gauge: lc(row["Gauge Address"] ?? ""),
         rewardToken: lc(row["Reward Address"] ?? ""),
         rewardAmount: reportAmount(row["Reward Amount"], `${file} reward amount`),
-        sdAmount: lane === "sd" ? reportAmount(row["Reward sd Value"], `${file} sd amount`) : 0n,
-        share: lane === "sd" ? reportAmount(row["Share % per Protocol"], `${file} share`) : 0n,
+        sdAmount: priced ? reportAmount(row["Reward sd Value"], `${file} sd amount`) : 0n,
+        share: priced ? reportAmount(row["Share % per Protocol"], `${file} share`) : 0n,
         file,
         lane,
       });
@@ -256,12 +259,19 @@ function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[]):
 
 const provenanceKey = (gauge: string, token: string) => `${lc(gauge)}|${lc(token)}`;
 
-export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient, completion?: GuardCompletion): Promise<ReportGateResult> {
+export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient, completion?: GuardCompletion, otc?: OtcLanes): Promise<ReportGateResult> {
   const failures: string[] = [];
   const warnings: string[] = [];
   const decimals = new Map<string, number>();
   let rowCount = 0;
   let claimCount = 0;
+  let otcCount = 0;
+  const reconciles = async (token: string, amount: bigint, matching: CsvRow[]) => {
+    if (!decimals.has(token)) decimals.set(token, await client.readContract({ address: token as `0x${string}`, abi: erc20Abi, functionName: "decimals" }));
+    const scale = 10n ** BigInt(decimals.get(token)!);
+    const reported = matching.reduce((sum, row) => sum + row.rewardAmount, 0n);
+    return amountDifference(reported * scale, amount * 10n ** 18n) <= BigInt(matching.length) * CSV_ROUNDING_WEI * scale;
+  };
   // A claim the completion check carried over in full has no row: the report
   // drops it as not swapped and next epoch's plan sells it.
   const carried = new Set(Object.entries(completion?.remaining ?? {})
@@ -282,6 +292,7 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
       if (row.period && Number(row.period) !== period) {
         failures.push(`${protocol} OTC row has period ${row.period}, expected ${period}`);
       }
+      if (row.lane === "otc") continue;
       rowKeys.add(provenanceKey(row.gauge, row.rewardToken));
       rowCount++;
     }
@@ -315,27 +326,56 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
     }
     for (const key of claimKeys) {
       const token = key.split("|")[1];
-      const matching = rows.filter((row) => provenanceKey(row.gauge, row.rewardToken) === key);
+      const matching = rows.filter((row) => row.lane !== "otc" && provenanceKey(row.gauge, row.rewardToken) === key);
       if (!matching.length) {
         if (carried.has(lc(token))) continue;
         failures.push(`${protocol} raw claim has no report allocation: ${key}`);
         continue;
       }
-      if (!decimals.has(token)) decimals.set(token, await client.readContract({ address: token as `0x${string}`, abi: erc20Abi, functionName: "decimals" }));
-      const scale = 10n ** BigInt(decimals.get(token)!);
-      const reported = matching.reduce((sum, row) => sum + row.rewardAmount, 0n);
-      if (amountDifference(reported * scale, claimed.get(key)! * 10n ** 18n) > BigInt(matching.length) * CSV_ROUNDING_WEI * scale) {
-        failures.push(`${protocol} reward amount differs from claims: ${key}`);
-      }
+      if (!await reconciles(token, claimed.get(key)!, matching)) failures.push(`${protocol} reward amount differs from claims: ${key}`);
+    }
+
+    // OTC rows account for registry releases, not votemarket claims. The
+    // weekly report is verified before the OTC report exists.
+    const otcRows = rows.filter((row) => row.lane === "otc");
+    const released = new Map<string, bigint>();
+    for (const withdrawal of otc?.[protocol]?.withdrawals ?? []) {
+      const key = provenanceKey(gaugeMap.get(withdrawal.gauge) ?? withdrawal.gauge, withdrawal.token);
+      released.set(key, (released.get(key) ?? 0n) + withdrawal.amount);
+    }
+    const otcReport = existsSync(path.join(REPORTS_DIR, String(period), `${protocol}-otc.csv`));
+    for (const key of new Set([...otcRows.map((row) => provenanceKey(row.gauge, row.rewardToken)), ...released.keys()])) {
+      const matching = otcRows.filter((row) => provenanceKey(row.gauge, row.rewardToken) === key);
+      if (!released.has(key)) failures.push(`${protocol} OTC row has no registry withdrawal: ${key}`);
+      else if (!matching.length && completion && !otcReport) warnings.push(`${protocol}: OTC withdrawal ${key} awaits the OTC report`);
+      else if (!matching.length) failures.push(`${protocol} OTC withdrawal has no report row: ${key}`);
+      else if (!await reconciles(key.split("|")[1], released.get(key)!, matching)) failures.push(`${protocol} OTC reward amount differs from the registry withdrawal: ${key}`);
+      else otcCount += matching.length;
     }
   }
   return {
     id: "R2",
     name: "Claim amounts",
     ok: failures.length === 0,
-    detail: failures.length === 0 ? `${rowCount} rows reconcile with ${claimCount} claimed bounties` : failures.join("; "),
+    detail: failures.length === 0 ? `${rowCount} rows reconcile with ${claimCount} claimed bounties${otcCount ? `, ${otcCount} OTC rows with registry withdrawals` : ""}` : failures.join("; "),
     warnings,
   };
+}
+
+// The guard lane sells from Botmarket straight into the SwapExecutor, never
+// through the vault: its quantities are proven by the completion, and once
+// published by that proof for as long as the files it certified are unchanged.
+export async function verifyCurveInputs(period: number, client: PublicClient, completion?: GuardCompletion): Promise<string> {
+  if (completion) return "";
+  const published = path.join(REPORTS_DIR, String(period), "curve-completion.json");
+  if (!existsSync(published)) return `; ${await verifyCurveReportInputs(period, client)} Curve token quantities consumed by attributed conversions`;
+  const proof = loadCompletion(published, "curve") as GuardCompletion & { outputs?: Record<string, string | null> };
+  if (proof.epoch !== period || !proof.outputs) throw new Error(`${published} does not certify this report`);
+  for (const [file, hash] of Object.entries(proof.outputs)) {
+    const actual = existsSync(file) ? createHash("sha256").update(readFileSync(file)).digest("hex") : null;
+    if (actual !== hash) throw new Error(`${file} changed since its Guard completion was published`);
+  }
+  return "; Curve token quantities proven by the published Guard completion";
 }
 
 async function runR3(
@@ -344,8 +384,9 @@ async function runR3(
   client: PublicClient,
   destination: SdTransferDestination,
   completion?: GuardCompletion,
+  otc?: OtcLanes,
 ): Promise<ReportGateResult> {
-  await checkSdAttribution(period, client, protocols, destination, completion);
+  await checkSdAttribution(period, client, protocols, destination, completion, otc);
   const details: string[] = [];
   for (const protocol of protocols) {
     const attr = readJson<Attribution>(
@@ -361,21 +402,65 @@ async function runR3(
   return { id: "R3", name: "Swap conservation", ok: true, detail: details.join("; ") };
 }
 
+// Mirrors processOTCReport: released sd is delivered as is; released native
+// and WETH share the rest of the swap's sd, native at the swap's conversion rate.
+function otcAllocationFailures(protocol: ReportProtocol, rows: CsvRow[], lane: OtcLane | undefined, gaugeMap: Map<string, string>): string[] {
+  const failures: string[] = [];
+  const sd = lc(PROTOCOLS_TOKENS[protocol].sdToken);
+  const native = lc(PROTOCOLS_TOKENS[protocol].native);
+  const weth = lc(WETH_CHAIN_IDS[1]);
+  const withdrawals = lane?.withdrawals ?? [];
+  const released = (token: string) => withdrawals.filter((entry) => entry.token === token).reduce((sum, entry) => sum + entry.amount, 0n);
+  const nativeIn = lane?.nativeIn ?? 0n;
+  const converted = [...(lane?.delivered.values() ?? [])].reduce((sum, amount) => sum + amount, 0n) - released(sd);
+  const fromWeth = nativeIn > released(native) ? nativeIn - released(native) : 0n;
+  const expected = new Map<string, bigint>();
+  for (const entry of withdrawals) {
+    const value = entry.token === sd ? entry.amount
+      : nativeIn === 0n || converted <= 0n || entry.amount === 0n ? 0n
+      : entry.token === native ? entry.amount * converted / nativeIn
+      : entry.token === weth ? entry.amount * fromWeth * converted / (released(weth) * nativeIn)
+      : 0n;
+    const key = provenanceKey(gaugeMap.get(entry.gauge) ?? entry.gauge, entry.token);
+    expected.set(key, (expected.get(key) ?? 0n) + value);
+  }
+  const dust = ATTRIBUTION_DUST_WEI * BigInt(withdrawals.length + 1);
+  for (const [key, value] of expected) {
+    const matching = rows.filter((row) => provenanceKey(row.gauge, row.rewardToken) === key);
+    const reported = matching.reduce((sum, row) => sum + row.sdAmount, 0n);
+    if (matching.length && amountDifference(reported, value) > dust + CSV_ROUNDING_WEI * BigInt(matching.length)) failures.push(`${protocol}/${key}: OTC allocation differs from the registry withdrawal`);
+  }
+  const shared = rows.filter((row) => row.rewardToken !== sd && row.rewardToken !== native);
+  const base = shared.reduce((sum, row) => sum + row.sdAmount, 0n);
+  for (const row of rows) {
+    const share = base > 0n && shared.includes(row) ? row.sdAmount * 100n * 10n ** 18n / base : 0n;
+    const rounding = base > 0n ? CSV_ROUNDING_WEI * BigInt(rows.length + 1) * 100n * 10n ** 18n / base : 0n;
+    if (row.share > 100n * 10n ** 18n || amountDifference(row.share, share) > 5n * 10n ** 15n + rounding) failures.push(`${protocol}/${row.gauge}: printed OTC share differs from allocation`);
+  }
+  return failures;
+}
+
 export function runR4(
   period: number,
   protocols: readonly ReportProtocol[],
   completion?: GuardCompletion,
+  otc?: OtcLanes,
 ): ReportGateResult {
   const failures: string[] = [];
   let batches = 0;
+  let otcCount = 0;
   for (const protocol of protocols) {
     const attribution = readJson<Attribution>(
       path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`),
     );
     if (attribution.period !== period || attribution.protocol !== protocol) failures.push(`${protocol}: attribution period/protocol mismatch`);
-    const rows = readCsvRows(period, protocol);
-    const otherRows = readCsvRows(period, protocol, true).filter((row) => row.lane !== "sd");
-    const gaugeMap = rootGaugeMap(period, protocol, [...rows, ...otherRows]);
+    const reportRows = readCsvRows(period, protocol);
+    const rows = reportRows.filter((row) => row.lane === "sd");
+    const otcRows = reportRows.filter((row) => row.lane === "otc");
+    const otherRows = readCsvRows(period, protocol, true).filter((row) => row.lane === "raw" || row.lane === "delegation");
+    const gaugeMap = rootGaugeMap(period, protocol, [...reportRows, ...otherRows]);
+    failures.push(...otcAllocationFailures(protocol, otcRows, otc?.[protocol], gaugeMap));
+    otcCount += otcRows.length;
     const rawWeights = new Map<string, bigint>();
     for (const source of SOURCES) {
       for (const claim of claimsForProtocol(sourcePath(period, source), protocol)) {
@@ -483,7 +568,7 @@ export function runR4(
     id: "R4",
     name: "Allocation weights",
     ok: failures.length === 0,
-    detail: failures.length === 0 ? `${batches} conversions reconcile with token budgets, gauge weights and printed shares` : failures.join("; "),
+    detail: failures.length === 0 ? `${batches} conversions reconcile with token budgets, gauge weights and printed shares${otcCount ? `; ${otcCount} OTC rows follow their swap` : ""}` : failures.join("; "),
   };
 }
 
@@ -663,19 +748,16 @@ async function main(): Promise<void> {
     return { ...result, name: "Source completeness", detail: `${claims} claims match on-chain events` };
   }));
   const clientPromise = getClient(1);
+  let otcLanes: Promise<OtcLanes> | undefined;
+  const otc = async () => otcLanes ??= readOtcLanes(period, protocols, await clientPromise);
   results.push(await runCheck("R2", "Claim amounts", async () => {
     const client = await clientPromise;
-    const result = await runR2(period, protocols, client, completion);
-    // The guard lane sells from Botmarket straight into the SwapExecutor,
-    // never through the vault: its quantities are proven by the completion.
-    if (result.ok && protocols.includes("curve") && !completion) {
-      const tokens = await verifyCurveReportInputs(period, client);
-      result.detail += `; ${tokens} Curve token quantities consumed by attributed conversions`;
-    }
+    const result = await runR2(period, protocols, client, completion, await otc());
+    if (result.ok && protocols.includes("curve")) result.detail += await verifyCurveInputs(period, client, completion);
     return result;
   }));
-  results.push(await runCheck("R3", "Swap conservation", async () => runR3(period, protocols, await clientPromise, destination, completion)));
-  results.push(await runCheck("R4", "Allocation weights", () => runR4(period, protocols, completion)));
+  results.push(await runCheck("R3", "Swap conservation", async () => runR3(period, protocols, await clientPromise, destination, completion, await otc())));
+  results.push(await runCheck("R4", "Allocation weights", async () => runR4(period, protocols, completion, await otc())));
   results.push(await runCheck("R5", "WETH ledger", async () => {
     const residuals = protocols.map((protocol) => wethResidual(readJson<Attribution>(path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`))));
     const price = residuals.every((value) => Math.abs(value) < 0.0005) ? 100_000 : await wethUsdPrice();

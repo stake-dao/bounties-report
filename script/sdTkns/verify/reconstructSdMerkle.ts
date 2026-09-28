@@ -26,6 +26,7 @@ import {
 } from "../../utils/merkle/createMultiMerkle";
 import { getClient } from "../../utils/getClients";
 import { ALL_MIGHT_V2 } from "../../utils/reportUtils";
+import { readOtcLanes, type OtcLanes } from "./reportOtc";
 import {
   formatVotingPowerResult,
   getLastClosedProposals,
@@ -465,12 +466,20 @@ function csvSdTotal(period: number, protocol: string, weeklyOnly = false): { tot
   return { total, rows: count };
 }
 
+function otcSdTotal(period: number, protocol: string): { total: bigint; rows: number; present: boolean } {
+  const file = path.join(REPORTS_DIR, String(period), `${protocol}-otc.csv`);
+  if (!existsSync(file)) return { total: 0n, rows: 0, present: false };
+  const rows = parseCsv(readFileSync(file, "utf8"), { columns: true, delimiter: ";", skip_empty_lines: true }) as Array<Record<string, string>>;
+  return { total: rows.reduce((sum, row) => sum + reportAmount(row["Reward sd Value"], `${file} sd amount`), 0n), rows: rows.length, present: true };
+}
+
 export async function checkSdAttribution(
   period: number,
   client: PublicClient,
   protocols: readonly ("curve" | "fxn")[] = ["curve", "fxn"],
   destination: SdTransferDestination = "botmarket",
   completion?: { fromBlock: number; checkedBlock: number; sdDelivered: string },
+  otc?: OtcLanes,
 ): Promise<{ ok: boolean; detail: string }> {
   const details: string[] = [];
   for (const protocol of protocols) {
@@ -493,17 +502,26 @@ export async function checkSdAttribution(
       // land sd on Botmarket in the same window.
       completion ? ALL_MIGHT_V2 : undefined,
     );
-    if (completion && events.total !== BigInt(completion.sdDelivered)) {
+    // OTC swaps route their sd through the same vault, outside the proof's
+    // own conversions: a release in its window is set aside.
+    const lane = otc?.[protocol];
+    const otcDelivered = [...(lane?.delivered.values() ?? [])].reduce((sum, amount) => sum + amount, 0n);
+    const received = events.total - (completion ? [...(lane?.delivered.keys() ?? [])].reduce((sum, hash) => sum + (events.byTransaction.get(hash) ?? 0n), 0n) : 0n);
+    if (completion && received !== BigInt(completion.sdDelivered)) {
       throw new Error(`${protocol} delivery changed from the completion proof`);
     }
+    const otcRows = otcSdTotal(period, protocol);
+    if ((otcRows.present || !completion) && amountDifference(otcRows.total, otcDelivered) > BigInt(otcRows.rows) * CSV_ROUNDING_WEI + ATTRIBUTION_DUST_WEI) {
+      throw new Error(`${protocol}: OTC rows=${formatUnits(otcRows.total, 18)}, OTC swaps=${formatUnits(otcDelivered, 18)}`);
+    }
     const csv = csvSdTotal(period, protocol, Boolean(completion));
-    const attributed = reportAmount(attribution.totals.sdInTotal, "sdInTotal");
+    const attributed = reportAmount(attribution.totals.sdInTotal, "sdInTotal") + (completion ? 0n : otcDelivered);
     const allocations = [...(attribution.txs ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdIn })),
       ...(attribution.cleanupTransactions ?? []).map((tx) => ({ tx: tx.tx, amount: tx.sdReceived }))];
     const dust = BigInt(allocations.length + 1) * ATTRIBUTION_DUST_WEI;
-    if (amountDifference(events.total, csv.total) > BigInt(csv.rows) * CSV_ROUNDING_WEI + dust || amountDifference(events.total, attributed) > dust) {
+    if (amountDifference(received, csv.total) > BigInt(csv.rows) * CSV_ROUNDING_WEI + dust || amountDifference(received, attributed) > dust) {
       throw new Error(
-        `${protocol}: events=${formatUnits(events.total, 18)}, CSV=${formatUnits(csv.total, 18)}, attribution=${formatUnits(attributed, 18)}`,
+        `${protocol}: events=${formatUnits(received, 18)}, CSV=${formatUnits(csv.total, 18)}, attribution=${formatUnits(attributed, 18)}`,
       );
     }
     if (destination === "botmarket") {
@@ -515,10 +533,10 @@ export async function checkSdAttribution(
         const received = events.byTransaction.get(hash);
         if (received === undefined || amountDifference(received, reportAmount(allocation.amount, `${hash} sd amount`)) > ATTRIBUTION_DUST_WEI) throw new Error(`${protocol}: attributed proceeds differ from transfer ${hash}`);
       }
-      for (const hash of events.byTransaction.keys()) if (!seen.has(hash)) throw new Error(`${protocol}: received proceeds missing from attribution ${hash}`);
+      for (const hash of events.byTransaction.keys()) if (!seen.has(hash) && !lane?.delivered.has(hash)) throw new Error(`${protocol}: received proceeds missing from attribution ${hash}`);
     }
     details.push(
-      `${protocol} ${events.events} ${destination} events=${formatUnits(events.total, 18)}`,
+      `${protocol} ${events.events} ${destination} events=${formatUnits(events.total, 18)}${otcDelivered ? `; otc=${formatUnits(otcDelivered, 18)}` : ""}`,
     );
   }
   return { ok: true, detail: details.join("; ") };
@@ -529,7 +547,8 @@ async function checkV4(
   client: PublicClient,
   destination: SdTransferDestination,
 ): Promise<CheckResult> {
-  const result = await checkSdAttribution(period, client, ["curve", "fxn"], destination);
+  const protocols = ["curve", "fxn"] as const;
+  const result = await checkSdAttribution(period, client, protocols, destination, undefined, await readOtcLanes(period, protocols, client));
   return { id: "V4" as CheckResult["id"], name: "Attribution", ...result };
 }
 
