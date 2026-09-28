@@ -192,7 +192,7 @@ export function verifyReportEvents(
 
 async function github(route: string, label: string): Promise<any> {
   const response = await fetch(`https://api.github.com/repos/stake-dao/automation-guard/${route}`, {
-    headers: { Authorization: `Bearer ${process.env.GIT_ACCESS_TOKEN}`, Accept: "application/vnd.github+json" },
+    headers: { Authorization: `Bearer ${process.env.GUARD_ACCESS_TOKEN}`, Accept: "application/vnd.github+json" },
   });
   if (!response.ok) throw new Error(`GitHub ${response.status} reading ${label} execution evidence`);
   return response.json();
@@ -229,7 +229,7 @@ async function download(protocol: string): Promise<void> {
   const artifact = artifacts.find((item: any) => item.name === `${job}-completion` && !item.expired);
   if (!artifact) throw new Error(`${label} completion artifact is missing or expired`);
   const response = await fetch(`https://api.github.com/repos/stake-dao/automation-guard/actions/artifacts/${artifact.id}/zip`, {
-    headers: { Authorization: `Bearer ${process.env.GIT_ACCESS_TOKEN}` },
+    headers: { Authorization: `Bearer ${process.env.GUARD_ACCESS_TOKEN}` },
   });
   if (!response.ok) throw new Error(`GitHub ${response.status} downloading ${label} completion`);
   const archive = path.join(fs.mkdtempSync(path.join(os.tmpdir(), `${job}-proof-`)), "proof.zip");
