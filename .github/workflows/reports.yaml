@@ -151,12 +151,13 @@ jobs:
         env:
           DISPATCH_ID: ${{ inputs.dispatch_id }}
           CHECK_RUN_ID: ${{ inputs.check_run_id }}
+          GUARD_ACCESS_TOKEN: ${{ secrets.GUARD_ACCESS_TOKEN }}
 
       - name: Checkout verified Guard checker
         uses: actions/checkout@v4
         with:
           repository: stake-dao/automation-guard
-          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          token: ${{ secrets.GUARD_ACCESS_TOKEN }}
           ref: ${{ steps.proof.outputs.guard_commit }}
           path: .guard
           persist-credentials: false
