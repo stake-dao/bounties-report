@@ -1,0 +1,135 @@
+{
+  "carryIn": {},
+  "chainId": 1,
+  "checkRunAttempt": "1",
+  "checkRunId": "36441565517",
+  "checkedBlock": 26076768,
+  "checkedBlockHash": "0xd01a9806127190d0e6b1827fab9b4397e55bb7200b0f9c548ce1f7d5726dc057",
+  "confirmations": 12,
+  "delegated": {},
+  "epoch": 1790208000,
+  "excluded": [],
+  "expected": {
+    "0x365accfca291e7d3914637abf1f7635db165bb09": "53451968776986484188",
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "645394746241430076161688"
+  },
+  "fromBlock": 26043611,
+  "guardCommit": "a58c6b4847ce0638f9efc1758922650fae63937a",
+  "inventoryBoundary": 26026227,
+  "inventoryBoundaryHash": "0xd7482910c61912ed824ee636ad75d4289ade954faf9d762ddf5b0e2e5e80b484",
+  "laneId": "0xb47ff6b6acbeb1889cd35f85691ba66fa3aa69d4b8ca79c2e9ceae71005cb304",
+  "nativeConverted": "62517311929718302317",
+  "nativeFunded": "53451968776986484188",
+  "pipelineRun": "fxn-swaps-guard:1790208000:8c985a83-17d7-4228-b969-c677164dad9d",
+  "protocol": "fxn",
+  "purged": {},
+  "remaining": {},
+  "remainingReasons": {},
+  "schema": 1,
+  "sdDelivered": "62831675167321778976",
+  "sdProduced": "62831675167321778976",
+  "sdPulled": "0",
+  "sold": {
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "645394746241430076161688"
+  },
+  "sourceCommit": "71811246a4b114127e0f988275688fd1ba64ca82",
+  "sourceDigest": "0x4d15c2545e3afc4c40f0912d27a4648e557d841efb1b0dc5cc85080c4acace91",
+  "sources": {
+    "votemarket_v1": {
+      "digest": "0x7040e78fc7896b15bc238d3b774bd3c687ec5d3749155a17e4918695d22a1629",
+      "path": "weekly-bounties/1790208000/votemarket/claimed_bounties.json"
+    },
+    "votemarket_v2": {
+      "digest": "0xad8ab2eeada40a3d6d2c090fcd8fcde088a29a2dba7cc029b56c604a3856fdd1",
+      "path": "weekly-bounties/1790208000/votemarket-v2/claimed_bounties.json"
+    }
+  },
+  "strict": true,
+  "transactions": [
+    {
+      "blockHash": "0x0f08e1dfc3335bd7dbcec705166bc5ba87d6feea8caf1054ae8fd6b87fa0418c",
+      "blockNumber": 26055248,
+      "hash": "0x24759b00cb023cd8ae328b6a1644cfa545176615e7bd7056d4a8ba912458e22e",
+      "logIndices": [
+        35,
+        36,
+        37,
+        38,
+        39,
+        41,
+        47,
+        52,
+        56,
+        57,
+        58,
+        59,
+        60,
+        62,
+        63
+      ],
+      "nativeBought": "5577378725578708321",
+      "nativeConverted": "32303363114071954785",
+      "nativeFunded": "26725984388493246464",
+      "sdDelivered": "32484427216880320658",
+      "sdProduced": "32484427216880320658",
+      "sdPulled": "0",
+      "sold": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "394624394282752133824512"
+      },
+      "swaps": [
+        {
+          "amountIn": "394624394282752133824512",
+          "amountOut": "5577378725578708321",
+          "logIndex": 57,
+          "sellToken": "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef"
+        }
+      ]
+    },
+    {
+      "blockHash": "0x572e3808e16958c14468c27571fff43ebc88eb4b2d036375daade9186b52aa0c",
+      "blockNumber": 26056939,
+      "hash": "0x477a62bfd99c25b2122781dc9f0d9ddd2f4b7680181f5688727b1fe54469aff1",
+      "logIndices": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        40,
+        46,
+        51,
+        55,
+        56,
+        57,
+        58,
+        59,
+        61,
+        62
+      ],
+      "nativeBought": "3487964427153109808",
+      "nativeConverted": "30213948815646347532",
+      "nativeFunded": "26725984388493237724",
+      "sdDelivered": "30347247950441458318",
+      "sdProduced": "30347247950441458318",
+      "sdPulled": "0",
+      "sold": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "250770351958677942337176"
+      },
+      "swaps": [
+        {
+          "amountIn": "250770351958677942337176",
+          "amountOut": "3487964427153109808",
+          "logIndex": 56,
+          "sellToken": "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef"
+        }
+      ]
+    }
+  ],
+  "reportFingerprint": "1f61d602cda036ed725abd1696622f5ece8fa0d322340c8e8223729f5a99b1e5",
+  "outputs": {
+    "bounties-reports/1790208000/fxn.csv": "62c673cf78b6c04639dc005ac756ec5d8c115290a841bb7a6247fd20f27e76c0",
+    "bounties-reports/1790208000/fxn-attribution.json": "8a95a885b1ebcdb54fd9626e1de243a104a18db57257cc2235406024a40cdfe6",
+    "bounties-reports/1790208000/raw/fxn/fxn.csv": null,
+    "bounties-reports/1790208000/delegation/fxn.csv": null
+  }
+}
