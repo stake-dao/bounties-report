@@ -40,7 +40,7 @@
                     {
                         "step": 2,
                         "date": "15-09-2026",
-                        "distributed": "08:04"
+                        "distributed": "11:31"
                     }
                 ]
             },
@@ -57,12 +57,12 @@
                     {
                         "step": 1,
                         "date": "22-09-2026",
-                        "distributed": "11:31"
+                        "distributed": "08:04"
                     },
                     {
                         "step": 2,
                         "date": "29-09-2026",
-                        "distributed": ""
+                        "distributed": "11:32"
                     }
                 ]
             }
