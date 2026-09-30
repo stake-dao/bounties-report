@@ -26,28 +26,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0x2c419a19e18ea1fdd676fd1e58d7a8c865f86d3e9e877aba4bc6ff9f64545a79",
-                        "start": "27-08-2026 02:00",
-                        "end": "01-09-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "08-09-2026",
-                        "distributed": "10:28"
-                    },
-                    {
-                        "step": 2,
-                        "date": "15-09-2026",
-                        "distributed": "11:31"
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0xd726426f17e97209632065a9fc498537392b438478218bc44bfd55cfdff5fca3",
                         "start": "10-09-2026 02:00",
                         "end": "15-09-2026 14:00"
@@ -62,7 +40,29 @@
                     {
                         "step": 2,
                         "date": "29-09-2026",
-                        "distributed": "11:32"
+                        "distributed": "08:05"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xad231055e87aaa134dd35d9936986acdac08883e3687bf9a32dc4a14e7123239",
+                        "start": "24-09-2026 02:00",
+                        "end": "29-09-2026 14:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "06-10-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "13-10-2026",
+                        "distributed": ""
                     }
                 ]
             }
