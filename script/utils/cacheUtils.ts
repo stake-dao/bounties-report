@@ -158,17 +158,17 @@ function initializeChainData(chainId: string) {
     case "1":
       chain = mainnet;
       rpcUrl =
-        "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        "https://erprc.contact-69d.workers.dev/1";
       break;
     case "56":
       chain = bsc;
       rpcUrl =
-        "https://lb.drpc.org/ogrpc?network=bsc&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        "https://erprc.contact-69d.workers.dev/56";
       break;
     case "8453":
       chain = base;
       rpcUrl =
-        "https://lb.drpc.org/ogrpc?network=base&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+        "https://erprc.contact-69d.workers.dev/8453";
       break;
     default:
       throw new Error(`Unsupported chain ID: ${chainId}`);

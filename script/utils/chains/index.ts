@@ -27,7 +27,7 @@ export const mainnet: Chain = {
   ...viemMainnet,
   rpcUrls: {
     default: {
-      http: ["https://stake-erpc.contact-69d.workers.dev/1"],
+      http: ["https://erprc.contact-69d.workers.dev/1"],
     },
   },
 };

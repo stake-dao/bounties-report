@@ -51,7 +51,7 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: mainnet,
     endpoints: [
       {
-        url: "https://stake-erpc.contact-69d.workers.dev/1",
+        url: "https://erprc.contact-69d.workers.dev/1",
         priority: 1,
       },
       {
@@ -82,7 +82,7 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: bsc,
     endpoints: [
       {
-        url: "https://stake-erpc.contact-69d.workers.dev/56",
+        url: "https://erprc.contact-69d.workers.dev/56",
         priority: 1,
       },
       {
@@ -112,7 +112,7 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: optimism,
     endpoints: [
       {
-        url: "https://stake-erpc.contact-69d.workers.dev/10",
+        url: "https://erprc.contact-69d.workers.dev/10",
         priority: 1,
       },
       {
@@ -157,7 +157,7 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: base,
     endpoints: [
       {
-        url: "https://stake-erpc.contact-69d.workers.dev/8453",
+        url: "https://erprc.contact-69d.workers.dev/8453",
         priority: 1,
       },
       {
@@ -188,10 +188,6 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: polygon,
     endpoints: [
       {
-        url: "https://stake-erpc.contact-69d.workers.dev/137",
-        priority: 1,
-      },
-      {
         url: "https://polygon.gateway.tenderly.co",
         priority: 2,
       },
@@ -214,7 +210,7 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: sonic,
     endpoints: [
       {
-        url: "https://stake-erpc.contact-69d.workers.dev/146",
+        url: "https://erprc.contact-69d.workers.dev/146",
         priority: 1,
       },
       {
@@ -228,7 +224,7 @@ export const RPC_CONFIGS: Record<number, ChainRpcConfig> = {
     chain: arbitrum,
     endpoints: [
       {
-        url: "https://stake-erpc.contact-69d.workers.dev/42161",
+        url: "https://erprc.contact-69d.workers.dev/42161",
         priority: 1,
       },
       {

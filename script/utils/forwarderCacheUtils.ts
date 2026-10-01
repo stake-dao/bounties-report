@@ -54,7 +54,7 @@ export const fetchAllForwarders = async (
   toAddress: string
 ) => {
   const rpcUrl =
-    "https://lb.drpc.org/ogrpc?network=ethereum&dkey=Ak80gSCleU1Frwnafb5Ka4VRKGAHTlER77RpvmJKmvm9";
+    "https://erprc.contact-69d.workers.dev/1";
 
   const publicClient = createPublicClient({
     chain: mainnet,
