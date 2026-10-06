@@ -28,6 +28,7 @@ const SOURCE_DIR: Record<(typeof SOURCES)[number], string> = {
   votemarket_v2: "votemarket-v2",
 };
 const PROTOCOLS = ["curve", "fxn"] as const;
+const SWAPS_PIPELINE = { curve: "crv-swaps-guard", fxn: "fxn-swaps-guard" } as const;
 
 export type ReportProtocol = (typeof PROTOCOLS)[number];
 
@@ -708,7 +709,7 @@ export async function formatReportGateMessages(
     `<b>sdToken report gate</b> · ${period} (${date}) · ${protocols.join(", ")}`,
     ...results.flatMap((result) => [
       `${result.ok ? "✅" : "❌"} ${result.id} ${result.name} — ${bound(result.detail, 600)}`,
-      ...(result.warnings ?? []).map((warning) => `⚠️ ${result.id}: ${bound(warning, 600)}`),
+      ...[...new Set(result.warnings ?? [])].map((warning) => `⚠️ ${result.id}: ${bound(warning, 600)}`),
     ]),
     `<b>${passed}/${results.length} ${passed === results.length ? "PASS" : "FAIL"}</b>`,
   ];
@@ -722,6 +723,38 @@ export async function formatReportGateMessages(
     else messages[messages.length - 1] += messages[messages.length - 1] ? `\n${chunk}` : chunk;
   }
   return messages;
+}
+
+async function runReportChecks(
+  period: number,
+  protocols: readonly ReportProtocol[],
+  destination: SdTransferDestination,
+  completion: GuardCompletion | undefined,
+): Promise<ReportGateResult[]> {
+  const checks: ReportGateResult[] = [];
+  const clientPromise = getClient(1);
+  let otcLanes: Promise<OtcLanes> | undefined;
+  const otc = async () => otcLanes ??= readOtcLanes(period, protocols, await clientPromise);
+  checks.push(await runCheck("R2", "Claim amounts", async () => {
+    const client = await clientPromise;
+    const result = await runR2(period, protocols, client, completion, await otc());
+    if (result.ok && protocols.includes("curve")) result.detail += await verifyCurveInputs(period, client, completion);
+    return result;
+  }));
+  checks.push(await runCheck("R3", "Swap conservation", async () => runR3(period, protocols, await clientPromise, destination, completion, await otc())));
+  checks.push(await runCheck("R4", "Allocation weights", async () => runR4(period, protocols, completion, await otc())));
+  checks.push(await runCheck("R5", "WETH ledger", async () => {
+    const residuals = protocols.map((protocol) => wethResidual(readJson<Attribution>(path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`))));
+    const price = residuals.every((value) => Math.abs(value) < 0.0005) ? 100_000 : await wethUsdPrice();
+    return runR5(period, protocols, price, await clientPromise);
+  }));
+  return checks;
+}
+
+export function missingReportFiles(period: number, protocols: readonly ReportProtocol[]): string[] {
+  return protocols
+    .flatMap((protocol) => [`${protocol}.csv`, `${protocol}-attribution.json`])
+    .filter((file) => !existsSync(path.join(REPORTS_DIR, String(period), file)));
 }
 
 async function main(): Promise<void> {
@@ -747,22 +780,13 @@ async function main(): Promise<void> {
     const claims = await verifySourceClaims(period, protocols);
     return { ...result, name: "Source completeness", detail: `${claims} claims match on-chain events` };
   }));
-  const clientPromise = getClient(1);
-  let otcLanes: Promise<OtcLanes> | undefined;
-  const otc = async () => otcLanes ??= readOtcLanes(period, protocols, await clientPromise);
-  results.push(await runCheck("R2", "Claim amounts", async () => {
-    const client = await clientPromise;
-    const result = await runR2(period, protocols, client, completion, await otc());
-    if (result.ok && protocols.includes("curve")) result.detail += await verifyCurveInputs(period, client, completion);
-    return result;
-  }));
-  results.push(await runCheck("R3", "Swap conservation", async () => runR3(period, protocols, await clientPromise, destination, completion, await otc())));
-  results.push(await runCheck("R4", "Allocation weights", async () => runR4(period, protocols, completion, await otc())));
-  results.push(await runCheck("R5", "WETH ledger", async () => {
-    const residuals = protocols.map((protocol) => wethResidual(readJson<Attribution>(path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`))));
-    const price = residuals.every((value) => Math.abs(value) < 0.0005) ? 100_000 : await wethUsdPrice();
-    return runR5(period, protocols, price, await clientPromise);
-  }));
+  const missing = missingReportFiles(period, protocols);
+  if (missing.length) {
+    const pipelines = protocols.map((protocol) => SWAPS_PIPELINE[protocol]).join(" / ");
+    results.push({ id: "R2", name: "Report published", ok: false, detail: `${missing.join(", ")} not published — the ${pipelines} report step has not run; R2–R5 skipped` });
+  } else {
+    results.push(...await runReportChecks(period, protocols, destination, completion));
+  }
 
   const messages = await formatReportGateMessages(period, protocols, results);
   console.log(messages.join("\n").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"));
