@@ -13,7 +13,7 @@ import { getGaugesInfos, PROTOCOLS_TOKENS } from "../../utils/reportUtils";
 import { sendTelegramMessage } from "../../utils/telegramUtils";
 import { tokenService } from "../../utils/tokenService";
 import { checkSdAttribution } from "./reconstructSdMerkle";
-import { loadCompletion, type GuardCompletion } from "../../reports/guardCompletion";
+import { loadCompletion, settledOutsideReport, type GuardCompletion } from "../../reports/guardCompletion";
 import type { SdTransferDestination } from "./reconstructSdMerkle";
 import { amountDifference, ATTRIBUTION_DUST_WEI, CSV_ROUNDING_WEI, reportAmount } from "./reportAmounts";
 import { verifySourceClaims } from "./reportSources";
@@ -275,10 +275,10 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
     const reported = matching.reduce((sum, row) => sum + row.rewardAmount, 0n);
     return amountDifference(reported * scale, amount * 10n ** 18n) <= BigInt(matching.length) * CSV_ROUNDING_WEI * scale;
   };
-  // A claim the completion check carried over in full has no row: the report
-  // drops it as not swapped and next epoch's plan sells it.
-  const carried = new Set(Object.entries(completion?.remaining ?? {})
-    .filter(([token, left]) => BigInt(left) >= BigInt(completion?.expected[token] ?? "0"))
+  // A claim the completion check carried over or purged in full has no row:
+  // the report drops it as not swapped.
+  const carried = new Set(Object.entries(completion?.expected ?? {})
+    .filter(([token, amount]) => settledOutsideReport(completion!, token, amount))
     .map(([token]) => lc(token)));
   // Units carried in from the previous epoch sell on this epoch's lane and
   // their proceeds follow this epoch's rows of the token: the previous
