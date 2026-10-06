@@ -260,6 +260,14 @@ function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[], 
   return mapping;
 }
 
+function publishedCompletion(period: number, protocol: ReportProtocol): GuardCompletion | undefined {
+  const file = path.join(REPORTS_DIR, String(period), `${protocol}-completion.json`);
+  if (!existsSync(file)) return undefined;
+  const proof = loadCompletion(file, protocol);
+  if (proof.epoch !== period) throw new Error(`${file} does not certify this report`);
+  return proof;
+}
+
 const provenanceKey = (gauge: string, token: string) => `${lc(gauge)}|${lc(token)}`;
 
 export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient, completion?: GuardCompletion, otc?: OtcLanes, roots?: RootGauges): Promise<ReportGateResult> {
@@ -275,11 +283,6 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
     const reported = matching.reduce((sum, row) => sum + row.rewardAmount, 0n);
     return amountDifference(reported * scale, amount * 10n ** 18n) <= BigInt(matching.length) * CSV_ROUNDING_WEI * scale;
   };
-  // A claim the completion check carried over or purged in full has no row:
-  // the report drops it as not swapped.
-  const carried = new Set(Object.entries(completion?.expected ?? {})
-    .filter(([token, amount]) => settledOutsideReport(completion!, token, amount))
-    .map(([token]) => lc(token)));
   // Units carried in from the previous epoch sell on this epoch's lane and
   // their proceeds follow this epoch's rows of the token: the previous
   // epoch's gauges are not re-credited. Say so where the report is read.
@@ -290,6 +293,12 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
     const rows = readCsvRows(period, protocol, true);
     if (!rows.some((row) => row.lane === "sd")) failures.push(`${protocol}: sd report missing or empty`);
     const gaugeMap = rootGaugeMap(period, protocol, rows, roots);
+    // A claim the completion check carried over or purged in full has no row:
+    // the report drops it as not swapped.
+    const proof = completion ?? publishedCompletion(period, protocol);
+    const carried = new Set(Object.entries(proof?.expected ?? {})
+      .filter(([token, amount]) => settledOutsideReport(proof!, token, amount))
+      .map(([token]) => lc(token)));
     const rowKeys = new Set<string>();
     for (const row of rows) {
       if (row.period && Number(row.period) !== period) {
