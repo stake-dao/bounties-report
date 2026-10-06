@@ -30,7 +30,7 @@ import { VLCVX_DELEGATORS_RECIPIENT, DELEGATION_RECIPIENT } from "../utils/const
 import processReport from "./processReport";
 import { debug, sampleArray, isDebugEnabled } from "../utils/logger";
 import { WETH_CHAIN_IDS } from "../utils/constants";
-import { loadCompletion, verifySources, verifyReportEvents } from "./guardCompletion";
+import { loadCompletion, provenEvents, settledOutsideReport, verifySources, verifyReportEvents } from "./guardCompletion";
 
 dotenv.config();
 
@@ -531,20 +531,22 @@ async function main() {
   }
 
   // Fetch swap events
-  const swapIn = await fetchSwapInEvents(
+  const allSwapIn = await fetchSwapInEvents(
     1,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
     ALL_MIGHT_V2
   );
-  const swapOut = await fetchSwapOutEvents(
+  const allSwapOut = await fetchSwapOutEvents(
     1,
     blockNumber1,
     blockNumber2,
     Array.from(allTokens),
     ALL_MIGHT_V2
   );
+  const swapIn = completion ? provenEvents(completion, allSwapIn) : allSwapIn;
+  const swapOut = completion ? provenEvents(completion, allSwapOut) : allSwapOut;
 
   // Guard swap lane (stake-dao/automation-guard): sell tokens are swapped to
   // native in separate SwapExecutor transactions — they never transit
@@ -1658,9 +1660,9 @@ async function main() {
       const rows: any[] = processedReport[protocolKey] || [];
       for (const [token, amount] of Object.entries(completion.expected)) {
         if (BigInt(amount) === 0n) continue;
-        // A claim the check carried over in full is dropped above as not
-        // swapped; it is next epoch's, not this report's.
-        if (BigInt(completion.remaining[token] ?? "0") >= BigInt(amount)) continue;
+        // A claim the check carried over or purged in full is dropped above
+        // as not swapped; it is not this report's.
+        if (settledOutsideReport(completion, token, amount)) continue;
         const matching = rows.filter((row) => row.rewardAddress.toLowerCase() === token);
         const reported = matching.reduce((sum, row) => sum + row.rewardAmount, 0);
         const expected = Number(amount) / 10 ** tokenInfos[token].decimals;

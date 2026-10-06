@@ -144,6 +144,17 @@ export function verifySources(proof: GuardCompletion, ref?: string): void {
   }
 }
 
+// A guarded weekly report reads only the proof's transactions: OTC and vlCVX
+// flows also go through AllMight V2 and belong to other reports.
+export function provenEvents<T extends { transactionHash?: string }>(proof: GuardCompletion, events: T[]): T[] {
+  const proven = new Set(proof.transactions.map((tx) => tx.hash.toLowerCase()));
+  return events.filter((event) => proven.has((event.transactionHash || "").toLowerCase()));
+}
+
+export function settledOutsideReport(proof: GuardCompletion, token: string, amount: string): boolean {
+  return BigInt(proof.remaining[token] ?? "0") + BigInt(proof.purged?.[token] ?? "0") >= BigInt(amount);
+}
+
 export function verifyReportEvents(
   proof: GuardCompletion,
   inputs: SwapEvent[],
