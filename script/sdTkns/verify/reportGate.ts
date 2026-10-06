@@ -9,7 +9,7 @@ import {
   WETH_CHAIN_IDS,
 } from "../../utils/constants";
 import { getClient } from "../../utils/getClients";
-import { PROTOCOLS_TOKENS } from "../../utils/reportUtils";
+import { getGaugesInfos, PROTOCOLS_TOKENS } from "../../utils/reportUtils";
 import { sendTelegramMessage } from "../../utils/telegramUtils";
 import { tokenService } from "../../utils/tokenService";
 import { checkSdAttribution } from "./reconstructSdMerkle";
@@ -228,14 +228,16 @@ function readCsvRows(period: number, protocol: ReportProtocol, includeOtherLanes
   return rows;
 }
 
-function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[]): Map<string, string> {
+type RootGauges = Partial<Record<ReportProtocol, Map<string, string>>>;
+
+function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[], roots?: RootGauges): Map<string, string> {
   // claimed_bounties.json records the L2 root gauge; the CSV reports the child gauge.
   // The vlCVX report (cvx.csv) lists gauges by root address under the same name, so it
   // resolves root -> child by name. A gauge with no Convex-side claim this week is
   // missing from the current cvx.csv, so the trailing four weeks are consulted too,
   // the current period taking precedence.
   const actualByName = new Map(rows.map((row) => [row.gaugeName, row.gauge]));
-  const mapping = new Map<string, string>();
+  const mapping = new Map(roots?.[protocol]);
   for (const back of [0, 1, 2, 3, 4]) {
     const auxiliary = path.join(
       REPORTS_DIR,
@@ -260,7 +262,7 @@ function rootGaugeMap(period: number, protocol: ReportProtocol, rows: CsvRow[]):
 
 const provenanceKey = (gauge: string, token: string) => `${lc(gauge)}|${lc(token)}`;
 
-export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient, completion?: GuardCompletion, otc?: OtcLanes): Promise<ReportGateResult> {
+export async function runR2(period: number, protocols: readonly ReportProtocol[], client: PublicClient, completion?: GuardCompletion, otc?: OtcLanes, roots?: RootGauges): Promise<ReportGateResult> {
   const failures: string[] = [];
   const warnings: string[] = [];
   const decimals = new Map<string, number>();
@@ -287,7 +289,7 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
   for (const protocol of protocols) {
     const rows = readCsvRows(period, protocol, true);
     if (!rows.some((row) => row.lane === "sd")) failures.push(`${protocol}: sd report missing or empty`);
-    const gaugeMap = rootGaugeMap(period, protocol, rows);
+    const gaugeMap = rootGaugeMap(period, protocol, rows, roots);
     const rowKeys = new Set<string>();
     for (const row of rows) {
       if (row.period && Number(row.period) !== period) {
@@ -446,6 +448,7 @@ export function runR4(
   protocols: readonly ReportProtocol[],
   completion?: GuardCompletion,
   otc?: OtcLanes,
+  roots?: RootGauges,
 ): ReportGateResult {
   const failures: string[] = [];
   let batches = 0;
@@ -459,7 +462,7 @@ export function runR4(
     const rows = reportRows.filter((row) => row.lane === "sd");
     const otcRows = reportRows.filter((row) => row.lane === "otc");
     const otherRows = readCsvRows(period, protocol, true).filter((row) => row.lane === "raw" || row.lane === "delegation");
-    const gaugeMap = rootGaugeMap(period, protocol, [...reportRows, ...otherRows]);
+    const gaugeMap = rootGaugeMap(period, protocol, [...reportRows, ...otherRows], roots);
     failures.push(...otcAllocationFailures(protocol, otcRows, otc?.[protocol], gaugeMap));
     otcCount += otcRows.length;
     const rawWeights = new Map<string, bigint>();
@@ -735,14 +738,18 @@ async function runReportChecks(
   const clientPromise = getClient(1);
   let otcLanes: Promise<OtcLanes> | undefined;
   const otc = async () => otcLanes ??= readOtcLanes(period, protocols, await clientPromise);
+  const roots: RootGauges = Object.fromEntries(await Promise.all(protocols.map(async (protocol) => [
+    protocol,
+    new Map((await getGaugesInfos(protocol)).filter((gauge) => gauge.actualGauge).map((gauge) => [lc(gauge.address), lc(gauge.actualGauge!)])),
+  ])));
   checks.push(await runCheck("R2", "Claim amounts", async () => {
     const client = await clientPromise;
-    const result = await runR2(period, protocols, client, completion, await otc());
+    const result = await runR2(period, protocols, client, completion, await otc(), roots);
     if (result.ok && protocols.includes("curve")) result.detail += await verifyCurveInputs(period, client, completion);
     return result;
   }));
   checks.push(await runCheck("R3", "Swap conservation", async () => runR3(period, protocols, await clientPromise, destination, completion, await otc())));
-  checks.push(await runCheck("R4", "Allocation weights", async () => runR4(period, protocols, completion, await otc())));
+  checks.push(await runCheck("R4", "Allocation weights", async () => runR4(period, protocols, completion, await otc(), roots)));
   checks.push(await runCheck("R5", "WETH ledger", async () => {
     const residuals = protocols.map((protocol) => wethResidual(readJson<Attribution>(path.join(REPORTS_DIR, String(period), `${protocol}-attribution.json`))));
     const price = residuals.every((value) => Math.abs(value) < 0.0005) ? 100_000 : await wethUsdPrice();
