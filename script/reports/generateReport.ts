@@ -646,7 +646,7 @@ async function main() {
   debug("[swaps] vlcvx excluded blocks count", vlcvxRecipientSwapsInBlockNumbers.length);
 
   // Fetch delegation events for tokens sent to delegation address
-  const delegationEvents = await fetchDelegationEvents(
+  const delegationEvents = completion ? [] : await fetchDelegationEvents(
     1,
     blockNumber1,
     blockNumber2,
