@@ -11,6 +11,7 @@ import {
   NETWORK_TO_MERKLE,
 } from "../../utils/constants";
 import { getClient } from "../../utils/getClients";
+import { validateRecoveryLog } from "../recoveries";
 
 const WEEK = 604_800;
 const MAX_WEEKS_BACK = 8;
@@ -79,6 +80,8 @@ export interface LogData {
   Transactions?: unknown;
   TotalReported?: unknown;
   DistributionSurplus?: unknown;
+  PrefundedRewards?: unknown;
+  Recoveries?: unknown;
 }
 
 export interface EthereumTargets {
@@ -808,6 +811,7 @@ export function checkV6(
   merkle: MerkleEntry[],
   targets: EthereumTargets,
 ): CheckResult {
+  validateRecoveryLog(log);
   if (
     !log.DistributionSurplus ||
     typeof log.DistributionSurplus !== "object" ||

@@ -130,6 +130,8 @@ jobs:
           pnpm tsx script/helpers/pinToIpfs.ts --pipeline sdtokens --period "$PERIOD" \
             "bounties-reports/$PERIOD/merkle.json" \
             "bounties-reports/$PERIOD/sdtokens-distribution.json" \
+            "bounties-reports/$PERIOD/sdtokens-recoveries.json" \
+            data/sdtokens-recoveries.json \
             log.json \
             bounties-reports/$PERIOD/{curve,fxn}.csv \
             bounties-reports/$PERIOD/{curve,fxn}-otc.csv \
