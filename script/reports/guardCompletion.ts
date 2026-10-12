@@ -8,7 +8,7 @@ import { BOTMARKET, PROTOCOLS_TOKENS, type SwapEvent } from "../utils/reportUtil
 
 // The guard jobs whose weekly report is gated on a completion proof
 // (stake-dao/automation-guard `<job> --check-only`). A strict protocol
-// accepts no remainder; the others carry what the proof explains.
+// accepts only priced reward-token dust; the others carry what the proof explains.
 export const GUARDS = {
   fxn: { job: "fxn-swaps", pipeline: "fxn-swaps-guard", strict: true },
   curve: { job: "crv-swaps", pipeline: "crv-swaps-guard", strict: false },
@@ -89,8 +89,7 @@ export function loadCompletion(file: string, protocol?: string): GuardCompletion
       !Number.isSafeInteger(value.fromBlock) || value.fromBlock <= 0 ||
       !Number.isSafeInteger(value.checkedBlock) || value.checkedBlock < value.fromBlock ||
       !Number.isSafeInteger(value.confirmations) || value.confirmations < 12 ||
-      !Array.isArray(value.transactions) || Object.keys(value.delegated).length ||
-      (guard.strict && Object.keys(value.remaining).length)) {
+      !Array.isArray(value.transactions) || Object.keys(value.delegated).length) {
     throw new Error(`Invalid or incomplete ${guard.label} completion proof`);
   }
   for (const field of ["nativeFunded", "nativeConverted", "sdProduced", "sdDelivered"] as const) {
@@ -107,6 +106,11 @@ export function loadCompletion(file: string, protocol?: string): GuardCompletion
   for (const [token, amount] of Object.entries(value.remaining)) {
     const reason = value.remainingReasons?.[token];
     if (BigInt(amount) === 0n || typeof reason !== "string" || !reason) throw new Error(`Unexplained ${guard.label} remainder: ${token}`);
+    if (guard.strict && (reason !== "dust" ||
+        token === PROTOCOLS_TOKENS[value.protocol].native.toLowerCase() ||
+        token === PROTOCOLS_TOKENS[value.protocol].sdToken.toLowerCase())) {
+      throw new Error(`Unsettled ${guard.label} remainder: ${token}`);
+    }
   }
   if (!value.sources.votemarket_v1 || !value.sources.votemarket_v2) throw new Error(`Missing ${guard.label} claim sources`);
   for (const [name, source] of Object.entries(value.sources)) {
