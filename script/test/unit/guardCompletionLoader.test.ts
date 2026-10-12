@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { guardOf, inputPath, loadCompletion } from "../../reports/guardCompletion";
+import { PROTOCOLS_TOKENS } from "../../utils/reportUtils";
 
 const directory = mkdtempSync(path.join(tmpdir(), "guard-completion-"));
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
@@ -57,9 +58,27 @@ describe("guard completion proofs", () => {
     expect(() => load(proof("curve", { remaining: { [TOKEN]: "0" }, remainingReasons: { [TOKEN]: "dust" } }))).toThrow("Unexplained CURVE remainder");
   });
 
-  it("keeps fxn strict: any remainder is incomplete", () => {
-    expect(() => load(proof("fxn", { remaining: { [TOKEN]: "40" }, remainingReasons: { [TOKEN]: "parked" } }))).toThrow("incomplete FXN completion proof");
+  it("accepts fxn dust recorded by the custody check", () => {
+    const alcx = "0xdbdb4d16eda451d0503b854cf79d55697f90c8df";
+    const amount = "1408893513975616741";
+    const loaded = load(proof("fxn", {
+      remaining: { [alcx]: amount }, remainingReasons: { [alcx]: "dust" },
+    }));
+    expect(loaded.remaining).toEqual({ [alcx]: amount });
     expect(load(proof("fxn")).protocol).toBe("fxn");
+  });
+
+  it.each(["parked: no quote", "held: bridge pending", "waits on Botmarket: not planned this epoch", undefined])("refuses fxn remainder with reason %s", (reason) => {
+    expect(() => load(proof("fxn", {
+      remaining: { [TOKEN]: "40" }, remainingReasons: { [TOKEN]: reason },
+    }))).toThrow("FXN remainder");
+  });
+
+  it.each([PROTOCOLS_TOKENS.fxn.native, PROTOCOLS_TOKENS.fxn.sdToken])("refuses unsettled fxn output %s even when labelled dust", (token) => {
+    const address = token.toLowerCase();
+    expect(() => load(proof("fxn", {
+      remaining: { [address]: "40" }, remainingReasons: { [address]: "dust" },
+    }))).toThrow("FXN remainder");
   });
 
   it("binds the proof to the requested protocol", () => {
