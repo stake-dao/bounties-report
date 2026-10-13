@@ -8,7 +8,7 @@ import { BOTMARKET, PROTOCOLS_TOKENS, type SwapEvent } from "../utils/reportUtil
 
 // The guard jobs whose weekly report is gated on a completion proof
 // (stake-dao/automation-guard `<job> --check-only`). A strict protocol
-// accepts only priced reward-token dust; the others carry what the proof explains.
+// accepts only dust or explicitly parked rewards; the others carry what the proof explains.
 export const GUARDS = {
   fxn: { job: "fxn-swaps", pipeline: "fxn-swaps-guard", strict: true },
   curve: { job: "crv-swaps", pipeline: "crv-swaps-guard", strict: false },
@@ -106,7 +106,7 @@ export function loadCompletion(file: string, protocol?: string): GuardCompletion
   for (const [token, amount] of Object.entries(value.remaining)) {
     const reason = value.remainingReasons?.[token];
     if (BigInt(amount) === 0n || typeof reason !== "string" || !reason) throw new Error(`Unexplained ${guard.label} remainder: ${token}`);
-    if (guard.strict && (reason !== "dust" ||
+    if (guard.strict && ((reason !== "dust" && !/^parked: \S/.test(reason)) ||
         token === PROTOCOLS_TOKENS[value.protocol].native.toLowerCase() ||
         token === PROTOCOLS_TOKENS[value.protocol].sdToken.toLowerCase())) {
       throw new Error(`Unsettled ${guard.label} remainder: ${token}`);

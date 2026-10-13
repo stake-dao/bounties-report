@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runR1, runR2, runR4, runR5, wethResidual, withinVolumeBand } from "../../sdTkns/verify/reportGate";
+import { loadCompletion } from "../../reports/guardCompletion";
 
 const client = { readContract: async ({ address }: any) => new Set([
   "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0xdac17f958d2ee523a2206206994597c13d831ec7",
@@ -7,6 +8,23 @@ const client = { readContract: async ({ address }: any) => new Set([
 ]).has(address.toLowerCase()) ? 6 : 18 } as any;
 
 describe("Report gate historical regressions", () => {
+  it.each(["dust", "parked: no executable route"])("flags an absent FXN reward carried forward as %s without blocking completion", async (reason) => {
+    const period = 1790812800;
+    const alcx = "0xdbdb4d16eda451d0503b854cf79d55697f90c8df";
+    const proof = loadCompletion(`bounties-reports/${period}/fxn-completion.json`, "fxn");
+    const amount = proof.expected[alcx];
+    expect(BigInt(amount)).toBeGreaterThan(0n);
+    const carried = {
+      ...proof, purged: {}, remaining: { [alcx]: amount }, remainingReasons: { [alcx]: reason },
+    };
+    const result = await runR2(period, ["fxn"], client, carried);
+    expect(result.ok, result.detail).toBe(true);
+    expect(result.warnings?.join("\n")).toContain(`${alcx}: ${amount} base units carried forward (${reason})`);
+    const unexplained = await runR2(period, ["fxn"], client, { ...proof, purged: {}, remaining: {} });
+    expect(unexplained.ok).toBe(false);
+    expect(unexplained.detail).toContain("raw claim has no report allocation");
+  });
+
   it("compares each token with its own trailing median", () => {
     expect(withinVolumeBand(100n, [90n, 100n, 100n, 110n])).toBe(true);
     expect(withinVolumeBand(49n, [100n, 100n, 100n, 100n])).toBe(false);
