@@ -172,9 +172,9 @@ describe("Report allocation gates", () => {
     const token = rows[1][3].toLowerCase();
     changeRows((all) => { all.splice(1, all.length - 1, ...all.slice(1).filter((row) => row[3].toLowerCase() !== token)); });
     expect((await runR2(PERIOD, ["curve"], client as any)).ok).toBe(false);
-    const proof = { expected: { [token]: "1" }, remaining: { [token]: "1" } } as any;
+    const proof = { expected: { [token]: "1" }, remaining: { [token]: "1" }, remainingReasons: { [token]: "dust" } } as any;
     expect((await runR2(PERIOD, ["curve"], client as any, proof)).ok).toBe(true);
-    const partial = { expected: { [token]: "2" }, remaining: { [token]: "1" } } as any;
+    const partial = { ...proof, expected: { [token]: "2" } };
     expect((await runR2(PERIOD, ["curve"], client as any, partial)).ok).toBe(false);
   });
 

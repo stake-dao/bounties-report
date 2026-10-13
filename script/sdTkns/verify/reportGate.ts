@@ -296,6 +296,9 @@ export async function runR2(period: number, protocols: readonly ReportProtocol[]
     // A claim the completion check carried over or purged in full has no row:
     // the report drops it as not swapped.
     const proof = completion ?? publishedCompletion(period, protocol);
+    for (const [token, amount] of Object.entries(proof?.remaining ?? {})) {
+      warnings.push(`${protocol}/${token}: ${amount} base units carried forward (${proof!.remainingReasons![token]}); excluded from this week's distribution`);
+    }
     const carried = new Set(Object.entries(proof?.expected ?? {})
       .filter(([token, amount]) => settledOutsideReport(proof!, token, amount))
       .map(([token]) => lc(token)));

@@ -68,7 +68,14 @@ describe("guard completion proofs", () => {
     expect(load(proof("fxn")).protocol).toBe("fxn");
   });
 
-  it.each(["parked: no quote", "held: bridge pending", "waits on Botmarket: not planned this epoch", undefined])("refuses fxn remainder with reason %s", (reason) => {
+  it("accepts an illiquid fxn reward the guard explicitly parked", () => {
+    const loaded = load(proof("fxn", {
+      remaining: { [TOKEN]: "40" }, remainingReasons: { [TOKEN]: "parked: no executable route" },
+    }));
+    expect(loaded.remaining).toEqual({ [TOKEN]: "40" });
+  });
+
+  it.each(["parked", "parked: ", "held: bridge pending", "waits on Botmarket: not planned this epoch", undefined])("refuses fxn remainder with reason %s", (reason) => {
     expect(() => load(proof("fxn", {
       remaining: { [TOKEN]: "40" }, remainingReasons: { [TOKEN]: reason },
     }))).toThrow("FXN remainder");
