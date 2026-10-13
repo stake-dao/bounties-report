@@ -35,7 +35,7 @@
                     {
                         "step": 1,
                         "date": "22-09-2026",
-                        "distributed": "11:31"
+                        "distributed": "08:04"
                     },
                     {
                         "step": 2,
@@ -57,12 +57,12 @@
                     {
                         "step": 1,
                         "date": "06-10-2026",
-                        "distributed": "11:18"
+                        "distributed": "15:02"
                     },
                     {
                         "step": 2,
                         "date": "13-10-2026",
-                        "distributed": ""
+                        "distributed": "12:31"
                     }
                 ]
             }
