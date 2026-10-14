@@ -26,28 +26,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0xd726426f17e97209632065a9fc498537392b438478218bc44bfd55cfdff5fca3",
-                        "start": "10-09-2026 02:00",
-                        "end": "15-09-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "22-09-2026",
-                        "distributed": "08:04"
-                    },
-                    {
-                        "step": 2,
-                        "date": "29-09-2026",
-                        "distributed": "08:05"
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0xad231055e87aaa134dd35d9936986acdac08883e3687bf9a32dc4a14e7123239",
                         "start": "24-09-2026 02:00",
                         "end": "29-09-2026 14:00"
@@ -63,6 +41,28 @@
                         "step": 2,
                         "date": "13-10-2026",
                         "distributed": "12:31"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xa73cdb5ffe68e785b6fa8d92aa0d921bfc51f0595573e8f211f55d990d0b9a58",
+                        "start": "08-10-2026 02:00",
+                        "end": "13-10-2026 14:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "20-10-2026",
+                        "distributed": ""
+                    },
+                    {
+                        "step": 2,
+                        "date": "27-10-2026",
+                        "distributed": ""
                     }
                 ]
             }
