@@ -9,6 +9,7 @@ import {
 } from "viem";
 import MerkleTree from "merkletreejs";
 import { MerkleData } from "../../interfaces/MerkleData";
+import { findMerkleMatchingRoot } from "../../utils/merkle/findPreviousMerkle";
 import { parseJsonRejectingDuplicates } from "./jsonSafe";
 import {
   ArtifactSpec,
@@ -230,8 +231,22 @@ export function loadArchivedPairs(
   reportsRoot: string,
   timestamp: number,
   relPath: string,
-  maxWeeksBack = 12
+  maxWeeksBack = 12,
+  currentRoot?: string
 ): { pairs: PairMap; foundAt: string | null } {
+  const voters = /^vlCVX\/vlcvx_merkle(?:_(8453|42161))?\.json$/.exec(relPath);
+  if (voters && currentRoot) {
+    const chainId = Number(voters[1] ?? "1");
+    const file = path.join(reportsRoot, "expiry/roots", String(chainId), `${currentRoot.toLowerCase()}.rewards.json`);
+    if (fs.existsSync(file)) {
+      const source = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (source.chainId !== chainId || source.root.toLowerCase() !== currentRoot.toLowerCase() || source.distributor.toLowerCase() !== "0x000000006feee0b7a0564cd5ceb283e10347c4db" || !Number.isSafeInteger(source.period)) throw new Error("ordinary delta provenance");
+      const root = source.period === timestamp ? source.parent : currentRoot;
+      const baseline = findMerkleMatchingRoot(timestamp, relPath, root, { reportsRoot, includeCurrent: true });
+      if (!baseline.foundAt) throw new Error("ordinary delta parent unresolved");
+      return { pairs: toPairMap(baseline.data), foundAt: baseline.foundAt };
+    }
+  }
   const WEEK = 604800;
   for (let weeksBack = 1; weeksBack <= maxWeeksBack; weeksBack++) {
     const candidate = path.join(

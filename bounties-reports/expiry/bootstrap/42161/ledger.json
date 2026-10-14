@@ -1,0 +1,2062 @@
+{
+  "version": 1,
+  "chainId": 42161,
+  "distributor": "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+  "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+  "checkpoint": {
+    "block": 514718707,
+    "blockHash": "0xd91da1e6455fc59ef196d4a067791e19181040750d98d11bb5ce7ed214c8cdae"
+  },
+  "pairs": {
+    "0x16f562fb6587a19e19761654adb195f8bc879b5d:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x16F562fB6587a19E19761654aDb195F8bc879b5d",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "2900988151930648788992",
+      "credits": [
+        {
+          "id": "0x2eb9db38c854050cf9afbb94163eeff3fd9e64075397b1c99b8f40d8093aee63",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "2900988151930648788992",
+          "paid": "2900988151930648788992",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x8a474fd1b929306a6827630aefeade443128ec68:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x8A474fD1b929306a6827630AEFEaDE443128eC68",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "40873076704851196379136",
+      "credits": [
+        {
+          "id": "0x9ae3564c40f5690e76d71feebc20f21d4447c81fc6ba05e0210df1c1c4631d47",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "40873076704851196379136",
+          "paid": "40873076704851196379136",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x544b4979263846cbc2bebf0b99d3812536964da5:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x544b4979263846cBC2BEBF0B99D3812536964Da5",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "41324179561982455709696",
+      "credits": [
+        {
+          "id": "0x664dbe1dae397c7e3cb67d90f4d2b4a368e29429e71f3ce1620895669a630ee4",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "41324179561982455709696",
+          "paid": "41324179561982455709696",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xaa68ad0bfeee7d0feba2d9d606e62e24a68a4252:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xAA68ad0bfEEe7D0FEBa2d9d606e62e24A68A4252",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "13702804597529173295104",
+      "credits": [
+        {
+          "id": "0x1888d04f3b176181721fb99b74b58016d33f802421817394d818a45ac43822f2",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "13702804597529173295104",
+          "paid": "13702804597529173295104",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x3ac892a09165516d98ec9c02b95ff840ab4badae:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x3Ac892A09165516D98Ec9C02B95Ff840aB4bAdae",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "844701071807247089664",
+      "credits": [
+        {
+          "id": "0xeaf171b6403c13aefe55aadc4db99e0880ad34bfa42f48a45941c6f860b83166",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "844701071807247089664",
+          "paid": "844701071807247089664",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xc0c21f1ae0c7c194a76168288dd251e0cd551ac4:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xC0c21F1Ae0C7c194A76168288DD251e0CD551ac4",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "395339609116058288128",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xa8bc80df3666f3b01ae205aad83c61304b1240d2d0c9ff21601da9e359861251",
+          "root": "0xc3888c15f3648d2235517d2260be9d43de62a068f2cba486f46f02e1c28091d8",
+          "granted": "197788231735127212032",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "unresolved history"
+        },
+        {
+          "id": "0x8c914a04248f9eff4ff5b7278b88542c6d681fbdee5ed528275ce2bd5f937b88",
+          "root": "0xb90d3224a53f161b7726ab293fb518828b78ca5bdb672c4a7581740bff5c49f2",
+          "granted": "197551377380931076096",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1766059983,
+          "protection": null
+        }
+      ]
+    },
+    "0x99ed04c212dd3929e9063bd78b26ef41858cb62c:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x99ED04C212dD3929E9063bd78B26Ef41858CB62C",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x095cbf84f149f12ce5625ea023ad0133cd84a503:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x095cBf84f149F12ce5625EA023aD0133CD84a503",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xe001452bec9e7ac34ca4ecac56e7e95ed9c9aa3b:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xe001452BeC9e7AC34CA4ecaC56e7e95eD9C9aa3b",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "512651016097774734147584",
+      "credits": [
+        {
+          "id": "0xdd1d0612cc32d24f9f12c2a09e2ddd700f62ed10a15d2800f5ad5aa27dd81ab2",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "512651016097774734147584",
+          "paid": "512651016097774734147584",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xcb397b4e2612ee99a1591cb40db3c837bc1b2c35:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xCb397b4e2612EE99A1591cb40Db3C837Bc1b2C35",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "3060146461092773888000",
+      "credits": [
+        {
+          "id": "0xfaa10162973deb536acaa149363479db6a26474dc656c4d65a649cc58d53af42",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "3060146461092773888000",
+          "paid": "3060146461092773888000",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x4c37cb037e379e39ec1e0b6a950a70ff080ea2a8:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x4C37cb037E379E39ec1e0B6A950a70Ff080EA2a8",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "9434606961087304171520",
+      "credits": [
+        {
+          "id": "0x4bef4e97f070dec6ef0e30e48cd2f94417b652d2b0579bcbf14f4b0a7c458308",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "9434606961087304171520",
+          "paid": "9434606961087304171520",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x299d7c375add719fb6d0412895439aaca810029a:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x299d7c375adD719fB6D0412895439aAcA810029a",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x04239c89be7b407fa49bb6f9464b8454f69d3f46:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x04239c89Be7B407fa49Bb6F9464B8454F69D3F46",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xf0d48f76b9fc797bdf255136ae6f22bb47a34c35:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xF0d48F76b9Fc797BDF255136Ae6F22bB47a34c35",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xdb6b9c3439a326ce8f816971d540e18089743a5d:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xdb6B9C3439A326ce8F816971D540e18089743a5d",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x46038e1051dfe73f3b0727e6c2538ffa2c6eae34:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x46038E1051dfe73F3b0727e6C2538FFa2C6EaE34",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x7d7c4daba895fa235e71307bbc190d8325b8ca41:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x7D7C4DAbA895fa235E71307bBc190d8325b8ca41",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xc88b55a947b42bab0b75c133def68cee5b8e450e:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xC88b55a947b42bab0b75c133def68cEE5b8E450e",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x359fc0ec3f26cb7242ab362e9bf1db9e79ac0698:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x359fC0ec3f26cb7242ab362e9bF1DB9E79AC0698",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xc4fdde0e46f266367bfab19f662265ab8e341842:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xC4FDdE0e46f266367bfAb19F662265aB8E341842",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xe3295c57cbe8ff490decc4af8a32e1cbe7f5291f:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xE3295C57cbe8fF490decC4aF8A32e1CBE7f5291f",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x4f22b4562647b5b63433cebddf28dfe42fcf2c2d:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x4F22b4562647b5B63433cEbDDF28DfE42fCF2C2D",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x4607a9b0553afd468cf847324764184edc17ad5c:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x4607a9B0553aFD468cf847324764184EDC17Ad5C",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x425d97d186357d596b5b0b9b36a361aacb20337d:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x425D97d186357d596b5B0B9B36A361aAcb20337d",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xfd90eb8fa533c9608037dea32784f1f9656606c0:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xfd90eB8fa533C9608037Dea32784f1F9656606c0",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xcb76bddbbb87ba2bf76460aa177924cd1e9524b5:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xcb76BdDBbb87BA2bF76460aA177924CD1E9524B5",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xf2d3a7ed6eae607dbc47614f2db7cb3676dce6cf:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xF2D3a7ed6eAe607DBC47614F2Db7cb3676DcE6cf",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xfdec357f13b8cc6802a770a57190710ee12257f9:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xfDEC357f13b8CC6802a770A57190710ee12257F9",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x41d7e3da4678ac1f5b7f607c9f6f2140b87adc7c:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x41D7E3dA4678ac1f5B7f607c9f6f2140b87AdC7c",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "439748429224909155074048",
+      "credits": [
+        {
+          "id": "0xb38cd4a332db62aa8eeb62b82b490cfc6b204ad72261a70ad0c317f46b79f3be",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "439748429224909155074048",
+          "paid": "439748429224909155074048",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xd792b9d938424645996c6a6fef667d45f2bdb5eb:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xd792b9d938424645996C6a6fEf667d45f2bDB5eb",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "7343387747045889540096",
+      "credits": [
+        {
+          "id": "0xaca3390b09323ef1279050d56916943f2a44d30e38e1926100f223c85fd0f598",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "7343387747045889540096",
+          "paid": "7343387747045889540096",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x4daf8ce9d729ca4f121381ec4b22123627c1c004:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x4dAf8ce9D729ca4F121381ec4B22123627C1C004",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "1934833981640961408",
+      "credits": [
+        {
+          "id": "0x3f5c5451c695fb3fb92fdf2f479d5d1768c0da5a4ad4af2b74056b554fcaffbf",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "1934833981640961408",
+          "paid": "1934833981640961408",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x3ac892a09165516d98ec9c02b95ff840ab4badae:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x3Ac892A09165516D98Ec9C02B95Ff840aB4bAdae",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x3ac892a09165516d98ec9c02b95ff840ab4badae:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0x3Ac892A09165516D98Ec9C02B95Ff840aB4bAdae",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xc0c21f1ae0c7c194a76168288dd251e0cd551ac4:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xC0c21F1Ae0C7c194A76168288DD251e0CD551ac4",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "161003",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x51ce15065e82e0250896b56ea5ca01021bcccacdb11b6cad0afe3fd6d3ebe763",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "29288",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x5203f0a6d59f34fc53902addeb3e4066fb62d56b512fc088ad4165cd9fd63400",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "29274",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0xb0eea3391d36a6143612e249ff122d981e3f3876a7aa3126befd1b3a9138c577",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "51166",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x3c5eb8cde3207a7cfde8075996f8a44ef4d01d8a4e9cfb4b7e776e537cd868e6",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "51275",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0xc0c21f1ae0c7c194a76168288dd251e0cd551ac4:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0xC0c21F1Ae0C7c194A76168288DD251e0CD551ac4",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x299d7c375add719fb6d0412895439aaca810029a:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x299d7c375adD719fB6D0412895439aAcA810029a",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x299d7c375add719fb6d0412895439aaca810029a:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0x299d7c375adD719fB6D0412895439aAcA810029a",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x7d7c4daba895fa235e71307bbc190d8325b8ca41:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x7D7C4DAbA895fa235E71307bBc190d8325b8ca41",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x7d7c4daba895fa235e71307bbc190d8325b8ca41:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0x7D7C4DAbA895fa235E71307bBc190d8325b8ca41",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xc88b55a947b42bab0b75c133def68cee5b8e450e:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xC88b55a947b42bab0b75c133def68cEE5b8E450e",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xc88b55a947b42bab0b75c133def68cee5b8e450e:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0xC88b55a947b42bab0b75c133def68cEE5b8E450e",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x359fc0ec3f26cb7242ab362e9bf1db9e79ac0698:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x359fC0ec3f26cb7242ab362e9bF1DB9E79AC0698",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x359fc0ec3f26cb7242ab362e9bf1db9e79ac0698:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0x359fC0ec3f26cb7242ab362e9bF1DB9E79AC0698",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x4607a9b0553afd468cf847324764184edc17ad5c:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x4607a9B0553aFD468cf847324764184EDC17Ad5C",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x4607a9b0553afd468cf847324764184edc17ad5c:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0x4607a9B0553aFD468cf847324764184EDC17Ad5C",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x425d97d186357d596b5b0b9b36a361aacb20337d:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x425D97d186357d596b5B0B9B36A361aAcb20337d",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x425d97d186357d596b5b0b9b36a361aacb20337d:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0x425D97d186357d596b5B0B9B36A361aAcb20337d",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xfd90eb8fa533c9608037dea32784f1f9656606c0:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xfd90eB8fa533C9608037Dea32784f1F9656606c0",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xfd90eb8fa533c9608037dea32784f1f9656606c0:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0xfd90eB8fa533C9608037Dea32784f1F9656606c0",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xcb76bddbbb87ba2bf76460aa177924cd1e9524b5:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xcb76BdDBbb87BA2bF76460aA177924CD1E9524B5",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xcb76bddbbb87ba2bf76460aa177924cd1e9524b5:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0xcb76BdDBbb87BA2bF76460aA177924CD1E9524B5",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x41d7e3da4678ac1f5b7f607c9f6f2140b87adc7c:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x41D7E3dA4678ac1f5B7f607c9f6f2140b87AdC7c",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "506928123",
+      "paid": "506928123",
+      "credits": [
+        {
+          "id": "0x899da175ddf4d0ef5ad2a4052bac82e8350c5998e4827ef6a67fe11c90757519",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "488177461",
+          "paid": "488177461",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x1b808b7c4cd31340feaee734fe9a49a9ca009b24f9bb2faa382bc2b111da3f7f",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "4157956",
+          "paid": "4157956",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0xe79ed51229a9890c24e7e270630604c41f71abc5efca3e880c4b458d71126af9",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "7288597",
+          "paid": "7288597",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x894a73b4b930e371e7d9314d620839d43fbff24285237253e3677e706ab24a15",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "7304109",
+          "paid": "7304109",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0x41d7e3da4678ac1f5b7f607c9f6f2140b87adc7c:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+      "account": "0x41D7E3dA4678ac1f5B7f607c9f6f2140b87AdC7c",
+      "token": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "activeAmount": "0",
+      "paid": "61944700",
+      "credits": [
+        {
+          "id": "0x63d5699d220c1277c1333f2259524e6754221756323b3928829638b7d4ab2465",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "61944700",
+          "paid": "61944700",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x61f41775e63baf8ef689ef03109f9b47908aed21:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x61f41775e63Baf8eF689Ef03109f9B47908aED21",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x61f41775e63baf8ef689ef03109f9b47908aed21:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x61f41775e63Baf8eF689Ef03109f9B47908aED21",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xb483f482c7e1873b451d1ee77983f9b56fbeeba1:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xb483F482C7e1873B451d1EE77983F9b56fbEEBa1",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xb483f482c7e1873b451d1ee77983f9b56fbeeba1:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xb483F482C7e1873B451d1EE77983F9b56fbEEBa1",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xb1359fa99e2c8a824783a4483d5c0d55f1cb7731:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xB1359fA99e2c8A824783a4483D5C0D55F1Cb7731",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xb1359fa99e2c8a824783a4483d5c0d55f1cb7731:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xB1359fA99e2c8A824783a4483D5C0D55F1Cb7731",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x181ae03a7f3f320ec1255c913c9cb63fce12f77a:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "88538210373693419290624",
+      "credits": [
+        {
+          "id": "0x347ae31ba660ff5f3760cecf40de09d15a1ee63b699d41ebf517f5ee75b07f59",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "88538210373693419290624",
+          "paid": "88538210373693419290624",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x181ae03a7f3f320ec1255c913c9cb63fce12f77a:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x181ae03A7F3F320eC1255c913C9cb63fcE12F77A",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "105471189",
+      "credits": [
+        {
+          "id": "0x334a17a66f16b918fd4b83037650d7d8d09b7806fae037dfda9ab58e3519621f",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "105471189",
+          "paid": "105471189",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x08c6c666e23454a9e1b514922a5ce08bf43c561b:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x08c6c666E23454A9e1B514922a5Ce08BF43c561b",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x08c6c666e23454a9e1b514922a5ce08bf43c561b:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x08c6c666E23454A9e1B514922a5Ce08BF43c561b",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x3830f1290da3fdb91a337a1458aa34f60c49ffcc:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x3830f1290Da3fDB91A337a1458aa34f60C49FfCC",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "2026214118654533959680",
+      "paid": "2026214118654533959680",
+      "credits": [
+        {
+          "id": "0xee00a811ea5f14586b6932720ddfd325e85151eb3670d5f1e7d3bda7c26ce4da",
+          "root": "0xc3888c15f3648d2235517d2260be9d43de62a068f2cba486f46f02e1c28091d8",
+          "granted": "1013714028152892686336",
+          "paid": "1013714028152892686336",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "unresolved history"
+        },
+        {
+          "id": "0x5c3a10609c0391207a87da0448d7dcb5b6f0bb9305721f87b92ff8d72950c59c",
+          "root": "0xb90d3224a53f161b7726ab293fb518828b78ca5bdb672c4a7581740bff5c49f2",
+          "granted": "1012500090501641273344",
+          "paid": "1012500090501641273344",
+          "recovered": "0",
+          "activatedAt": 1766059983,
+          "protection": null
+        }
+      ]
+    },
+    "0x3830f1290da3fdb91a337a1458aa34f60c49ffcc:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x3830f1290Da3fDB91A337a1458aa34f60C49FfCC",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x357373e5fd5134c2785d849dc6d33a2cec46a8bd:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x357373E5fd5134C2785D849dC6D33A2CeC46A8bD",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "419905180602697351168",
+      "credits": [
+        {
+          "id": "0x91fa068f87f10bef431b6a10cad4e6d988902f792a7dfc5b678469cd6e931655",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "419905180602697351168",
+          "paid": "419905180602697351168",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x357373e5fd5134c2785d849dc6d33a2cec46a8bd:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x357373E5fd5134C2785D849dC6D33A2CeC46A8bD",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "807452",
+      "credits": [
+        {
+          "id": "0x1008af689695111274f64e04e0f24a87720cb14cc0a033a2ec0dd938c817c493",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "807452",
+          "paid": "807452",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x597f540bb63381ffa267027d2d479984825057a8:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x597F540bB63381FfA267027D2D479984825057A8",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "635734921659367511031808",
+      "credits": [
+        {
+          "id": "0x90569e8417d85c9516d53081cff6007326932d87ba0528598985a9ed337905af",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "635734921659367511031808",
+          "paid": "635734921659367511031808",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x597f540bb63381ffa267027d2d479984825057a8:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x597F540bB63381FfA267027D2D479984825057A8",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "1222480812",
+      "credits": [
+        {
+          "id": "0x63524edb87acd3833bb74e066d543687c0de5dc2d47ec86574c672b36fd46da5",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "1222480812",
+          "paid": "1222480812",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x8ac4c0630c5ed1636537924ec9b037fc652adee8:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x8Ac4c0630C5ed1636537924eC9B037fC652ADee8",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x8ac4c0630c5ed1636537924ec9b037fc652adee8:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x8Ac4c0630C5ed1636537924eC9B037fC652ADee8",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x070c85ef4626dae657e94fb0143d399c62b58757:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x070C85Ef4626DAE657E94fB0143D399c62B58757",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x070c85ef4626dae657e94fb0143d399c62b58757:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x070C85Ef4626DAE657E94fB0143D399c62B58757",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x5d4d3fae4d0282fd8a558b5f42ba700974cbfd1a:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x5D4d3FaE4d0282FD8A558b5f42Ba700974cBfd1A",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "523445647885594656768",
+      "credits": [
+        {
+          "id": "0xc4597ea98a6dd7177d8c4c23cd8ff08241c5c2863657ebc6ec163fae9c538d18",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "523445647885594656768",
+          "paid": "523445647885594656768",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x5d4d3fae4d0282fd8a558b5f42ba700974cbfd1a:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x5D4d3FaE4d0282FD8A558b5f42Ba700974cBfd1A",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "1413036",
+      "credits": [
+        {
+          "id": "0x511a591a40de8270a18f7666b29ec1611e330d6d37c7c0bda0ab5ff4644d374d",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "1413036",
+          "paid": "1413036",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x28ef7b4252ac35266f5a16af86046356ce60fad0:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x28EF7B4252aC35266f5a16Af86046356Ce60fad0",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "389925950444423053312",
+      "credits": [
+        {
+          "id": "0x854abe1b05e866eec4fb7c28209f11b96822a7f29f9010aea502100a2676eeb1",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "389925950444423053312",
+          "paid": "389925950444423053312",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x28ef7b4252ac35266f5a16af86046356ce60fad0:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x28EF7B4252aC35266f5a16Af86046356Ce60fad0",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "749804",
+      "credits": [
+        {
+          "id": "0x26191315740d10f18ddca540a1dd154368b10e152d7ae516c06de9e97743965c",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "749804",
+          "paid": "749804",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x8d622746da805a5c75d32b3413c28062636e3de9:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x8D622746dA805a5c75d32B3413C28062636e3dE9",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "5164311302239969345536",
+      "credits": [
+        {
+          "id": "0x6db13931962bddd7558d5e2e59a0baa58422acc3145fba661894e9bde69c6c27",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "5164311302239969345536",
+          "paid": "5164311302239969345536",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x8d622746da805a5c75d32b3413c28062636e3de9:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x8D622746dA805a5c75d32B3413C28062636e3dE9",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "9930665",
+      "credits": [
+        {
+          "id": "0xff3e713ee66692fe28807250c7d107afe7ac027de7e8a6bae0ea12ad5a3a79a9",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "9930665",
+          "paid": "9930665",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xfc4b2a62a06cb2e1c6a743e9ae327bb16977e4c1:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xfC4B2a62A06cb2E1C6A743E9aE327Bb16977E4c1",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "8614415149256388640768",
+      "credits": [
+        {
+          "id": "0x50fdfb4f6b4781fa938c8e9c138a241003b2d95540a29aaf0dd336145aabd2a4",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "8614415149256388640768",
+          "paid": "8614415149256388640768",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xfc4b2a62a06cb2e1c6a743e9ae327bb16977e4c1:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xfC4B2a62A06cb2E1C6A743E9aE327Bb16977E4c1",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "24275736",
+      "credits": [
+        {
+          "id": "0x89629e3722e5a70418e7e3c43171aa9e91e18e952b34381afb0077bd92894c95",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "24275736",
+          "paid": "24275736",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x4e981426e2e8e7b05199dcc51cab13be64d01e4a:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x4E981426E2E8e7B05199dCc51cAB13bE64d01e4A",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x4e981426e2e8e7b05199dcc51cab13be64d01e4a:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x4E981426E2E8e7B05199dCc51cAB13bE64d01e4A",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x5180db0237291a6449dda9ed33ad90a38787621c:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x5180db0237291A6449DdA9ed33aD90a38787621c",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x6620912ac168458ed84d5d3d6c83e728abf9941f:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x6620912AC168458ED84D5D3d6c83E728abf9941F",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "45711292",
+      "credits": [
+        {
+          "id": "0x36863e839cbbae9a8ea915ae7ab919ce18930a5bca46aba62a92e4678c218a29",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "45711292",
+          "paid": "45711292",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xdd3be1b3ba939908317c35a32c27d956fb3880bc:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xdd3BE1B3ba939908317c35a32C27D956FB3880bC",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x81945fadb05d5e95e2e045254866b1fe3d3b2466:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x81945FAdb05D5e95e2E045254866B1fE3D3B2466",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x2cfb075e8fc0d99837653629b0a3d527f0769a1a:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x2cFb075E8FC0D99837653629B0A3d527f0769a1A",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "526088",
+      "credits": [
+        {
+          "id": "0x800c4262681ccc884de29ddf6caec354d18c8e20608b2601c172f5b1ea1ad95f",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "526088",
+          "paid": "526088",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xbd7e803e1f9fad009922da97ff92a92e90d1aa79:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xBD7e803E1F9FAd009922DA97ff92a92E90d1Aa79",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xbb15ba61c09192100a269f1c65cebf6edc1492d1:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xBb15bA61C09192100a269F1C65CebF6Edc1492D1",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "101752308",
+      "credits": [
+        {
+          "id": "0x0b19a011678a277aac4ea6bb38aeb4be273db03fd4d262baa1420ccd4e41ec15",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "101752308",
+          "paid": "101752308",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xdd3be1b3ba939908317c35a32c27d956fb3880bc:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xdd3BE1B3ba939908317c35a32C27D956FB3880bC",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xbd7e803e1f9fad009922da97ff92a92e90d1aa79:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xBD7e803E1F9FAd009922DA97ff92a92E90d1Aa79",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xbb15ba61c09192100a269f1c65cebf6edc1492d1:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xBb15bA61C09192100a269F1C65CebF6Edc1492D1",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "29305437779245712539648",
+      "credits": [
+        {
+          "id": "0x707daccec78be92ca08d611fc6e2e834ff0032dbf43f38c35763772f0eedf82c",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "29305437779245712539648",
+          "paid": "29305437779245712539648",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x1102fe5a9ba1517e57f8aef09f108d0ce096e4fb:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x1102fE5a9ba1517e57f8aef09F108d0Ce096E4FB",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x1102fe5a9ba1517e57f8aef09f108d0ce096e4fb:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x1102fE5a9ba1517e57f8aef09F108d0Ce096E4FB",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x3d2ae9729529f8e4027d19f3301186e8cc0cfaff:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x3D2aE9729529f8E4027D19f3301186e8cC0CFAFf",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "196369886",
+      "credits": [
+        {
+          "id": "0xb27dc9891319193edf20c62b23d201789a1c94df141b9b0b8a076853edf3dc3b",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "196369886",
+          "paid": "196369886",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x3d2ae9729529f8e4027d19f3301186e8cc0cfaff:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x3D2aE9729529f8E4027D19f3301186e8cC0CFAFf",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "86435115439319842553856",
+      "credits": [
+        {
+          "id": "0x16667421023358b43f5ad13078b84a2fab4f58d0f1eb3b1d2f4b62baed1baf94",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "86435115439319842553856",
+          "paid": "86435115439319842553856",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x148dc00744e59eae4ade9e46d116b15a05ffda0c:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x148DC00744e59EAE4ade9E46D116B15A05FFDA0c",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "268044",
+      "credits": [
+        {
+          "id": "0x4fab38fc52c8cb869cd97a6ee3d14ab3407dd77433e1214286a8a38b0a17166f",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "268044",
+          "paid": "268044",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0x148dc00744e59eae4ade9e46d116b15a05ffda0c:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x148DC00744e59EAE4ade9E46D116B15A05FFDA0c",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "443128763980464766976",
+      "credits": [
+        {
+          "id": "0xdcdc07dc7e26f3f29946241574a036d93837a36b2f5e061308c488930de81b3f",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "443128763980464766976",
+          "paid": "443128763980464766976",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xd46c81245a0582891c2249daf2d68925977cf2a7:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xd46c81245A0582891c2249daf2d68925977cF2a7",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "0",
+      "paid": "22314265",
+      "credits": [
+        {
+          "id": "0x365e695f711caf373e85d453a5c40817a1d35e988992aab862e2614bd532c648",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "22314265",
+          "paid": "22314265",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xd46c81245a0582891c2249daf2d68925977cf2a7:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xd46c81245A0582891c2249daf2d68925977cF2a7",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "9821954392874444914688",
+      "credits": [
+        {
+          "id": "0xf73e0e281ad96a2a1f1c196798100aed9d75ca8267ca5155492a70c7b7825b5e",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "9821954392874444914688",
+          "paid": "9821954392874444914688",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xee33e09ae46d84587a8a89bb7a74e70f8961058b:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xeE33e09ae46d84587a8A89bb7a74e70F8961058B",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xa2eb958af1c2c4c0a1b068e12a183379536427a0:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xA2EB958Af1c2C4c0a1b068e12a183379536427a0",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x9676e7a8bb0282bb8204655db13cfbb3ea07f67e:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x9676E7a8Bb0282BB8204655Db13CFBb3eA07F67E",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xae5eacaf9c6b9111fd53034a602c192a04e082ed:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xae5eaCAF9C6b9111Fd53034A602c192A04e082ED",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "48039210977349527928832",
+      "credits": [
+        {
+          "id": "0x7db0c540321beff406ffc45e52bb4b802644b62989e957215f28ff7e2849686f",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "48039210977349527928832",
+          "paid": "48039210977349527928832",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xa219712cc2aaa5aa98ccf2a7ba055231f1752323:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xa219712cC2Aaa5AA98CcF2A7ba055231F1752323",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xedaac252dd2d9a85322404df6156bbcec82bc411:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xEdaac252dD2D9A85322404dF6156BBCec82bc411",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x7be5460a6f3939c02c3097b00e97951dd4e36f8d:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x7BE5460a6f3939C02C3097b00e97951dd4e36F8d",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xfe41f2ab13ede175b4c809fc54516b047c5e82a0:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xFe41F2aB13Ede175B4C809Fc54516B047c5E82A0",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "2107511388671786156032",
+      "credits": [
+        {
+          "id": "0x6762d9da42df297d6ade450a64f83b98d53529b585daea0e7e4c533d38f117be",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "2107511388671786156032",
+          "paid": "2107511388671786156032",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xa98be71b3213e21d8014b41ac0309bc9dcca6b9a:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xa98bE71b3213e21d8014B41AC0309Bc9Dcca6b9a",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "23217689730178112028672",
+      "credits": [
+        {
+          "id": "0x2399c1e78dbc8f97fefa4fb0ea27af837730c9490a92dd723b24f2635f4f2761",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "23217689730178112028672",
+          "paid": "23217689730178112028672",
+          "recovered": "0",
+          "activatedAt": null,
+          "protection": "lifetime paid offset"
+        }
+      ]
+    },
+    "0xb7bb5eb5e654fb784854e32a62752507d887b33b:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xb7bB5EB5e654Fb784854e32A62752507d887b33b",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0xf4c2949edc28b09fbab45f4f6b15634f4a27df3c:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xF4C2949edC28B09fbab45f4f6B15634F4A27df3c",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "0",
+      "paid": "0",
+      "credits": []
+    },
+    "0x311d58da101d6d7ec8f6179a56e686f7e48220cc:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x311D58DA101D6D7Ec8f6179a56e686F7e48220Cc",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "101839327354157449216",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xf57db0327d69347b697cefc033fa887dac0852a4e98f04db299f716e945743cc",
+          "root": "0xc3888c15f3648d2235517d2260be9d43de62a068f2cba486f46f02e1c28091d8",
+          "granted": "50950170471181860864",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1765449314,
+          "protection": null
+        },
+        {
+          "id": "0x2f28e3d98a1a48ffd65f5e83d86725de7968bfe09069a73a8d38859e762bcd22",
+          "root": "0xb90d3224a53f161b7726ab293fb518828b78ca5bdb672c4a7581740bff5c49f2",
+          "granted": "50889156882975588352",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1766059983,
+          "protection": null
+        }
+      ]
+    },
+    "0x2c2c41d71c553ace39a175385acf42879001d3b9:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0x2C2c41D71C553aCe39A175385acf42879001d3b9",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "669895743871216844800",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x2f5a980adfdaad3418a54194c8496e809df15c7ea1a722950d17af8348e7a64c",
+          "root": "0xc3888c15f3648d2235517d2260be9d43de62a068f2cba486f46f02e1c28091d8",
+          "granted": "335148544623260598272",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1765449314,
+          "protection": null
+        },
+        {
+          "id": "0xd5ef3756977da6020ac1117f3f819f773f862474c99bc84df10756153ee4ffb7",
+          "root": "0xb90d3224a53f161b7726ab293fb518828b78ca5bdb672c4a7581740bff5c49f2",
+          "granted": "334747199247956246528",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1766059983,
+          "protection": null
+        }
+      ]
+    },
+    "0xfb305a40dac406bdcf3b85f6311e5430770f44ba:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xFb305A40Dac406BdCF3b85F6311e5430770f44bA",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "60860629716296829763584",
+      "paid": "60860629716296829763584",
+      "credits": [
+        {
+          "id": "0x53ee5294ed61935cb5eff27b3fd385ef775c33775bc198084312f91905d23566",
+          "root": "0xc3888c15f3648d2235517d2260be9d43de62a068f2cba486f46f02e1c28091d8",
+          "granted": "30448546151971531259904",
+          "paid": "30448546151971531259904",
+          "recovered": "0",
+          "activatedAt": 1765449314,
+          "protection": null
+        },
+        {
+          "id": "0x839d24f5b25de43a5f80eeb6667662c04e0c98765dcd1e58d9506e2becb6df85",
+          "root": "0xb90d3224a53f161b7726ab293fb518828b78ca5bdb672c4a7581740bff5c49f2",
+          "granted": "30412083564325298503680",
+          "paid": "30412083564325298503680",
+          "recovered": "0",
+          "activatedAt": 1766059983,
+          "protection": null
+        }
+      ]
+    },
+    "0xc5d2411ca16c1a5a8cdb7d8209dece51a650c49f:0x7a10f506e4c7658e6ad15fdf0443d450b7fa80d7": {
+      "account": "0xC5D2411ca16C1A5A8cdB7D8209DecE51a650c49F",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "activeAmount": "18041385201313986379776",
+      "paid": "18041385201313986379776",
+      "credits": [
+        {
+          "id": "0xa2186d6351dc0e81718f50f2afa8b6757fe9c25e88233e3f3e3194302587ff45",
+          "root": "0xc3888c15f3648d2235517d2260be9d43de62a068f2cba486f46f02e1c28091d8",
+          "granted": "9026097043498193649664",
+          "paid": "9026097043498193649664",
+          "recovered": "0",
+          "activatedAt": 1765449314,
+          "protection": null
+        },
+        {
+          "id": "0xb4e1c320d2d0f98dc878f845a49b59ea7deeff8648d4e350dc587129f6035667",
+          "root": "0xb90d3224a53f161b7726ab293fb518828b78ca5bdb672c4a7581740bff5c49f2",
+          "granted": "9015288157815792730112",
+          "paid": "9015288157815792730112",
+          "recovered": "0",
+          "activatedAt": 1766059983,
+          "protection": null
+        }
+      ]
+    },
+    "0xcb6a30e5b80f6d88c2a53b3d0fca2ff3f3b3f9fa:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xcB6a30e5B80F6d88c2a53B3D0fCa2fF3F3B3f9Fa",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "2345693",
+      "paid": "2345693",
+      "credits": [
+        {
+          "id": "0x18289ef17a9cf5924a0f02fc72945786b5539af563786922299ca59bc47aed32",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "1173120",
+          "paid": "1173120",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x3bbef04f3d1131a23617870089a3a8d05b514455605dc8b756740ef6ef72d6ca",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "1172573",
+          "paid": "1172573",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        }
+      ]
+    },
+    "0x18d5b7126284e39c481079886c7d36b9d8d2e597:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x18d5b7126284E39C481079886C7d36B9d8D2E597",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "4455653",
+      "paid": "4455653",
+      "credits": [
+        {
+          "id": "0x9e440c1f3367c8f86f3212e1c28375a71979e67df54060f260a32830d4a05dde",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "810516",
+          "paid": "810516",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0xa3b1558c464eee8748494a4700fb866fa7b57baa85717eaa309448039cb0b7f9",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "810138",
+          "paid": "810138",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x47188ee286b649d447061b046fe1d05114e584cfd1800900d55d2bde2da66e15",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "1415993",
+          "paid": "1415993",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x314d56b30047a05c23843782bd65495addc53d0499325f1782722bebc75ed40c",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "1419006",
+          "paid": "1419006",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0xbd7316ffbaca9fae4bc1fd110641fff5223f3eb1:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xbD7316FFbACa9fae4Bc1fd110641fff5223f3eB1",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "500066",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xdbcea553556f5c2357245a0d253e074c046e79f139530499f194c42a09fe469a",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "214094",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x6dafae731812786880880a93ba71da750815dc794b8da68d5067a8b6a7f5087e",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "213994",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x253ee894608287b5a434a0ad87806dc502ba4062d2e685ff83105fee5d533380",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "35951",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x892be798bd0f6bd741154401ba69cfd1266ec2b07fc96c6380db0a12c8c040f9",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "36027",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0xb9c11362680f411e1b88c68135903fe5dbe5d194:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xb9c11362680F411E1b88c68135903Fe5DBe5d194",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "367924",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x9000f3956d3b051c1fb92f4f06892ed8dcd5fcd29764a5ab2c0c35c02c001690",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "66928",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0xc3852c58960c9d102022560820d8c270214187f0fbe14a219d5d9870519234d5",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "66897",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x1aa5bf266f93f4c7ac1620fa4a6cb870011b6a9dc1947e878b40b9dff4f8d9b8",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "116925",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x4fd56a140cadb8d581ead2cdfe8c1b288d8c1e0af0cba196c9a066b900ba5d3b",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "117174",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0xcf2998f3896de6f2ffc32ff482bf110c99fbe95f:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xcf2998F3896DE6F2FfC32ff482BF110c99FBE95f",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "199860",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xb34868b3e96f6c758f9371b1f909425ba165f921a83fef1b8c1b1388c18a946b",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "36356",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x7572b2a850bee7823bbb38619bc390cedb84c9d4178890b0946fedc66abf33d5",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "36339",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0xd405c1fa300407cf93b9cc6961f2e1ee5d334f40d5948fddbbc3f8775cb09259",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "63515",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x779a8fd2c8b6c7410d8f4df9cf4f657919193fcd86cfb99d69b174cc7d28b863",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "63650",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0xff6faf21b2812ee1db1bf2c3f02a7fa7b8f6adc8:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xFf6FAf21b2812ee1db1bF2C3f02a7FA7b8F6ADc8",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "102543",
+      "paid": "102543",
+      "credits": [
+        {
+          "id": "0xa0ec867229c74ce7b3182d1396b9b91d5455faa9cebf72f39ca73835bfff60ce",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "18653",
+          "paid": "18653",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x31a480f741c235fe5eb8734a6e6208857d9b68709b784d76e900f12f4dda9759",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "18645",
+          "paid": "18645",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0xd7d17add1682c6793520b70757db347b1fe2213083c45328e51fa61efa1f72c6",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "32588",
+          "paid": "32588",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x1b9726c337b166c32cfe383a5d84c69bacbd77797d864ae13f3b72be242051c8",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "32657",
+          "paid": "32657",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0xfe237d4c3c6d366497655dbc60a03386b5bbf589:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xfE237D4c3c6d366497655dBc60a03386b5bBF589",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "94934",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x696136010e7ab0e9ddefff955a49401e6993712ec78906d3da14dc2773b73cda",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "17269",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x7b6b871c2706454c6c8d2d82c57a259e08846c091e0f6b973fd929c62b1d69cf",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "17261",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x3acb2c53ccfe1b35ff46c27874c451a53cfdc68a3d6a630477d623eac32e51a7",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "30170",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x899ee4d356a03210f62a3f082fc73f21d84c355853314fde19d96ad31f234472",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "30234",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0x2960da73efcfc09718ee7cd8cca84d3a005b5df7:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x2960Da73eFcFc09718eE7CD8cCA84D3A005B5df7",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "61064",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xb7f54f84e0634c085012a13df97129c23c349b825a76a79a03bab12d9effdcbd",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "11108",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x24e8fa94367b25cca275d271df0e7ed2ee575f92b27e8b798901dcbd05adcc4b",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "11103",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0xd751d835b6d67889ce4b65bfb5fdfe608212537e3bfb925b28cc121ee1a7e4e4",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "19406",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0xe054707a95ebdef6c38b4b54bba41ced8ff7905738c148cdf14aef6ce46d9a4e",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "19447",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0xf49126f8883208df74e9f89057b78dfbda617555:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xF49126f8883208dF74E9F89057b78DfbdA617555",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "12099",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x3d2824a47601169f525a124f48ec1e0a36c682496fa5a3cc0a91db5d87465522",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "6051",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x18b0c405340d00f6b0a342d0986f25259ae6874de6b69db5806e85aba34b46de",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "6048",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        }
+      ]
+    },
+    "0x9e2014fd331d2ad9250b6ee8fdfbb1cf309d87bf:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x9e2014fD331d2Ad9250b6eE8fDfBB1Cf309d87Bf",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "6950",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x5e60e2781220079fcd02d69d8611857c372d7c788317cba2e8cf991f0cadebfe",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "1264",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x58c58d22c4c56ad36071225f9f549de01c572d178cb5d7f06aeac9c5bf99e700",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "1264",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x41df72195c17dd2e5ef5aa5818ee67cba1b71ccfcb9192eb1a807e789a4c96c5",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "2209",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0xef6aef65d596164de8c883203518d8a33ec6ebc285d0194becb63a24d3ad5183",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "2213",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0x4c2ba53a227774810067386178bd0aa04970fdde:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x4c2Ba53a227774810067386178bD0Aa04970fDDE",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "550",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x956869c51bd7d1299d50fdf0091e75d0c85acf0149410a520f92515fa5491b2d",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "100",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x28098fc3f10001207845857773551d30d1339537b499813ac6d5475de64c78af",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "100",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x36f24cbc6133d7a262315eefcc6c5f574d3d2819f46efab5ee34ddea58940404",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "175",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0xf9909015611575bca55bab3cda04c1e30e2577bbb3b212a78548b449df493415",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "175",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0x7af3edc58487bad40a21b93d90f14453282d8df3:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x7AF3EDC58487baD40A21b93D90f14453282d8Df3",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "286212",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xa79aa8c53bb09dcd9482fed4fe410a8ddde07b1eb6038ef878c6d414c86f336a",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "52064",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x1684c71d53f1e71b2d7911ea1425ae42dd84a1b37fd76ba1e1a769a256f708b3",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "52040",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x9e0147370d30c7c204cd9b3666e7b4a219303d29a69f2246c37f2cff28503e42",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "90957",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x28915e6927310370ae9b3970c1fd3a6aaee3e4321d3a81e993f1c4d92871cfb7",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "91151",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0x510b9a5b54d88f4e08b891fcef4a741a69651198:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x510b9a5b54D88F4E08B891FcEf4A741a69651198",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "1461815",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x5eab56be2582a96c3912b24268681aed8518188aa516f95e7726124f23313bbd",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "365820",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x746d0ee8d8cc3f9be78ed22bbef8e90fbe9762e8b88eb67e4fe67df6f1e3ed06",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "365649",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x88d8ae1906bb9b351b5552d357f5e24f7e6a094616531336b749c0d4528d6777",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "364785",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x201b6d349cae17b667a8aec236e56f9aede1fc9a2fe9ec99efcb79b1fbf5af08",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "365561",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0x2ec5347bc461699fe1896b31f75a4f4821667996:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x2Ec5347bc461699FE1896b31F75a4F4821667996",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "31942",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xd71959ef0efcf2562f6cf44d07e99ffe3d662bff4070b4bf2a18a33b54e92def",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "15975",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0xcd724351ec098e48c19b25702c8713244248927a2421e67197f6c1bc173c6a9d",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "15967",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        }
+      ]
+    },
+    "0xa89ed304fd25d1fb0ad172fd46f4138b06bf49a8:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0xA89eD304fD25d1Fb0aD172fd46F4138B06bF49A8",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "631252",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xca2cc4ef050318b5cb009fb5ebed485476888fa7acf30412bce66841bc86148f",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "114829",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0x61783cf72b008dcc5f9116bcd858c9c6a4bbe8704bafbcc16953eca09f6009df",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "114776",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        },
+        {
+          "id": "0x8fab5cb3fc37d6d1a2cc6dd8f3e7f89cd3cbf801f9f19351e4b309cfba230d69",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "200610",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0xbdb4906d938fcdfc03fcf8201643ac1892056b7b33c92378efb7be46a682c21a",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "201037",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    },
+    "0x40b92e3e7476c3fe1b3bbe17204c2ad1c5dd73ef:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x40B92e3E7476C3Fe1b3bBE17204c2AD1C5Dd73ef",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "720930",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0x32b1ea4e776844253338fce90ed01e057019268c2e5c21f0f9e385d12920f917",
+          "root": "0xb2d6e63e03f06d813cd7aa8716bbbb79f6f18b4eced3b106bb584f087330c933",
+          "granted": "360549",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1788508982,
+          "protection": null
+        },
+        {
+          "id": "0xd312cb7b29265eb0ceb8f8167d9c427858a61903db309750a26e64315f51fcea",
+          "root": "0xe216a645cf7a923d7391613c0f69acc6c53800703faf250dde372078445d4935",
+          "granted": "360381",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789051971,
+          "protection": null
+        }
+      ]
+    },
+    "0x48a6089d9ed1a9d976ab05ac4e906f79d495c184:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+      "account": "0x48A6089D9Ed1A9D976Ab05AC4e906F79D495C184",
+      "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "activeAmount": "159672",
+      "paid": "0",
+      "credits": [
+        {
+          "id": "0xefa43e427e8b9c854d2f2023ec1855a20c6dd3cd76ed8d4572dd703d5da9e3cb",
+          "root": "0x83ce881ef5e988ae4c4cbf0c9b1a68a7b04630574362207263da140f29990697",
+          "granted": "79751",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1789646538,
+          "protection": null
+        },
+        {
+          "id": "0x30b5d21a3d8e6c89a853eaa119c2c115bdea2ae690833182abb23c408b2e1924",
+          "root": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+          "granted": "79921",
+          "paid": "0",
+          "recovered": "0",
+          "activatedAt": 1790262554,
+          "protection": null
+        }
+      ]
+    }
+  },
+  "recoveries": [],
+  "runs": {}
+}

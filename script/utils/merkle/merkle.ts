@@ -1,7 +1,7 @@
 import { getAddress } from "viem";
-import { MerkleData } from "../interfaces/MerkleData";
-import { Distribution } from "../interfaces/Distribution";
-import { UniversalMerkle } from "../interfaces/UniversalMerkle";
+import { MerkleData } from "../../interfaces/MerkleData";
+import { Distribution } from "../../interfaces/Distribution";
+import { UniversalMerkle } from "../../interfaces/UniversalMerkle";
 
 export const createCombineDistribution = (
     currentDistribution: { distribution: Distribution },
