@@ -36,6 +36,18 @@ function load(value: unknown, protocol?: string) {
 }
 
 describe("guard completion proofs", () => {
+  it.each(["curve", "fxn"])("accepts %s completion with V2 claims and no V1 report", (protocol) => {
+    const value = proof(protocol);
+    const { votemarket_v1, ...sources } = value.sources;
+    expect(load({ ...value, sources }, protocol).sources).toEqual(sources);
+  });
+
+  it.each(["curve", "fxn"])("still requires the %s V2 claim source", (protocol) => {
+    const value = proof(protocol);
+    const { votemarket_v2, ...sources } = value.sources;
+    expect(() => load({ ...value, sources }, protocol)).toThrow("claim sources");
+  });
+
   it("names the guard job, pipeline and strictness per protocol", () => {
     expect(guardOf("fxn")).toMatchObject({ job: "fxn-swaps", pipeline: "fxn-swaps-guard", strict: true, label: "FXN" });
     expect(guardOf("curve")).toMatchObject({ job: "crv-swaps", pipeline: "crv-swaps-guard", strict: false, label: "CURVE" });

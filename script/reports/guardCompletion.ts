@@ -112,7 +112,7 @@ export function loadCompletion(file: string, protocol?: string): GuardCompletion
       throw new Error(`Unsettled ${guard.label} remainder: ${token}`);
     }
   }
-  if (!value.sources.votemarket_v1 || !value.sources.votemarket_v2) throw new Error(`Missing ${guard.label} claim sources`);
+  if (!value.sources.votemarket_v2) throw new Error(`Missing ${guard.label} claim sources`);
   for (const [name, source] of Object.entries(value.sources)) {
     if (!(name in SOURCES) || source.path !== `weekly-bounties/${value.epoch}/${SOURCES[name as keyof typeof SOURCES]}/claimed_bounties.json`) {
       throw new Error(`Invalid ${guard.label} source path`);
