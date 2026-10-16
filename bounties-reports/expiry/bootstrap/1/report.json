@@ -3,12 +3,12 @@
   "distributor": "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
   "productionActive": false,
   "checkpoint": {
-    "block": 26190282,
-    "blockHash": "0x97412297fd81492525527d556a134e546f595dff721da707ba1d17387e3d4d36"
+    "block": 26205339,
+    "blockHash": "0x1628f8779c71f50033310ac15e53b481141a9f37d1bfbd1982e04e3a4f6e4fd9"
   },
-  "activeRoot": "0x777c9c0d9483523692419c1cbde09947d4744e1aff085c629d5ae5df046212a5",
-  "rootEvents": 102,
-  "matchedRoots": 90,
+  "activeRoot": "0xef06c5e04a22823b415a7f46dba3e8801763accc2ea85016c7fc947c237c4b3e",
+  "rootEvents": 103,
+  "matchedRoots": 91,
   "unresolvedRoots": [
     {
       "root": "0x1cb7e21ea49ac1d1540a234f15a7d30fadfcd3a151008c4fe2f1cc6f20631596",
@@ -92,7 +92,7 @@
       "source": null
     }
   ],
-  "pairs": 10305,
+  "pairs": 10662,
   "rejectedArtifacts": [],
   "totals": {
     "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
@@ -141,30 +141,30 @@
       "shortfall": "0"
     },
     "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": {
-      "outstanding": "240039149499926387361",
+      "outstanding": "632370094222414736502",
       "ageQualified": "2276342560882274666",
       "protected": "232115579388469286412",
       "paid": "4362008416464859777479",
       "paidOffset": "0",
-      "balance": "279964645431806276182",
+      "balance": "672295590154294625323",
       "shortfall": "0"
     },
     "0xD533a949740bb3306d119CC777fa900bA034cd52": {
-      "outstanding": "833250669306916746178",
+      "outstanding": "2573383415551795166427",
       "ageQualified": "91015445898557555992",
-      "protected": "633759833644931001385",
-      "paid": "423645128007467988001593",
+      "protected": "626453283271209063804",
+      "paid": "423945890597486773379594",
       "paidOffset": "0",
-      "balance": "833250669306917152964",
+      "balance": "2573383415551795573213",
       "shortfall": "0"
     },
     "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": {
-      "outstanding": "19528468483857101054",
+      "outstanding": "160954038060165003855",
       "ageQualified": "215747029137297648",
-      "protected": "10674751839275862490",
-      "paid": "2700625583711767292127",
+      "protected": "10599283411066025963",
+      "paid": "2704490704022136284760",
       "paidOffset": "0",
-      "balance": "25846154555867512062",
+      "balance": "167271724132175414863",
       "shortfall": "0"
     },
     "0x7448c7456a97769F6cD04F1E83A4a23cCdC46aBD": {
@@ -177,12 +177,12 @@
       "shortfall": "0"
     },
     "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
-      "outstanding": "224932935",
+      "outstanding": "1083203545",
       "ageQualified": "18728845",
-      "protected": "162766877",
-      "paid": "781192062967",
+      "protected": "161507957",
+      "paid": "783633993435",
       "paidOffset": "0",
-      "balance": "408715872",
+      "balance": "1266986482",
       "shortfall": "0"
     },
     "0xdAC17F958D2ee523a2206206994597C13D831ec7": {
@@ -222,21 +222,21 @@
       "shortfall": "29115807"
     },
     "0x856c4Efb76C1D1AE02e20CEB03A2A6a08b0b8dC3": {
-      "outstanding": "1011292328132953",
+      "outstanding": "3063746570021152",
       "ageQualified": "530634551974028",
       "protected": "21332541777067",
-      "paid": "812101323085544193",
+      "paid": "812663203956402386",
       "paidOffset": "0",
-      "balance": "1011292328133056",
+      "balance": "3063746570021255",
       "shortfall": "0"
     },
     "0x2A8e1E676Ec238d8A992307B495b45B3fEAa5e86": {
-      "outstanding": "42951932936443295358",
+      "outstanding": "42793375326778266840",
       "ageQualified": "2148277102593340563",
-      "protected": "28374089743953096668",
-      "paid": "15830164321637078320429",
+      "protected": "28215532134288068150",
+      "paid": "15863618409250293628515",
       "paidOffset": "0",
-      "balance": "42951932936442675798",
+      "balance": "42793375326777647280",
       "shortfall": "619560"
     },
     "0x30D20208d987713f46DFD34EF128Bb16C404D10f": {
@@ -285,21 +285,21 @@
       "shortfall": "0"
     },
     "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": {
-      "outstanding": "46528590935243742714",
+      "outstanding": "46628862089586329407",
       "ageQualified": "513931354021994380",
       "protected": "42306600582413585854",
       "paid": "824215745791482167743",
       "paidOffset": "0",
-      "balance": "46536436560321136690",
+      "balance": "46636707714663723383",
       "shortfall": "0"
     },
     "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF": {
-      "outstanding": "77647308994804835197992",
+      "outstanding": "156626499663246894326824",
       "ageQualified": "958960545140198610384",
       "protected": "0",
-      "paid": "8930165921628669810388329",
+      "paid": "9795898430369462493120024",
       "paidOffset": "0",
-      "balance": "81788363494258269334502",
+      "balance": "160767554162700328463334",
       "shortfall": "0"
     },
     "0x09fD37d9AA613789c517e76DF1c53aEce2b60Df4": {
@@ -348,21 +348,21 @@
       "shortfall": "157955"
     },
     "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": {
-      "outstanding": "106716133280470975738",
+      "outstanding": "512298010683773396004",
       "ageQualified": "1456570695672900608",
       "protected": "0",
       "paid": "1035963486829956350270",
       "paidOffset": "0",
-      "balance": "160204512427993171194",
+      "balance": "565786389831295591460",
       "shortfall": "0"
     },
     "0x865377367054516e17014CcdED1e7d814EDC9ce4": {
-      "outstanding": "44386017759085190798",
+      "outstanding": "82171783050905755562",
       "ageQualified": "11776841928721184329",
       "protected": "0",
-      "paid": "293287354422169938079785",
+      "paid": "295064167144055479106212",
       "paidOffset": "0",
-      "balance": "44386017759084530103",
+      "balance": "82171783050905094867",
       "shortfall": "660695"
     },
     "0xa0ED3359902EfF692e5b8167038133a73D641909": {
@@ -375,12 +375,12 @@
       "shortfall": "300"
     },
     "0x6440f144b7e50D6a8439336510312d2F54beB01D": {
-      "outstanding": "2226079087672413317",
+      "outstanding": "6499300090051375575",
       "ageQualified": "1502588284611895202",
       "protected": "0",
       "paid": "314809960791887376765",
       "paidOffset": "0",
-      "balance": "2226079087672411518",
+      "balance": "6499300090051373776",
       "shortfall": "1799"
     },
     "0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186": {
@@ -393,21 +393,21 @@
       "shortfall": "0"
     },
     "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E": {
-      "outstanding": "8569664360779304447",
+      "outstanding": "37117182896200775110",
       "ageQualified": "0",
       "protected": "0",
       "paid": "1554123071336289387900",
       "paidOffset": "0",
-      "balance": "8569664360779304447",
+      "balance": "37117182896200775110",
       "shortfall": "0"
     },
     "0x04ACaF8D2865c0714F79da09645C13FD2888977f": {
-      "outstanding": "1452930455234135027181",
+      "outstanding": "3280567388159259283811",
       "ageQualified": "129652678596914588318",
       "protected": "1247384383151650978159",
-      "paid": "45220648152930056755913",
+      "paid": "45906212552562536611896",
       "paidOffset": "0",
-      "balance": "1452930455234135265939",
+      "balance": "3280567388159259522569",
       "shortfall": "0"
     },
     "0x7159cc276D7d17Ab4b3bEb19959E1F39368a45Ba": {
@@ -425,7 +425,7 @@
       "protected": "0",
       "paid": "1290032592602124859088",
       "paidOffset": "0",
-      "balance": "1047835847976867704278",
+      "balance": "1047993354349543929974",
       "shortfall": "0"
     },
     "0x01Ba69727E2860b37bc1a2bd56999c1aFb4C15D8": {
@@ -456,12 +456,12 @@
       "shortfall": "3839366"
     },
     "0xf4c13D631450De6B12a19829E37c8e2826891dC4": {
-      "outstanding": "200915967494256684321",
+      "outstanding": "199406464835307502420",
       "ageQualified": "0",
-      "protected": "197899402761520543777",
-      "paid": "2582360704587423590784",
+      "protected": "196389900102571361876",
+      "paid": "2583870207246372772685",
       "paidOffset": "0",
-      "balance": "200915967494256699864",
+      "balance": "199406464835307517963",
       "shortfall": "0"
     },
     "0x18084fbA666a33d37592fA2633fD49a74DD93a88": {
@@ -474,30 +474,30 @@
       "shortfall": "0"
     },
     "0x01791F726B4103694969820be083196cC7c045fF": {
-      "outstanding": "239764688369021095121",
+      "outstanding": "420248758757210642343",
       "ageQualified": "0",
       "protected": "0",
       "paid": "104602649923008828642846",
       "paidOffset": "0",
-      "balance": "239764688369020972424",
+      "balance": "420248758757210519646",
       "shortfall": "122697"
     },
     "0x501eBf66d76A96D4FB26ccead42957653e16B8B8": {
-      "outstanding": "180376078",
+      "outstanding": "179395377",
       "ageQualified": "0",
-      "protected": "139518683",
-      "paid": "7321509619",
+      "protected": "138537982",
+      "paid": "7322490320",
       "paidOffset": "0",
-      "balance": "180376195",
+      "balance": "179395494",
       "shortfall": "0"
     },
     "0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29": {
-      "outstanding": "3377662599695796241",
+      "outstanding": "14325416547449743994",
       "ageQualified": "0",
       "protected": "0",
       "paid": "117376215148843215935",
       "paidOffset": "0",
-      "balance": "3377662599695796255",
+      "balance": "14325416547449744008",
       "shortfall": "0"
     },
     "0x52c66B5E7f8Fde20843De900C5C8B4b0F23708A0": {
@@ -510,21 +510,21 @@
       "shortfall": "0"
     },
     "0xB1c2Db5d6cA03FCe73dBd304d320bF76C55Ae1B1": {
-      "outstanding": "227551789318434508239",
+      "outstanding": "226793418470081548693",
       "ageQualified": "0",
       "protected": "0",
-      "paid": "1779583347197046623983",
+      "paid": "1786651310629659798840",
       "paidOffset": "0",
-      "balance": "227551789318434508239",
+      "balance": "226793418470081548693",
       "shortfall": "0"
     },
     "0x741bD193B6b40f8703d2e116FD1965421f290F58": {
-      "outstanding": "606628",
+      "outstanding": "6429165",
       "ageQualified": "0",
       "protected": "0",
-      "paid": "6080723",
+      "paid": "23509120",
       "paidOffset": "0",
-      "balance": "606628",
+      "balance": "6429165",
       "shortfall": "0"
     }
   },
@@ -532,5 +532,5 @@
   "governanceVerified": false,
   "treasury": null,
   "unionAgeingPolicy": null,
-  "source": "Etherscan complete paginated RootSet discovery, canonical RPC receipt/block validation and finalized claimed/balance reads"
+  "source": "Complete RootSet history, canonical RPC receipt/block validation and finalized claimed/balance reads"
 }

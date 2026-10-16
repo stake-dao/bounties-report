@@ -73,8 +73,10 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const manager = new Contract(safe, ["function enableModule(address)"], safeSigner);
       await mine(manager.enableModule(module.address));
       const inputs = JSON.parse(fs.readFileSync("bounties-reports/expiry/bootstrap/1/inputs.json", "utf8"));
-      const known = [...inputs.publications].reverse().find(publication => publication.root === inputs.publications[inputs.publications.length - 1].root);
-      const preceding = [...inputs.publications].reverse().find(publication => publication.block < known.block && !/^0x0{64}$/.test(publication.root));
+      const publications = inputs.publications.filter(publication => publication.block <= 26190047);
+      const activeRoot = (await urd.root()).toLowerCase();
+      const known = [...publications].reverse().find(publication => publication.root.toLowerCase() === activeRoot && publication.merkle);
+      const preceding = [...publications].reverse().find(publication => publication.block < known.block && !/^0x0{64}$/.test(publication.root));
       const original = generateMerkleTree(verifyExpiryParent(known.merkle));
       expect(await urd.root()).toBe(original.merkleRoot);
       const distribution = verifyExpiryParent(original);
