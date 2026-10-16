@@ -4,9 +4,9 @@ name: "IPFS: evidence index"
 # map or rewrites a pinned file, checks every map against the committed tree
 # and re-pins what drifted (pinToIpfs --heal), rebuilds and pins the evidence
 # index, serialized so concurrent merkle runs never race on the shared
-# pointer, then dispatches automation-jobs' ens_publish (workflows:
-# bribes-ens-publish.yaml) to mirror the pointer into the contenthash of
-# rewards.stakedao.eth. Invariant on main: map entry == committed bytes.
+# pointer. The contenthash of rewards.stakedao.eth follows it through the
+# Maestro ens-publish-guard sweep (automation-guard ens-publish, every 2h).
+# Invariant on main: map entry == committed bytes.
 
 on:
   push:
@@ -68,18 +68,6 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ipfs evidence index"
-
-      # GIT_ACCESS_TOKEN cannot see the private workflows repo; this fine-grained
-      # PAT is scoped to stake-dao/workflows with Actions: read and write.
-      - name: Publish pointer to rewards.stakedao.eth
-        env:
-          GH_TOKEN: ${{ secrets.WORKFLOWS_DISPATCH_TOKEN }}
-        run: |
-          gh workflow run bribes-ens-publish.yaml \
-            --repo stake-dao/workflows \
-            --ref main \
-            --field mode=execute \
-            --field dispatch_id="ipfs-index-${{ github.run_id }}"
 
       - name: Notify on failure
         if: failure()
