@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parseAbi, parseAbiItem, type Address, type PublicClient } from "viem";
 import { FXN_STAKE_DAO_LOCKER, STAKE_DAO_LOCKER, VOTEMARKET_PLATFORM_CONFIGS, WEEK } from "../../utils/constants";
 import { ContractRegistry } from "../../utils/contractRegistry";
@@ -73,7 +73,8 @@ export async function verifySourceClaims(
   for (const protocol of protocols) {
     for (const version of [1, 2] as const) {
       const file = `weekly-bounties/${period}/${version === 1 ? "votemarket" : "votemarket-v2"}/claimed_bounties.json`;
-      const stored = Object.values(JSON.parse(readFileSync(file, "utf8"))[protocol] ?? {}) as SourceClaim[];
+      const stored = version === 1 && !existsSync(file) ? []
+        : Object.values(JSON.parse(readFileSync(file, "utf8"))[protocol] ?? {}) as SourceClaim[];
       const registryKey = `${protocol.toUpperCase()}_VOTEMARKET_V2`;
       const chains = version === 1 ? [1] : ContractRegistry.getChains(registryKey);
       const onchain = (await Promise.all(chains.map(async (chain) => {

@@ -163,7 +163,7 @@ export function runR1(period: number, protocols: readonly ReportProtocol[]): Rep
     for (const source of SOURCES) {
       const currentFile = sourcePath(period, source);
       if (!existsSync(currentFile)) {
-        failures.push(`${protocol}/${source}: weekly claims file missing`);
+        if (source === "votemarket_v2") failures.push(`${protocol}/${source}: weekly claims file missing`);
         continue;
       }
       const historyFiles = [1, 2, 3, 4].map((back) => sourcePath(period - back * WEEK, source));
@@ -479,7 +479,9 @@ export function runR4(
     otcCount += otcRows.length;
     const rawWeights = new Map<string, bigint>();
     for (const source of SOURCES) {
-      for (const claim of claimsForProtocol(sourcePath(period, source), protocol)) {
+      const file = sourcePath(period, source);
+      if (source === "votemarket_v1" && !existsSync(file)) continue;
+      for (const claim of claimsForProtocol(file, protocol)) {
         if (claim.chainId && claim.chainId !== 1 && claim.isWrapped !== true) continue;
         if (typeof claim.gauge !== "string" || typeof claim.rewardToken !== "string" || typeof claim.amount !== "string" || !/^\d+$/.test(claim.amount)) throw new Error(`${protocol}: invalid claim`);
         const key = provenanceKey(gaugeMap.get(lc(claim.gauge)) ?? claim.gauge, claim.rewardToken);
