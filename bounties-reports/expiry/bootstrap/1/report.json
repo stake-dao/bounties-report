@@ -1,0 +1,536 @@
+{
+  "chainId": 1,
+  "distributor": "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+  "productionActive": false,
+  "checkpoint": {
+    "block": 26205339,
+    "blockHash": "0x1628f8779c71f50033310ac15e53b481141a9f37d1bfbd1982e04e3a4f6e4fd9"
+  },
+  "activeRoot": "0xef06c5e04a22823b415a7f46dba3e8801763accc2ea85016c7fc947c237c4b3e",
+  "rootEvents": 103,
+  "matchedRoots": 91,
+  "unresolvedRoots": [
+    {
+      "root": "0x1cb7e21ea49ac1d1540a234f15a7d30fadfcd3a151008c4fe2f1cc6f20631596",
+      "timestamp": 1732006883,
+      "block": 21220746,
+      "blockHash": "0xc4a4bea35de4932ce6a30a471ffa314deea953e8e4a2d9a7be991713f95c3703",
+      "transactionHash": "0x650311ed06c3c8931470dc399fe170273ff9985ae82ae6880646248121aa6f1d",
+      "logIndex": 659,
+      "source": null
+    },
+    {
+      "root": "0x84bbde2bd7ee4a6f5acc4d56fc0071021b2e2b052f7feb2ab43d4b0286acc7ee",
+      "timestamp": 1732610747,
+      "block": 21270816,
+      "blockHash": "0x94ab559474e67c28b8d6e06a32eb201dd755b89c79bdba32237170d51403ef28",
+      "transactionHash": "0x129df1ebb34d3ab4d315e1be96ea84aa85590d328a500b55ad128868de9dc9b0",
+      "logIndex": 303,
+      "source": null
+    },
+    {
+      "root": "0x87952f214197dad077aee896cedcdf8adff98deb3f5048a48a8603eae7cef710",
+      "timestamp": 1733820239,
+      "block": 21370989,
+      "blockHash": "0xa3c483e28ec41257dd6e4fb52cec2f1a1d241082294afb6eb313c5ee3eb265f4",
+      "transactionHash": "0xfc9b6bb416e8bae6feea0bbf0abd08dcfb506e3deea6d3e8e7384ce9be04b233",
+      "logIndex": 440,
+      "source": null
+    },
+    {
+      "root": "0x76f075ae0b7d01e048ba4b1abd14dff7cbcbbd211c4327c1ea4d716c43b56c27",
+      "timestamp": 1734702203,
+      "block": 21444105,
+      "blockHash": "0x6a65d9a036a02df97fe22ae8a9d74dcf50fcd0177dbad507a1a67b39abe64cbf",
+      "transactionHash": "0xa831226de83fb6712e1dfb2a2656ce4a933b0b106a6a72ca33154da9f101e0ed",
+      "logIndex": 235,
+      "source": null
+    },
+    {
+      "root": "0xf9f539fe3b4e271d93e36a05f55db9c0fa2803ebc8d739378841d7a5956a93f9",
+      "timestamp": 1735033703,
+      "block": 21471535,
+      "blockHash": "0x74fd1965ea07da123fa52f1c3cd512ca5fd2da36731a32f26596fcf0446db847",
+      "transactionHash": "0x969c8a3a987bcf55492ded373c69867f52201cb064f9da07c4a726c25fbea688",
+      "logIndex": 540,
+      "source": null
+    },
+    {
+      "root": "0x6d0c74878627197c45ac66bc53540deae457e8ff287bca90a27fbe7a02b0c1af",
+      "timestamp": 1736241479,
+      "block": 21571645,
+      "blockHash": "0xef4ed36d35cf36b66ee4aabd569362b78ef5c3bd423993e74e8c43ffa7e27370",
+      "transactionHash": "0xa919f5dc7716e3b85ae9a9f41a28c77dd3e63e224324ec2549b943643ca4cda0",
+      "logIndex": 115,
+      "source": null
+    },
+    {
+      "root": "0x1538f6e978ddb9dee5d803e659e8929f282f5ef9831317e0080c87898e277cb9",
+      "timestamp": 1737449363,
+      "block": 21671776,
+      "blockHash": "0x0524b70ad9bb5dec3d5dbc37b1266e675ab36495c15d09067865d9470a169029",
+      "transactionHash": "0xafe155e1607c144ba8075458edba05e785764e3ffd76694d9c485b9cbb0ef6f7",
+      "logIndex": 251,
+      "source": null
+    },
+    {
+      "root": "0x506df10c8e1310d5834952eb5a8fde441da3dde4b4e8329c4b00f4d93d8730ca",
+      "timestamp": 1749722675,
+      "block": 22687772,
+      "blockHash": "0xa559bb6e57faf5e60e64805838c9f83690d36ca9931e6a3a7f1fb66ffbae344f",
+      "transactionHash": "0x3f778eff712b7993a94a93795edc11ab8935c87f221662a194b11ff0b27ba8c2",
+      "logIndex": 604,
+      "source": null
+    },
+    {
+      "root": "0x5170cda027a904ca9cef4cf84026fa989425027062cba8ae89f90df002e249c1",
+      "timestamp": 1750324703,
+      "block": 22737581,
+      "blockHash": "0x9e24e466be81c3129cf313d1da7db43938cb5e67e46d36c516984aae4d6406c3",
+      "transactionHash": "0x5d74dfb0174b4c437b3083a5ce5d89583200a8b46a1bb4f13aa0e629f26e2b93",
+      "logIndex": 610,
+      "source": null
+    }
+  ],
+  "pairs": 10662,
+  "rejectedArtifacts": [],
+  "totals": {
+    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
+      "outstanding": "4237141637200216",
+      "ageQualified": "3561370787223475",
+      "protected": "675770849976741",
+      "paid": "9643412972404190687",
+      "paidOffset": "0",
+      "balance": "4237141637200329",
+      "shortfall": "0"
+    },
+    "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F": {
+      "outstanding": "259568534427120683105",
+      "ageQualified": "83924188683597428287",
+      "protected": "0",
+      "paid": "103761834986793221150941",
+      "paidOffset": "0",
+      "balance": "259568544427120271285",
+      "shortfall": "0"
+    },
+    "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68": {
+      "outstanding": "2314294817179201934",
+      "ageQualified": "671414372535136762",
+      "protected": "1642880444644065172",
+      "paid": "8692796120057071654233",
+      "paidOffset": "0",
+      "balance": "5055498051025832178",
+      "shortfall": "0"
+    },
+    "0x090185f2135308BaD17527004364eBcC2D37e5F6": {
+      "outstanding": "339529268151298700061558",
+      "ageQualified": "199293927125306565741568",
+      "protected": "51264661072256763549528",
+      "paid": "1005188169273600512766495179",
+      "paidOffset": "0",
+      "balance": "339529268171294578184755",
+      "shortfall": "0"
+    },
+    "0x6b5204B0Be36771253Cc38e88012E02B752f0f36": {
+      "outstanding": "54733278274008480788093",
+      "ageQualified": "0",
+      "protected": "54733278274008480788093",
+      "paid": "15627291570965205120278",
+      "paidOffset": "0",
+      "balance": "54733278294008480788091",
+      "shortfall": "0"
+    },
+    "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B": {
+      "outstanding": "632370094222414736502",
+      "ageQualified": "2276342560882274666",
+      "protected": "232115579388469286412",
+      "paid": "4362008416464859777479",
+      "paidOffset": "0",
+      "balance": "672295590154294625323",
+      "shortfall": "0"
+    },
+    "0xD533a949740bb3306d119CC777fa900bA034cd52": {
+      "outstanding": "2573383415551795166427",
+      "ageQualified": "91015445898557555992",
+      "protected": "626453283271209063804",
+      "paid": "423945890597486773379594",
+      "paidOffset": "0",
+      "balance": "2573383415551795573213",
+      "shortfall": "0"
+    },
+    "0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF": {
+      "outstanding": "160954038060165003855",
+      "ageQualified": "215747029137297648",
+      "protected": "10599283411066025963",
+      "paid": "2704490704022136284760",
+      "paidOffset": "0",
+      "balance": "167271724132175414863",
+      "shortfall": "0"
+    },
+    "0x7448c7456a97769F6cD04F1E83A4a23cCdC46aBD": {
+      "outstanding": "0",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "13833762117725953068",
+      "paidOffset": "0",
+      "balance": "0",
+      "shortfall": "0"
+    },
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
+      "outstanding": "1083203545",
+      "ageQualified": "18728845",
+      "protected": "161507957",
+      "paid": "783633993435",
+      "paidOffset": "0",
+      "balance": "1266986482",
+      "shortfall": "0"
+    },
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7": {
+      "outstanding": "9447268",
+      "ageQualified": "1263622",
+      "protected": "0",
+      "paid": "5635588546",
+      "paidOffset": "0",
+      "balance": "9447355",
+      "shortfall": "0"
+    },
+    "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0": {
+      "outstanding": "51052632818936974895",
+      "ageQualified": "51052632818936974895",
+      "protected": "0",
+      "paid": "6454477251723845720033",
+      "paidOffset": "0",
+      "balance": "126035610718800889106",
+      "shortfall": "0"
+    },
+    "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f": {
+      "outstanding": "626601355797208085106",
+      "ageQualified": "9462794179870058313",
+      "protected": "617138561617338026793",
+      "paid": "61207516533752580695388",
+      "paidOffset": "2766325253733474816",
+      "balance": "624335030543473231083",
+      "shortfall": "2266325253734854023"
+    },
+    "0x8207c1FfC5B6804F6024322CcF34F29c3541Ae26": {
+      "outstanding": "844406327445917230687",
+      "ageQualified": "285649424608443562568",
+      "protected": "4339776632714400448",
+      "paid": "1423222305248102805554315",
+      "paidOffset": "0",
+      "balance": "844406327445888114880",
+      "shortfall": "29115807"
+    },
+    "0x856c4Efb76C1D1AE02e20CEB03A2A6a08b0b8dC3": {
+      "outstanding": "3063746570021152",
+      "ageQualified": "530634551974028",
+      "protected": "21332541777067",
+      "paid": "812663203956402386",
+      "paidOffset": "0",
+      "balance": "3063746570021255",
+      "shortfall": "0"
+    },
+    "0x2A8e1E676Ec238d8A992307B495b45B3fEAa5e86": {
+      "outstanding": "42793375326778266840",
+      "ageQualified": "2148277102593340563",
+      "protected": "28215532134288068150",
+      "paid": "15863618409250293628515",
+      "paidOffset": "0",
+      "balance": "42793375326777647280",
+      "shortfall": "619560"
+    },
+    "0x30D20208d987713f46DFD34EF128Bb16C404D10f": {
+      "outstanding": "57734710639549703720",
+      "ageQualified": "37989754142805082536",
+      "protected": "19744956496744621184",
+      "paid": "36151416922078386625446",
+      "paidOffset": "0",
+      "balance": "57734710639549194809",
+      "shortfall": "508911"
+    },
+    "0xFa2B947eEc368f42195f24F36d2aF29f7c24CeC2": {
+      "outstanding": "42968052384026926721",
+      "ageQualified": "25553800432018969747",
+      "protected": "17414251952007956974",
+      "paid": "65879794536866141922246",
+      "paidOffset": "0",
+      "balance": "42968052384026141597",
+      "shortfall": "785124"
+    },
+    "0x4DF454443D6e9A888e9B1571B2375e8Ab4118d9d": {
+      "outstanding": "0",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "49572799565188259752068",
+      "paidOffset": "0",
+      "balance": "0",
+      "shortfall": "0"
+    },
+    "0x085780639CC2cACd35E474e71f4d000e2405d8f6": {
+      "outstanding": "7333387616502982240",
+      "ageQualified": "7333387616502982240",
+      "protected": "0",
+      "paid": "57590392261123878782",
+      "paidOffset": "0",
+      "balance": "7333387616502969994",
+      "shortfall": "12246"
+    },
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F": {
+      "outstanding": "0",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "142416869790010589184",
+      "paidOffset": "0",
+      "balance": "0",
+      "shortfall": "0"
+    },
+    "0x365AccFCa291e7D3914637ABf1F7635dB165Bb09": {
+      "outstanding": "46628862089586329407",
+      "ageQualified": "513931354021994380",
+      "protected": "42306600582413585854",
+      "paid": "824215745791482167743",
+      "paidOffset": "0",
+      "balance": "46636707714663723383",
+      "shortfall": "0"
+    },
+    "0x5DE8ab7E27f6E7A1fFf3E5B337584Aa43961BEeF": {
+      "outstanding": "156626499663246894326824",
+      "ageQualified": "958960545140198610384",
+      "protected": "0",
+      "paid": "9795898430369462493120024",
+      "paidOffset": "0",
+      "balance": "160767554162700328463334",
+      "shortfall": "0"
+    },
+    "0x09fD37d9AA613789c517e76DF1c53aEce2b60Df4": {
+      "outstanding": "57154671869825752544",
+      "ageQualified": "57154671869825752544",
+      "protected": "0",
+      "paid": "1848202344351918549934",
+      "paidOffset": "0",
+      "balance": "57154671869825734003",
+      "shortfall": "18541"
+    },
+    "0x59a529070fBb61e6D6c91f952CcB7f35c34Cf8Aa": {
+      "outstanding": "417564212275998684429",
+      "ageQualified": "417564212275998684429",
+      "protected": "0",
+      "paid": "38864624221184558044421",
+      "paidOffset": "0",
+      "balance": "417564212275999021628",
+      "shortfall": "0"
+    },
+    "0xb4444468e444f89e1c2CAc2F1D3ee7e336cBD1f5": {
+      "outstanding": "8023453489094072701",
+      "ageQualified": "8023453489094072701",
+      "protected": "0",
+      "paid": "1887509827946791640",
+      "paidOffset": "0",
+      "balance": "8023453489094072701",
+      "shortfall": "0"
+    },
+    "0x9Cf12ccd6020b6888e4D4C4e4c7AcA33c1eB91f8": {
+      "outstanding": "4819535737366403839",
+      "ageQualified": "4819535737366403839",
+      "protected": "0",
+      "paid": "7346294432597231251340",
+      "paidOffset": "0",
+      "balance": "4819535737366384766",
+      "shortfall": "19073"
+    },
+    "0x7fE24F1A024D33506966CB7CA48Bab8c65fB632d": {
+      "outstanding": "67301556242373576196911",
+      "ageQualified": "41586754463898214003682",
+      "protected": "0",
+      "paid": "63018162051620210177695",
+      "paidOffset": "0",
+      "balance": "67301556242373576038956",
+      "shortfall": "157955"
+    },
+    "0x419905009e4656fdC02418C7Df35B1E61Ed5F726": {
+      "outstanding": "512298010683773396004",
+      "ageQualified": "1456570695672900608",
+      "protected": "0",
+      "paid": "1035963486829956350270",
+      "paidOffset": "0",
+      "balance": "565786389831295591460",
+      "shortfall": "0"
+    },
+    "0x865377367054516e17014CcdED1e7d814EDC9ce4": {
+      "outstanding": "82171783050905755562",
+      "ageQualified": "11776841928721184329",
+      "protected": "0",
+      "paid": "295064167144055479106212",
+      "paidOffset": "0",
+      "balance": "82171783050905094867",
+      "shortfall": "660695"
+    },
+    "0xa0ED3359902EfF692e5b8167038133a73D641909": {
+      "outstanding": "2914525856528588054",
+      "ageQualified": "2914525856528588054",
+      "protected": "0",
+      "paid": "1123862205832931069828",
+      "paidOffset": "0",
+      "balance": "2914525856528587754",
+      "shortfall": "300"
+    },
+    "0x6440f144b7e50D6a8439336510312d2F54beB01D": {
+      "outstanding": "6499300090051375575",
+      "ageQualified": "1502588284611895202",
+      "protected": "0",
+      "paid": "314809960791887376765",
+      "paidOffset": "0",
+      "balance": "6499300090051373776",
+      "shortfall": "1799"
+    },
+    "0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186": {
+      "outstanding": "11517170483514806321",
+      "ageQualified": "9159490842009984031",
+      "protected": "0",
+      "paid": "26257247215264015713989",
+      "paidOffset": "0",
+      "balance": "11517170483514828620",
+      "shortfall": "0"
+    },
+    "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E": {
+      "outstanding": "37117182896200775110",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "1554123071336289387900",
+      "paidOffset": "0",
+      "balance": "37117182896200775110",
+      "shortfall": "0"
+    },
+    "0x04ACaF8D2865c0714F79da09645C13FD2888977f": {
+      "outstanding": "3280567388159259283811",
+      "ageQualified": "129652678596914588318",
+      "protected": "1247384383151650978159",
+      "paid": "45906212552562536611896",
+      "paidOffset": "0",
+      "balance": "3280567388159259522569",
+      "shortfall": "0"
+    },
+    "0x7159cc276D7d17Ab4b3bEb19959E1F39368a45Ba": {
+      "outstanding": "79811804773116689802",
+      "ageQualified": "79811804773116689802",
+      "protected": "0",
+      "paid": "1927740183485828311168",
+      "paidOffset": "0",
+      "balance": "79811804773116211915",
+      "shortfall": "477887"
+    },
+    "0x476ef9ac6D8673E220d0E8BC0a810C2Dc6A2AA84": {
+      "outstanding": "1029867918873603137279",
+      "ageQualified": "1029867918873603137279",
+      "protected": "0",
+      "paid": "1290032592602124859088",
+      "paidOffset": "0",
+      "balance": "1047993354349543929974",
+      "shortfall": "0"
+    },
+    "0x01Ba69727E2860b37bc1a2bd56999c1aFb4C15D8": {
+      "outstanding": "0",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "679696043646018589932",
+      "paidOffset": "0",
+      "balance": "0",
+      "shortfall": "0"
+    },
+    "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF": {
+      "outstanding": "8944572438158716549",
+      "ageQualified": "8006007988667796321",
+      "protected": "0",
+      "paid": "169854871684183364021682",
+      "paidOffset": "0",
+      "balance": "8944572438159749735",
+      "shortfall": "0"
+    },
+    "0x24A3D725C37A8D1a66Eb87f0E5D07fE67c120035": {
+      "outstanding": "103347508229356758016",
+      "ageQualified": "103347508229356758016",
+      "protected": "0",
+      "paid": "16963055630938636044672",
+      "paidOffset": "0",
+      "balance": "103347508229352918650",
+      "shortfall": "3839366"
+    },
+    "0xf4c13D631450De6B12a19829E37c8e2826891dC4": {
+      "outstanding": "199406464835307502420",
+      "ageQualified": "0",
+      "protected": "196389900102571361876",
+      "paid": "2583870207246372772685",
+      "paidOffset": "0",
+      "balance": "199406464835307517963",
+      "shortfall": "0"
+    },
+    "0x18084fbA666a33d37592fA2633fD49a74DD93a88": {
+      "outstanding": "9736720924368",
+      "ageQualified": "9736720924368",
+      "protected": "0",
+      "paid": "3668005650675580",
+      "paidOffset": "0",
+      "balance": "9736720924389",
+      "shortfall": "0"
+    },
+    "0x01791F726B4103694969820be083196cC7c045fF": {
+      "outstanding": "420248758757210642343",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "104602649923008828642846",
+      "paidOffset": "0",
+      "balance": "420248758757210519646",
+      "shortfall": "122697"
+    },
+    "0x501eBf66d76A96D4FB26ccead42957653e16B8B8": {
+      "outstanding": "179395377",
+      "ageQualified": "0",
+      "protected": "138537982",
+      "paid": "7322490320",
+      "paidOffset": "0",
+      "balance": "179395494",
+      "shortfall": "0"
+    },
+    "0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29": {
+      "outstanding": "14325416547449743994",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "117376215148843215935",
+      "paidOffset": "0",
+      "balance": "14325416547449744008",
+      "shortfall": "0"
+    },
+    "0x52c66B5E7f8Fde20843De900C5C8B4b0F23708A0": {
+      "outstanding": "9818052225440359989",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "36222921401032864558",
+      "paidOffset": "0",
+      "balance": "9818052225440362048",
+      "shortfall": "0"
+    },
+    "0xB1c2Db5d6cA03FCe73dBd304d320bF76C55Ae1B1": {
+      "outstanding": "226793418470081548693",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "1786651310629659798840",
+      "paidOffset": "0",
+      "balance": "226793418470081548693",
+      "shortfall": "0"
+    },
+    "0x741bD193B6b40f8703d2e116FD1965421f290F58": {
+      "outstanding": "6429165",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "23509120",
+      "paidOffset": "0",
+      "balance": "6429165",
+      "shortfall": "0"
+    }
+  },
+  "noticeVerified": false,
+  "governanceVerified": false,
+  "treasury": null,
+  "unionAgeingPolicy": null,
+  "source": "Complete RootSet history, canonical RPC receipt/block validation and finalized claimed/balance reads"
+}

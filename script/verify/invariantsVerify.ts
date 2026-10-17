@@ -201,7 +201,7 @@ async function main() {
         baseline.artifactPath &&
         path.resolve(baseline.artifactPath) === path.resolve(absPath)
       ) {
-        const archived = loadArchivedPairs(REPORTS_ROOT, timestamp, spec.relPath);
+        const archived = loadArchivedPairs(REPORTS_ROOT, timestamp, spec.relPath, 12, artifact.computedRoot);
         deltaBaseline = archived.pairs;
         console.log(
           `   already published — cross-tree delta baseline: ` +
