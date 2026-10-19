@@ -7,6 +7,7 @@ import { MerkleData } from "../../interfaces/MerkleData";
 import { getClient } from "../../utils/getClients";
 import { fetchClaimed } from "../../verify/invariants/preservation";
 import { bootstrapExpiryLedger, expiryKey, EXPIRY_DISTRIBUTOR, Publication, sixCalendarMonths, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
+import unionAgeBound from "./union-age-bound.json";
 
 const chainId = Number(process.argv[2]);
 const output = path.resolve("bounties-reports/expiry/bootstrap", String(chainId));
@@ -105,7 +106,10 @@ async function main() {
   const unionMerkle = { ...JSON.parse(fs.readFileSync(unionFile, "utf8")), merkleRoot: unionBinding[0].creditsRoot };
   const unionDistribution = verifyExpiryParent(unionMerkle);
   const unionPublication = publications.find(publication => publication.transactionHash.toLowerCase() === "0x9d661baa0d522c8e76a036152281c58ca6856b42f51f0d8b335cbab7286f24bc");
-  const union = chainId === 1 ? { root: unionPublication?.root ?? null, amounts: Object.fromEntries(Object.entries(unionDistribution).flatMap(([account, tokens]) => Object.entries(tokens).map(([token, amount]) => [expiryKey(account, token), amount]))) } : null;
+  const ageBoundFile = "script/vlCVX/expiry/union-age-bound.json";
+  const ageBound = chainId === 1 ? (saved ? saved.union?.ageBound : unionAgeBound) : undefined;
+  if (ageBound && (JSON.stringify(ageBound) !== JSON.stringify(unionAgeBound) || ageBound.chainId !== chainId || ageBound.account.toLowerCase() !== unionMerkle.meta.union.toLowerCase() || ageBound.creditsRoot !== unionBinding[0].creditsRoot || ageBound.roundsDigest !== unionMerkle.meta.roundsDigest || (saved && (saved.unionSource.ageBoundFile !== ageBoundFile || saved.unionSource.ageBoundSha256 !== utils.sha256(fs.readFileSync(ageBoundFile)))))) throw new Error("Union age bound provenance");
+  const union = chainId === 1 ? { root: unionPublication?.root ?? null, amounts: Object.fromEntries(Object.entries(unionDistribution).flatMap(([account, tokens]) => Object.entries(tokens).map(([token, amount]) => [expiryKey(account, token), amount]))), ...(ageBound ? { ageBound } : {}) } : null;
   const ledger = bootstrapExpiryLedger(chainId, publications, claims, { block: Number(checkpoint.number), blockHash: checkpoint.hash }, union);
   const tokens = [...new Set(Object.values(ledger.pairs).map(pair => pair.token))];
   const balances = await client.multicall({ contracts: tokens.map(address => ({ address: address as Address, abi: balanceAbi, functionName: "balanceOf" as const, args: [EXPIRY_DISTRIBUTOR] })), blockNumber: checkpoint.number });
@@ -120,7 +124,7 @@ async function main() {
         const amount = BigInt(credit.granted) - BigInt(credit.paid) - BigInt(credit.recovered);
         outstanding += amount;
         if (credit.protection !== null || credit.activatedAt === null) protectedAmount += amount;
-        else if (sixCalendarMonths(credit.activatedAt) <= Number(checkpoint.timestamp)) qualified += amount;
+        else if (sixCalendarMonths(credit.ageBoundAt ?? credit.activatedAt) <= Number(checkpoint.timestamp)) qualified += amount;
       }
     }
     const balance = balances[i].status === "success" ? BigInt(balances[i].result as bigint) : null;
@@ -129,8 +133,8 @@ async function main() {
   const sameCheckpoint = await client.getBlock({ blockNumber: checkpoint.number });
   if (sameCheckpoint.hash !== checkpoint.hash) throw new Error("checkpoint reorg; bootstrap not written");
   fs.mkdirSync(output, { recursive: true });
-  if (!saved) writeExpiryInput(path.join(output, "inputs.json"), { chainId, checkpoint: ledger.checkpoint, publications, claims, claimEvents, union, unionSource: { file: unionFile, sha256: utils.sha256(fs.readFileSync(unionFile)), bindingFile: restatementsFile, bindingSha256: utils.sha256(fs.readFileSync(restatementsFile)) }, rejectedArtifacts: rejected });
-  if (!fs.existsSync(path.join(output, "report.json"))) writeExpiryInput(path.join(output, "report.json"), { chainId, distributor: EXPIRY_DISTRIBUTOR, productionActive: false, checkpoint: ledger.checkpoint, activeRoot, rootEvents: publications.length, matchedRoots: publications.filter(publication => publication.merkle).length, unresolvedRoots: publications.filter(publication => !publication.merkle && !/^0x0{64}$/i.test(publication.root)).map(({ merkle, ...publication }) => publication), pairs: pairs.size, rejectedArtifacts: saved?.rejectedArtifacts ?? rejected, totals, noticeVerified: false, governanceVerified: false, treasury: null, unionAgeingPolicy: null, source: "Complete RootSet history, canonical RPC receipt/block validation and finalized claimed/balance reads" });
+  if (!saved) writeExpiryInput(path.join(output, "inputs.json"), { chainId, checkpoint: ledger.checkpoint, publications, claims, claimEvents, union, unionSource: { file: unionFile, sha256: utils.sha256(fs.readFileSync(unionFile)), bindingFile: restatementsFile, bindingSha256: utils.sha256(fs.readFileSync(restatementsFile)), ...(ageBound ? { ageBoundFile, ageBoundSha256: utils.sha256(fs.readFileSync(ageBoundFile)) } : {}) }, rejectedArtifacts: rejected });
+  if (!fs.existsSync(path.join(output, "report.json"))) writeExpiryInput(path.join(output, "report.json"), { chainId, distributor: EXPIRY_DISTRIBUTOR, productionActive: false, checkpoint: ledger.checkpoint, activeRoot, rootEvents: publications.length, matchedRoots: publications.filter(publication => publication.merkle).length, unresolvedRoots: publications.filter(publication => !publication.merkle && !/^0x0{64}$/i.test(publication.root)).map(({ merkle, ...publication }) => publication), pairs: pairs.size, rejectedArtifacts: saved?.rejectedArtifacts ?? rejected, totals, noticeVerified: false, governanceVerified: false, treasury: null, unionAgeingPolicy: ageBound ?? null, source: "Complete RootSet history, canonical RPC receipt/block validation and finalized claimed/balance reads" });
   writeExpiryInput(path.join(output, "ledger.json"), ledger);
   console.log(JSON.stringify({ chainId, rootEvents: publications.length, matchedRoots: publications.filter(publication => publication.merkle).length, pairs: pairs.size, activeRoot, output }));
 }

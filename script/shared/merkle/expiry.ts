@@ -14,6 +14,8 @@ export interface Credit {
   paid: string;
   recovered: string;
   activatedAt: number | null;
+  // Earned-by proof does not change publication order or claim allocation.
+  ageBoundAt?: number;
   protection: string | null;
 }
 
@@ -42,7 +44,15 @@ export interface Publication {
   block: number;
   blockHash: string;
   logIndex?: number;
+  transactionHash?: string;
   merkle: MerkleData | null;
+}
+
+export interface UnionAgeBound {
+  account: string;
+  witness: Pick<Publication, "root" | "block" | "blockHash" | "timestamp" | "logIndex" | "transactionHash">;
+  roots: string[];
+  amounts: Record<string, string>;
 }
 
 export interface ExpiryPolicy {
@@ -156,6 +166,10 @@ export function assertExpiryLedger(ledger: Ledger): void {
       if (ids.has(credit.id) || remaining(credit) < 0n) throw new Error("credit accounting");
       ids.add(credit.id);
       if (credit.activatedAt !== null) sixCalendarMonths(credit.activatedAt);
+      if (credit.ageBoundAt !== undefined) {
+        sixCalendarMonths(credit.ageBoundAt);
+        if (credit.activatedAt === null || credit.ageBoundAt > credit.activatedAt || credit.protection !== null) throw new Error("credit age bound");
+      }
       paid += quantity(credit.paid);
       outstanding += remaining(credit);
     }
@@ -187,7 +201,7 @@ export function bootstrapExpiryLedger(
   publications: Publication[],
   claims: Record<string, string>,
   checkpoint: Ledger["checkpoint"],
-  unresolvedUnion: { root: string | null; amounts: Record<string, string> } | null = null
+  unresolvedUnion: { root: string | null; amounts: Record<string, string>; ageBound?: UnionAgeBound } | null = null
 ): Ledger {
   if (!publications.length || !/^0x0{64}$/i.test(publications[0].root)) throw new Error("missing deployment publication");
   const ledger: Ledger = { version: 1, chainId, distributor: EXPIRY_DISTRIBUTOR, root: "", checkpoint, pairs: {}, recoveries: [], runs: {} };
@@ -220,6 +234,27 @@ export function bootstrapExpiryLedger(
     complete = true;
   }
   if (!complete || !ledger.root) throw new Error("active root artifact unresolved");
+  const bound = unresolvedUnion?.ageBound;
+  const boundedTokens = new Set<string>();
+  if (bound) {
+    const account = getAddress(bound.account);
+    const witness = publications.findIndex(publication => Object.entries(bound.witness).every(([key, value]) => publication[key as keyof Publication] === value));
+    const assigned = publications.findIndex(publication => publication.root === unresolvedUnion.root);
+    if (chainId !== 1 || witness < 0 || assigned <= witness) throw new Error("Union age witness");
+    if (bound.roots.length < assigned - witness + 1 || JSON.stringify(publications.slice(witness, witness + bound.roots.length).map(publication => publication.root)) !== JSON.stringify(bound.roots)) throw new Error("Union age history sequence");
+    for (const [token, amount] of Object.entries(bound.amounts)) {
+      const reward = getAddress(token);
+      const total = Object.entries(unresolvedUnion.amounts).filter(([key]) => key.endsWith(`:${reward.toLowerCase()}`)).reduce((sum, [, value]) => sum + quantity(value), 0n);
+      if (quantity(amount) === 0n || total !== quantity(amount) || claims[expiryKey(account, reward)] !== "0") throw new Error("Union age allocation or claimed source");
+      for (let i = witness; i < publications.length; ++i) {
+        const publication = publications[i];
+        if (!publication.merkle) throw new Error("Union age history gap");
+        const original = quantity(publication.merkle.claims[account]?.tokens[reward]?.amount ?? "0");
+        if (original !== (i < assigned ? quantity(amount) : 0n)) throw new Error("Union age original pot changed");
+      }
+      boundedTokens.add(reward);
+    }
+  }
   for (const key of Object.keys(claims)) {
     if (ledger.pairs[key]) continue;
     const [account, token] = key.split(":");
@@ -244,10 +279,13 @@ export function bootstrapExpiryLedger(
       if (credit.root.toLowerCase() !== unresolvedUnion?.root?.toLowerCase() || credit.protection !== null) continue;
       const protectedAmount = quantity(credit.granted) < union ? quantity(credit.granted) : union;
       union -= protectedAmount;
-      if (protectedAmount === quantity(credit.granted)) credit.protection = "unresolved Union ageing";
+      if (protectedAmount === quantity(credit.granted)) {
+        credit.protection = boundedTokens.has(pair.token) ? null : "unresolved Union ageing";
+        if (boundedTokens.has(pair.token)) credit.ageBoundAt = bound!.witness.timestamp;
+      }
       else {
         credit.granted = (quantity(credit.granted) - protectedAmount).toString();
-        pair.credits.splice(i + 1, 0, { ...credit, id: utils.id(`${credit.id}:union`), granted: protectedAmount.toString(), protection: "unresolved Union ageing" });
+        pair.credits.splice(i + 1, 0, { ...credit, id: utils.id(`${credit.id}:union`), granted: protectedAmount.toString(), protection: boundedTokens.has(pair.token) ? null : "unresolved Union ageing", ...(boundedTokens.has(pair.token) ? { ageBoundAt: bound!.witness.timestamp } : {}) });
       }
     }
   }
@@ -317,7 +355,7 @@ export function prepareExpiry(
     if (processed.has(key)) continue;
     const pair = state.pairs[key];
     if (!pair || pair.activeAmount !== tokens[reward]) throw new Error("ledger entitlement mismatch");
-    const eligible = pair.credits.filter(credit => remaining(credit) > 0n && credit.protection === null && credit.activatedAt !== null && sixCalendarMonths(credit.activatedAt) <= at);
+    const eligible = pair.credits.filter(credit => remaining(credit) > 0n && credit.protection === null && credit.activatedAt !== null && sixCalendarMonths(credit.ageBoundAt ?? credit.activatedAt) <= at);
     const amount = eligible.reduce((total, credit) => total + remaining(credit), 0n);
     if (amount === 0n) continue;
     if (rows.length === limit) { more = true; continue; }
@@ -326,7 +364,7 @@ export function prepareExpiry(
   }
   for (const [key, pair] of Object.entries(state.pairs)) {
     if (pair.account === treasury || pair.token === reward || processed.has(key)) continue;
-    if (pair.credits.some(credit => remaining(credit) > 0n && credit.protection === null && credit.activatedAt !== null && sixCalendarMonths(credit.activatedAt) <= at)) more = true;
+    if (pair.credits.some(credit => remaining(credit) > 0n && credit.protection === null && credit.activatedAt !== null && sixCalendarMonths(credit.ageBoundAt ?? credit.activatedAt) <= at)) more = true;
   }
   if (!rows.length) return null;
   if (getAddress(module.address) === getAddress("0x0000000000000000000000000000000000000000") || !Number.isSafeInteger(module.delay) || module.delay <= 0) throw new Error("module deployment");
