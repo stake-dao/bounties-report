@@ -57,7 +57,7 @@ async function main() {
       if (input) break;
     }
     if (!input) {
-      const eligible = Object.entries(state.pairs).some(([key, pair]) => pair.account.toLowerCase() !== policy.treasury.toLowerCase() && !(run?.processed ?? []).includes(key) && pair.credits.some(credit => credit.protection === null && credit.activatedAt !== null && BigInt(credit.granted) > BigInt(credit.paid) + BigInt(credit.recovered) && sixCalendarMonths(credit.activatedAt) <= Number(checkpoint.timestamp)));
+      const eligible = Object.entries(state.pairs).some(([key, pair]) => pair.account.toLowerCase() !== policy.treasury.toLowerCase() && !(run?.processed ?? []).includes(key) && pair.credits.some(credit => credit.protection === null && credit.activatedAt !== null && BigInt(credit.granted) > BigInt(credit.paid) + BigInt(credit.recovered) && sixCalendarMonths(credit.ageBoundAt ?? credit.activatedAt) <= Number(checkpoint.timestamp)));
       const effectiveAt = expiryEffectiveAt(policy);
       const noticeReady = effectiveAt !== null && effectiveAt <= Number(checkpoint.timestamp);
       if (eligible || !noticeReady) { result({ status: "waiting", chainId, round, reason: "notice or treasury frontier unavailable" }); return; }

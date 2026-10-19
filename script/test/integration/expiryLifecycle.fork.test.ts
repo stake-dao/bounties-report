@@ -342,6 +342,58 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       fs.writeFileSync(parentFile, JSON.stringify(partialParent.merkle));
       const active: any = await (await fetch(`http://127.0.0.1:${servingPort}/v1/merkles/active?chainId=1`)).json();
       expect(generateMerkleTree(verifyExpiryParent(active)).merkleRoot).toBe(secondState.merkle.merkleRoot);
+
+      const unionAccount = utils.getAddress("0x0000000000000000000000000000000021090010");
+      const unionUser = utils.getAddress("0x0000000000000000000000000000000021090011");
+      Object.assign(distribution, verifyExpiryParent(secondState.merkle));
+      distribution[unionAccount] = { [token]: "100000" };
+      distribution[unionUser] = { [token]: "50000" };
+      await mine(usdc.connect(signer).mint(EXPIRY_DISTRIBUTOR, 150000));
+      const unionSource = await ordinary((await provider.getBlock("latest")).timestamp + 14 * 86400);
+      const ownClaim = unionSource.merkle!.claims[unionUser].tokens[token];
+      await mine(urd.connect(signer).claim(unionUser, token, ownClaim.amount, ownClaim.proof));
+      distribution[unionAccount][token] = "0";
+      distribution[unionUser][token] = "200000";
+      await mine(usdc.connect(signer).mint(EXPIRY_DISTRIBUTOR, 50000));
+      const unionAssigned = await ordinary(sixCalendarMonths(unionSource.timestamp));
+      const unionLedger = bootstrapExpiryLedger(1, [inputs.publications[0], { root: secondActual!.root, block: secondActual!.block, blockHash: secondActual!.blockHash, timestamp: secondActual!.timestamp, merkle: null }, unionSource, unionAssigned], await readClaims(), { block: unionAssigned.block, blockHash: unionAssigned.blockHash }, {
+        root: unionAssigned.root,
+        amounts: { [expiryKey(unionUser, token)]: "100000" },
+        ageBound: { account: unionAccount, witness: { root: unionSource.root, block: unionSource.block, blockHash: unionSource.blockHash, timestamp: unionSource.timestamp }, roots: [unionSource.root, unionAssigned.root], amounts: { [token]: "100000" } },
+      });
+      const unionCredits = unionLedger.pairs[expiryKey(unionUser, token)].credits;
+      expect(unionCredits[0].paid).toBe("50000");
+      expect(unionCredits[2]).toMatchObject({ granted: "100000", paid: "0", activatedAt: unionAssigned.timestamp, ageBoundAt: unionSource.timestamp, protection: null });
+      const unionRound = (await readExpiryRound(client)).round;
+      const unionPrepared = prepareExpiry(unionLedger, unionAssigned.merkle!, policy, token, unionRound, 0, unionAssigned.timestamp, domain)!;
+      expect(unionPrepared.batch.rows).toEqual([{ account: unionUser, amount: "200000", expiredThrough: "150000" }]);
+      await mine(module.connect(safeSigner).prepare(unionPrepared.batch));
+      const unionSnapshot = await provider.send("evm_snapshot", []);
+      const fullUnionClaim = unionAssigned.merkle!.claims[unionUser].tokens[token];
+      await mine(urd.connect(signer).claim(unionUser, token, fullUnionClaim.amount, fullUnionClaim.proof));
+      await provider.send("evm_increaseTime", [10800]);
+      const racedUnion = await mine(module.connect(signer).activate(unionPrepared.batch, { gasLimit: 12000000 }));
+      await provider.send("anvil_mine", ["0x40"]);
+      const racedActual = await readConfirmedExpiry(client, unionPrepared, racedUnion.transaction.hash);
+      expect(racedActual!.recovered).toBe("0");
+      const racedState = applyConfirmedExpiry(unionLedger, unionPrepared, racedActual!);
+      expect(racedState.ledger.pairs[expiryKey(unionUser, token)].credits[2]).toMatchObject({ paid: "100000", recovered: "0" });
+      expect(await urd.root()).toBe(unionAssigned.root);
+      expect(await provider.send("evm_revert", [unionSnapshot])).toBe(true);
+      await provider.send("evm_increaseTime", [10800]);
+      const recoveredUnion = await mine(module.connect(signer).activate(unionPrepared.batch, { gasLimit: 12000000 }));
+      await provider.send("anvil_mine", ["0x40"]);
+      const unionActual = await readConfirmedExpiry(client, unionPrepared, recoveredUnion.transaction.hash);
+      expect(unionActual!.recovered).toBe("100000");
+      const unionState = applyConfirmedExpiry(unionLedger, unionPrepared, unionActual!);
+      expect(unionState.ledger.pairs[expiryKey(unionUser, token)].credits[1]).toMatchObject({ granted: "50000", paid: "0", recovered: "0", activatedAt: unionAssigned.timestamp });
+      expect(unionState.ledger.pairs[expiryKey(unionUser, token)].credits[2]).toMatchObject({ paid: "0", recovered: "100000" });
+      for (const [account, expected] of [[unionUser, "50000"], [treasury, "100000"]]) {
+        const leaf = unionState.merkle.claims[account].tokens[token];
+        const before = await urd.claimed(account, token);
+        await mine(urd.connect(signer).claim(account, token, leaf.amount, leaf.proof));
+        expect((await urd.claimed(account, token)).sub(before).toString()).toBe(expected);
+      }
       const retained = path.resolve("script/test/integration/evidence/expiry-lifecycle", retried.hash);
       fs.mkdirSync(retained, { recursive: true });
       for (const file of ["bootstrap.json", "prepared.json", "activation.json"]) fs.copyFileSync(path.join(directory, file), path.join(retained, file));
