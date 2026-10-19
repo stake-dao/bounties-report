@@ -6,6 +6,11 @@
         "name": "treasury",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "preparer",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
@@ -32,6 +37,19 @@
         "name": "",
         "type": "address",
         "internalType": "contract IUniversalRewardsDistributor"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "PREPARER",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"

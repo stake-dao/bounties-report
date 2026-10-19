@@ -84,7 +84,7 @@ export interface PreparedExpiry {
   parent: MerkleData;
   credits: Record<string, string[]>;
   batch: ExpiryBatch;
-  module: { address: string; safe: string; delay: number };
+  module: { address: string; safe: string; preparer: string; delay: number };
 }
 
 export interface ConfirmedExpiry {
@@ -369,6 +369,7 @@ export function prepareExpiry(
   if (!rows.length) return null;
   if (getAddress(module.address) === getAddress("0x0000000000000000000000000000000000000000") || !Number.isSafeInteger(module.delay) || module.delay <= 0) throw new Error("module deployment");
   getAddress(module.safe);
+  getAddress(module.preparer);
   const batch: ExpiryBatch = { round, index, last: !more, ledger: "", parent: parent.merkleRoot, token: reward, treasuryAmount, rows, ...expiryFrontier(distribution, reward, treasury, rows) };
   const claims = Object.fromEntries(Object.entries(distribution).map(([account, tokens]) => [account, { tokens: Object.fromEntries(Object.entries(tokens).map(([token, amount]) => [token, { amount, proof: [] }])) }]));
   const prepared: PreparedExpiry = { chainId: state.chainId, distributor: state.distributor, treasury, at, policy, state: structuredClone(state), parent: { merkleRoot: parent.merkleRoot, claims }, credits, batch, module };
