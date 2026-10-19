@@ -1,12 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { describe, expect, it, vi } from "vitest";
 import { formatReportGateMessages, missingReportFiles } from "../../sdTkns/verify/reportGate";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs")>();
+  return { ...original, existsSync: vi.fn(original.existsSync) };
+});
 
 describe("Report gate on an unpublished week", () => {
   it("names the missing report files instead of failing R2-R5 one by one", () => {
-    // 2026-10-06: crv/fxn checks halted, the Tuesday gate ran without any report.
+    vi.mocked(existsSync).mockReturnValue(false);
     expect(missingReportFiles(1790812800, ["curve", "fxn"])).toEqual([
       "curve.csv", "curve-attribution.json", "fxn.csv", "fxn-attribution.json",
     ]);
+    vi.mocked(existsSync).mockReturnValue(true);
     expect(missingReportFiles(1790208000, ["curve", "fxn"])).toEqual([]);
   });
 

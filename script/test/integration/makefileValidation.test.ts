@@ -180,6 +180,7 @@ describe("Consolidated GitHub Actions workflows", () => {
     const stateStep = findStep("Check voters merkle state");
     const createStep = findStep("Create merkle (voters)");
     const commitStep = findStep("Commit merkle voters");
+    const invariantStep = findStep("Reconstruction invariant (voters)");
     const verifyStep = findStep("AI verify distribution (voters)");
 
     expect(stateStep).toContain("id: voters_merkle_state");
@@ -201,8 +202,11 @@ describe("Consolidated GitHub Actions workflows", () => {
       "steps.voters_merkle_state.outputs.skip != 'true'"
     );
     expect(commitStep).toContain(
-      "steps.voters_merkle_state.outputs.skip != 'true'"
+      "if: inputs.type == 'voters' && inputs.step == 'merkle'"
     );
+    expect(commitStep).not.toContain("steps.voters_merkle_state.outputs.skip");
+    expect(invariantStep).toContain("script/vlCVX/verify/reconstructDistribution.ts");
+    expect(invariantStep).not.toContain("steps.voters_merkle_state.outputs.skip");
     expect(verifyStep).not.toContain(
       "steps.voters_merkle_state.outputs.skip"
     );

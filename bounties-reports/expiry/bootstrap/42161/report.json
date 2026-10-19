@@ -1,0 +1,59 @@
+{
+  "chainId": 42161,
+  "distributor": "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+  "productionActive": false,
+  "checkpoint": {
+    "block": 514718707,
+    "blockHash": "0xd91da1e6455fc59ef196d4a067791e19181040750d98d11bb5ce7ed214c8cdae"
+  },
+  "activeRoot": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+  "rootEvents": 30,
+  "matchedRoots": 28,
+  "unresolvedRoots": [
+    {
+      "root": "0x0204438292f0123303df44a1c1952d222a1d1ea180fbb096428f8d12bac5d46f",
+      "timestamp": 1750941290,
+      "block": 351400160,
+      "blockHash": "0x93538a4f79d96c57c0f3628492f79744d50bd369e5d9a9c516772abcb5d112b2",
+      "transactionHash": "0xadc5456dbb4693fd1711cafadfd596127c103d2cb5efafae72e5d9a51fa466de",
+      "logIndex": 0,
+      "source": null
+    }
+  ],
+  "pairs": 133,
+  "rejectedArtifacts": [],
+  "totals": {
+    "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7": {
+      "outstanding": "1167074680341432582144",
+      "ageQualified": "969286448606305370112",
+      "protected": "197788231735127212032",
+      "paid": "2091568684185367463406976",
+      "paidOffset": "2010640455149102113303936",
+      "balance": "185385988409552721787207",
+      "shortfall": "0"
+    },
+    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831": {
+      "outstanding": "4696273",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "2245902589",
+      "paidOffset": "1732070577",
+      "balance": "1270299144",
+      "shortfall": "0"
+    },
+    "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9": {
+      "outstanding": "0",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "61944700",
+      "paidOffset": "61944700",
+      "balance": "2450349",
+      "shortfall": "0"
+    }
+  },
+  "noticeVerified": false,
+  "governanceVerified": false,
+  "treasury": null,
+  "unionAgeingPolicy": null,
+  "source": "Etherscan complete paginated RootSet discovery, canonical RPC receipt/block validation and finalized claimed/balance reads"
+}

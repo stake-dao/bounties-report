@@ -41,6 +41,10 @@ import {
   getOnChainVoters,
 } from "../../utils/gaugeVotePlatform";
 import { getClient } from "../../utils/getClients";
+import { readActiveVotersMerkle } from "../expiry/active";
+import expiryPolicies from "../expiry/policy.json";
+import { expiryKey, ExpiryPolicy, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
+import { getAddress } from "viem";
 
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
@@ -227,16 +231,16 @@ async function generateGlobalMerkleForChain(chainId: string) {
       globalRelPath,
       activeRoot
     );
-    if (!resolved.foundAt) {
+    if (!resolved.foundAt && ![1, 8453, 42161].includes(numericChainId)) {
       throw new Error(
         `Chain ${chainId}: active root ${activeRoot} at block ${pinnedBlock} ` +
           `does not match any prior ${globalRelPath} artifact; refusing to reset cumulative state`
       );
     }
-    previousMerkleData = resolved.data;
-    matchedPeriod = Number(
+    previousMerkleData = resolved.foundAt ? resolved.data : await readActiveVotersMerkle(numericChainId, activeRoot, client);
+    matchedPeriod = resolved.foundAt ? Number(
       path.relative("bounties-reports", resolved.foundAt).split(path.sep)[0]
-    );
+    ) : null;
     console.log(
       `Chain ${chainId}: active root ${activeRoot} @ ${pinnedBlock} ` +
         `matches ${resolved.foundAt}`
@@ -288,6 +292,34 @@ async function generateGlobalMerkleForChain(chainId: string) {
     );
   }
 
+  const policy = (expiryPolicies as Record<string, ExpiryPolicy | null>)[chainId];
+  if (policy) {
+    const treasury = getAddress(policy.treasury);
+    if (!policy.approval.reference || treasury === VOTERS_DISTRIBUTOR || /^0x0{40}$/i.test(treasury)) throw new Error("unapproved expiry treasury");
+    const distribution = verifyExpiryParent(globalMerkle);
+    const tokens = [...new Set(Object.values(distribution).flatMap(tokens => Object.keys(tokens)))];
+    const claimed = await client.multicall({
+      contracts: tokens.map(token => ({ address: VOTERS_DISTRIBUTOR, abi: URD_ABI, functionName: "claimed" as const, args: [treasury, token as `0x${string}`] })),
+      blockNumber: pinnedBlock, allowFailure: false,
+    });
+    distribution[treasury] ??= {};
+    tokens.forEach((token, i) => {
+      const amount = BigInt(distribution[treasury][token] ?? "0");
+      distribution[treasury][token] = (amount > (claimed[i] as bigint) ? amount : claimed[i] as bigint).toString();
+    });
+    globalMerkle = generateMerkleTree(distribution);
+  }
+  if ([1, 8453, 42161].includes(numericChainId)) {
+    const rootsDir = path.join("bounties-reports/expiry/roots", chainId);
+    fs.mkdirSync(rootsDir, { recursive: true });
+    if (activeRoot !== ZERO_ROOT) writeExpiryInput(path.join(rootsDir, `${activeRoot}.json`), generateMerkleTree(verifyExpiryParent(previousMerkleData)));
+    writeExpiryInput(path.join(rootsDir, `${globalMerkle.merkleRoot.toLowerCase()}.json`), globalMerkle);
+    if (globalMerkle.merkleRoot.toLowerCase() !== activeRoot) writeExpiryInput(path.join(rootsDir, `${globalMerkle.merkleRoot.toLowerCase()}.rewards.json`), {
+      chainId: numericChainId, distributor: VOTERS_DISTRIBUTOR, period: currentPeriodTimestamp, parent: activeRoot, root: globalMerkle.merkleRoot,
+      rewards: Object.fromEntries(Object.entries(currentDistribution).flatMap(([account, claim]) => Object.entries(claim.tokens).map(([token, amount]) => [expiryKey(account, token), amount.toString()]))),
+    });
+  }
+
   const reportsDir = path.join(
     "bounties-reports",
     currentPeriodTimestamp.toString(),
@@ -327,7 +359,7 @@ function pairKey(account: string, token: string): string {
  * Leaves exactly equal to claimed are retained. This keeps ordinary weekly
  * trees stable and leaves deliberate cleanup to the existing verifier policy.
  */
-async function prepareActiveBaseline(
+export async function prepareActiveBaseline(
   client: PublicClient,
   currentDistribution: RawDistribution,
   previousMerkleData: MerkleData,
@@ -402,7 +434,7 @@ async function prepareActiveBaseline(
     }
     preparedClaims[account] ??= { tokens: {} };
     preparedClaims[account].tokens[token] = {
-      amount: amount.toString(),
+      amount: (currentPairs.has(key) && claimed > amount ? claimed : amount).toString(),
       proof: [],
     };
   }
@@ -433,10 +465,12 @@ async function prepareActiveBaseline(
   };
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
 
 /**
  * Processes one gauge type (either "curve" or "fxn") by:

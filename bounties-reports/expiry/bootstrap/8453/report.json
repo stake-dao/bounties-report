@@ -1,0 +1,68 @@
+{
+  "chainId": 8453,
+  "distributor": "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+  "productionActive": false,
+  "checkpoint": {
+    "block": 52593016,
+    "blockHash": "0x3a2e4af6949f9f69ba2c99add83ef554694b59402c13f3218add305337f2672e"
+  },
+  "activeRoot": "0x7caad6643e09fbef32abcb579dbafa0bfaf1f52df67be7f23f71b73753ddb18c",
+  "rootEvents": 64,
+  "matchedRoots": 62,
+  "unresolvedRoots": [
+    {
+      "root": "0x14a35268a9d43b2bd9335937aef3eaf1ba3b0fb925fa07bef338f00430910be7",
+      "timestamp": 1750941293,
+      "block": 32075973,
+      "blockHash": "0x1dddfddb2d72ba21d629d6953ece7da4ab4b71a88d1b3e6c52fbe02d21cca23d",
+      "transactionHash": "0x339e028cf0f88d59cfa12b4336e27eb59dc7f8ae68c26aa049e462046a48adfc",
+      "logIndex": 427,
+      "source": null
+    }
+  ],
+  "pairs": 319,
+  "rejectedArtifacts": [],
+  "totals": {
+    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913": {
+      "outstanding": "4974766973",
+      "ageQualified": "1004322383",
+      "protected": "0",
+      "paid": "24490226392",
+      "paidOffset": "67101640",
+      "balance": "8465313061",
+      "shortfall": "0"
+    },
+    "0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415": {
+      "outstanding": "495315221145058098335",
+      "ageQualified": "495315221145058098335",
+      "protected": "0",
+      "paid": "36425020590408366583732",
+      "paidOffset": "32284595558820055151563",
+      "balance": "1688207541858522324199",
+      "shortfall": "0"
+    },
+    "0xe5020A6d073a794B6E7f05678707dE47986Fb0b6": {
+      "outstanding": "187708951402776325568",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "222494193225153704519",
+      "paidOffset": "86460265944382179595",
+      "balance": "3578902656154760394461",
+      "shortfall": "0"
+    },
+    "0x76A9A0062ec6712b99B4f63bD2b4270185759dd5": {
+      "outstanding": "27198877304360256024",
+      "ageQualified": "0",
+      "protected": "0",
+      "paid": "102551160647371196192",
+      "paidOffset": "404521280089161504",
+      "balance": "389560446984576802421",
+      "shortfall": "0"
+    }
+  },
+  "noticeVerified": false,
+  "governanceVerified": false,
+  "treasury": null,
+  "unionAgeingPolicy": null,
+  "source": "Etherscan complete paginated RootSet discovery, canonical RPC receipt/block validation and finalized claimed/balance reads"
+}

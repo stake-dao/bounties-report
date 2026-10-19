@@ -126,5 +126,11 @@ export function findMerkleMatchingRoot(
     }
   }
 
+  const voters = /^vlCVX\/vlcvx_merkle(?:_(8453|42161))?\.json$/.exec(relPath);
+  if (voters) {
+    const file = path.join(reportsRoot, "expiry/roots", voters[1] ?? "1", `${expectedRoot}.json`);
+    const data = loadMerkle(file);
+    if (data && recomputeRoot(data) === expectedRoot) return { data, foundAt: file };
+  }
   return { data: emptyMerkle(), foundAt: null };
 }
