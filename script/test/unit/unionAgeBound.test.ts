@@ -73,7 +73,7 @@ describe("Union conservative age bound", () => {
     expect(ledger.pairs[expiryKey(UNKNOWN, TOKEN)].credits[0].protection).toBe("unresolved history");
     expect(() => assertExpiryLedger(ledger)).not.toThrow();
     const policy = { treasury: TREASURY, approval: { reference: "fixture", passedAt: 0 }, notices: [{ url: "https://gov.stakedao.org/t/fixture", announcedAt: 0 }, { url: "https://stakedao.org/fixture", announcedAt: 0 }] };
-    const domain = { address: "0x0000000000000000000000000000000000000007", safe: "0x0000000000000000000000000000000000000008", delay: 10800 };
+    const domain = { address: "0x0000000000000000000000000000000000000007", safe: "0x0000000000000000000000000000000000000008", preparer: "0x0000000000000000000000000000000000000009", delay: 10800 };
     const expires = sixCalendarMonths(BOUND);
     expect(prepareExpiry(ledger, publications[4].merkle!, policy, TOKEN, 242, 0, expires - 1, domain)).toBeNull();
     expect(prepareExpiry(ledger, publications[4].merkle!, policy, TOKEN, 242, 0, expires, domain)!.batch.rows).toEqual([{ account: USER, amount: "200", expiredThrough: "150" }]);

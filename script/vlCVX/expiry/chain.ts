@@ -2,6 +2,7 @@ import { utils } from "ethers";
 import { Abi, Hash, PublicClient } from "viem";
 import expiryAbi from "../../../abis/RewardsExpiry.json";
 import { ConfirmedExpiry, EXPIRY_DISTRIBUTOR, expiryDigest, PreparedExpiry } from "../../shared/merkle/expiry";
+import { ALL_MIGHT_V2 } from "../../utils/constants";
 
 const iface = new utils.Interface(expiryAbi);
 
@@ -9,17 +10,18 @@ export async function readConfirmedExpiry(client: PublicClient, prepared: Prepar
   const [receipt, finalized] = await Promise.all([client.getTransactionReceipt({ hash }), client.getBlock({ blockTag: "finalized" })]);
   if (receipt.status !== "success") throw new Error("expiry transaction failed");
   if (finalized.number === null || receipt.blockNumber > finalized.number) return null;
-  const [block, checkpoint, actualDigest, owner, treasury, delay, distributor] = await Promise.all([
+  const [block, checkpoint, actualDigest, owner, preparer, treasury, delay, distributor] = await Promise.all([
     client.getBlock({ blockNumber: receipt.blockNumber }),
     client.getBlock({ blockNumber: BigInt(prepared.state.checkpoint.block) }),
     client.readContract({ address: prepared.module.address as Hash, abi: expiryAbi as Abi, functionName: "digest", args: [prepared.batch], blockNumber: receipt.blockNumber }),
     client.readContract({ address: prepared.module.address as Hash, abi: expiryAbi as Abi, functionName: "SAFE", blockNumber: receipt.blockNumber }),
+    client.readContract({ address: prepared.module.address as Hash, abi: expiryAbi as Abi, functionName: "PREPARER", blockNumber: receipt.blockNumber }),
     client.readContract({ address: prepared.module.address as Hash, abi: expiryAbi as Abi, functionName: "TREASURY", blockNumber: receipt.blockNumber }),
     client.readContract({ address: prepared.module.address as Hash, abi: expiryAbi as Abi, functionName: "DELAY", blockNumber: receipt.blockNumber }),
     client.readContract({ address: prepared.module.address as Hash, abi: expiryAbi as Abi, functionName: "DISTRIBUTOR", blockNumber: receipt.blockNumber }),
   ]);
   if (block.hash !== receipt.blockHash || checkpoint.hash !== prepared.state.checkpoint.blockHash) throw new Error("expiry input or receipt reorged");
-  if (actualDigest !== expiryDigest(prepared) || String(owner).toLowerCase() !== prepared.module.safe.toLowerCase() || String(treasury).toLowerCase() !== prepared.treasury.toLowerCase() || String(distributor).toLowerCase() !== EXPIRY_DISTRIBUTOR.toLowerCase() || BigInt(delay as bigint) !== BigInt(prepared.module.delay)) throw new Error("expiry module domain");
+  if (actualDigest !== expiryDigest(prepared) || prepared.module.preparer?.toLowerCase() !== ALL_MIGHT_V2.toLowerCase() || String(preparer).toLowerCase() !== prepared.module.preparer.toLowerCase() || String(owner).toLowerCase() !== prepared.module.safe.toLowerCase() || String(treasury).toLowerCase() !== prepared.treasury.toLowerCase() || String(distributor).toLowerCase() !== EXPIRY_DISTRIBUTOR.toLowerCase() || BigInt(delay as bigint) !== BigInt(prepared.module.delay)) throw new Error("expiry module domain");
   const logs = receipt.logs.filter(log => log.address.toLowerCase() === prepared.module.address.toLowerCase()).map(log => ({ log, event: iface.parseLog({ topics: [...log.topics], data: log.data }) }));
   const activations = logs.filter(({ event }) => event.name === "Activated" && event.args.digest === actualDigest);
   if (activations.length !== 1) throw new Error("expiry activation event missing");

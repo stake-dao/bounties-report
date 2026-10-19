@@ -37,26 +37,21 @@ export async function readLedgerClaims(client: PublicClient, ledger: Ledger, blo
   return claims;
 }
 
-export async function replayExpiryJournal(client: PublicClient, directory: string): Promise<Ledger> {
+export async function replayExpiryJournal(client: PublicClient, directory: string, module: PreparedExpiry["module"], until?: Ledger["checkpoint"]): Promise<Ledger> {
   let ledger: Ledger = JSON.parse(fs.readFileSync(path.join(directory, "bootstrap.json"), "utf8"));
   const checkpoint = await client.getBlock({ blockNumber: BigInt(ledger.checkpoint.block) });
   if (checkpoint.hash !== ledger.checkpoint.blockHash || await client.readContract({ address: EXPIRY_DISTRIBUTOR, abi: URD_ABI, functionName: "root", blockNumber: checkpoint.number! }) !== ledger.root) throw new Error("bootstrap checkpoint reorged");
-  const finalized = await client.getBlock({ blockTag: "finalized" });
-  if (finalized.number === null || finalized.number < checkpoint.number!) throw new Error("bootstrap is not finalized");
-  const pointerFile = path.join(directory, "current.json");
-  if (fs.existsSync(pointerFile)) {
-    const pointer = JSON.parse(fs.readFileSync(pointerFile, "utf8"));
-    const cached: Ledger = JSON.parse(fs.readFileSync(path.join(directory, "states", `${pointer.state}.json`), "utf8"));
-    assertExpiryLedger(cached);
-    if (cached.chainId !== ledger.chainId || cached.distributor !== ledger.distributor || cached.checkpoint.block < ledger.checkpoint.block) throw new Error("cached journal target");
-    if (utils.sha256(utils.toUtf8Bytes(JSON.stringify(cached))) !== pointer.state) throw new Error("journal state hash mismatch");
-    if (cached.checkpoint.block <= Number(finalized.number)) {
-      const block = await client.getBlock({ blockNumber: BigInt(cached.checkpoint.block) });
-      if (block.hash === cached.checkpoint.blockHash) ledger = cached;
-    }
+  let finalized = await client.getBlock({ blockTag: "finalized" });
+  if (until) {
+    if (finalized.number === null || BigInt(until.block) > finalized.number) throw new Error("prepared checkpoint is not finalized");
+    finalized = await client.getBlock({ blockNumber: BigInt(until.block) });
+    if (finalized.hash !== until.blockHash) throw new Error("prepared checkpoint reorged");
   }
+  if (finalized.number === null || finalized.number < checkpoint.number!) throw new Error("bootstrap is not finalized");
+  assertExpiryLedger(ledger);
   const preparedDir = path.join(directory, "prepared");
   const prepared = fs.existsSync(preparedDir) ? fs.readdirSync(preparedDir).filter(file => file.endsWith(".json")).map(file => JSON.parse(fs.readFileSync(path.join(preparedDir, file), "utf8")) as PreparedExpiry) : [];
+  if (prepared.some(input => JSON.stringify(input.module) !== JSON.stringify(module) || input.chainId !== ledger.chainId || input.distributor !== ledger.distributor)) throw new Error("unreviewed expiry module inputs");
   const journal = path.join(directory, "journal");
   fs.mkdirSync(journal, { recursive: true });
   const events: { block: bigint; log: number; hash: Hash; root?: Hash; digest?: Hash }[] = [];
@@ -64,7 +59,7 @@ export async function replayExpiryJournal(client: PublicClient, directory: strin
   for (let start = startBlock; start <= finalized.number; start += 10000n) {
     const end = start + 9999n < finalized.number ? start + 9999n : finalized.number;
     const roots = await client.getLogs({ address: EXPIRY_DISTRIBUTOR, event: ROOT_SET, fromBlock: start, toBlock: end });
-    const activations = (await Promise.all([...new Set(prepared.map(input => input.module.address))].map(address => client.getLogs({ address: address as Address, event: ACTIVATED, fromBlock: start, toBlock: end })))).flat();
+    const activations = await client.getLogs({ address: module.address as Address, event: ACTIVATED, fromBlock: start, toBlock: end });
     const expiryTransactions = new Set(activations.map(event => event.transactionHash));
     for (const event of roots) {
       if (!event.removed && event.transactionHash && event.blockNumber !== null && event.logIndex !== null && !expiryTransactions.has(event.transactionHash)) events.push({ block: event.blockNumber, log: event.logIndex, hash: event.transactionHash, root: event.args.newRoot });
@@ -122,6 +117,7 @@ export async function replayExpiryJournal(client: PublicClient, directory: strin
   }
   const currentRoot = await client.readContract({ address: EXPIRY_DISTRIBUTOR, abi: URD_ABI, functionName: "root", blockNumber: finalized.number });
   if (currentRoot !== ledger.root || (await client.getBlock({ blockNumber: finalized.number })).hash !== finalized.hash) throw new Error("journal does not reconcile finalized active root");
+  if (until) return ledger;
   const state = path.join(directory, "states");
   fs.mkdirSync(state, { recursive: true });
   const id = utils.sha256(utils.toUtf8Bytes(JSON.stringify(ledger)));
