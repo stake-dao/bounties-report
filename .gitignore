@@ -26,6 +26,8 @@ package-lock.json
 yarn.lock
 
 AGENTS.md
+# the root AGENTS.md holds the review rules Codex applies
+!/AGENTS.md
 CLAUDE.md
 
 # Test snapshots (large golden files - capture locally per machine)
