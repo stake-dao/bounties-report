@@ -1,0 +1,13 @@
+{
+  "period": 1792022400,
+  "votiumScrvUsd": "31138001321431108686833",
+  "distributed": "15569000660715554343416",
+  "carried": "15569000660715554343417",
+  "fromBlock": 26194189,
+  "toBlock": 26232410,
+  "sourceTxs": [
+    "0x51f3cfd32cc5f4bcf535d5098d125ab0ca8a9d65c43b4a90556a455c57071aea",
+    "0x478fdc1d08848e68fbb0e8b24b60965b2cd349d9d1dc0e068daa4a5c67d4f2e9",
+    "0xfa05b208ab62bab4558a3d962ecfe79d5ee35455633db77ce9e42e045a16f7ff"
+  ]
+}
