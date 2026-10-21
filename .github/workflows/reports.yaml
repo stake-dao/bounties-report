@@ -32,6 +32,10 @@ on:
         required: false
         type: string
 
+env:
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+
 jobs:
   run:
     if: (inputs.protocol != 'fxn' && inputs.protocol != 'curve') || inputs.type != 'weekly'
@@ -40,6 +44,11 @@ jobs:
       contents: write
 
     steps:
+      - name: Distrust compromised eMudhra chains
+        run: |
+          sudo sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' -e 's|^mozilla/Comodo_AAA_Services_root.crt|!&|' /etc/ca-certificates.conf
+          sudo update-ca-certificates
+
       - name: dispatch_id:${{ inputs.dispatch_id || 'manual' }}
         run: echo "dispatch tracking"
 
@@ -131,6 +140,11 @@ jobs:
       UPSTASH_REDIS_USERNAME: ${{ secrets.UPSTASH_REDIS_USERNAME }}
 
     steps:
+      - name: Distrust compromised eMudhra chains
+        run: |
+          sudo sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' -e 's|^mozilla/Comodo_AAA_Services_root.crt|!&|' /etc/ca-certificates.conf
+          sudo update-ca-certificates
+
       - name: dispatch_id:${{ inputs.dispatch_id || 'manual' }}
         run: echo "dispatch tracking"
 

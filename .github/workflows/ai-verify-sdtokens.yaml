@@ -18,12 +18,21 @@ on:
         type: string
         default: ''
 
+env:
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+
 jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
+      - name: Distrust compromised eMudhra chains
+        run: |
+          sudo sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' -e 's|^mozilla/Comodo_AAA_Services_root.crt|!&|' /etc/ca-certificates.conf
+          sudo update-ca-certificates
+
       - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
         run: echo "Dispatch ID - ${{ inputs.dispatch_id || 'manual' }}"
 

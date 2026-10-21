@@ -14,11 +14,20 @@ on:
         type: string
         default: ''
 
+env:
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+
 jobs:
   run:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Distrust compromised eMudhra chains
+        run: |
+          sudo sed -i -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' -e 's|^mozilla/Comodo_AAA_Services_root.crt|!&|' /etc/ca-certificates.conf
+          sudo update-ca-certificates
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
