@@ -1093,45 +1093,29 @@ export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
   }
 }
 
-async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
-  try {
-    const response = await axios.get(
-      "https://hub.stakedao.org/v1/votemarket/curve/gauges"
-    );
-    if (response.status === 200 && Array.isArray(response.data.gauges) && response.data.gauges.length > 0) {
-      const data = response.data.gauges;
-      const gaugeInfos: GaugeInfo[] = [];
-
-      data
-        .filter((gauge: any) => gauge.inController !== false)
-        .forEach((gauge: any) => {
-          let gaugeName = gauge.shortName || gauge.name || "";
-          const firstIndex = gaugeName.indexOf("(");
-          if (firstIndex > -1) gaugeName = gaugeName.slice(0, firstIndex);
-
-          // Add the regular gauge
-          gaugeInfos.push({
-            name: gaugeName,
-            address: (gauge.childGauge || gauge.gauge).toLowerCase(),
-          });
-
-          // If there's a rootGauge, also add an entry for it that maps to the actual gauge
-          if (gauge.childGauge && gauge.childGauge.toLowerCase() !== gauge.gauge.toLowerCase()) {
-            gaugeInfos.push({
-              name: gaugeName,
-              address: gauge.gauge.toLowerCase(),
-              actualGauge: gauge.childGauge.toLowerCase(), // Store the actual gauge address
-            });
-          }
-        });
-
-      return gaugeInfos;
-    }
-    throw new Error("Failed to fetch Curve gauges: empty or invalid response");
-  } catch (error) {
-    console.error("Error fetching Curve gauges:", error);
-    throw error;
+async function getHubGauges(protocol: "curve" | "fxn"): Promise<any[]> {
+  const response = await axios.get(`https://hub.stakedao.org/v1/votemarket/${protocol}/gauges`);
+  if (response.status !== 200 || !Array.isArray(response.data?.gauges) || !response.data.gauges.length) {
+    throw new Error(`Missing or invalid ${protocol} gauge catalog`);
   }
+  return response.data.gauges;
+}
+
+async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
+  const gauges = await getHubGauges("curve");
+  const gaugeInfos: GaugeInfo[] = [];
+  for (const gauge of gauges.filter((g) => g.inController !== false)) {
+    let name = gauge.shortName || gauge.name || "";
+    const firstIndex = name.indexOf("(");
+    if (firstIndex > -1) name = name.slice(0, firstIndex);
+    const address = (gauge.childGauge || gauge.gauge).toLowerCase();
+    gaugeInfos.push({ name, address });
+    // Reports join campaign root addresses, then display the child gauge address.
+    if (gauge.childGauge && gauge.childGauge.toLowerCase() !== gauge.gauge.toLowerCase()) {
+      gaugeInfos.push({ name, address: gauge.gauge.toLowerCase(), actualGauge: address });
+    }
+  }
+  return gaugeInfos;
 }
 
 async function getBalancerGaugesInfos(): Promise<GaugeInfo[]> {
@@ -1180,25 +1164,8 @@ async function getFraxGaugesInfos(): Promise<GaugeInfo[]> {
 }
 
 async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
-  try {
-    const response = await axios.get(
-      "https://hub.stakedao.org/v1/votemarket/fxn/gauges"
-    );
-    if (response.status === 200 && Array.isArray(response.data.gauges)) {
-      return response.data.gauges.map(
-        (gauge: any) => ({
-          name: gauge.name || "",
-          address: gauge.gauge.toLowerCase(),
-        })
-      );
-    }
-
-    console.error("Failed to fetch FXN gauges: Invalid response format");
-    return [];
-  } catch (error) {
-    console.error("Error fetching FXN gauges:", error);
-    return [];
-  }
+  const gauges = await getHubGauges("fxn");
+  return gauges.map((gauge) => ({ name: gauge.name || "", address: gauge.gauge.toLowerCase() }));
 }
 
 export async function getCakeGaugesInfos(): Promise<GaugeInfo[]> {

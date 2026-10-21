@@ -49,21 +49,21 @@ describe("hub gauge metadata", () => {
   it("rejects unavailable Curve metadata instead of losing root aliases", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const get = vi.spyOn(axios, "get").mockResolvedValue({ status: 200, data: { gauges: [] } });
-    await expect(getGaugesInfos("curve")).rejects.toThrow("Curve gauges");
+    await expect(getGaugesInfos("curve")).rejects.toThrow("catalog");
     get.mockResolvedValue({ status: 200, data: { message: "unavailable" } });
-    await expect(getGaugesInfos("curve")).rejects.toThrow("Curve gauges");
+    await expect(getGaugesInfos("curve")).rejects.toThrow("catalog");
     get.mockRejectedValue(new Error("503"));
     await expect(getGaugesInfos("curve")).rejects.toThrow("503");
   });
 
-  it.each(["fxn"])("%s preserves empty results without a stale fallback", async (protocol) => {
+  it.each(["fxn"])("%s rejects unavailable metadata instead of producing incomplete reports", async (protocol) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const get = vi.spyOn(axios, "get").mockResolvedValue({ status: 200, data: { gauges: [] } });
-    expect(await getGaugesInfos(protocol)).toEqual([]);
+    await expect(getGaugesInfos(protocol)).rejects.toThrow("catalog");
     get.mockResolvedValue({ status: 200, data: { message: "unavailable" } });
-    expect(await getGaugesInfos(protocol)).toEqual([]);
+    await expect(getGaugesInfos(protocol)).rejects.toThrow("catalog");
     get.mockRejectedValue(new Error("503"));
-    expect(await getGaugesInfos(protocol)).toEqual([]);
+    await expect(getGaugesInfos(protocol)).rejects.toThrow("503");
     expect(get.mock.calls.every(([url]) => String(url).startsWith("https://hub.stakedao.org/"))).toBe(true);
     expect(get).toHaveBeenCalledTimes(3);
   });
