@@ -1,9 +1,9 @@
 include automation/setup/python.mk
 
 # Node.js configuration
-NODE_VERSION := 22.9.0
+NODE_VERSION := 22.23.4
 PNPM_VERSION := 10.33.0
-NODEENV_DIR := $(shell pwd)/temp/.nodeenv
+NODEENV_DIR := $(shell pwd)/temp/.nodeenv-$(NODE_VERSION)
 NODE := $(NODEENV_DIR)/bin/node
 PNPM := $(NODEENV_DIR)/bin/pnpm
 
