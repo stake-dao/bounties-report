@@ -31,9 +31,9 @@ import { parseTarget, type Target as InvariantTarget } from "./invariants/cli";
 dotenv.config();
 
 const DEFAULT_MODELS = [
-  "claude-opus-4-7",
-  "gpt-5.5",
-  "minimax-m2.7",
+  "claude-sonnet-5-5",
+  "gpt-6.1-sol",
+  "minimax-m3",
 ];
 
 const VERDICT_ICON: Record<string, string> = { pass: "✅", warning: "⚠️ ", fail: "❌" };
