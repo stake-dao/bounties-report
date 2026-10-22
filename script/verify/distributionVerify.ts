@@ -92,7 +92,7 @@ export interface VerifyMetadata {
 
 export interface ConsensusResult extends VerificationResult {
   modelVerdicts: ModelVerdict[];
-  consensusMethod: "unanimous" | "majority" | "script-only";
+  consensusMethod: "unanimous" | "majority" | "script-only" | "insufficient-models";
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -325,13 +325,10 @@ export async function analyze(
   scripts: ScriptResult[],
   runType?: RunType
 ): Promise<VerificationResult> {
-  const allOk = scripts.every((s) => s.exitCode === 0);
   const fallback = {
-    verdict: (allOk ? "pass" : "fail") as Verdict,
-    summary: allOk
-      ? "All checks passed (LLM analysis unavailable)"
-      : "Verification failures detected (LLM analysis unavailable)",
-    issues: allOk ? [] : ["See raw script output for details"],
+    verdict: "fail" as Verdict,
+    summary: "LLM analysis unavailable",
+    issues: [],
   };
 
   const prompt = buildPrompt(timestamp, protocol, scripts, runType);
@@ -346,7 +343,10 @@ export async function analyze(
     week_context?: "A" | "B" | "unknown";
   }>(prompt, fallback, { maxTokens: 4096, timeout: 180_000 });
 
-  if (error) console.warn(`  ⚠️  LLM error (${client.model}): ${error}`);
+  if (error) throw new Error(`[${client.model}] ${error}`);
+  if (!["pass", "warning", "fail"].includes(parsed.verdict)) {
+    throw new Error(`[${client.model}] Invalid verdict: ${parsed.verdict}`);
+  }
 
   return {
     verdict: parsed.verdict,
@@ -395,13 +395,6 @@ function resolveConsensus(
 ): { verdict: Verdict; method: ConsensusResult["consensusMethod"] } {
   const responded = modelVerdicts.filter((m) => m.verdict !== null);
 
-  if (responded.length === 0) {
-    return {
-      verdict: allScriptsPass ? "pass" : "fail",
-      method: "script-only",
-    };
-  }
-
   const counts: Record<Verdict, number> = { pass: 0, warning: 0, fail: 0 };
   for (const m of responded) counts[m.verdict!]++;
 
@@ -434,7 +427,6 @@ function resolveConsensus(
 
 /**
  * Run scripts once, query multiple models in parallel, resolve by consensus.
- * Scripts are the source of truth — if all pass and every LLM is down, verdict = pass.
  */
 export async function verifyWithConsensus(
   clients: LLMClient[],
@@ -480,22 +472,11 @@ export async function verifyWithConsensus(
 
   console.log(`  → querying ${clients.length} models in parallel…`);
 
-  const LLM_UNAVAILABLE_MARKER = "LLM analysis unavailable";
-
   const modelVerdicts: ModelVerdict[] = await Promise.all(
     clients.map(async (client): Promise<ModelVerdict> => {
       const t0 = Date.now();
       try {
         const result = await analyze(client, timestamp, protocol, scripts, runType);
-        const llmFailed = result.summary.includes(LLM_UNAVAILABLE_MARKER);
-        if (llmFailed) {
-          return {
-            model: client.model,
-            verdict: null,
-            error: `LLM returned fallback (API error)`,
-            ms: Date.now() - t0,
-          };
-        }
         return {
           model: client.model,
           verdict: result.verdict,
@@ -519,6 +500,18 @@ export async function verifyWithConsensus(
     })
   );
 
+  const missing = modelVerdicts.filter((m) => m.verdict === null);
+  if (modelVerdicts.length === 0 || missing.length > 0) {
+    return {
+      verdict: "fail",
+      summary: `${modelVerdicts.length - missing.length}/${clients.length} models responded — all configured models are required`,
+      issues: missing.map((m) => `[${m.model}] ${m.error ?? "No verdict"}`),
+      scripts,
+      modelVerdicts,
+      consensusMethod: "insufficient-models",
+    };
+  }
+
   const { verdict, method } = resolveConsensus(modelVerdicts, allScriptsPass);
 
   const responded = modelVerdicts.filter((m) => m.verdict !== null);
@@ -527,13 +520,9 @@ export async function verifyWithConsensus(
     ? matching.reduce((a, b) => (b.confidence ?? 0) > (a.confidence ?? 0) ? b : a)
     : responded[0];
 
-  const scriptOnlySummary = allScriptsPass
-    ? `All ${scripts.length} scripts passed — no LLM response, verdict from scripts only`
-    : `${scripts.filter((s) => s.exitCode !== 0).length}/${scripts.length} scripts failed — no LLM response, verdict from scripts only`;
-
   return {
     verdict,
-    summary: best?.summary ?? scriptOnlySummary,
+    summary: best?.summary ?? "",
     issues: best?.issues ?? (allScriptsPass ? [] : ["See raw script output for details"]),
     scripts,
     scriptNotes: best?.scriptNotes,
