@@ -341,11 +341,19 @@ export async function analyze(
     cross_check_notes?: string[];
     chain_status?: Record<string, Verdict>;
     week_context?: "A" | "B" | "unknown";
-  }>(prompt, fallback, { maxTokens: 4096, timeout: 180_000 });
+  }>(prompt, fallback, {
+    maxTokens: client.model.startsWith("minimax-") ? 16_384 : 4096,
+    timeout: 180_000,
+  });
 
   if (error) throw new Error(`[${client.model}] ${error}`);
   if (!["pass", "warning", "fail"].includes(parsed.verdict)) {
     throw new Error(`[${client.model}] Invalid verdict: ${parsed.verdict}`);
+  }
+
+  if (typeof parsed.summary !== "string" || !Array.isArray(parsed.issues) ||
+      !parsed.issues.every((issue) => typeof issue === "string")) {
+    throw new Error(`[${client.model}] Invalid summary or issues`);
   }
 
   return {

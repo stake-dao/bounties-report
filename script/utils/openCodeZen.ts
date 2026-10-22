@@ -161,7 +161,11 @@ class OpenCodeZenClient implements LLMClient {
           .join("")
           .trim();
       }
-      return (res.data.choices?.[0]?.message?.content ?? "").trim();
+      const choice = res.data.choices?.[0];
+      if (choice?.finish_reason === "length") {
+        throw new Error(`[${this.model}] Response truncated at max_tokens=${body.max_tokens}`);
+      }
+      return (choice?.message?.content ?? "").trim();
     } catch (err) {
       throw new Error(`[${this.model}] Zen API error: ${axiosErrorDetail(err)}`);
     }

@@ -23,7 +23,7 @@ describe("distribution verifier with subprocesses and OpenCode HTTP", () => {
     server = createServer(async (req, res) => {
       let raw = "";
       for await (const chunk of req) raw += chunk;
-      const { model } = JSON.parse(raw);
+      const { model, max_tokens } = JSON.parse(raw);
       requests.push(new URL(req.url!).pathname);
       const mode = failures.get(model);
       if (mode === "disconnect") {
@@ -34,16 +34,23 @@ describe("distribution verifier with subprocesses and OpenCode HTTP", () => {
         res.writeHead(Number(mode)).end('{"error":"fixture API failure"}');
         return;
       }
-      const text = mode === "malformed" ? "not JSON" : JSON.stringify({
-        verdict: mode === "invalid" ? "unknown" : mode ?? "pass",
+      const payload: Record<string, unknown> = {
+        verdict: mode === "invalid" ? "unknown" : mode === "warning" || mode === "fail" ? mode : "pass",
         summary: "fixture checks passed",
         issues: [],
-      });
+      };
+      if (mode === "summary-number") payload.summary = 42;
+      if (mode === "summary-missing") delete payload.summary;
+      if (mode === "issues-number") payload.issues = 42;
+      if (mode === "issues-string") payload.issues = "missing array";
+      if (mode === "issues-mixed") payload.issues = ["valid", 42];
+      const truncated = mode === "truncated" || mode === "budget" && max_tokens < 6000;
+      const text = mode === "malformed" ? "not JSON" : JSON.stringify(payload);
       const body = model.startsWith("claude-")
         ? { content: [{ type: "text", text }] }
         : model.startsWith("gpt-")
           ? { output: [{ content: [{ type: "output_text", text }] }] }
-          : { choices: [{ message: { content: text } }] };
+          : { choices: [{ finish_reason: truncated ? "length" : "stop", message: { content: text } }] };
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(body));
     });
@@ -86,7 +93,7 @@ describe("distribution verifier with subprocesses and OpenCode HTTP", () => {
     ...MODELS.map((model) => ["401", [model]] as [string, string[]]),
     ["401", MODELS.slice(0, 2)],
     ["401", MODELS],
-    ...["403", "429", "500", "malformed", "invalid", "disconnect"].map(
+    ...["403", "429", "500", "malformed", "invalid", "disconnect", "summary-number", "summary-missing", "issues-number", "issues-string", "issues-mixed", "truncated"].map(
       (mode) => [mode, [MODELS[2]]] as [string, string[]]
     ),
   ])("%s from %j blocks verification despite passing scripts", async (mode, models) => {
@@ -117,6 +124,14 @@ describe("distribution verifier with subprocesses and OpenCode HTTP", () => {
     expect(result.verdict).toBe("pass");
     expect(result.consensusMethod).toBe("majority");
     expect(result.modelVerdicts.filter((m) => m.verdict !== null)).toHaveLength(3);
+  });
+
+  it("allows Minimax thinking before its JSON verdict", async () => {
+    failures.set(MODELS[2], "budget");
+    const clients = MODELS.map((model) => createZenClient(model, "fixture-key"));
+    const result = await verifyWithConsensus(clients, TIMESTAMP, "vlCVX");
+    expect(result.verdict).toBe("pass");
+    expect(result.modelVerdicts.every((m) => m.verdict === "pass")).toBe(true);
   });
 
   it("rejects an empty model configuration", async () => {
