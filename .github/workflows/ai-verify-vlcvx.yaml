@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       type:
-        description: 'Distribution type — passed to the verifier as authoritative run context (--run-type); deterministic checks still run for both'
+        description: 'Distribution type — voters scopes deterministic invariants to voters; supplies authoritative run context (--run-type)'
         required: true
         type: choice
         options:
@@ -66,8 +66,12 @@ jobs:
             WEEK=604800
             PERIOD=$(( $(date +%s) / WEEK * WEEK ))
           fi
+          TARGET=both
+          if [ "$RUN_TYPE" = "voters" ]; then
+            TARGET=voters
+          fi
           echo "Type=$RUN_TYPE Period=$PERIOD"
-          pnpm tsx script/verify/aiVerify.ts --timestamp "$PERIOD" --protocol vlCVX --deep --run-type "$RUN_TYPE"
+          pnpm tsx script/verify/aiVerify.ts --timestamp "$PERIOD" --protocol vlCVX --target "$TARGET" --deep --run-type "$RUN_TYPE"
         env:
           EPOCH_INPUT: ${{ inputs.epoch }}
           RUN_TYPE: ${{ inputs.type }}
