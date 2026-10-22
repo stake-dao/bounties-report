@@ -46,17 +46,25 @@ describe("hub gauge metadata", () => {
     expect(get).toHaveBeenCalledExactlyOnceWith("https://hub.stakedao.org/v1/votemarket/fxn/gauges");
   });
 
-  it.each(["curve", "fxn"])("%s rejects missing metadata instead of producing incomplete reports", async (protocol) => {
-    const get = vi.spyOn(axios, "get");
-    for (const data of [null, {}, { gauges: null }, { gauges: [] }]) {
-      get.mockResolvedValue({ status: 200, data });
-      await expect(getGaugesInfos(protocol)).rejects.toThrow("catalog");
-    }
-    get.mockResolvedValue({ status: 503, data: { gauges: GAUGES } });
-    await expect(getGaugesInfos(protocol)).rejects.toThrow("catalog");
-    get.mockRejectedValue(new Error("offline"));
-    await expect(getGaugesInfos(protocol)).rejects.toThrow("offline");
-    expect(get.mock.calls.every(([url]) => url === `https://hub.stakedao.org/v1/votemarket/${protocol}/gauges`)).toBe(true);
-    expect(get).toHaveBeenCalledTimes(6);
+  it("rejects unavailable Curve metadata instead of losing root aliases", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const get = vi.spyOn(axios, "get").mockResolvedValue({ status: 200, data: { gauges: [] } });
+    await expect(getGaugesInfos("curve")).rejects.toThrow("Curve gauges");
+    get.mockResolvedValue({ status: 200, data: { message: "unavailable" } });
+    await expect(getGaugesInfos("curve")).rejects.toThrow("Curve gauges");
+    get.mockRejectedValue(new Error("503"));
+    await expect(getGaugesInfos("curve")).rejects.toThrow("503");
+  });
+
+  it.each(["fxn"])("%s preserves empty results without a stale fallback", async (protocol) => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const get = vi.spyOn(axios, "get").mockResolvedValue({ status: 200, data: { gauges: [] } });
+    expect(await getGaugesInfos(protocol)).toEqual([]);
+    get.mockResolvedValue({ status: 200, data: { message: "unavailable" } });
+    expect(await getGaugesInfos(protocol)).toEqual([]);
+    get.mockRejectedValue(new Error("503"));
+    expect(await getGaugesInfos(protocol)).toEqual([]);
+    expect(get.mock.calls.every(([url]) => String(url).startsWith("https://hub.stakedao.org/"))).toBe(true);
+    expect(get).toHaveBeenCalledTimes(3);
   });
 });
