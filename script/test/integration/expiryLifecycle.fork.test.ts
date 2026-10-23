@@ -251,7 +251,9 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       await expect(replayExpiryJournal(client, stateDir, domain)).rejects.toThrow();
       fs.renameSync(`${preparedFile}.missing`, preparedFile);
       fs.unlinkSync(path.join(stateDir, "current.json"));
-      const replayed = await replayExpiryJournal(client, stateDir, domain);
+      await runtime("prepare");
+      const pointer = JSON.parse(fs.readFileSync(path.join(stateDir, "current.json"), "utf8"));
+      const replayed = JSON.parse(fs.readFileSync(path.join(stateDir, "states", `${pointer.state}.json`), "utf8"));
       expect(replayed.root).toBe(applied.merkle.merkleRoot);
       expect(replayed.pairs[expiryKey(protectedUser, token)].credits).toEqual(applied.ledger.pairs[expiryKey(protectedUser, token)].credits);
       expect((await replayExpiryJournal(client, stateDir, domain)).recoveries).toEqual(replayed.recoveries);
