@@ -13,7 +13,6 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
-	@$(PNPM) add -D tsx
 
 get-delegators: setup install-deps
 	@echo "Running vlCVX delegation data collection..."

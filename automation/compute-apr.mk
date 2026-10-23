@@ -14,7 +14,6 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
-	@$(PNPM) add -D tsx
 
 run-vlcvx-apr: setup install-deps
 	@echo "Computing vlCVX delegation APR..."

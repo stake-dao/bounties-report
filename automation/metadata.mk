@@ -12,7 +12,6 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
-	@$(PNPM) add -D tsx
 
 run-metadata: setup install-deps
 	@echo "Updating round metadata..."

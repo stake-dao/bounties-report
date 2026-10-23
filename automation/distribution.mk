@@ -40,7 +40,6 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
-	@$(PNPM) add -D tsx
 
 run-repartition: setup install-deps
 	@echo "Generating $(PROTOCOL_LABEL) repartition..."

@@ -17,8 +17,8 @@ inputs:
     description: 'Run pnpm install'
     default: 'true'
   frozen-lockfile:
-    description: 'Use frozen lockfile'
-    default: 'false'
+    description: 'Use frozen lockfile (disable only to deliberately update dependencies)'
+    default: 'true'
 
 runs:
   using: 'composite'

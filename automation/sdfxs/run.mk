@@ -13,7 +13,6 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
-	@$(PNPM) add -D tsx
 
 run-report: setup install-deps
 	@echo "Generating sdFXS report..."
