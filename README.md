@@ -51,7 +51,9 @@ See [script/spectra/README.md](./script/spectra/README.md).
 ├── script/
 │   ├── reports/                      # Report generation
 │   ├── sdTkns/                       # sdToken merkle generation and claim fetchers
-│   ├── special-distribs/             # One-off extra distribution scripts
+│   ├── one-offs/special-distribs/    # One-off extra distribution scripts
+│   ├── ops/                          # Operational catch-up and maintenance scripts
+│   ├── diagnostics/                  # Ad-hoc merkle/snapshot/forwarder inspection
 │   ├── spectra/                      # Spectra report and repartition steps
 │   ├── utils/                        # Shared utilities
 │   ├── verify/                       # Automated verification and LLM triage

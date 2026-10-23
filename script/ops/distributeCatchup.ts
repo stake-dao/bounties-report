@@ -131,7 +131,7 @@ function main() {
 
   if (args.length < 2 || args.length > 3) {
     console.error(`
-Usage: tsx script/reports/distributeCatchup.ts <csv-path> <catchup-amount> [output-path]
+Usage: tsx script/ops/distributeCatchup.ts <csv-path> <catchup-amount> [output-path]
 
 Arguments:
   csv-path       Path to the CSV file to process
@@ -140,13 +140,13 @@ Arguments:
 
 Examples:
   # Process Curve CSV, add 1532.2 SD value
-  tsx script/reports/distributeCatchup.ts bounties-reports/1761177600/curve.csv 1532.2
+  tsx script/ops/distributeCatchup.ts bounties-reports/1761177600/curve.csv 1532.2
 
   # Process FXN CSV, save to new file
-  tsx script/reports/distributeCatchup.ts bounties-reports/1761177600/fxn.csv 500 bounties-reports/1761177600/fxn-updated.csv
+  tsx script/ops/distributeCatchup.ts bounties-reports/1761177600/fxn.csv 500 bounties-reports/1761177600/fxn-updated.csv
 
   # Process Balancer CSV
-  tsx script/reports/distributeCatchup.ts bounties-reports/1761177600/balancer.csv 250.5
+  tsx script/ops/distributeCatchup.ts bounties-reports/1761177600/balancer.csv 250.5
 `);
     process.exit(1);
   }

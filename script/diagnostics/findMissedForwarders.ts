@@ -1,8 +1,8 @@
-import { getClient, CVX_SPACE, VOTIUM_FORWARDER, VOTIUM_FORWARDER_REGISTRY, DELEGATION_ADDRESS } from "../../utils/constants";
+import { getClient, CVX_SPACE, VOTIUM_FORWARDER, VOTIUM_FORWARDER_REGISTRY, DELEGATION_ADDRESS } from "../utils/constants";
 import { getAddress } from "viem";
-import { getProposal, getVoters, fetchLastProposalsIds } from "../../utils/snapshot";
-import { getForwardedDelegators } from "../../utils/delegationHelper";
-import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
+import { getProposal, getVoters, fetchLastProposalsIds } from "../utils/snapshot";
+import { getForwardedDelegators } from "../utils/delegationHelper";
+import { getBlockNumberByTimestamp } from "../utils/chainUtils";
 import fs from "fs";
 import path from "path";
 

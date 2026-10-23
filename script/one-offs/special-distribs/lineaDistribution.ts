@@ -3,7 +3,7 @@ import path from "node:path";
 import { getAddress, keccak256, toHex } from "viem";
 import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
-import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
+import { createBlockchainExplorerUtils } from "../../utils/explorerUtils";
 
 // Constants
 const SDZERO_GAUGE = "0xC6973841dC130597dF3Cb8bE2F57440d856FD7C4";
@@ -168,7 +168,7 @@ async function main() {
   }
   
   // Output directory
-  const outputDir = path.join(__dirname, `../../data/extra_merkle/${LINEA_CHAIN_ID}`);
+  const outputDir = path.join(__dirname, `../../../data/extra_merkle/${LINEA_CHAIN_ID}`);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }

@@ -14,7 +14,7 @@
     "report:frax": "pnpm tsx script/reports/generateReportFrax.ts",
     "spectra-report": "pnpm tsx script/spectra/1_report.ts",
     "spectra-repartition": "pnpm tsx script/spectra/2_repartition.ts",
-    "yb-distribution": "pnpm tsx script/special-distribs/yb.ts",
+    "yb-distribution": "pnpm tsx script/one-offs/special-distribs/yb.ts",
     "check-forwarder": "pnpm tsx script/helpers/checkForwarderRewards.ts",
     "test": "vitest run",
     "test:watch": "vitest",

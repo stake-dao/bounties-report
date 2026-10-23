@@ -55,7 +55,7 @@ interface RowAllocation {
 type JSONObject = Record<string, unknown>;
 
 function usage(): string {
-  return `Usage: pnpm tsx script/reports/applyResidualCatchup.ts --manifest <path> [--dry-run]
+  return `Usage: pnpm tsx script/ops/applyResidualCatchup.ts --manifest <path> [--dry-run]
 
 Options:
   --manifest <path>  Residual catch-up manifest to apply

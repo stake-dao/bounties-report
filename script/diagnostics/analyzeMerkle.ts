@@ -478,9 +478,9 @@ async function main() {
     await printMerkleComparison(args[0], args[1]);
   } else {
     console.error("Usage:");
-    console.error("  pnpm tsx script/helpers/analyzeMerkle.ts                    # Analyze default merkle");
-    console.error("  pnpm tsx script/helpers/analyzeMerkle.ts <path>            # Analyze specific merkle");
-    console.error("  pnpm tsx script/helpers/analyzeMerkle.ts <before> <after>  # Compare two merkles");
+    console.error("  pnpm tsx script/diagnostics/analyzeMerkle.ts                    # Analyze default merkle");
+    console.error("  pnpm tsx script/diagnostics/analyzeMerkle.ts <path>            # Analyze specific merkle");
+    console.error("  pnpm tsx script/diagnostics/analyzeMerkle.ts <before> <after>  # Compare two merkles");
     process.exit(1);
   }
 }

@@ -1,7 +1,7 @@
-import { getClient, CVX_SPACE, VOTIUM_FORWARDER, VOTIUM_FORWARDER_REGISTRY } from "../../utils/constants";
-import { getProposal, getVoters, fetchLastProposalsIdsCurrentPeriod } from "../../utils/snapshot";
-import { getForwardedDelegators } from "../../utils/delegationHelper";
-import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
+import { getClient, CVX_SPACE, VOTIUM_FORWARDER, VOTIUM_FORWARDER_REGISTRY } from "../utils/constants";
+import { getProposal, getVoters, fetchLastProposalsIdsCurrentPeriod } from "../utils/snapshot";
+import { getForwardedDelegators } from "../utils/delegationHelper";
+import { getBlockNumberByTimestamp } from "../utils/chainUtils";
 
 /**
  * Test forwarder detection for a specific address

@@ -33,7 +33,7 @@ BOSS/pool/Botmarket — the aggregator is never touched — so it is invisible.
 **Fix (commit `08cfc319` on `main`):**
 - `data/residual-catchup/fxn-1787788800.json` — catch-up manifest, `actualSdReceivedWei
   = 15528491600513923371`, attributed to native FXN.
-- Applied via `script/reports/applyResidualCatchup.ts`: `fxn.csv` total
+- Applied via `script/ops/applyResidualCatchup.ts`: `fxn.csv` total
   **50.915916 → 66.444408 sdFXN** across the 3 FXN rows; cleanup tx recorded in
   `fxn-attribution.json`.
 - `applyResidualCatchup.ts` grand-total gate made CSV-precision-aware (a flat `1e-9`
