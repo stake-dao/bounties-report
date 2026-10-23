@@ -9,9 +9,6 @@ temp/
 .cache/
 .tmp/
 
-# Envio
-script/indexer/vlcvx-forwarder/generated/
-
 # TypeScript compiled output (project uses tsx, never emit .js in-place)
 script/**/*.js
 script/**/*.d.ts
