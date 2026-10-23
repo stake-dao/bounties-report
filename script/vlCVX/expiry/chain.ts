@@ -1,7 +1,7 @@
 import { utils } from "ethers";
 import { Abi, Hash, PublicClient } from "viem";
 import expiryAbi from "../../../abis/RewardsExpiry.json";
-import { ConfirmedExpiry, EXPIRY_DISTRIBUTOR, expiryDigest, PreparedExpiry } from "../../shared/merkle/expiry";
+import { ConfirmedExpiry, expiryDigest, PreparedExpiry } from "../../shared/merkle/expiry";
 import { ALL_MIGHT_V2 } from "../../utils/constants";
 
 const iface = new utils.Interface(expiryAbi);
@@ -21,13 +21,13 @@ export async function readConfirmedExpiry(client: PublicClient, prepared: Prepar
     client.readContract({ address: prepared.module.address as Hash, abi: expiryAbi as Abi, functionName: "DISTRIBUTOR", blockNumber: receipt.blockNumber }),
   ]);
   if (block.hash !== receipt.blockHash || checkpoint.hash !== prepared.state.checkpoint.blockHash) throw new Error("expiry input or receipt reorged");
-  if (actualDigest !== expiryDigest(prepared) || prepared.module.preparer?.toLowerCase() !== ALL_MIGHT_V2.toLowerCase() || String(preparer).toLowerCase() !== prepared.module.preparer.toLowerCase() || String(owner).toLowerCase() !== prepared.module.safe.toLowerCase() || String(treasury).toLowerCase() !== prepared.treasury.toLowerCase() || String(distributor).toLowerCase() !== EXPIRY_DISTRIBUTOR.toLowerCase() || BigInt(delay as bigint) !== BigInt(prepared.module.delay)) throw new Error("expiry module domain");
+  if (actualDigest !== expiryDigest(prepared) || prepared.module.preparer?.toLowerCase() !== ALL_MIGHT_V2.toLowerCase() || String(preparer).toLowerCase() !== prepared.module.preparer.toLowerCase() || String(owner).toLowerCase() !== prepared.module.safe.toLowerCase() || String(treasury).toLowerCase() !== prepared.treasury.toLowerCase() || String(distributor).toLowerCase() !== prepared.distributor.toLowerCase() || BigInt(delay as bigint) !== BigInt(prepared.module.delay)) throw new Error("expiry module domain");
   const logs = receipt.logs.filter(log => log.address.toLowerCase() === prepared.module.address.toLowerCase()).map(log => ({ log, event: iface.parseLog({ topics: [...log.topics], data: log.data }) }));
   const activations = logs.filter(({ event }) => event.name === "Activated" && event.args.digest === actualDigest);
   if (activations.length !== 1) throw new Error("expiry activation event missing");
   const { event, log } = activations[0];
   const changed = event.args.root !== event.args.parent;
-  const rootSets = receipt.logs.filter(row => row.address.toLowerCase() === EXPIRY_DISTRIBUTOR.toLowerCase() && row.topics[0] === utils.id("RootSet(bytes32,bytes32)") && row.topics[1] === event.args.root && row.topics[2] === actualDigest);
+  const rootSets = receipt.logs.filter(row => row.address.toLowerCase() === prepared.distributor.toLowerCase() && row.topics[0] === utils.id("RootSet(bytes32,bytes32)") && row.topics[1] === event.args.root && row.topics[2] === actualDigest);
   if (changed && rootSets.length !== 1) throw new Error("distributor activation missing");
   if (!changed && !event.args.recovered.isZero()) throw new Error("unchanged root with recovery");
   return {
