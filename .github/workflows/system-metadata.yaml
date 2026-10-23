@@ -43,7 +43,7 @@ jobs:
           version: 10.33.0
 
       - name: Install node dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Update round metadata
         run: pnpm tsx script/helpers/getRoundMetadata.ts
@@ -60,6 +60,9 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          # Without this the action stages the whole worktree, which is how a
+          # stray file ends up on main.
+          file_pattern: data/round_metadata.json
 
       - name: Send error notification to Telegram
         if: failure()
