@@ -61,9 +61,9 @@ export async function replayExpiryJournal(client: PublicClient, directory: strin
     const end = start + 9999n < finalized.number ? start + 9999n : finalized.number;
     const roots = await client.getLogs({ address: ledger.distributor as Address, event: ROOT_SET, fromBlock: start, toBlock: end });
     const activations = await client.getLogs({ address: module.address as Address, event: ACTIVATED, fromBlock: start, toBlock: end });
-    const expiryTransactions = new Set(activations.map(event => event.transactionHash));
+    const expiryRoots = new Set(activations.filter(event => !event.removed && event.args.root !== event.args.parent).map(event => `${event.transactionHash}:${event.args.digest}:${event.args.root}`));
     for (const event of roots) {
-      if (!event.removed && event.transactionHash && event.blockNumber !== null && event.logIndex !== null && !expiryTransactions.has(event.transactionHash)) events.push({ block: event.blockNumber, log: event.logIndex, hash: event.transactionHash, root: event.args.newRoot });
+      if (!event.removed && event.transactionHash && event.blockNumber !== null && event.logIndex !== null && !expiryRoots.has(`${event.transactionHash}:${event.args.newIpfsHash}:${event.args.newRoot}`)) events.push({ block: event.blockNumber, log: event.logIndex, hash: event.transactionHash, root: event.args.newRoot });
     }
     for (const event of activations) {
       if (!event.removed && event.transactionHash && event.blockNumber !== null && event.logIndex !== null) events.push({ block: event.blockNumber, log: event.logIndex, hash: event.transactionHash, digest: event.args.digest });

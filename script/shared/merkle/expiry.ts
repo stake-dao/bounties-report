@@ -368,7 +368,7 @@ export function prepareExpiry(
   const processed = new Set(run?.processed ?? []);
   const treasury = getAddress(policy.treasury);
   const reward = getAddress(token);
-  if (treasury === getAddress("0x0000000000000000000000000000000000000000") || treasury === EXPIRY_DISTRIBUTOR) throw new Error("treasury target");
+  if (treasury === getAddress("0x0000000000000000000000000000000000000000") || treasury === state.distributor) throw new Error("treasury target");
   const treasuryAmount = distribution[treasury]?.[reward];
   if (treasuryAmount === undefined) return null;
   const rows: ExpiryBatch["rows"] = [];
@@ -413,7 +413,7 @@ export function recordExpiryDistribution(ledger: Ledger, publication: Publicatio
   assertExpiryLedger(ledger);
   if (!publication.merkle || publication.root.toLowerCase() !== publication.merkle.merkleRoot.toLowerCase() || publication.block < ledger.checkpoint.block || (publication.block === ledger.checkpoint.block && (publication.logIndex ?? 0) <= (ledger.checkpoint.logIndex ?? Number.MAX_SAFE_INTEGER))) throw new Error("distribution activation");
   const distribution = verifyExpiryParent(publication.merkle);
-  const result = structuredClone(ledger);
+  const result = syncExpiryClaims(ledger, claims);
   const active = new Map<string, { account: string; token: string; amount: string }>();
   for (const [account, tokens] of Object.entries(distribution)) {
     for (const [token, amount] of Object.entries(tokens)) active.set(expiryKey(account, token), { account, token, amount });
