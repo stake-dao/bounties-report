@@ -184,7 +184,7 @@ async function main() {
 
   // Keep bounties only for frax protocol
   aggregatedBounties = { [protocol]: regularBounties[protocol] };
-  const rawProtocolBounties = { [protocol]: rawBounties[protocol] };
+  const rawProtocolBounties: Record<string, any> = { [protocol]: rawBounties[protocol] };
 
   // Collect tokens and fetch their info (including raw tokens)
   const protocolTokens = { [protocol]: PROTOCOLS_TOKENS[protocol] };

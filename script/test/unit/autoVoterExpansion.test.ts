@@ -104,6 +104,7 @@ describe("addVotersFromAutoVoter end-block reads", () => {
       (v: { voter: string }) => v.voter.toLowerCase() === USER
     );
     expect(expanded).toBeDefined();
+    if (!expanded) throw new Error("expanded voter missing");
     expect(expanded.vp).toBeCloseTo(7093281.81);
     expect(expanded.choice).toEqual({ "276": 5000, "309": 5000 });
     expect(

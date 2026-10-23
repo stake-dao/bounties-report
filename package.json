@@ -16,6 +16,7 @@
     "spectra-repartition": "pnpm tsx script/spectra/2_repartition.ts",
     "yb-distribution": "pnpm tsx script/one-offs/special-distribs/yb.ts",
     "check-forwarder": "pnpm tsx script/helpers/checkForwarderRewards.ts",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -47,9 +48,12 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.17.7",
+    "@types/node": "24.0.0",
     "@types/parquetjs": "^0.10.6",
     "@types/yargs": "^17.0.33",
+    "@vitest/coverage-v8": "^4.1.11",
     "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
   "pnpm": {

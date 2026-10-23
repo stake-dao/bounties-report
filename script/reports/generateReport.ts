@@ -396,7 +396,7 @@ async function main() {
     .option("completion", { type: "string" })
     .help()
     .strict()
-    .parseSync() as GenerateReportArgs;
+    .parseSync() as unknown as GenerateReportArgs;
 
   const protocol = argv.protocol;
   const protocolKey = String(protocol);

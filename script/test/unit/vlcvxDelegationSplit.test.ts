@@ -39,6 +39,10 @@ const ONE = 10n ** 18n;
 
 const proposal = { id: "0", author: "0xPlatform", end: 1_000_000 };
 
+// The on-chain client is only read when VLCVX_ALLOW_ACTIVE_PROPOSAL=true (the
+// fork/vnet path); every case here takes the timestamp branch.
+const UNUSED_CLIENT = {} as Parameters<typeof computeStakeDaoDelegation>[4];
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getForwardedDelegators.mockResolvedValue([]);
@@ -64,7 +68,7 @@ describe("computeStakeDaoDelegation", () => {
       [D1, D2],
       { [TOKEN]: 1000n },
       DELEGATION_VOTER,
-      {} as any
+      UNUSED_CLIENT
     );
 
     expect(delegateOwnTokens).toEqual({});
@@ -103,7 +107,7 @@ describe("computeStakeDaoDelegation", () => {
       [D1, D2],
       { [TOKEN]: 1000n },
       DELEGATION_VOTER,
-      {} as any
+      UNUSED_CLIENT
     );
 
     expect(exact.delegate).toBe(DELEGATION_VOTER);
@@ -136,7 +140,7 @@ describe("computeStakeDaoDelegation", () => {
       [D1, D2],
       { [TOKEN]: 999n },
       DELEGATION_VOTER,
-      {} as any
+      UNUSED_CLIENT
     );
 
     // own = floor(999 * 50 / 150) = 333, pool = 666 — conservation is exact
@@ -157,7 +161,7 @@ describe("computeStakeDaoDelegation", () => {
     });
 
     await expect(
-      computeStakeDaoDelegation(proposal, [D1], { [TOKEN]: 1000n }, DELEGATION_VOTER)
+      computeStakeDaoDelegation(proposal, [D1], { [TOKEN]: 1000n }, DELEGATION_VOTER, UNUSED_CLIENT)
     ).rejects.toThrow("do not reconcile");
   });
 
@@ -172,7 +176,7 @@ describe("computeStakeDaoDelegation", () => {
     });
 
     await expect(
-      computeStakeDaoDelegation(proposal, [D1], { [TOKEN]: 1000n }, DELEGATION_VOTER)
+      computeStakeDaoDelegation(proposal, [D1], { [TOKEN]: 1000n }, DELEGATION_VOTER, UNUSED_CLIENT)
     ).rejects.toThrow("has no vote");
   });
 
@@ -189,7 +193,7 @@ describe("computeStakeDaoDelegation", () => {
     });
 
     await expect(
-      computeStakeDaoDelegation(proposal, [D1], { [TOKEN]: 100n }, DELEGATION_VOTER)
+      computeStakeDaoDelegation(proposal, [D1], { [TOKEN]: 100n }, DELEGATION_VOTER, UNUSED_CLIENT)
     ).rejects.toThrow("no beneficiary");
   });
 
@@ -204,7 +208,7 @@ describe("computeStakeDaoDelegation", () => {
     });
 
     await expect(
-      computeStakeDaoDelegation(proposal, [D1], { [TOKEN]: 1000n }, DELEGATION_VOTER)
+      computeStakeDaoDelegation(proposal, [D1], { [TOKEN]: 1000n }, DELEGATION_VOTER, UNUSED_CLIENT)
     ).rejects.toThrow("non-positive");
   });
 });

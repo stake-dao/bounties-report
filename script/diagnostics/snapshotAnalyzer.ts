@@ -225,7 +225,7 @@ async function main() {
         const voterForwarderMap: Record<string, { isForwarder: boolean; isDelegator: boolean }> = {};
 
         voters.forEach((voter, index) => {
-          const isForwarder = forwardedAddresses[index] &&
+          const isForwarder = Boolean(forwardedAddresses[index]) &&
             forwardedAddresses[index].toLowerCase() === VOTIUM_FORWARDER.toLowerCase();
           const isDelegator = delegatorSet.has(voter.toLowerCase());
 

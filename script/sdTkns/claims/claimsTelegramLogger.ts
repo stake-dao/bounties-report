@@ -10,7 +10,8 @@ interface TokenClaim {
   protocol?: string;
 }
 
-type ClaimsData = Record<string, Record<string, TokenClaim>>;
+type ProtocolClaims = TokenClaim[] | Record<string, TokenClaim>;
+type ClaimsData = Record<string, ProtocolClaims>;
 interface AggregatedEntry {
   amount: bigint;
   chainId: number;
@@ -101,8 +102,11 @@ export class ClaimsTelegramLogger {
       const protocolClaims = claims[protocol];
       aggregated[protocol] = {};
 
-      for (const claimIndex in protocolClaims) {
-        const claim = protocolClaims[claimIndex];
+      const claimList = Array.isArray(protocolClaims)
+        ? protocolClaims
+        : Object.values(protocolClaims);
+
+      for (const claim of claimList) {
         const chainId = claim.chainId ?? defaultChainId;
         const isWrapped = claim.isWrapped ?? false;
         const protocolInfo = claim.protocol ? ` (${claim.protocol})` : "";
