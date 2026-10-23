@@ -70,6 +70,8 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ${{ inputs.protocol }} compute-apr [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
 
       - name: Notify on failure
         if: failure()

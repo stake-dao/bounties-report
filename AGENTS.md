@@ -4,7 +4,7 @@ Stake DAO's vote incentive distributions: it turns claimed bounties, Snapshot vo
 
 ## Ways to hurt yourself
 
-- **Running a pipeline script locally.** The report, merkle, publish, IPFS pin and special distribution scripts rewrite committed files or call the chain and external services. The dispatched workflows run them and push to `main` with `git add -A`, so any stray file in their workspace gets committed.
+- **Running a pipeline script locally.** The report, merkle, publish, IPFS pin and special distribution scripts rewrite committed files or call the chain and external services. The dispatched workflows run them and push to `main` through `commit-and-push`, which stages only the paths its caller lists, so a new output root must be added to that step's `paths` input or it is left behind.
 - **Hand-editing a generated file.** The period reports and merkles under `bounties-reports/`, `log.json`, `data/merkle_updates/**`, `data/ipfs-index.json` and `data/round_metadata.json` are written by the pipelines, and a pinned file edited by hand drifts from the IPFS index.
 - **Mixing the two tree models.** The legacy sdToken merkle carries previous rewards over only for accounts that have not claimed since the freeze. The universal and vlCVX trees are cumulative and keyed by checksummed address. Code written for one does not apply to the other.
 - **Trusting a green PR.** No workflow runs `pnpm test` on a pull request. Run the suite locally before the merge.

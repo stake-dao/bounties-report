@@ -101,6 +101,10 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ${{ inputs.token }} merkle [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
+            data/
+            log.json
 
       # ── Publish ──
       - name: Pull latest before publish
@@ -204,6 +208,10 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ${{ inputs.token }} publish [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
+            data/
+            log.json
 
       # ── Cleanup & notification ──
       - name: Cleanup
