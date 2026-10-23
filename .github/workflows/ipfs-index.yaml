@@ -77,6 +77,9 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ipfs evidence index"
+          paths: |
+            bounties-reports/
+            data/ipfs-index.json
 
       - name: Notify on failure
         if: failure()

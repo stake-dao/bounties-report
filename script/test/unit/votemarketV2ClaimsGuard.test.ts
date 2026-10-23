@@ -74,7 +74,7 @@ describe("explorer vs rpc cross-check", () => {
   it("passes when both agree and chunks the rpc range", async () => {
     mocks.rpcLogs.mockResolvedValue([{ transactionHash: "0xB97B", logIndex: 7 }]);
     await expect(
-      assertClaimLogsMatchRpc(42161, [VM], 1, 12_000, LOCKER, [claimLog("0xb97b", "0x7")])
+      assertClaimLogsMatchRpc(42161, [VM], 1, 12_000, LOCKER, [claimLog("0xb97b", 7)])
     ).resolves.toBeUndefined();
     expect(mocks.rpcLogs).toHaveBeenCalledTimes(3);
     expect(mocks.rpcLogs.mock.calls[0][0]).toMatchObject({ fromBlock: 1n, toBlock: 5_000n, args: { account: LOCKER } });

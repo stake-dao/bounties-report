@@ -85,7 +85,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
         return JSON.parse(fs.readFileSync(resultFile, "utf8"));
       };
       const inputs = JSON.parse(fs.readFileSync("bounties-reports/expiry/bootstrap/1/inputs.json", "utf8"));
-      const publications = inputs.publications.filter(publication => publication.block <= 26190047);
+      const publications = inputs.publications.filter((publication: any) => publication.block <= 26190047);
       const activeRoot = (await urd.root()).toLowerCase();
       const known = [...publications].reverse().find(publication => publication.root.toLowerCase() === activeRoot && publication.merkle);
       const preceding = [...publications].reverse().find(publication => publication.block < known.block && !/^0x0{64}$/.test(publication.root));
@@ -212,7 +212,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       published = true;
       const preparation = await runtime("prepare");
       expect(preparation).toMatchObject({ status: "ready", phase: "prepare", digest: expiryDigest(prepared) });
-      expect(prepared.batch.rows.map(row => row.account)).toEqual([competing, protectedUser]);
+      expect(prepared.batch.rows.map((row: any) => row.account)).toEqual([competing, protectedUser]);
       expect(await module.digest(prepared.batch)).toBe(expiryDigest(prepared));
       writeExpiryInput(path.join(directory, "prepared.json"), prepared);
       const preparedDir = path.join(stateDir, "prepared");

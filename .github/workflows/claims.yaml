@@ -109,6 +109,10 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ${{ env.PLATFORM }} claims [${{ env.DISPATCH_ID }}]"
+          paths: |
+            weekly-bounties/
+            data/delegations/
+            data/forwarders/
 
       - name: Notify on failure
         if: failure()

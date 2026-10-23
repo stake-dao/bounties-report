@@ -59,7 +59,6 @@ jobs:
         uses: ./.github/actions/setup-environment
         with:
           python: 'true'
-          frozen-lockfile: 'false'
 
       # ── Report Generation (voters only) ──
       - name: Generate vlCVX report
@@ -77,6 +76,8 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX report [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
 
       # ── Repartition (voters only) ──
       - name: Validate reports (pre-repartition)
@@ -96,6 +97,8 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX repartition [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
 
       # ── Merkle ──
       - name: Pull latest before merkle
@@ -129,6 +132,10 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX delegators-merkle [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
+            data/
+            log.json
 
       - name: Check voters merkle state
         id: voters_merkle_state
@@ -197,6 +204,10 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX voters-merkle [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
+            data/
+            log.json
 
       # ── Deterministic invariant — hard gate before AI verify / set-root ──
       # Rebuilds every wallet×token week-delta from primary sources (direct
@@ -325,6 +336,10 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX publish-${{ inputs.type }} [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
+            data/
+            log.json
 
       # ── Cleanup & notification ──
       - name: Cleanup

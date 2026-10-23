@@ -152,7 +152,7 @@ async function testMerkle(
       functionName,
       args: args as never,
       account: owner,
-    });
+    } as any);
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     if (receipt.status !== "success") throw new Error(`${functionName} reverted`);
   };
@@ -225,7 +225,7 @@ async function testMerkle(
         functionName: "claim",
         args: [user, token, amount, proof],
         account: user,
-      });
+      } as any);
       await publicClient.waitForTransactionReceipt({ hash });
       passed++;
     } catch (e: unknown) {

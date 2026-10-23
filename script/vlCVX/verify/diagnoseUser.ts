@@ -99,7 +99,7 @@ function colorizeAddr(formatted: string): string {
 
 function defaultTable(opts: {
   head: string[];
-  colAligns?: ("left" | "right" | "middle")[];
+  colAligns?: ("left" | "right" | "center")[];
 }): Table.Table {
   return new Table({
     head: opts.head.map((h) => pc.bold(h)),

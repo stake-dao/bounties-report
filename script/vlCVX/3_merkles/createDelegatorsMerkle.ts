@@ -10,17 +10,7 @@ import { mainnet } from "../../utils/chains";
 import { getPrimaryRpcUrl } from "../../utils/rpcConfig";
 import type { MerkleData } from "../../interfaces/MerkleData";
 import { getClosestBlockTimestamp } from "../../utils/chainUtils";
-import {
-	CVX_SPACE,
-	SCRVUSD,
-	CVX_GAUGE_VOTE_PLATFORM_CURVE,
-} from "../../utils/constants";
-import {
-	getOnChainProposal,
-	getOnChainVoters,
-} from "../../utils/gaugeVotePlatform";
-import { getClient } from "../../utils/getClients";
-import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
+import { SCRVUSD } from "../../utils/constants";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import { findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
@@ -613,41 +603,6 @@ async function processForwarders() {
 			`Votium carryover saved to ${carryFile}: ${carried} wei for the next ` +
 				"delegators distribution",
 		);
-	}
-
-	// Attempt to verify distribution on mainnet
-	try {
-		const client = await getClient(1);
-		// Pin the proposal to the running period (started the previous Thursday):
-		// the Tuesday delegators merkle distributes that Thursday's repartition,
-		// and must not drift onto a round that finalized in between.
-		const proposal = await getOnChainProposal(
-			CVX_GAUGE_VOTE_PLATFORM_CURVE,
-			CVX_SPACE,
-			client,
-			{ targetPeriod: currentPeriodTimestamp },
-		);
-		const votes = await getOnChainVoters(
-			CVX_GAUGE_VOTE_PLATFORM_CURVE,
-			Number(proposal.id),
-			proposal,
-			client,
-		);
-		console.log("Running verifier with on-chain proposalId:", proposal.id);
-
-		distributionVerifier(
-			CVX_SPACE,
-			mainnet,
-			"0x17F513CDE031C8B1E878Bde1Cb020cE29f77f380", // Target contract
-			newMerkleData,
-			previousMerkleData,
-			currentDistribution.distribution,
-			proposal.id,
-			"forwarders",
-			{ proposal, votes },
-		);
-	} catch (error) {
-		console.error("Error running distribution verifier:", error);
 	}
 }
 

@@ -3,11 +3,11 @@ import { BigNumber } from "ethers";
 export interface Bounty {
   rewardToken: string;
   gauge: string;
-  amount: BigInt;
+  amount: bigint;
 }
 
 export interface VotemarketBounty extends Bounty {
-  bountyId: BigInt;
+  bountyId: bigint;
 }
 
 export interface VotemarketV2Bounty extends VotemarketBounty {

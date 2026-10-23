@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { createCombineDistribution } from '../utils/merkle/merkle';
-import { generateMerkleTree } from '../shared/merkle/generateMerkleTree';
-import { MerkleData } from '../interfaces/MerkleData';
-import { Distribution } from '../interfaces/Distribution';
+import { createCombineDistribution } from '../../utils/merkle/merkle';
+import { generateMerkleTree } from '../../shared/merkle/generateMerkleTree';
+import { MerkleData } from '../../interfaces/MerkleData';
+import { Distribution } from '../../interfaces/Distribution';
 import axios from 'axios';
 
 const main = async () => {
@@ -36,7 +36,7 @@ const main = async () => {
     const merkleData = generateMerkleTree(combinedDistribution);
 
     // Write merkle file
-    const pathExtraMerkle = path.resolve(__dirname, "..", "..", "data", "extra_merkle", "merkle.json")
+    const pathExtraMerkle = path.resolve(__dirname, "..", "..", "..", "data", "extra_merkle", "merkle.json")
     fs.writeFileSync(pathExtraMerkle, JSON.stringify(merkleData, null, 2));
 }
 

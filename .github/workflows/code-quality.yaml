@@ -1,0 +1,56 @@
+name: "Quality: Typecheck and Tests"
+
+# The pipelines below run `git add -A` and push to main, so nothing upstream
+# catches a broken type or test before merge. This is the only gate that runs
+# on a pull request.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - "script/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "tsconfig.json"
+      - "vitest.config.ts"
+      - ".github/workflows/code-quality.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10.33.0"
+
+      # Deliberately not the shared setup-environment action: it rebases onto
+      # main and installs without a frozen lockfile, neither of which belongs
+      # in a read-only pull request check.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test

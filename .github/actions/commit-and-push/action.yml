@@ -1,8 +1,14 @@
 name: 'Commit and Push'
-description: 'Rebase, stage all changes, commit, and push to main'
+description: 'Rebase, stage the paths this job owns, commit, and push to main'
 inputs:
   message:
     description: 'Commit message'
+    required: true
+  paths:
+    description: |
+      Newline-separated paths to stage, relative to the repository root.
+      A pipeline must list every root it writes. Anything else left in the
+      worktree stays uncommitted and is reported as a warning.
     required: true
 
 runs:
@@ -10,9 +16,42 @@ runs:
   steps:
     - name: Commit and push
       shell: bash
+      env:
+        STAGE_PATHS: ${{ inputs.paths }}
       run: |
         git pull --rebase --autostash origin main
-        git add -A
+
+        # Stage only what this job owns. This used to be `git add -A`, which
+        # also picked up whatever else sat in the runner's worktree — a local
+        # edit or a debug artifact — and pushed it to main with the pipeline's
+        # commit.
+        stage_paths=()
+        while IFS= read -r entry; do
+          [ -z "${entry// /}" ] && continue
+          stage_paths+=("$entry")
+        done <<< "$STAGE_PATHS"
+
+        if [ "${#stage_paths[@]}" -eq 0 ]; then
+          echo "::error::commit-and-push: the paths input is empty"
+          exit 1
+        fi
+
+        git add -- "${stage_paths[@]}"
+
+        # An output written outside the listed paths is a bug in the caller,
+        # not something to push. Surface it here so the run log shows it
+        # instead of the file silently disappearing with the runner.
+        leftovers="$(
+          {
+            git diff --name-only
+            git ls-files --others --exclude-standard
+          } | sort -u
+        )"
+        if [ -n "$leftovers" ]; then
+          echo "::warning::Files outside the paths input were left uncommitted:"
+          printf '%s\n' "$leftovers"
+        fi
+
         if git diff --cached --quiet; then
           echo "No changes to commit, skipping"
           exit 0

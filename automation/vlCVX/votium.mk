@@ -14,7 +14,6 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
-	@$(PNPM) add -D tsx
 
 run-votium: setup install-deps
 	@echo "Generating Convex Votium claims..."

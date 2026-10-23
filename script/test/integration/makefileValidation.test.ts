@@ -218,8 +218,13 @@ describe("Consolidated GitHub Actions workflows", () => {
       "utf-8"
     );
 
-    expect(content).toContain("--protocol vlCVX --deep");
-    expect(content).not.toContain("--target");
+    expect(content).toContain("--protocol vlCVX");
+    expect(content).toContain("--deep");
+    // Voters runs narrow the deterministic invariants to voters; every other
+    // run keeps the both-target default.
+    expect(content).toContain("TARGET=both");
+    expect(content).toContain('TARGET=voters');
+    expect(content).toContain('--target "$TARGET"');
   });
 
   it("consolidated workflows should reference automation/distribution.mk", () => {

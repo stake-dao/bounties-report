@@ -20,5 +20,3 @@ This directory contains the current merkle and APR files copied by publish workf
 - `sdTokens: Merkle` publishes legacy sdToken, sdFXS, and sdSpectra files.
 - `vlCVX: Distribution` publishes vlCVX voters and delegators files.
 - `Compute APR` can refresh latest vlCVX APR files.
-
-`newMerkle.json` is a legacy/manual artifact and is not written by the current publish workflows.

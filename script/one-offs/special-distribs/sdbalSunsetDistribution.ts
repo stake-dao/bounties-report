@@ -15,8 +15,8 @@
  * Snapshot block 25035662 is fixed (BIP-920 vote start, May 8 2026 18:00 UTC).
  * USDC_RECEIVED is a placeholder until Balancer's airdrop tx lands at the locker.
  *
- *   pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 1
- *   pnpm tsx script/special-distribs/sdbalSunsetDistribution.ts --phase 5 --usdc 12345670000
+ *   pnpm tsx script/one-offs/special-distribs/sdbalSunsetDistribution.ts --phase 1
+ *   pnpm tsx script/one-offs/special-distribs/sdbalSunsetDistribution.ts --phase 5 --usdc 12345670000
  */
 
 import fs from "node:fs";
@@ -34,9 +34,9 @@ import {
 import { utils } from "ethers";
 import MerkleTree from "merkletreejs";
 
-import { SD_BAL, ETH_CHAIN_ID } from "../utils/constants";
-import { createBlockchainExplorerUtils } from "../utils/explorerUtils";
-import { getClient } from "../utils/getClients";
+import { SD_BAL, ETH_CHAIN_ID } from "../../utils/constants";
+import { createBlockchainExplorerUtils } from "../../utils/explorerUtils";
+import { getClient } from "../../utils/getClients";
 
 // ---------------------------------------------------------------------------
 // Constants (BIP-920 anchors)
@@ -52,7 +52,7 @@ const USDC = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
 const ZERO_ADDR: Address = "0x0000000000000000000000000000000000000000";
 const TRANSFER_TOPIC = keccak256(toHex("Transfer(address,address,uint256)"));
 
-const ROOT_DIR = path.join(__dirname, "..", "..");
+const ROOT_DIR = path.join(__dirname, "..", "..", "..");
 const OUT_DIR = path.join(__dirname, "sdbal-sunset");
 const EXTRA_MERKLE = path.join(ROOT_DIR, "data", "extra_merkle", "merkle.json");
 const EXTRA_SUMMARY = path.join(ROOT_DIR, "data", "extra_merkle", "summary.json");

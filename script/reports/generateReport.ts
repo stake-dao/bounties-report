@@ -181,7 +181,7 @@ function parseInlineTxArgs(values?: unknown): string[] {
       value
         .toString()
         .split(",")
-        .map((segment) => segment.trim())
+        .map((segment: string) => segment.trim())
     )
     .filter((segment) => segment.length > 0);
 }
@@ -348,14 +348,19 @@ function processRawTokenBounties(
   return result;
 }
 
+interface GenerateReportArgs {
+  protocol: string;
+  excludeTx?: (string | number)[];
+  excludeTxFile?: (string | number)[];
+  noDefaultExclusions: boolean;
+  completion?: string;
+}
+
 async function main() {
-  const argv = yargs<{
-    protocol: string;
-    excludeTx?: (string | number)[];
-    excludeTxFile?: (string | number)[];
-    noDefaultExclusions?: boolean;
-    completion?: string;
-  }>(hideBin(process.argv))
+  // yargs' generic parameter belongs to `.options()`, not the entrypoint; the
+  // positional protocol is not reflected in the inferred type, so pin the
+  // parsed shape once here.
+  const argv = yargs(hideBin(process.argv))
     .scriptName("generateReport")
     .usage("$0 <protocol> [options]")
     .command(
@@ -391,7 +396,7 @@ async function main() {
     .option("completion", { type: "string" })
     .help()
     .strict()
-    .parseSync();
+    .parseSync() as unknown as GenerateReportArgs;
 
   const protocol = argv.protocol;
   const protocolKey = String(protocol);

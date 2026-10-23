@@ -5,20 +5,13 @@ import * as dotenv from "dotenv";
 import type { PublicClient } from "viem";
 dotenv.config();
 
-import { mainnet } from "../../utils/chains";
 import { createCombineDistribution } from "../../utils/merkle/merkle";
 import {
   generateMerkleTree,
   mergeMerkleData,
 } from "../../shared/merkle/generateMerkleTree";
 import { MerkleData } from "../../interfaces/MerkleData";
-import {
-  CVX_SPACE,
-  WEEK,
-  CVX_GAUGE_VOTE_PLATFORM_CURVE,
-  CVX_GAUGE_VOTE_PLATFORM_FXN,
-} from "../../utils/constants";
-import { distributionVerifier } from "../../utils/merkle/distributionVerifier";
+import { WEEK } from "../../utils/constants";
 import {
   findMerkleMatchingRoot,
   findPreviousMerkle,
@@ -36,10 +29,6 @@ import {
   MIN_VOTIUM_RAW_PAYOUT_USD,
 } from "../../utils/votiumRawPayouts";
 import { VOTIUM_FORWARDER } from "../../utils/constants";
-import {
-  getOnChainProposal,
-  getOnChainVoters,
-} from "../../utils/gaugeVotePlatform";
 import { getClient } from "../../utils/getClients";
 import { readActiveVotersMerkle } from "../expiry/active";
 import expiryPolicies from "../expiry/policy.json";
@@ -692,37 +681,6 @@ function processChain(
       `Stored ${gaugeType} merkle data for chain ${chainId} in global structure`
     );
   }
-
-  (async () => {
-    const platform =
-      gaugeType === "fxn"
-        ? CVX_GAUGE_VOTE_PLATFORM_FXN
-        : CVX_GAUGE_VOTE_PLATFORM_CURVE;
-    const client = await getClient(1);
-    // Pin the proposal to the period whose merkle was just generated, so a
-    // late re-run cannot verify the next round against this period's files.
-    const proposal = await getOnChainProposal(platform, CVX_SPACE, client, {
-      targetPeriod: currentPeriodTimestamp,
-    });
-    const votes = await getOnChainVoters(
-      platform,
-      Number(proposal.id),
-      proposal,
-      client
-    );
-    console.log("on-chain proposalId", proposal.id);
-    distributionVerifier(
-      CVX_SPACE,
-      mainnet,
-      VOTERS_DISTRIBUTOR,
-      newMerkleData,
-      previousMerkleData,
-      currentDistribution.distribution,
-      proposal.id,
-      undefined,
-      { proposal, votes }
-    );
-  })().catch(console.error);
 }
 
 /**

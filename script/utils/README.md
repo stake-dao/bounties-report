@@ -9,7 +9,7 @@ Shared utilities used by the report, repartition, merkle, indexer, and verificat
 - `snapshot.ts` - Snapshot proposal, voter, voting power, and gauge-choice queries.
 - `reportUtils.ts` - report token/gauge helpers used by protocol report generators.
 - `contractRegistry.ts` - contract address registry helpers.
-- `getClients.ts`, `rpcConfig.ts`, `rpcClientManager.ts`, `chains/` - RPC client creation and chain definitions.
+- `getClients.ts`, `rpcConfig.ts`, `chains/` - RPC client creation and chain definitions.
 - `tokenService.ts`, `tokens.ts`, `priceUtils.ts` - token metadata and pricing helpers.
 - `cacheUtils.ts`, `forwarderCacheUtils.ts` - cache readers and writers for delegation/forwarding data.
 - `claims/` - Votemarket and Votium claim parsing helpers.

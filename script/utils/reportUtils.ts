@@ -38,6 +38,7 @@ export interface Bounty {
   share?: number;
   normalizedShare?: number;
   chainId?: number;
+  isWrapped?: boolean;
 }
 
 export interface ClaimedBounties {
@@ -76,6 +77,7 @@ interface GaugeInfo {
   shortName?: string;
   address: string;
   actualGauge?: string; // The actual gauge address if this is a rootGauge entry
+  rootGauge?: string; // Root gauge address when the gauge is bridged
   price?: string;
 }
 

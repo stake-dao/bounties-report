@@ -454,7 +454,10 @@ async function readParquetFile(filePath: string) {
 
     let data: any[] = [];
     await hyparquet.parquetRead({
-      file: await hyparquet.asyncBufferFromFile(filePath),
+      // hyparquet's root types omit the node-only helper even though the
+      // package exports it (types/node.d.ts); the default import path is used
+      // here, so reach it through the runtime namespace.
+      file: await (hyparquet as any).asyncBufferFromFile(filePath),
       rowFormat: "object",
       onComplete: (result: any[]) => {
         data = result;

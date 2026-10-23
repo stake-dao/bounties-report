@@ -5,7 +5,7 @@
  * distribution — totals must reconcile exactly at each level.
  */
 import { describe, it, expect } from "vitest";
-import { proRataSplit, assignDust, applyMinPayout } from "../../special-distribs/sdbalSunsetDistribution";
+import { proRataSplit, assignDust, applyMinPayout } from "../../one-offs/special-distribs/sdbalSunsetDistribution";
 
 const A = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const B = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";

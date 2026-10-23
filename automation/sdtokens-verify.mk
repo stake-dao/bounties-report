@@ -14,7 +14,6 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
-	@$(PNPM) add -D tsx
 
 run-verify: setup install-deps
 	@echo "Verifying sdTokens reports for $(PROTOCOL)..."

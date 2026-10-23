@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { VLCVX_POOLED_DELEGATES } from "../../utils/constants";
+import type { DelegationSummary } from "../../vlCVX/2_repartition/delegators";
 import {
   artifactCoherenceIssues,
   compareDelegateAttribution,
@@ -24,7 +25,7 @@ const D = "0xd000000000000000000000000000000000000004";
 
 /** Coherent one-token fixture: pooled delegate P (A fwd / B non-fwd) and
  *  third-party delegate U (C fwd / D non-fwd), 100 wei pool each. */
-const mkSummary = () => ({
+const mkSummary = (): DelegationSummary => ({
   totalTokens: { [TOK1]: "200" },
   totalPerGroup: { [TOK1]: { forwarders: "60", nonForwarders: "140" } },
   totalForwardersShare: "0.45",
@@ -75,7 +76,7 @@ describe("mergeDelegationChainFiles", () => {
 
 describe("compareDelegateAttribution", () => {
   const fileLeg = () => mergeDelegationChainFiles([mkSummary()])[POOLED];
-  const recomputed = () => ({ [A]: { [TOK1]: 60n }, [B]: { [TOK1]: 40n } });
+  const recomputed = (): Record<string, Record<string, bigint>> => ({ [A]: { [TOK1]: 60n }, [B]: { [TOK1]: 40n } });
   const flags = () => ({ [A]: true, [B]: false });
 
   it("passes on an exact match", () => {

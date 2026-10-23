@@ -438,6 +438,8 @@ async function storeForwardersAsParquet(
   // Write the merged data to a new file
   const writer = await parquet.ParquetWriter.openFile(schema, filePath);
   for (const forwarder of mergedForwarders) {
+    // parquetjs' INT64 accepts bigint at runtime but its types only allow
+    // number; forwarder fields are typed number | bigint.
     await writer.appendRow({
       event: forwarder.event,
       from: forwarder.from,
@@ -446,7 +448,7 @@ async function storeForwardersAsParquet(
       expiration: forwarder.expiration,
       timestamp: forwarder.timestamp,
       blockNumber: forwarder.blockNumber,
-    });
+    } as any);
   }
   await writer.close();
 

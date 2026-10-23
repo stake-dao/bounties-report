@@ -102,7 +102,7 @@
 
 1. **Fichiers stale en re-run** : avec `FORCE_UPDATE`, un `repartition_delegation.json` (ou `*_8453.json`) existant n'est pas réécrit quand le calcul est skippé (délégué sans vote / gauge non voté) → le merkle consomme l'ancien fichier. Durcissement possible : `rmSync` avant calcul (comme le L5 de `generateConvexVotium`).
 2. **`mapTokenSwapsToOutToken` mono-tx** (`createDelegatorsMerkle.ts`) — voir mardi 4.
-3. **`snapshotAnalyzer.ts` casse pour cvx.eth** avec des proposals Snapshot legacy (garde epoch dans `fetchDelegatorData`) — à migrer ou assumer.
+3. **`script/diagnostics/snapshotAnalyzer.ts` casse pour cvx.eth** avec des proposals Snapshot legacy (garde epoch dans `fetchDelegatorData`) — à migrer ou assumer.
 4. Test unitaire du chemin « gauge absent du mapping » supprimé sans remplaçant (`nonDelegators.test.ts`).
 5. `VLCVX_ALLOW_ACTIVE_PROPOSAL` et `RPC_URL_<chainId>` : test-only, aucun garde-fou prod, non documentés hors commentaires.
    `VLCVX_TARGET_PERIOD` (ajouté 3/08, repartition uniquement) : override **opérationnel** de la période de sélection

@@ -39,8 +39,6 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup-environment
-        with:
-          frozen-lockfile: 'false'
 
       - name: Calculate current period
         id: period
@@ -70,6 +68,8 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: ${{ inputs.protocol }} compute-apr [${{ inputs.dispatch_id }}]"
+          paths: |
+            bounties-reports/
 
       - name: Notify on failure
         if: failure()

@@ -112,7 +112,7 @@ function generateMerkleTree(distribution: UniversalMerkle): MerkleData {
  * Load existing merkle data and convert to distribution format
  */
 function loadExistingDistribution(): UniversalMerkle {
-  const merklePath = path.join(__dirname, "../../data/extra_merkle/merkle.json");
+  const merklePath = path.join(__dirname, "../../../data/extra_merkle/merkle.json");
   
   if (!fs.existsSync(merklePath)) {
     console.log("No existing merkle.json found, starting fresh");
@@ -198,7 +198,7 @@ async function main() {
   
   // Output to extra_merkle directory (overwrite existing)
   const timestamp = Math.floor(Date.now() / 1000);
-  const outputDir = path.join(__dirname, "../../data/extra_merkle");
+  const outputDir = path.join(__dirname, "../../../data/extra_merkle");
   
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });

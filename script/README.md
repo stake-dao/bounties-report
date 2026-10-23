@@ -9,8 +9,11 @@ This directory contains the TypeScript pipelines used to fetch rewards, generate
 - [spectra](./spectra/README.md) - Spectra report and repartition steps used by the sdSpectra universal merkle.
 - [utils](./utils/README.md) - shared constants, CSV parsing, Snapshot helpers, merkle helpers, RPC clients, and claim fetchers.
 - [verify](./verify/README.md) - distribution verification and LLM triage pipeline.
-- [special-distribs](./special-distribs/README.md) - one-off extra merkle generation scripts.
+- [one-offs/special-distribs](./one-offs/special-distribs/README.md) - one-off extra merkle generation scripts.
 - `reports/` - protocol report generators.
+- `ops/` - operational maintenance scripts (residual catch-up, catch-up distribution).
+- `diagnostics/` - ad-hoc merkle/snapshot/forwarder inspection tools.
+- `one-offs/` - historical distribution helpers kept for audit value.
 - `indexer/` - delegation and forwarding indexers.
 - `interfaces/` - shared TypeScript interfaces for merkle and distribution data.
 - `test/` - unit, integration, and snapshot tests.

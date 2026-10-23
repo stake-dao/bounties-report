@@ -51,7 +51,9 @@ See [script/spectra/README.md](./script/spectra/README.md).
 ├── script/
 │   ├── reports/                      # Report generation
 │   ├── sdTkns/                       # sdToken merkle generation and claim fetchers
-│   ├── special-distribs/             # One-off extra distribution scripts
+│   ├── one-offs/special-distribs/    # One-off extra distribution scripts
+│   ├── ops/                          # Operational catch-up and maintenance scripts
+│   ├── diagnostics/                  # Ad-hoc merkle/snapshot/forwarder inspection
 │   ├── spectra/                      # Spectra report and repartition steps
 │   ├── utils/                        # Shared utilities
 │   ├── verify/                       # Automated verification and LLM triage
@@ -103,13 +105,20 @@ pnpm test:integration
 
 Current workflow entry points are:
 
+- `Quality: Typecheck and Tests` - the only gate that runs on a pull request: frozen install, `pnpm typecheck`, `pnpm test`.
 - `Claims` - fetches claimed rewards into `weekly-bounties/`.
 - `Reports` - generates weekly and OTC CSV reports.
 - `sdTokens: Verify Reports` - verifies sdToken report inputs.
 - `sdTokens: Merkle` - runs and publishes legacy, sdFXS, and sdSpectra merkle steps.
+- `sdTokens: Post-freeze` - re-publishes the frozen sdToken trees.
+- `sdTokens: AI Verify` - model-assisted review of an sdToken run.
 - `vlCVX: Distribution` - runs vlCVX repartition, merkle, verification, and publish steps.
+- `vlCVX: AI Verify` - model-assisted review of a vlCVX run.
+- `Bounties: AI Verify` - model-assisted review of a bounty report.
 - `Compute APR` - recomputes latest vlCVX APR files.
 - `System: Index Delegators` - refreshes delegation caches.
+- `System: Update Metadata` - refreshes round metadata.
+- `IPFS: evidence index` - re-pins drifted evidence and publishes the index.
 
 ### IPFS evidence pins
 

@@ -1,12 +1,22 @@
 {
     "compilerOptions": {
-      "target": "es2020",
-      "module": "commonjs",
-      "esModuleInterop": true,
-      "forceConsistentCasingInFileNames": true,
-      "strict": true,
-      "skipLibCheck": true,
-      "resolveJsonModule": true,
-      "noEmit": true
-  }
+        "target": "es2022",
+        "module": "commonjs",
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "skipLibCheck": true,
+        "resolveJsonModule": true,
+        "noEmit": true
+    },
+    "include": ["script/**/*.ts", "vitest.config.ts"],
+    "exclude": [
+        "node_modules",
+        "temp",
+        "tmp",
+        ".tmp",
+        "bounties-reports",
+        "weekly-bounties",
+        "script/**/generated/**"
+    ]
 }

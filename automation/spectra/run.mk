@@ -13,7 +13,6 @@ setup: setup-node
 install-deps:
 	@echo "Installing dependencies..."
 	@$(PNPM) install
-	@$(PNPM) add -D tsx
 
 run-all: setup install-deps
 	@echo "Running report generation..."
