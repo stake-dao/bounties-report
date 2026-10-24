@@ -5,7 +5,9 @@ import { Abi, Address, parseAbi } from "viem";
 import expiryAbi from "../../../abis/RewardsExpiry.json";
 import policies from "./policy.json";
 import deployments from "./deployment.json";
-import { expiryDigest, expiryEffectiveAt, expiryRound, EXPIRY_DISTRIBUTOR, ExpiryPolicy, PreparedExpiry, prepareExpiry, sixCalendarMonths, syncExpiryClaims, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
+import extraPolicies from "../../extraRewards/expiry/policy.json";
+import extraDeployments from "../../extraRewards/expiry/deployment.json";
+import { expiryDigest, expiryEffectiveAt, expiryRound, EXPIRY_DISTRIBUTOR, EXTRA_REWARDS_DISTRIBUTOR, ExpiryPolicy, PreparedExpiry, prepareExpiry, isEligibleForExpiry, syncExpiryClaims, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
 import { getClient } from "../../utils/getClients";
 import { ALL_MIGHT_V2 } from "../../utils/constants";
 import { readLedgerClaims, replayExpiryJournal } from "./journal";
@@ -16,11 +18,14 @@ const iface = new utils.Interface(expiryAbi);
 const URD_ABI = parseAbi(["function root() view returns(bytes32)", "function pendingRoot() view returns(bytes32,bytes32,uint256)", "function owner() view returns(address)", "function timelock() view returns(uint256)"]);
 const BASE = "https://raw.githubusercontent.com/stake-dao/bounties-report/main/";
 
-export async function main(action = process.argv[2], chain = process.argv[3]) {
+export async function main(action = process.argv[2], chain = process.argv[3], target = process.argv[4] ?? process.env.EXPIRY_TARGET ?? "vlcvx") {
   const chainId = Number(chain);
   if (!["plan", "prepare", "activate", "record"].includes(action) || ![1, 8453, 42161].includes(chainId)) throw new Error("run.ts <plan|prepare|activate|record> <1|8453|42161>");
-  const policy = (policies as Record<string, ExpiryPolicy | null>)[chain];
-  const deployment = (deployments as Record<string, (PreparedExpiry["module"] & { codeHash: string }) | null>)[chain];
+  if (!["vlcvx", "extra"].includes(target) || (target === "extra" && chainId !== 1)) throw new Error("expiry target");
+  const distributorAddress = target === "extra" ? EXTRA_REWARDS_DISTRIBUTOR : EXPIRY_DISTRIBUTOR;
+  const base = target === "extra" ? "bounties-reports/expiry/extra" : "bounties-reports/expiry";
+  const policy = ((target === "extra" ? extraPolicies : policies) as Record<string, ExpiryPolicy | null>)[chain];
+  const deployment = ((target === "extra" ? extraDeployments : deployments) as Record<string, (PreparedExpiry["module"] & { codeHash: string }) | null>)[chain];
   const result = (value: unknown) => fs.writeFileSync("expiry-job.json", JSON.stringify(value, null, 2) + "\n");
   if (!policy || !deployment) { result({ status: "disabled", chainId, reason: "policy and reviewed deployment are required" }); return; }
   const client = await getClient(chainId);
@@ -28,23 +33,26 @@ export async function main(action = process.argv[2], chain = process.argv[3]) {
   const code = await client.getBytecode({ address: deployment.address as Address });
   if (!code || utils.keccak256(code) !== deployment.codeHash) throw new Error("reviewed module code mismatch");
   const [preparer, safe, treasury, distributor, moduleDelay] = await Promise.all(["PREPARER", "SAFE", "TREASURY", "DISTRIBUTOR", "DELAY"].map(functionName => client.readContract({ address: deployment.address as Address, abi: expiryAbi as Abi, functionName })));
-  if (deployment.preparer?.toLowerCase() !== ALL_MIGHT_V2.toLowerCase() || String(preparer).toLowerCase() !== deployment.preparer.toLowerCase() || String(safe).toLowerCase() !== deployment.safe.toLowerCase() || String(treasury).toLowerCase() !== policy.treasury.toLowerCase() || String(distributor).toLowerCase() !== EXPIRY_DISTRIBUTOR.toLowerCase() || Number(moduleDelay) !== deployment.delay) throw new Error("reviewed module domain mismatch");
+  if (deployment.preparer?.toLowerCase() !== ALL_MIGHT_V2.toLowerCase() || String(preparer).toLowerCase() !== deployment.preparer.toLowerCase() || String(safe).toLowerCase() !== deployment.safe.toLowerCase() || String(treasury).toLowerCase() !== policy.treasury.toLowerCase() || String(distributor).toLowerCase() !== distributorAddress.toLowerCase() || Number(moduleDelay) !== deployment.delay) throw new Error("reviewed module domain mismatch");
   const domain = { address: deployment.address, safe: deployment.safe, preparer: deployment.preparer, delay: deployment.delay };
-  const directory = path.join("bounties-reports/expiry/state", chain);
+  const directory = path.join(base, "state", chain);
   fs.mkdirSync(directory, { recursive: true });
   const bootstrap = path.join(directory, "bootstrap.json");
-  const baseline = JSON.parse(fs.readFileSync(`bounties-reports/expiry/bootstrap/${chain}/ledger.json`, "utf8"));
+  const baseline = JSON.parse(fs.readFileSync(`${base}/bootstrap/${chain}/ledger.json`, "utf8"));
   if (!fs.existsSync(bootstrap)) writeExpiryInput(bootstrap, baseline);
   if (JSON.stringify(JSON.parse(fs.readFileSync(bootstrap, "utf8"))) !== JSON.stringify(baseline)) throw new Error("state differs from reviewed bootstrap");
+  if (baseline.distributor !== distributorAddress) throw new Error("bootstrap distributor mismatch");
   const ledger = await replayExpiryJournal(client, directory, domain);
   if (action === "record") { result({ status: "recorded", chainId, root: ledger.root, checkpoint: ledger.checkpoint }); return; }
   const checkpoint = await client.getBlock({ blockTag: "finalized" });
-  const state = syncExpiryClaims(ledger, await readLedgerClaims(client, ledger, checkpoint.number!));
+  const claims = await readLedgerClaims(client, ledger, checkpoint.number!);
+  const state = syncExpiryClaims(ledger, claims);
+  const checkpointTime = Number(checkpoint.timestamp);
   state.checkpoint = { block: Number(checkpoint.number), blockHash: checkpoint.hash! };
   const root = await client.readContract({ address: state.distributor as Address, abi: URD_ABI, functionName: "root" });
   if (root !== state.root) { result({ status: "waiting", chainId, reason: "active root is not finalized" }); return; }
-  const parent = await readActiveVotersMerkle(chainId, state.root, client);
-  const rootsDir = path.join("bounties-reports/expiry/roots", chain);
+  const parent = await readActiveVotersMerkle(chainId, state.root, client, distributorAddress);
+  const rootsDir = path.join(base, "roots", chain);
   fs.mkdirSync(rootsDir, { recursive: true });
   writeExpiryInput(path.join(rootsDir, `${state.root.toLowerCase()}.json`), parent);
   const roundSource = await readExpiryRound(await getClient(1));
@@ -64,25 +72,46 @@ export async function main(action = process.argv[2], chain = process.argv[3]) {
   if (prior) await canonicalInput(prior);
   const round = prior?.batch.parent === root ? prior.batch.round : expiryRound(state, roundSource.round);
   const run = state.runs[String(round)];
-  if (run?.complete) { result({ status: "complete", chainId, round }); return; }
-  const existing = prior?.batch.parent === root && prior.batch.index === (run?.nextBatch ?? 0) ? prior : inputs.find(input => input.batch.round === round && input.batch.index === (run?.nextBatch ?? 0) && input.batch.parent === root && JSON.stringify(input.module) === JSON.stringify(domain));
-  let input = existing ?? null;
+  if (run?.complete) {
+    result({ status: "complete", chainId, round });
+    return;
+  }
+  const batchIndex = run?.nextBatch ?? 0;
+  let input: PreparedExpiry | null;
+  if (prior?.batch.parent === root && prior.batch.index === batchIndex) {
+    input = prior;
+  } else {
+    input = inputs.find(candidate =>
+      candidate.batch.round === round &&
+      candidate.batch.index === batchIndex &&
+      candidate.batch.parent === root &&
+      JSON.stringify(candidate.module) === JSON.stringify(domain)
+    ) ?? null;
+  }
   if (input && input !== prior) await canonicalInput(input);
   if (!input) {
     const distribution = verifyExpiryParent(parent);
     for (const token of [...new Set(Object.values(distribution).flatMap(tokens => Object.keys(tokens)))]) {
-      input = prepareExpiry(state, parent, policy, token, round, run?.nextBatch ?? 0, Number(checkpoint.timestamp), domain);
+      input = prepareExpiry(state, parent, policy, token, round, batchIndex, checkpointTime, domain);
       if (input) break;
     }
     if (!input) {
-      const eligible = Object.entries(state.pairs).some(([key, pair]) => pair.account.toLowerCase() !== policy.treasury.toLowerCase() && !(run?.processed ?? []).includes(key) && pair.credits.some(credit => credit.protection === null && credit.activatedAt !== null && BigInt(credit.granted) > BigInt(credit.paid) + BigInt(credit.recovered) && sixCalendarMonths(credit.ageBoundAt ?? credit.activatedAt) <= Number(checkpoint.timestamp)));
+      const eligible = Object.entries(state.pairs).some(([key, pair]) => {
+        if (pair.account.toLowerCase() === policy.treasury.toLowerCase()) return false;
+        if (run?.processed.includes(key)) return false;
+        return pair.credits.some(credit => isEligibleForExpiry(credit, checkpointTime));
+      });
       const effectiveAt = expiryEffectiveAt(policy);
-      const noticeReady = effectiveAt !== null && effectiveAt <= Number(checkpoint.timestamp);
-      if (eligible || !noticeReady) { result({ status: "waiting", chainId, round, reason: "notice or treasury frontier unavailable" }); return; }
+      const noticeReady = effectiveAt !== null && effectiveAt <= checkpointTime;
+      if (eligible || !noticeReady) {
+        result({ status: "waiting", chainId, round, reason: "notice or treasury frontier unavailable" });
+        return;
+      }
       const entry = { kind: "idle", id: utils.id(`${chainId}:${round}:${root}:${checkpoint.hash}`), round, root, checkpoint: state.checkpoint, claims: Object.fromEntries(Object.entries(state.pairs).map(([key, pair]) => [key, pair.paid])) };
       writeExpiryInput(path.join(directory, "journal", `${utils.sha256(utils.toUtf8Bytes(JSON.stringify(entry)))}.json`), entry);
       await replayExpiryJournal(client, directory, domain);
-      result({ status: "complete", chainId, round, reason: "no outstanding eligible rewards" }); return;
+      result({ status: "complete", chainId, round, reason: "no outstanding eligible rewards" });
+      return;
     }
     writeExpiryInput(path.join(preparedDir, `${expiryDigest(input)}.json`), input);
   }
@@ -91,7 +120,7 @@ export async function main(action = process.argv[2], chain = process.argv[3]) {
   const prepared = { status: "prepared", phase: action, chainId, round, roundSource, digest, target: deployment.address, calldata, input: path.join(preparedDir, `${digest}.json`) };
   if (action === "plan") { result(prepared); return; }
   if (process.env.MODE !== "test") {
-    const [publishedInput, publishedParent] = await Promise.all([fetch(`${BASE}${prepared.input}`), fetch(`${BASE}bounties-reports/expiry/roots/${chain}/${root.toLowerCase()}.json`)]);
+    const [publishedInput, publishedParent] = await Promise.all([fetch(`${BASE}${prepared.input}`), fetch(`${BASE}${base}/roots/${chain}/${root.toLowerCase()}.json`)]);
     if (!publishedInput.ok || !publishedParent.ok) throw new Error("immutable input and parent must be durably published before execution");
     const approved: PreparedExpiry = await publishedInput.json() as PreparedExpiry;
     const publishedMerkle: any = await publishedParent.json();
@@ -110,14 +139,22 @@ export async function main(action = process.argv[2], chain = process.argv[3]) {
   if (latestRoot !== root) { result({ ...prepared, status: "waiting", reason: "distributor root changed" }); return; }
   if (pending[2] !== 0n) { result({ ...prepared, status: "waiting", reason: "distributor root is pending" }); return; }
   if (action === "prepare") {
-    const reason = proposal === digest ? "already prepared" : "another expiry proposal is pending";
-    const empty = /^0x0{64}$/.test(String(proposal));
-    const stale = prior && expiryDigest(prior) === proposal && prior.batch.parent !== root;
-    if (stale && process.env.MODE !== "test") {
-      const published = await fetch(`${BASE}${preparedDir}/${proposal}.json`);
-      if (!published.ok || JSON.stringify(await published.json()) !== JSON.stringify(prior)) throw new Error("stale proposal must be durably published");
+    const preparation = { ...prepared, calldata: iface.encodeFunctionData("prepare", [input.batch]) };
+    if (/^0x0{64}$/.test(String(proposal))) {
+      result({ ...preparation, status: "ready" });
+      return;
     }
-    result({ ...prepared, calldata: iface.encodeFunctionData("prepare", [input.batch]), status: empty || stale ? "ready" : "waiting", ...(stale ? { replaces: proposal } : empty ? {} : { reason }) });
+    const stale = prior && expiryDigest(prior) === proposal && prior.batch.parent !== root;
+    if (stale) {
+      if (process.env.MODE !== "test") {
+        const published = await fetch(`${BASE}${preparedDir}/${proposal}.json`);
+        if (!published.ok || JSON.stringify(await published.json()) !== JSON.stringify(prior)) throw new Error("stale proposal must be durably published");
+      }
+      result({ ...preparation, status: "ready", replaces: proposal });
+      return;
+    }
+    const reason = proposal === digest ? "already prepared" : "another expiry proposal is pending";
+    result({ ...preparation, status: "waiting", reason });
     return;
   }
   const validAt = Number(proposedAt) + Math.max(deployment.delay, Number(delay));

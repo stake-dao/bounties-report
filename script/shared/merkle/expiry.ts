@@ -7,6 +7,8 @@ import { generateMerkleTree } from "./generateMerkleTree";
 
 export const EXPIRY_DISTRIBUTOR = "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db";
 
+export const EXTRA_REWARDS_DISTRIBUTOR = "0xD4898A378eA555595c4E7dbDE722B134a3F346D1";
+
 export interface Credit {
   id: string;
   root: string;
@@ -46,6 +48,7 @@ export interface Publication {
   logIndex?: number;
   transactionHash?: string;
   merkle: MerkleData | null;
+  vmRewards?: Record<string, string>;
 }
 
 export interface UnionAgeBound {
@@ -156,7 +159,9 @@ export function verifyExpiryParent(merkle: MerkleData): UniversalMerkle {
 }
 
 export function assertExpiryLedger(ledger: Ledger): void {
-  if (ledger.version !== 1 || ![1, 8453, 42161].includes(ledger.chainId) || getAddress(ledger.distributor) !== EXPIRY_DISTRIBUTOR) throw new Error("ledger target");
+  const voters = ledger.distributor === EXPIRY_DISTRIBUTOR && [1, 8453, 42161].includes(ledger.chainId);
+  const extra = ledger.distributor === EXTRA_REWARDS_DISTRIBUTOR && ledger.chainId === 1;
+  if (ledger.version !== 1 || (!voters && !extra)) throw new Error("ledger target");
   for (const [key, pair] of Object.entries(ledger.pairs)) {
     if (key !== expiryKey(pair.account, pair.token)) throw new Error("ledger pair key");
     const ids = new Set<string>();
@@ -184,7 +189,11 @@ export function syncExpiryClaims(ledger: Ledger, claims: Record<string, string>)
     const paid = quantity(claims[key]);
     let delta = paid - quantity(pair.paid);
     if (delta < 0n) throw new Error("claim state went backwards; replay canonical journal");
-    for (const credit of pair.credits) {
+    const credits = [...pair.credits];
+    if (ledger.distributor === EXTRA_REWARDS_DISTRIBUTOR) {
+      credits.sort((a, b) => Number(a.protection !== null) - Number(b.protection !== null));
+    }
+    for (const credit of credits) {
       const consumed = remaining(credit) < delta ? remaining(credit) : delta;
       credit.paid = (quantity(credit.paid) + consumed).toString();
       delta -= consumed;
@@ -201,10 +210,11 @@ export function bootstrapExpiryLedger(
   publications: Publication[],
   claims: Record<string, string>,
   checkpoint: Ledger["checkpoint"],
-  unresolvedUnion: { root: string | null; amounts: Record<string, string>; ageBound?: UnionAgeBound } | null = null
+  unresolvedUnion: { root: string | null; amounts: Record<string, string>; ageBound?: UnionAgeBound } | null = null,
+  distributor = EXPIRY_DISTRIBUTOR
 ): Ledger {
   if (!publications.length || !/^0x0{64}$/i.test(publications[0].root)) throw new Error("missing deployment publication");
-  const ledger: Ledger = { version: 1, chainId, distributor: EXPIRY_DISTRIBUTOR, root: "", checkpoint, pairs: {}, recoveries: [], runs: {} };
+  const ledger: Ledger = { version: 1, chainId, distributor, root: "", checkpoint, pairs: {}, recoveries: [], runs: {} };
   let complete = true;
   let previousBlock = -1;
   for (const publication of publications) {
@@ -226,7 +236,13 @@ export function bootstrapExpiryLedger(
       if (!complete || amount < previous) {
         pair.credits = amount === 0n ? [] : [{ id: utils.id(`${publication.root}:${key}:opening`), root: publication.root, granted: amount.toString(), paid: "0", recovered: "0", activatedAt: null, protection: "unresolved history" }];
       } else if (amount > previous) {
-        pair.credits.push({ id: utils.id(`${publication.root}:${key}:${pair.credits.length}`), root: publication.root, granted: (amount - previous).toString(), paid: "0", recovered: "0", activatedAt: publication.timestamp, protection: null });
+        const delta = amount - previous;
+        const eligible = distributor === EXTRA_REWARDS_DISTRIBUTOR ? quantity(publication.vmRewards?.[key] ?? "0") : delta;
+        if (eligible > delta) throw new Error("VM rewards exceed publication");
+        for (const [granted, protection] of [[eligible, null], [delta - eligible, "non-VM or unknown source"]] as const) {
+          if (granted === 0n) continue;
+          pair.credits.push({ id: utils.id(`${publication.root}:${key}:${pair.credits.length}`), root: publication.root, granted: granted.toString(), paid: "0", recovered: "0", activatedAt: publication.timestamp, protection });
+        }
       }
       pair.activeAmount = amount.toString();
     }
@@ -319,6 +335,15 @@ export function expiryFrontier(distribution: UniversalMerkle, token: string, tre
   return { program: utils.hexlify(program), nodes };
 }
 
+export function isEligibleForExpiry(credit: Credit, at: number): boolean {
+  if (remaining(credit) <= 0n) return false;
+  if (credit.protection !== null) return false;
+  if (credit.activatedAt === null) return false;
+
+  const ageStartsAt = credit.ageBoundAt ?? credit.activatedAt;
+  return sixCalendarMonths(ageStartsAt) <= at;
+}
+
 export function prepareExpiry(
   state: Ledger,
   parent: MerkleData,
@@ -343,7 +368,7 @@ export function prepareExpiry(
   const processed = new Set(run?.processed ?? []);
   const treasury = getAddress(policy.treasury);
   const reward = getAddress(token);
-  if (treasury === getAddress("0x0000000000000000000000000000000000000000") || treasury === EXPIRY_DISTRIBUTOR) throw new Error("treasury target");
+  if (treasury === getAddress("0x0000000000000000000000000000000000000000") || treasury === state.distributor) throw new Error("treasury target");
   const treasuryAmount = distribution[treasury]?.[reward];
   if (treasuryAmount === undefined) return null;
   const rows: ExpiryBatch["rows"] = [];
@@ -355,7 +380,7 @@ export function prepareExpiry(
     if (processed.has(key)) continue;
     const pair = state.pairs[key];
     if (!pair || pair.activeAmount !== tokens[reward]) throw new Error("ledger entitlement mismatch");
-    const eligible = pair.credits.filter(credit => remaining(credit) > 0n && credit.protection === null && credit.activatedAt !== null && sixCalendarMonths(credit.ageBoundAt ?? credit.activatedAt) <= at);
+    const eligible = pair.credits.filter(credit => isEligibleForExpiry(credit, at));
     const amount = eligible.reduce((total, credit) => total + remaining(credit), 0n);
     if (amount === 0n) continue;
     if (rows.length === limit) { more = true; continue; }
@@ -364,7 +389,7 @@ export function prepareExpiry(
   }
   for (const [key, pair] of Object.entries(state.pairs)) {
     if (pair.account === treasury || pair.token === reward || processed.has(key)) continue;
-    if (pair.credits.some(credit => remaining(credit) > 0n && credit.protection === null && credit.activatedAt !== null && sixCalendarMonths(credit.ageBoundAt ?? credit.activatedAt) <= at)) more = true;
+    if (pair.credits.some(credit => isEligibleForExpiry(credit, at))) more = true;
   }
   if (!rows.length) return null;
   if (getAddress(module.address) === getAddress("0x0000000000000000000000000000000000000000") || !Number.isSafeInteger(module.delay) || module.delay <= 0) throw new Error("module deployment");
@@ -384,11 +409,11 @@ export function expiryDigest(prepared: PreparedExpiry): string {
   ));
 }
 
-export function recordExpiryDistribution(ledger: Ledger, publication: Publication, rewards: Record<string, string>, claims: Record<string, string>): Ledger {
+export function recordExpiryDistribution(ledger: Ledger, publication: Publication, rewards: Record<string, string>, claims: Record<string, string>, vmRewards: Record<string, string> = {}): Ledger {
   assertExpiryLedger(ledger);
   if (!publication.merkle || publication.root.toLowerCase() !== publication.merkle.merkleRoot.toLowerCase() || publication.block < ledger.checkpoint.block || (publication.block === ledger.checkpoint.block && (publication.logIndex ?? 0) <= (ledger.checkpoint.logIndex ?? Number.MAX_SAFE_INTEGER))) throw new Error("distribution activation");
   const distribution = verifyExpiryParent(publication.merkle);
-  const result = structuredClone(ledger);
+  const result = syncExpiryClaims(ledger, claims);
   const active = new Map<string, { account: string; token: string; amount: string }>();
   for (const [account, tokens] of Object.entries(distribution)) {
     for (const [token, amount] of Object.entries(tokens)) active.set(expiryKey(account, token), { account, token, amount });
@@ -401,7 +426,12 @@ export function recordExpiryDistribution(ledger: Ledger, publication: Publicatio
     const cumulative = pair.credits.reduce((total, credit) => total + quantity(credit.granted) - quantity(credit.recovered), 0n);
     if (leaf) {
       if (quantity(leaf.amount) !== cumulative + delta) throw new Error("fresh rewards do not explain cumulative change");
-      if (delta > 0n) pair.credits.push({ id: utils.id(`${publication.root}:${key}:${pair.credits.length}`), root: publication.root, granted: delta.toString(), paid: "0", recovered: "0", activatedAt: publication.timestamp, protection: null });
+      const eligible = ledger.distributor === EXTRA_REWARDS_DISTRIBUTOR ? quantity(vmRewards[key] ?? "0") : delta;
+      if (eligible > delta) throw new Error("VM rewards exceed distribution");
+      for (const [amount, protection] of [[eligible, null], [delta - eligible, "non-VM or unknown source"]] as const) {
+        if (amount === 0n) continue;
+        pair.credits.push({ id: utils.id(`${publication.root}:${key}:${pair.credits.length}`), root: publication.root, granted: amount.toString(), paid: "0", recovered: "0", activatedAt: publication.timestamp, protection });
+      }
       pair.activeAmount = leaf.amount;
     } else {
       if (delta !== 0n || claims[key] === undefined || quantity(claims[key]) < cumulative) throw new Error("distribution removes an open entitlement");

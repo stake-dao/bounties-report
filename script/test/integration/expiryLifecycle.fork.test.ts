@@ -10,7 +10,8 @@ import expiryAbi from "../../../abis/RewardsExpiry.json";
 import expiryDeployment from "./fixtures/rewards-expiry.json";
 import { ALL_MIGHT_V2 } from "../../utils/constants";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
-import { applyConfirmedExpiry, bootstrapExpiryLedger, EXPIRY_DISTRIBUTOR, expiryDigest, expiryKey, expiryRound, prepareExpiry, Publication, recordExpiryDistribution, sixCalendarMonths, syncExpiryClaims, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
+import { applyConfirmedExpiry, bootstrapExpiryLedger, EXPIRY_DISTRIBUTOR, EXTRA_REWARDS_DISTRIBUTOR, expiryDigest, expiryKey, expiryRound, prepareExpiry, Publication, recordExpiryDistribution, sixCalendarMonths, syncExpiryClaims, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
+import { readVmRewards } from "../../extraRewards/expiry/sources";
 import { readConfirmedExpiry } from "../../vlCVX/expiry/chain";
 import { replayExpiryJournal } from "../../vlCVX/expiry/journal";
 import { readExpiryRound } from "../../vlCVX/expiry/round";
@@ -69,7 +70,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const competing = utils.getAddress("0x0000000000000000000000000000000021090000");
       const protectedUser = utils.getAddress("0x0000000000000000000000000000000021090001");
       const recent = utils.getAddress("0x000000000000000000000000000000002109fffe");
-      const module = await new ContractFactory(expiryAbi, expiryDeployment.creationBytecode, signer).deploy(treasury, ALL_MIGHT_V2);
+      const module = await new ContractFactory(expiryAbi, expiryDeployment.creationBytecode, signer).deploy(EXPIRY_DISTRIBUTOR, treasury, ALL_MIGHT_V2);
       await provider.send("evm_mine", []);
       await module.deployed();
       const domain = { address: module.address, safe, preparer: ALL_MIGHT_V2, delay: 10800 };
@@ -251,7 +252,9 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       await expect(replayExpiryJournal(client, stateDir, domain)).rejects.toThrow();
       fs.renameSync(`${preparedFile}.missing`, preparedFile);
       fs.unlinkSync(path.join(stateDir, "current.json"));
-      const replayed = await replayExpiryJournal(client, stateDir, domain);
+      await runtime("prepare");
+      const pointer = JSON.parse(fs.readFileSync(path.join(stateDir, "current.json"), "utf8"));
+      const replayed = JSON.parse(fs.readFileSync(path.join(stateDir, "states", `${pointer.state}.json`), "utf8"));
       expect(replayed.root).toBe(applied.merkle.merkleRoot);
       expect(replayed.pairs[expiryKey(protectedUser, token)].credits).toEqual(applied.ledger.pairs[expiryKey(protectedUser, token)].credits);
       expect((await replayExpiryJournal(client, stateDir, domain)).recoveries).toEqual(replayed.recoveries);
@@ -353,7 +356,6 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const idleLedger = await replayExpiryJournal(client, stateDir, domain);
       expect(idleLedger.runs[String(round + 2)].complete).toBe(true);
       expect((await replayExpiryJournal(client, stateDir, domain)).pairs[expiryKey(protectedUser, token)].paid).toBe("500000");
-      const normalLedger = ledger;
       ledger = idleLedger;
       distribution[competing][token] = "1700000";
       distribution[protectedUser][token] = "800000";
@@ -454,15 +456,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
         await mine(urd.connect(signer).claim(account, token, leaf.amount, leaf.proof));
         expect((await urd.claimed(account, token)).sub(before).toString()).toBe(expected);
       }
-      const retained = path.resolve("script/test/integration/evidence/expiry-lifecycle", retried.hash);
-      fs.mkdirSync(retained, { recursive: true });
-      for (const file of ["bootstrap.json", "prepared.json", "activation.json"]) fs.copyFileSync(path.join(directory, file), path.join(retained, file));
-      fs.copyFileSync(guardResultFile, path.join(retained, "guard-result.json"));
-      fs.cpSync(path.join(stateDir, "journal"), path.join(retained, "journal"), { recursive: true });
-      const retryReceipt = await provider.getTransactionReceipt(retried.hash);
-      fs.writeFileSync(path.join(retained, "receipts.json"), JSON.stringify({ reverted: { transaction, receipt, activation }, retried: { activation: confirmedRetry, transaction: await provider.getTransaction(retried.hash), receipt: retryReceipt, block: await provider.getBlock(retryReceipt.blockNumber) }, next, ledger: normalLedger }, null, 2) + "\n");
-      fs.writeFileSync(path.join(retained, "partial-round.json"), JSON.stringify({ partialRound, pollRound, inputs: [part1, part2], activations: [firstActual, secondActual], receipts: [firstPart.receipt, secondPart.receipt], root: secondState.merkle.merkleRoot, recovered: "600000" }, null, 2) + "\n");
-      const evidence = { productionActive: false, chainId: 1, forkBlock: 26190047, module: module.address, firstPublication: first.root, firstPublishedAt: first.timestamp, calendarExpiry: expires, roundSource, nextRound: round + 2, activeRoot: restored.merkle.merkleRoot, actualRecovery: confirmedRetry!.recovered, activationHash: retried.hash, revertedActivationHash: transaction.hash, guard: guardResult.guard, guardedActivationHash: guardResult.hash, nextRoot: next.root, nextPaid: ledger.pairs[expiryKey(protectedUser, token)].paid, activationGas: receipt.gasUsed.toString(), httpRoute: "/v1/merkles", delayedResultPublication: true, journalReplayedAfterCrash: true, journalReplayedAfterReorg: true, missingInputsRejected: true, noRewardRoundCompleted: true, fundingPreflight: "100000 fresh; no recovery funding", fullTreeRoute: "/v1/merkles/active", retained: path.relative(process.cwd(), retained), cachedResponseAmounts: ["1400000", "400000", "1400000", "400000", "500000"] };
+      const evidence = { productionActive: false, chainId: 1, forkBlock: 26190047, module: module.address, firstPublication: first.root, firstPublishedAt: first.timestamp, calendarExpiry: expires, roundSource, nextRound: round + 2, activeRoot: restored.merkle.merkleRoot, actualRecovery: confirmedRetry!.recovered, activationHash: retried.hash, revertedActivationHash: transaction.hash, guard: guardResult.guard, guardedActivationHash: guardResult.hash, nextRoot: next.root, nextPaid: ledger.pairs[expiryKey(protectedUser, token)].paid, activationGas: receipt.gasUsed.toString(), httpRoute: "/v1/merkles", delayedResultPublication: true, journalReplayedAfterCrash: true, journalReplayedAfterReorg: true, missingInputsRejected: true, noRewardRoundCompleted: true, fundingPreflight: "100000 fresh; no recovery funding", fullTreeRoute: "/v1/merkles/active", cachedResponseAmounts: ["1400000", "400000", "1400000", "400000", "500000"] };
       const destination = path.resolve("script/test/integration/evidence/expiry-lifecycle.json");
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.writeFileSync(destination, JSON.stringify(evidence, null, 2) + "\n");
@@ -472,4 +466,245 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       fs.rmSync(directory, { recursive: true });
     }
   }, 900000);
+  it("expires only VM allocations in the mixed-source extra rewards distributor", async () => {
+    const reservation = net.createServer();
+    await new Promise<void>(resolve => reservation.listen(0, "127.0.0.1", resolve));
+    const port = (reservation.address() as net.AddressInfo).port;
+    await new Promise<void>(resolve => reservation.close(() => resolve()));
+    const fork = spawn("anvil", ["--fork-url", process.env.EXPIRY_RPC!, "--fork-block-number", "26190047", "--port", String(port), "--silent"], { stdio: "ignore" });
+    const directory = fs.mkdtempSync(path.resolve("script/test/integration/expiry-extra-"));
+    const originalDirectory = process.cwd();
+    const originalFetch = globalThis.fetch;
+    let server: ChildProcess | undefined;
+    try {
+      const provider = new providers.JsonRpcProvider(`http://127.0.0.1:${port}`);
+      for (let attempt = 0; attempt < 300; ++attempt) {
+        try { if (await provider.getBlockNumber() === 26190047) break; } catch {}
+        if (fork.exitCode !== null) throw new Error("extra rewards fork exited");
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      const client = createPublicClient({ chain: mainnet, transport: http(`http://127.0.0.1:${port}`) });
+      const urd = new Contract(EXTRA_REWARDS_DISTRIBUTOR, ["function owner() view returns(address)", "function timelock() view returns(uint256)", "function root() view returns(bytes32)", "function claimed(address,address) view returns(uint256)", "function setRoot(bytes32,bytes32)", "function claim(address,address,uint256,bytes32[]) returns(uint256)"], provider);
+      const safe = await urd.owner();
+      expect((await urd.timelock()).toNumber()).toBe(0);
+      await provider.send("anvil_impersonateAccount", [safe]);
+      await provider.send("anvil_setBalance", [safe, utils.hexValue(utils.parseEther("100"))]);
+      const signer = provider.getSigner(0);
+      const safeSigner = provider.getSigner(safe);
+      const treasury = "0xF930EBBd05eF8b25B1797b9b2109DDC9B0d43063";
+      const user = "0x0000000000000000000000000000000021090001";
+      const competing = "0x0000000000000000000000000000000021090002";
+      const gaugeOnly = "0x0000000000000000000000000000000021090003";
+      const token = utils.getAddress("0x04ACaF8D2865c0714F79da09645C13FD2888977f");
+      const key = expiryKey(user, token);
+      const module = await new ContractFactory(expiryAbi, expiryDeployment.creationBytecode, signer).deploy(EXTRA_REWARDS_DISTRIBUTOR, treasury, ALL_MIGHT_V2);
+      await module.deployed();
+      expect((await module.DELAY()).toNumber()).toBe(10800);
+      await (await new Contract(safe, ["function enableModule(address)"], safeSigner).enableModule(module.address)).wait();
+      const domain = { address: module.address, safe, preparer: ALL_MIGHT_V2, delay: 10800 };
+      const treasuryPaid = (await urd.claimed(treasury, token)).toString();
+      const distribution = { [user]: { [token]: "600" }, [treasury]: { [token]: treasuryPaid } };
+      const publish = async (parent?: string) => {
+        const merkle = generateMerkleTree(distribution);
+        let transaction;
+        if (parent) {
+          const allMight = new Contract(ALL_MIGHT_V2, ["function execute(bytes32[],bytes[]) returns(bytes[])"], safeSigner);
+          const commands = [
+            utils.hexConcat([module.interface.getSighash("checkRoot"), "0x02", "0x00ffffffffff", "0xff", module.address]),
+            utils.hexConcat([urd.interface.getSighash("setRoot"), "0x01", "0x0102ffffffff", "0xff", urd.address]),
+          ];
+          const state = [parent, merkle.merkleRoot, utils.hexZeroPad("0x00", 32)];
+          transaction = await allMight.execute(commands, state);
+        } else {
+          transaction = await urd.connect(safeSigner).setRoot(merkle.merkleRoot, utils.hexZeroPad("0x00", 32));
+        }
+        const receipt = await transaction.wait();
+        const block = await provider.getBlock(receipt.blockNumber);
+        return { root: merkle.merkleRoot, merkle, block: block.number, blockHash: block.hash, timestamp: block.timestamp };
+      };
+      const first = await publish();
+      const leaf = first.merkle.claims[user].tokens[token];
+      await (await urd.connect(signer).claim(user, token, leaf.amount, leaf.proof)).wait();
+      distribution[user][token] = "2000";
+      distribution[competing] = { [token]: "2000" };
+      distribution[gaugeOnly] = { [token]: "1000" };
+      const old = await publish();
+      const allocation = (id: number, account: string, amount: string) => ({ token: { address: token }, distribution: { incentiveId: id }, users: [{ user: account, amount }] });
+      const rewards = { [key]: "1400", [expiryKey(competing, token)]: "2000", [expiryKey(gaugeOnly, token)]: "1000" };
+      const allocations = [allocation(3, user, "400"), allocation(26, user, "700"), allocation(999999, user, "300"), allocation(3, competing, "1000"), allocation(26, competing, "1000"), allocation(26, gaugeOnly, "1000")];
+      const vm = await readVmRewards(client, allocations, rewards, BigInt(old.block));
+      expect(vm).toEqual({ [key]: "400", [expiryKey(competing, token)]: "1000" });
+      expect(await readVmRewards(client, allocations, { [key]: "1100" }, BigInt(old.block))).toEqual({ [key]: "100" });
+      expect(await readVmRewards(client, allocations, { [key]: "1000" }, BigInt(old.block))).toEqual({});
+      expect(await readVmRewards(client, allocations, { [key]: "1500" }, BigInt(old.block))).toEqual({});
+      const mismatched = { ...allocation(3, user, "100"), token: { address: EXTRA_REWARDS_DISTRIBUTOR } };
+      expect(await readVmRewards(client, [mismatched], { [expiryKey(user, EXTRA_REWARDS_DISTRIBUTOR)]: "100" }, BigInt(old.block))).toEqual({});
+      const paid = { [key]: "600", [expiryKey(competing, token)]: "0", [expiryKey(gaugeOnly, token)]: "0", [expiryKey(treasury, token)]: treasuryPaid };
+      let ledger = bootstrapExpiryLedger(1, [
+        { ...first, root: utils.hexZeroPad("0x00", 32), merkle: null, block: first.block - 1 },
+        { ...first, vmRewards: { [key]: "600" } },
+        { ...old, vmRewards: vm },
+      ], paid, { block: old.block, blockHash: old.blockHash }, null, EXTRA_REWARDS_DISTRIBUTOR);
+      const expires = sixCalendarMonths(old.timestamp) + 86400;
+      await provider.send("evm_setNextBlockTimestamp", [expires]);
+      distribution[user][token] = "2500";
+      const fresh = await publish();
+      ledger = recordExpiryDistribution(ledger, fresh, { [key]: "500" }, paid, { [key]: "500" });
+      const policy = { treasury, approval: { reference: "isolated fork", passedAt: first.timestamp }, notices: [{ url: "https://gov.stakedao.org/t/expiry-test", announcedAt: first.timestamp }, { url: "https://stakedao.org/expiry-test", announcedAt: first.timestamp }] };
+      const expected = prepareExpiry(ledger, fresh.merkle, policy, token, 1, 0, expires, domain)!;
+      expect(() => prepareExpiry(ledger, fresh.merkle, { ...policy, treasury: EXTRA_REWARDS_DISTRIBUTOR }, token, 1, 0, expires, domain)).toThrow("treasury target");
+      const bootstrap = path.join(directory, "bounties-reports/expiry/extra/bootstrap/1");
+      const archived = path.join(directory, "bounties-reports/expiry/extra/roots/1");
+      fs.mkdirSync(bootstrap, { recursive: true });
+      fs.mkdirSync(archived, { recursive: true });
+      writeExpiryInput(path.join(bootstrap, "ledger.json"), ledger);
+      writeExpiryInput(path.join(archived, `${fresh.root}.json`), fresh.merkle);
+      await provider.send("anvil_mine", ["0x40"]);
+      vi.resetModules();
+      vi.doMock("../../utils/getClients", () => ({ getClient: async () => client }));
+      vi.doMock("../../extraRewards/expiry/policy.json", () => ({ default: { "1": policy } }));
+      const codeHash = utils.keccak256(await provider.getCode(module.address));
+      vi.doMock("../../extraRewards/expiry/deployment.json", () => ({ default: { "1": { ...domain, codeHash } } }));
+      const { main: runExtraExpiry } = await import("../../vlCVX/expiry/run");
+      process.chdir(directory);
+      await runExtraExpiry("plan", "1", "extra");
+      const decision = JSON.parse(fs.readFileSync("expiry-job.json", "utf8"));
+      expect(decision.status).toBe("prepared");
+      const input = JSON.parse(fs.readFileSync(decision.input, "utf8"));
+      expect(input.distributor).toBe(EXTRA_REWARDS_DISTRIBUTOR);
+      expect(input.batch.rows).toEqual(expected.batch.rows);
+      process.chdir(originalDirectory);
+      expect(input.batch.rows.map(row => row.account)).not.toContain(gaugeOnly);
+      expect(input.batch.rows.find(row => row.account === user)?.expiredThrough).toBe("1000");
+      await (await module.connect(safeSigner).prepare(input.batch)).wait();
+      await expect(module.callStatic.activate(input.batch)).rejects.toThrow();
+      const competingLeaf = fresh.merkle.claims[competing].tokens[token];
+      await (await urd.connect(signer).claim(competing, token, competingLeaf.amount, competingLeaf.proof)).wait();
+      await provider.send("evm_increaseTime", [10800]);
+      await provider.send("evm_mine", []);
+      const snapshot = await provider.send("evm_snapshot", []);
+      for (const account of [user, gaugeOnly]) {
+        const claim = fresh.merkle.claims[account].tokens[token];
+        await (await urd.connect(signer).claim(account, token, claim.amount, claim.proof)).wait();
+      }
+      const following = verifyExpiryParent(fresh.merkle);
+      following[gaugeOnly][token] = "1100";
+      const followingMerkle = generateMerkleTree(following);
+      const allMight = new Contract(ALL_MIGHT_V2, ["function execute(bytes32[],bytes[]) returns(bytes[])"], safeSigner);
+      const combined = await (await allMight.execute([
+        utils.hexConcat([module.interface.getSighash("activate"), "0x01", "0x80ffffffffff", "0xff", module.address]),
+        utils.hexConcat([urd.interface.getSighash("setRoot"), "0x01", "0x0102ffffffff", "0xff", urd.address]),
+      ], [utils.hexDataSlice(module.interface.encodeFunctionData("activate", [input.batch]), 36), followingMerkle.merkleRoot, utils.hexZeroPad("0x00", 32)])).wait();
+      const combinedBlock = await provider.getBlock(combined.blockNumber);
+      await provider.send("anvil_mine", ["0x40"]);
+      const zeroRecovery = await readConfirmedExpiry(client, input, combined.transactionHash);
+      expect(zeroRecovery?.recovered).toBe("0");
+      expect(zeroRecovery?.root).toBe(fresh.root);
+      const combinedDirectory = path.join(directory, "combined");
+      const combinedState = path.join(combinedDirectory, "bounties-reports/expiry/extra/state/1");
+      fs.mkdirSync(path.join(combinedState, "prepared"), { recursive: true });
+      writeExpiryInput(path.join(combinedState, "bootstrap.json"), ledger);
+      writeExpiryInput(path.join(combinedState, "prepared", `${expiryDigest(input)}.json`), input);
+      const combinedData = path.join(combinedDirectory, "merkl-toolkit/data");
+      const combinedFolder = path.join(combinedData, "distributions", String(combinedBlock.timestamp));
+      fs.mkdirSync(combinedFolder, { recursive: true });
+      fs.writeFileSync(path.join(combinedData, "distribution.json"), JSON.stringify([{ timestamp: combinedBlock.timestamp }]));
+      fs.writeFileSync(path.join(combinedFolder, "merkle.json"), JSON.stringify({ ...followingMerkle, parentRoot: fresh.root, firstDistribution: combinedBlock.timestamp }));
+      fs.writeFileSync(path.join(combinedFolder, "distribution.json"), JSON.stringify({ incentives: [allocation(3, gaugeOnly, "100")] }));
+      process.chdir(combinedDirectory);
+      const combinedLedger = await replayExpiryJournal(client, combinedState, domain);
+      expect(combinedLedger.root).toBe(followingMerkle.merkleRoot);
+      expect(combinedLedger.runs[String(input.batch.round)].complete).toBe(true);
+      expect(combinedLedger.pairs[expiryKey(gaugeOnly, token)].credits.at(-1)).toMatchObject({ granted: "100", paid: "0", protection: null });
+      const nextClaim = followingMerkle.claims[gaugeOnly].tokens[token];
+      await (await urd.connect(signer).claim(gaugeOnly, token, nextClaim.amount, nextClaim.proof)).wait();
+      expect((await urd.claimed(gaugeOnly, token)).toString()).toBe("1100");
+      process.chdir(originalDirectory);
+      await provider.send("evm_revert", [snapshot]);
+      const receipt = await (await module.activate(input.batch)).wait();
+      await provider.send("anvil_mine", ["0x40"]);
+      const confirmed = await readConfirmedExpiry(client, input, receipt.transactionHash);
+      expect(confirmed?.recovered).toBe("400");
+      const applied = applyConfirmedExpiry(ledger, input, confirmed!);
+      expect(applied.merkle.claims[user].tokens[token].amount).toBe("2100");
+      expect(applied.merkle.claims[gaugeOnly].tokens[token].amount).toBe("1000");
+      expect(applied.ledger.pairs[key].credits.filter(credit => credit.protection !== null).reduce((sum, credit) => sum + BigInt(credit.granted) - BigInt(credit.paid), 0n)).toBe(1000n);
+      await expect(module.checkRoot(fresh.root)).rejects.toThrow();
+      const roots = path.join(directory, "bounties-reports/expiry/extra/roots/1");
+      fs.mkdirSync(roots, { recursive: true });
+      writeExpiryInput(path.join(roots, `${fresh.root}.json`), fresh.merkle);
+      process.chdir(directory);
+      globalThis.fetch = ((url, init) => String(url).startsWith("http://127.0.0.1") ? originalFetch(url, init) : Promise.reject(new Error("isolated publication outage"))) as typeof fetch;
+      const reconstructed = await readActiveVotersMerkle(1, applied.merkle.merkleRoot, client, EXTRA_REWARDS_DISTRIBUTOR);
+      expect(reconstructed).toEqual(applied.merkle);
+      const parentFile = path.join(directory, "parent.json");
+      const readyFile = path.join(directory, "server.json");
+      fs.writeFileSync(parentFile, JSON.stringify(fresh.merkle));
+      server = spawn("bun", ["run", "test/expiryServing.fixture.ts", `http://127.0.0.1:${port}`, parentFile, readyFile, "extra"], { cwd: path.resolve(originalDirectory, "../backend-monorepo/packages/hono-api"), stdio: "pipe" });
+      let serverError = "";
+      server.stderr!.on("data", data => { serverError += String(data); });
+      for (let attempt = 0; attempt < 300 && !fs.existsSync(readyFile); ++attempt) {
+        if (server.exitCode !== null) throw new Error(serverError.slice(-2000));
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      const apiPort = JSON.parse(fs.readFileSync(readyFile, "utf8")).port;
+      const response = await fetch(`http://127.0.0.1:${apiPort}/v1/merkles/active?chainId=1&target=extra`);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(applied.merkle);
+      vi.doMock("../../../../merkl-toolkit/src/utils/rpc", () => ({ getClient: async () => client }));
+      const { default: axios } = await import("../../../../merkl-toolkit/node_modules/axios/index.js");
+      const request = vi.spyOn(axios, "get").mockImplementation(async url => ({ data: String(url).includes("raw.githubusercontent.com") ? fresh.merkle : reconstructed }));
+      const { activeExpiryBaseline } = await import("../../../../merkl-toolkit/src/utils/expiry");
+      const baseline = await activeExpiryBaseline(fresh.merkle);
+      expect(baseline.merkle).toEqual(reconstructed);
+      const unpublished = verifyExpiryParent(fresh.merkle);
+      unpublished[user][token] = "2600";
+      const pending = { ...generateMerkleTree(unpublished), parentRoot: fresh.root, firstDistribution: fresh.timestamp + 1 };
+      const rebased = await activeExpiryBaseline(pending);
+      expect(rebased.merkle.claims[user].tokens[token].amount).toBe("2200");
+      expect(rebased.root).toBe(reconstructed.merkleRoot);
+      expect(rebased.firstDistribution).toBe(pending.firstDistribution);
+      await expect(activeExpiryBaseline(first.merkle)).rejects.toThrow();
+      request.mockRestore();
+
+      for (const account of [user, gaugeOnly, treasury]) {
+        const claim = reconstructed.claims[account].tokens[token];
+        await (await urd.connect(signer).claim(account, token, claim.amount, claim.proof)).wait();
+      }
+      const next = verifyExpiryParent(baseline.merkle);
+      next[user][token] = (BigInt(next[user][token]) + 100n).toString();
+      next[gaugeOnly][token] = "1100";
+      Object.assign(distribution, next);
+      await expect(publish(fresh.root)).rejects.toThrow();
+      expect(await urd.root()).toBe(reconstructed.merkleRoot);
+      const ordinary = await publish(reconstructed.merkleRoot);
+      const updatedPaid = { ...paid, [key]: "2100", [expiryKey(competing, token)]: "2000", [expiryKey(gaugeOnly, token)]: "1000", [expiryKey(treasury, token)]: (BigInt(treasuryPaid) + 400n).toString() };
+      const resumed = recordExpiryDistribution(applied.ledger, ordinary, { [key]: "100", [expiryKey(gaugeOnly, token)]: "100" }, updatedPaid, { [expiryKey(gaugeOnly, token)]: "100" });
+      expect(resumed.pairs[key].credits.at(-1)?.protection).toBe("non-VM or unknown source");
+      expect(resumed.pairs[key].activeAmount).toBe("2200");
+      expect(resumed.pairs[expiryKey(gaugeOnly, token)].credits.at(-1)).toMatchObject({ granted: "100", paid: "0", protection: null });
+      const state = path.join(directory, "bounties-reports/expiry/extra/state/1");
+      fs.mkdirSync(path.join(state, "prepared"), { recursive: true });
+      writeExpiryInput(path.join(state, "bootstrap.json"), ledger);
+      writeExpiryInput(path.join(state, "prepared", `${expiryDigest(input)}.json`), input);
+      const data = path.join(directory, "merkl-toolkit/data");
+      const folder = path.join(data, "distributions", String(ordinary.timestamp));
+      fs.mkdirSync(folder, { recursive: true });
+      fs.writeFileSync(path.join(data, "distribution.json"), JSON.stringify([{ timestamp: ordinary.timestamp }]));
+      fs.writeFileSync(path.join(folder, "merkle.json"), JSON.stringify({ ...ordinary.merkle, parentRoot: applied.merkle.merkleRoot, firstDistribution: ordinary.timestamp }));
+      fs.writeFileSync(path.join(folder, "distribution.json"), JSON.stringify({ incentives: [allocation(26, user, "100"), allocation(3, gaugeOnly, "100")] }));
+      await provider.send("anvil_mine", ["0x40"]);
+      const replayed = await replayExpiryJournal(client, state, domain);
+      expect(replayed.root).toBe(resumed.root);
+      expect(replayed.pairs[key].credits.at(-1)?.protection).toBe("non-VM or unknown source");
+      expect(replayed.pairs[expiryKey(gaugeOnly, token)].credits.at(-1)).toMatchObject({ granted: "100", paid: "0", protection: null });
+
+    } finally {
+      process.chdir(originalDirectory);
+      globalThis.fetch = originalFetch;
+      server?.kill("SIGTERM");
+      fork.kill("SIGTERM");
+      fs.rmSync(directory, { recursive: true });
+    }
+  }, 300000);
 });

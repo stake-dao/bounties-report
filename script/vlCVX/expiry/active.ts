@@ -1,28 +1,30 @@
 import fs from "fs";
 import path from "path";
 import { utils } from "ethers";
-import { Abi, Hex, parseAbi, parseAbiItem, PublicClient } from "viem";
+import { Abi, Address, Hex, parseAbi, parseAbiItem, PublicClient } from "viem";
 import expiryAbi from "../../../abis/RewardsExpiry.json";
 import { MerkleData } from "../../interfaces/MerkleData";
-import { EXPIRY_DISTRIBUTOR, verifyExpiryParent } from "../../shared/merkle/expiry";
+import { EXPIRY_DISTRIBUTOR, EXTRA_REWARDS_DISTRIBUTOR, verifyExpiryParent } from "../../shared/merkle/expiry";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { getClient } from "../../utils/getClients";
 
-export async function readActiveVotersMerkle(chainId: number, root: string, client?: PublicClient): Promise<MerkleData> {
+export async function readActiveVotersMerkle(chainId: number, root: string, client?: PublicClient, distributor: Address = EXPIRY_DISTRIBUTOR): Promise<MerkleData> {
   if (![1, 8453, 42161].includes(chainId)) throw new Error("expiry chain");
+  const extra = distributor === EXTRA_REWARDS_DISTRIBUTOR;
+  const base = extra ? "bounties-reports/expiry/extra" : "bounties-reports/expiry";
   const verified = (merkle: MerkleData, target: string) => {
     verifyExpiryParent(merkle);
     if (merkle.merkleRoot.toLowerCase() !== target.toLowerCase()) throw new Error("active root changed; regenerate distribution");
     return merkle;
   };
   const local = (target: string): MerkleData | null => {
-    const file = path.join("bounties-reports/expiry/roots", String(chainId), `${target.toLowerCase()}.json`);
+    const file = path.join(base, "roots", String(chainId), `${target.toLowerCase()}.json`);
     return fs.existsSync(file) ? verified(JSON.parse(fs.readFileSync(file, "utf8")), target) : null;
   };
   const stored = local(root);
   if (stored) return stored;
   try {
-    const response = await fetch(`https://hub.stakedao.org/v1/merkles/active?chainId=${chainId}`);
+    const response = await fetch(`https://hub.stakedao.org/v1/merkles/active?chainId=${chainId}${extra ? "&target=extra" : ""}`);
     if (response.ok) return verified(await response.json() as MerkleData, root);
   } catch {}
   const rpc = client ?? await getClient(chainId);
@@ -37,16 +39,16 @@ export async function readActiveVotersMerkle(chainId: number, root: string, clie
     const stored = local(target);
     if (stored) return stored;
     let publication: Response | null = null;
-    try { publication = await fetch(`https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/expiry/roots/${chainId}/${target.toLowerCase()}.json`); } catch {}
+    try { publication = await fetch(`https://raw.githubusercontent.com/stake-dao/bounties-report/main/${base}/roots/${chainId}/${target.toLowerCase()}.json`); } catch {}
     if (publication?.ok) return verified(await publication.json() as MerkleData, target);
     let high = upper ?? await rpc.getBlockNumber({ cacheTime: 0 });
-    const recent = await rpc.getLogs({ address: EXPIRY_DISTRIBUTOR, event: ROOT_SET, args: { newRoot: target }, fromBlock: high > 9999n ? high - 9999n : 0n, toBlock: high });
+    const recent = await rpc.getLogs({ address: distributor, event: ROOT_SET, args: { newRoot: target }, fromBlock: high > 9999n ? high - 9999n : 0n, toBlock: high });
     const located = recent[recent.length - 1]?.blockNumber;
     if (located !== undefined && located !== null) high = located;
     else {
       const at = async (blockNumber: bigint) => {
-        const code = await rpc.getBytecode({ address: EXPIRY_DISTRIBUTOR, blockNumber });
-        return code && code !== "0x" ? rpc.readContract({ address: EXPIRY_DISTRIBUTOR, abi: ROOT_ABI, functionName: "root", blockNumber }) : null;
+        const code = await rpc.getBytecode({ address: distributor, blockNumber });
+        return code && code !== "0x" ? rpc.readContract({ address: distributor, abi: ROOT_ABI, functionName: "root", blockNumber }) : null;
       };
       if (await at(high) !== target) throw new Error("expiry activation unavailable");
       let low = 0n;
@@ -56,7 +58,7 @@ export async function readActiveVotersMerkle(chainId: number, root: string, clie
         else low = middle;
       }
     }
-    const events = await rpc.getLogs({ address: EXPIRY_DISTRIBUTOR, event: ROOT_SET, args: { newRoot: target }, fromBlock: high, toBlock: high });
+    const events = await rpc.getLogs({ address: distributor, event: ROOT_SET, args: { newRoot: target }, fromBlock: high, toBlock: high });
     for (const event of events.reverse()) {
       if (!event.transactionHash || event.removed) continue;
       const receipt = await rpc.getTransactionReceipt({ hash: event.transactionHash });

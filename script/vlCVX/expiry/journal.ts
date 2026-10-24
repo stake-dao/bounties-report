@@ -3,7 +3,8 @@ import path from "path";
 import { utils } from "ethers";
 import { Address, Hash, parseAbi, parseAbiItem, PublicClient } from "viem";
 import { MerkleData } from "../../interfaces/MerkleData";
-import { applyConfirmedExpiry, assertExpiryLedger, EXPIRY_DISTRIBUTOR, expiryDigest, expiryKey, Ledger, PreparedExpiry, recordExpiryDistribution, syncExpiryClaims, writeExpiryInput } from "../../shared/merkle/expiry";
+import { applyConfirmedExpiry, assertExpiryLedger, EXTRA_REWARDS_DISTRIBUTOR, expiryDigest, expiryKey, Ledger, PreparedExpiry, recordExpiryDistribution, syncExpiryClaims, writeExpiryInput } from "../../shared/merkle/expiry";
+import { readExtraPublication, readVmRewards } from "../../extraRewards/expiry/sources";
 import { readConfirmedExpiry } from "./chain";
 
 const ROOT_SET = parseAbiItem("event RootSet(bytes32 indexed newRoot, bytes32 indexed newIpfsHash)");
@@ -11,7 +12,7 @@ const ACTIVATED = parseAbiItem("event Activated(bytes32 indexed digest, bytes32 
 const CLAIM = parseAbiItem("event Claimed(address indexed account,address indexed recipient,address indexed reward,uint256 amount)");
 const URD_ABI = parseAbi(["function root() view returns(bytes32)", "function claimed(address,address) view returns(uint256)"]);
 
-export async function readLedgerClaims(client: PublicClient, ledger: Ledger, block: bigint, merkle?: MerkleData, beforeLog?: number) {
+export async function readLedgerClaims(client: PublicClient, ledger: { distributor: string; pairs: Record<string, { account: string; token: string }> }, block: bigint, merkle?: MerkleData, beforeLog?: number) {
   const pairs = new Map(Object.entries(ledger.pairs).map(([key, pair]) => [key, [pair.account, pair.token]]));
   for (const [account, claim] of Object.entries(merkle?.claims ?? {})) {
     for (const token of Object.keys(claim.tokens)) pairs.set(expiryKey(account, token), [account, token]);
@@ -21,13 +22,13 @@ export async function readLedgerClaims(client: PublicClient, ledger: Ledger, blo
   for (let i = 0; i < entries.length; i += 200) {
     const chunk = entries.slice(i, i + 200);
     const values = await client.multicall({
-      contracts: chunk.map(([, [account, token]]) => ({ address: EXPIRY_DISTRIBUTOR as Address, abi: URD_ABI, functionName: "claimed" as const, args: [account as Address, token as Address] })),
+      contracts: chunk.map(([, [account, token]]) => ({ address: ledger.distributor as Address, abi: URD_ABI, functionName: "claimed" as const, args: [account as Address, token as Address] })),
       blockNumber: beforeLog === undefined ? block : block - 1n, allowFailure: false,
     });
     chunk.forEach(([key], j) => { claims[key] = (values[j] as bigint).toString(); });
   }
   if (beforeLog !== undefined) {
-    const events = await client.getLogs({ address: EXPIRY_DISTRIBUTOR, event: CLAIM, fromBlock: block, toBlock: block });
+    const events = await client.getLogs({ address: ledger.distributor as Address, event: CLAIM, fromBlock: block, toBlock: block });
     for (const event of events) {
       if (event.logIndex === null || event.logIndex >= beforeLog || event.removed) continue;
       const key = expiryKey(event.args.account!, event.args.reward!);
@@ -40,7 +41,7 @@ export async function readLedgerClaims(client: PublicClient, ledger: Ledger, blo
 export async function replayExpiryJournal(client: PublicClient, directory: string, module: PreparedExpiry["module"], until?: Ledger["checkpoint"]): Promise<Ledger> {
   let ledger: Ledger = JSON.parse(fs.readFileSync(path.join(directory, "bootstrap.json"), "utf8"));
   const checkpoint = await client.getBlock({ blockNumber: BigInt(ledger.checkpoint.block) });
-  if (checkpoint.hash !== ledger.checkpoint.blockHash || await client.readContract({ address: EXPIRY_DISTRIBUTOR, abi: URD_ABI, functionName: "root", blockNumber: checkpoint.number! }) !== ledger.root) throw new Error("bootstrap checkpoint reorged");
+  if (checkpoint.hash !== ledger.checkpoint.blockHash || await client.readContract({ address: ledger.distributor as Address, abi: URD_ABI, functionName: "root", blockNumber: checkpoint.number! }) !== ledger.root) throw new Error("bootstrap checkpoint reorged");
   let finalized = await client.getBlock({ blockTag: "finalized" });
   if (until) {
     if (finalized.number === null || BigInt(until.block) > finalized.number) throw new Error("prepared checkpoint is not finalized");
@@ -58,11 +59,11 @@ export async function replayExpiryJournal(client: PublicClient, directory: strin
   const startBlock = BigInt(ledger.checkpoint.block) + (ledger.checkpoint.logIndex === undefined ? 1n : 0n);
   for (let start = startBlock; start <= finalized.number; start += 10000n) {
     const end = start + 9999n < finalized.number ? start + 9999n : finalized.number;
-    const roots = await client.getLogs({ address: EXPIRY_DISTRIBUTOR, event: ROOT_SET, fromBlock: start, toBlock: end });
+    const roots = await client.getLogs({ address: ledger.distributor as Address, event: ROOT_SET, fromBlock: start, toBlock: end });
     const activations = await client.getLogs({ address: module.address as Address, event: ACTIVATED, fromBlock: start, toBlock: end });
-    const expiryTransactions = new Set(activations.map(event => event.transactionHash));
+    const expiryRoots = new Set(activations.filter(event => !event.removed && event.args.root !== event.args.parent).map(event => `${event.transactionHash}:${event.args.digest}:${event.args.root}`));
     for (const event of roots) {
-      if (!event.removed && event.transactionHash && event.blockNumber !== null && event.logIndex !== null && !expiryTransactions.has(event.transactionHash)) events.push({ block: event.blockNumber, log: event.logIndex, hash: event.transactionHash, root: event.args.newRoot });
+      if (!event.removed && event.transactionHash && event.blockNumber !== null && event.logIndex !== null && !expiryRoots.has(`${event.transactionHash}:${event.args.newIpfsHash}:${event.args.newRoot}`)) events.push({ block: event.blockNumber, log: event.logIndex, hash: event.transactionHash, root: event.args.newRoot });
     }
     for (const event of activations) {
       if (!event.removed && event.transactionHash && event.blockNumber !== null && event.logIndex !== null) events.push({ block: event.blockNumber, log: event.logIndex, hash: event.transactionHash, digest: event.args.digest });
@@ -78,7 +79,6 @@ export async function replayExpiryJournal(client: PublicClient, directory: strin
   for (const event of events) {
     if (event.block === BigInt(ledger.checkpoint.block) && event.log <= (ledger.checkpoint.logIndex ?? Number.MAX_SAFE_INTEGER)) continue;
     const block = await client.getBlock({ blockNumber: event.block });
-    let entry: any;
     if (event.digest) {
       const file = path.join(preparedDir, `${event.digest}.json`);
       if (!fs.existsSync(file)) throw new Error(`missing immutable expiry inputs ${event.digest}`);
@@ -88,23 +88,39 @@ export async function replayExpiryJournal(client: PublicClient, directory: strin
       if (!actual) throw new Error("activation finality changed during replay");
       const applied = applyConfirmedExpiry(ledger, input, actual);
       ledger = applied.ledger;
-      entry = { kind: "expiry", input: event.digest, actual };
       const rootsDir = path.resolve(directory, "../..", "roots", String(ledger.chainId));
       fs.mkdirSync(rootsDir, { recursive: true });
       writeExpiryInput(path.join(rootsDir, `${actual.root.toLowerCase()}.json`), applied.merkle);
     } else if (event.root) {
       const rootsDir = path.resolve(directory, "../..", "roots", String(ledger.chainId));
-      const merkle = JSON.parse(fs.readFileSync(path.join(rootsDir, `${event.root.toLowerCase()}.json`), "utf8"));
-      const source = JSON.parse(fs.readFileSync(path.join(rootsDir, `${event.root.toLowerCase()}.rewards.json`), "utf8"));
-      if (source.chainId !== ledger.chainId || source.distributor !== EXPIRY_DISTRIBUTOR || source.parent !== ledger.root || source.root !== event.root) throw new Error("ordinary reward provenance");
+      let merkle: MerkleData;
+      let rewards: Record<string, string>;
+      let vmRewards: Record<string, string> = {};
+      if (ledger.distributor === EXTRA_REWARDS_DISTRIBUTOR) {
+        const source = readExtraPublication(event.root, ledger.root);
+        if (!source) throw new Error(`extra rewards root artifact missing: ${event.root}`);
+        merkle = source.merkle;
+        rewards = {};
+        for (const [account, claim] of Object.entries(merkle.claims)) {
+          for (const [token, leaf] of Object.entries(claim.tokens)) {
+            const key = expiryKey(account, token);
+            rewards[key] = (BigInt(leaf.amount) - BigInt(ledger.pairs[key]?.activeAmount ?? "0")).toString();
+          }
+        }
+        vmRewards = await readVmRewards(client, source.allocations, rewards, event.block);
+      } else {
+        merkle = JSON.parse(fs.readFileSync(path.join(rootsDir, `${event.root.toLowerCase()}.json`), "utf8"));
+        const source = JSON.parse(fs.readFileSync(path.join(rootsDir, `${event.root.toLowerCase()}.rewards.json`), "utf8"));
+        if (source.chainId !== ledger.chainId || source.distributor !== ledger.distributor || source.parent !== ledger.root || source.root !== event.root) throw new Error("ordinary reward provenance");
+        rewards = source.rewards;
+      }
       const receipt = await client.getTransactionReceipt({ hash: event.hash });
-      if (receipt.status !== "success" || receipt.blockHash !== block.hash || !receipt.logs.some(log => log.address.toLowerCase() === EXPIRY_DISTRIBUTOR.toLowerCase() && log.logIndex === event.log && log.topics[1] === event.root)) throw new Error("ordinary activation receipt");
+      if (receipt.status !== "success" || receipt.blockHash !== block.hash || !receipt.logs.some(log => log.address.toLowerCase() === ledger.distributor.toLowerCase() && log.logIndex === event.log && log.topics[1] === event.root)) throw new Error("ordinary activation receipt");
       const publication = { root: event.root, block: Number(block.number), blockHash: block.hash!, logIndex: event.log, timestamp: Number(block.timestamp), merkle };
       const claims = await readLedgerClaims(client, ledger, event.block, merkle, event.log);
-      ledger = recordExpiryDistribution(ledger, publication, source.rewards, claims);
-      entry = { kind: "distribution", publication: { ...publication, merkle: undefined }, source, claims, transactionHash: event.hash };
+      ledger = recordExpiryDistribution(ledger, publication, rewards, claims, vmRewards);
     } else {
-      entry = idle.find(entry => entry.id === event.hash);
+      const entry = idle.find(entry => entry.id === event.hash);
       if (entry.root !== ledger.root || ledger.runs[String(entry.round)]?.complete) throw new Error("idle round parent");
       const claims = await readLedgerClaims(client, ledger, event.block);
       if (JSON.stringify(claims) !== JSON.stringify(entry.claims)) throw new Error("idle round claims changed");
@@ -112,10 +128,8 @@ export async function replayExpiryJournal(client: PublicClient, directory: strin
       ledger.runs[String(entry.round)] = { nextBatch: ledger.runs[String(entry.round)]?.nextBatch ?? 0, complete: true, processed: ledger.runs[String(entry.round)]?.processed ?? [] };
       ledger.checkpoint = entry.checkpoint;
     }
-    const id = utils.sha256(utils.toUtf8Bytes(JSON.stringify(entry)));
-    writeExpiryInput(path.join(journal, `${id}.json`), entry);
   }
-  const currentRoot = await client.readContract({ address: EXPIRY_DISTRIBUTOR, abi: URD_ABI, functionName: "root", blockNumber: finalized.number });
+  const currentRoot = await client.readContract({ address: ledger.distributor as Address, abi: URD_ABI, functionName: "root", blockNumber: finalized.number });
   if (currentRoot !== ledger.root || (await client.getBlock({ blockNumber: finalized.number })).hash !== finalized.hash) throw new Error("journal does not reconcile finalized active root");
   if (until) return ledger;
   const state = path.join(directory, "states");
