@@ -1,5 +1,23 @@
 {
-  "1": null,
-  "8453": null,
-  "42161": null
+  "1": {
+    "address": "0x487C2611fb77dA55C7A2f21f16Fad1aE31E9c7a7",
+    "safe": "0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765",
+    "preparer": "0xDBd24b092f686b12650EC1450e3A7138F714506c",
+    "delay": 10800,
+    "codeHash": "0xa61f1339b6b4d977648b9ef8d939c14692ae854784e098acc7af17e1e74caa36"
+  },
+  "8453": {
+    "address": "0x7Ad4952f9E418C19d2e884F8D6A0eAF2C6856Ec1",
+    "safe": "0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765",
+    "preparer": "0xDBd24b092f686b12650EC1450e3A7138F714506c",
+    "delay": 10800,
+    "codeHash": "0x355ae36647ded4167588a61abad111a243b648fda89a5f2b818c8f1ad3b11f03"
+  },
+  "42161": {
+    "address": "0x8C19bD0381dC7592BA4d5944071A5175ba6E43F2",
+    "safe": "0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765",
+    "preparer": "0xDBd24b092f686b12650EC1450e3A7138F714506c",
+    "delay": 10800,
+    "codeHash": "0x6493b04c86f58537ad5315b739e0df9692751e48f9b20f361fa070925f34630e"
+  }
 }

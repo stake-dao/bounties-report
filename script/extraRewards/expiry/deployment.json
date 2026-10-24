@@ -1,1 +1,9 @@
-{"1": null}
+{
+  "1": {
+    "address": "0x8C19bD0381dC7592BA4d5944071A5175ba6E43F2",
+    "safe": "0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765",
+    "preparer": "0xDBd24b092f686b12650EC1450e3A7138F714506c",
+    "delay": 10800,
+    "codeHash": "0xb04d925ecc13665591d1505473ef6d0097ae83590b3971fec1941a2adfbd1c92"
+  }
+}
