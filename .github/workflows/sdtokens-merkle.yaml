@@ -171,10 +171,17 @@ jobs:
                   echo "Skipping $filename (Base sdSpectra - handled by spectra token publish)"
                   continue
                 fi
+                if [[ "$filename" == "sdtkns_merkle_1_sdcrv.json" || "$filename" == "sdtkns_merkle_1_sdfxn.json" ]]; then
+                  continue
+                fi
                 cp "$file" "bounties-reports/latest/sdTkns/${filename}"
               fi
             done
           fi
+
+          while IFS= read -r file; do
+            cp "bounties-reports/${PERIOD}/${file}" "bounties-reports/latest/${file}"
+          done < <(jq -r '.universal[].file' "bounties-reports/${PERIOD}/sdtokens-distribution.json")
 
       - name: Merge delegationsAPRs
         if: (inputs.token == 'spectra' || inputs.token == 'sdfxs') && (inputs.step == 'publish')

@@ -19,7 +19,7 @@ Raw token rows can be added under `bounties-reports/{timestamp}/raw/{protocol}/`
 
 ## Key Files
 
-- `generateMerkle.ts` - legacy sdToken merkle generator. It reads protocol CSVs, applies Snapshot vote weights and delegation rules, carries unclaimed balances, writes `merkle.json`, `delegationsAPRs.json`, and `log.json`, and prepares root update calldata.
+- `generateMerkle.ts` - legacy sdToken merkle generator. It reads protocol CSVs, applies Snapshot vote weights and delegation rules, carries unclaimed balances, writes `merkle.json`, `delegationsAPRs.json`, and `log.json`, and prepares root update calldata. For sdCRV and sdFXN it keeps only the weekly share of `LEGACY_STASH_RECIPIENTS` (Aladdin's Concentrator locker, which claims from the legacy stash on-chain) plus the carried unclaimed balances on the legacy stash; every other weekly share goes to the cumulative universal distributors `SDCRV_UNIVERSAL_MERKLE` / `SDFXN_UNIVERSAL_MERKLE` (`sdTkns/sdtkns_merkle_1_sdcrv.json`, `sdTkns/sdtkns_merkle_1_sdfxn.json`, started from zero at the cutover; `log.json` lists them under `Universal`). A legacy token with no kept share that week is neither frozen nor set.
 - `generateUniversalMerkleFrax.ts` - cumulative Fraxtal sdFXS merkle generator. Outputs `bounties-reports/{timestamp}/sdTkns/sdtkns_merkle_252.json` and may refresh `latest/sdTkns/sdtkns_merkle_252.json` locally.
 - `generateUniversalMerkleSpectra.ts` - cumulative Base sdSpectra merkle generator. Reads Spectra repartition output and writes `bounties-reports/{timestamp}/sdTkns/sdtkns_merkle_8453.json` plus `bounties-reports/{timestamp}/spectra/merkle_data.json`.
 - `claims/` - claim fetchers for Votemarket, Votemarket v2, and Spectra.
@@ -71,6 +71,7 @@ Universal generators:
 
 - `bounties-reports/{timestamp}/sdTkns/sdtkns_merkle_252.json` for sdFXS on Fraxtal.
 - `bounties-reports/{timestamp}/sdTkns/sdtkns_merkle_8453.json` for sdSpectra on Base.
+- `bounties-reports/{timestamp}/sdTkns/sdtkns_merkle_1_sdcrv.json` and `sdtkns_merkle_1_sdfxn.json` for the mainnet sdCRV and sdFXN universal distributors (written by the legacy generator, submitted by Guard's `sdtokens-submit` and accepted by its shared `merkle-accept-roots` job from `sdtokens-distribution.json`'s `universal` entries, published by the legacy publish step once `root()` matches).
 
 Published copies are documented in [bounties-reports/latest/README.md](../../bounties-reports/latest/README.md).
 
@@ -88,3 +89,15 @@ The generator handles:
 pnpm tsx script/repartition/sdTkns/reportVerifier.ts curve
 pnpm test:integration
 ```
+
+## ENG-2224 validation
+
+Cumulative baselines must match the active root. Verified current-period artifacts are reused; regenerated drafts cannot add the weekly allocation twice. Publication copies only verified universal entries after every required root is active. Aladdin remains on the legacy stash; all prior unpaid legacy claims remain there.
+
+The cross-repository fork test lives in `automation-guard/tests/jobs/sdtokens/test_universal_migration_fork.py`. Check out automation-guard, bounties-report, backend-monorepo and monorepo as sibling folders; install their dependencies, Bun, Anvil, Playwright and Chromium. From automation-guard:
+
+```sh
+RUN_FORK_E2E=1 E2E_UI=1 uv run pytest tests/jobs/sdtokens/test_universal_migration_fork.py -q
+```
+
+`FORK_RPC_1` selects an archive RPC; `PLAYWRIGHT_MODULE` can select an installed Playwright module. Transactions execute only on localhost. The test runs the allocation split, two cumulative periods, Guard funding and shared acceptance, the publication verifier and workflow copy step, actual Hub routes, portfolio/claim components and Router claims. It checks Aladdin, legacy carry, prior claims, forwarding, different maturity times, malformed artifacts, missing proofs, retries, zero-reward periods and vlCVX/extra-reward claims. Snapshot inputs and wallet connection are fixtures; Next page navigation and swap quotes are outside this test.

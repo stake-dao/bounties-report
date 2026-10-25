@@ -101,6 +101,11 @@ export const SPECTRA_SAFE_MODULE =
   "0xDF9848EB9C1027AEA967270A74Dd3dd35Cb9Ab5D" as `0x${string}`;
 export const SDFXS_UNIVERSAL_MERKLE =
   "0xAeB87C92b2E7d3b21fA046Ae1E51E0ebF11A41Af";
+export const SDCRV_UNIVERSAL_MERKLE = getAddress("0x32dA29D7F3aD8cF157C6427CecFD3f0665042A37");
+export const SDFXN_UNIVERSAL_MERKLE = getAddress("0xdD03449c5b8F1e2aF92FaA45Db6CCA268479b990");
+export const LEGACY_STASH_RECIPIENTS: ReadonlySet<string> = new Set([
+  "0x1c0d72a330f2768daf718def8a19bab019eead09",
+]);
 export const DELEGATION_RECIPIENT = "0x8898502BA35AB64b3562aBC509Befb7Eb178D4df";
 export const WEEK = 604800;
 export const TWOWEEKS = WEEK * 2;
@@ -216,6 +221,11 @@ export const NETWORK_TO_STASH: Record<string, string> = {
 export const NETWORK_TO_MERKLE: Record<string, string> = {
   [ETHEREUM]: MERKLE_ADDRESS,
   [BSC]: MERKLE_BSC_ADDRESS,
+};
+
+export const UNIVERSAL_SD_MERKLES: Record<string, { distributor: string; file: string }> = {
+  [SDCRV_SPACE]: { distributor: SDCRV_UNIVERSAL_MERKLE, file: "sdTkns/sdtkns_merkle_1_sdcrv.json" },
+  [SDFXN_SPACE]: { distributor: SDFXN_UNIVERSAL_MERKLE, file: "sdTkns/sdtkns_merkle_1_sdfxn.json" },
 };
 
 export const SPACES_TOKENS: Record<string, string> = {
