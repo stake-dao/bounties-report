@@ -36,6 +36,7 @@ export interface Ledger {
   root: string;
   checkpoint: { block: number; blockHash: string; logIndex?: number };
   pairs: Record<string, AccountLedger>;
+  lastDistributionAt?: number;
   recoveries: string[];
   runs: Record<string, { nextBatch: number; complete: boolean; processed: string[] }>;
 }
@@ -77,7 +78,21 @@ export interface ExpiryBatch {
   nodes: string[];
 }
 
+export interface ExpiryPlan {
+  round: number;
+  index: number;
+  parent: string;
+  batches: string[];
+}
+
+export interface PreparedRound extends Omit<PreparedExpiry, "batch" | "credits" | "plan"> {
+  plan: ExpiryPlan;
+  prices?: Record<string, { usd: string; decimals: number }>;
+  batches: (Pick<ExpiryBatch, "round" | "index" | "last" | "token" | "rows"> & { credits: PreparedExpiry["credits"] })[];
+}
+
 export interface PreparedExpiry {
+  plan?: string;
   chainId: number;
   distributor: string;
   treasury: string;
@@ -344,6 +359,11 @@ export function isEligibleForExpiry(credit: Credit, at: number): boolean {
   return sixCalendarMonths(ageStartsAt) <= at;
 }
 
+function expiryParent(distribution: UniversalMerkle, root: string): MerkleData {
+  const claims = Object.fromEntries(Object.entries(distribution).map(([account, tokens]) => [account, { tokens: Object.fromEntries(Object.entries(tokens).map(([token, amount]) => [token, { amount, proof: [] }])) }]));
+  return { merkleRoot: root, claims };
+}
+
 export function prepareExpiry(
   state: Ledger,
   parent: MerkleData,
@@ -389,17 +409,105 @@ export function prepareExpiry(
   }
   for (const [key, pair] of Object.entries(state.pairs)) {
     if (pair.account === treasury || pair.token === reward || processed.has(key)) continue;
-    if (pair.credits.some(credit => isEligibleForExpiry(credit, at))) more = true;
+    if (pair.credits.some(credit => isEligibleForExpiry(credit, at) && remaining(credit) > 0n)) more = true;
   }
   if (!rows.length) return null;
   if (getAddress(module.address) === getAddress("0x0000000000000000000000000000000000000000") || !Number.isSafeInteger(module.delay) || module.delay <= 0) throw new Error("module deployment");
   getAddress(module.safe);
   getAddress(module.preparer);
   const batch: ExpiryBatch = { round, index, last: !more, ledger: "", parent: parent.merkleRoot, token: reward, treasuryAmount, rows, ...expiryFrontier(distribution, reward, treasury, rows) };
-  const claims = Object.fromEntries(Object.entries(distribution).map(([account, tokens]) => [account, { tokens: Object.fromEntries(Object.entries(tokens).map(([token, amount]) => [token, { amount, proof: [] }])) }]));
-  const prepared: PreparedExpiry = { chainId: state.chainId, distributor: state.distributor, treasury, at, policy, state: structuredClone(state), parent: { merkleRoot: parent.merkleRoot, claims }, credits, batch, module };
+  const prepared: PreparedExpiry = { chainId: state.chainId, distributor: state.distributor, treasury, at, policy, state: structuredClone(state), parent: expiryParent(distribution, parent.merkleRoot), credits, batch, module };
   batch.ledger = utils.sha256(utils.toUtf8Bytes(JSON.stringify({ ...prepared, batch: { ...batch, ledger: "" } })));
   return prepared;
+}
+
+export function expiryCommitment(batch: Pick<ExpiryBatch, "round" | "index" | "last" | "token" | "rows">): string {
+  return utils.keccak256(utils.defaultAbiCoder.encode(
+    ["uint256", "uint256", "bool", "address", "tuple(address account,uint256 amount,uint256 expiredThrough)[]"],
+    [batch.round, batch.index, batch.last, batch.token, batch.rows]
+  ));
+}
+
+export function expiryPlanDigest(input: Pick<PreparedRound, "chainId" | "module" | "distributor" | "treasury" | "plan">): string {
+  return utils.keccak256(utils.defaultAbiCoder.encode(
+    ["uint256", "address", "address", "address", "address", "uint256", "tuple(uint256 round,uint256 index,bytes32 parent,bytes32[] batches)"],
+    [input.chainId, input.module.address, input.distributor, input.module.safe, input.treasury, input.module.delay, input.plan]
+  ));
+}
+
+export function prepareExpiryRound(state: Ledger, parent: MerkleData, policy: ExpiryPolicy, round: number, at: number, module: PreparedExpiry["module"], limit = 64, prices?: PreparedRound["prices"]): PreparedRound | null {
+  assertExpiryLedger(state);
+  const distribution = verifyExpiryParent(parent);
+  if (state.root !== parent.merkleRoot) throw new Error("ledger parent mismatch");
+  const effectiveAt = expiryEffectiveAt(policy);
+  if (effectiveAt === null || at < effectiveAt) return null;
+  const run = state.runs[String(round)];
+  if (run?.complete) return null;
+  if (!Number.isSafeInteger(round) || round <= 0 || limit < 1 || limit > 64) throw new Error("batch identity");
+  const treasury = getAddress(policy.treasury);
+  if (treasury === getAddress("0x0000000000000000000000000000000000000000") || treasury === state.distributor) throw new Error("treasury target");
+  if (getAddress(module.address) === getAddress("0x0000000000000000000000000000000000000000") || !Number.isSafeInteger(module.delay) || module.delay <= 0) throw new Error("module deployment");
+  getAddress(module.safe);
+  getAddress(module.preparer);
+  const first = run?.nextBatch ?? 0;
+  const processed = new Set(run?.processed ?? []);
+  const batches: PreparedRound["batches"] = [];
+  const tokens = [...new Set(Object.values(distribution).flatMap(rewards => Object.keys(rewards)))];
+  for (const token of tokens) {
+    const price = prices?.[token];
+    if (prices && !price) continue;
+    const start = batches.length;
+    let total = 0n;
+    let selected: PreparedRound["batches"][number] | undefined;
+    for (const [account, rewards] of Object.entries(distribution)) {
+      const key = expiryKey(account, token);
+      if (account === treasury || rewards[token] === undefined || processed.has(key)) continue;
+      const pair = state.pairs[key];
+      if (!pair || pair.activeAmount !== rewards[token]) throw new Error("ledger entitlement mismatch");
+      const eligible = pair.credits.filter(credit => isEligibleForExpiry(credit, at));
+      const amount = eligible.reduce((sum, credit) => sum + remaining(credit), 0n);
+      if (amount === 0n) continue;
+      total += amount;
+      if (!selected || selected.rows.length === limit) {
+        selected = { round, index: first + batches.length, last: false, token, rows: [], credits: {} };
+        batches.push(selected);
+      }
+      selected.rows.push({ account, amount: rewards[token], expiredThrough: (quantity(pair.paid) + amount).toString() });
+      selected.credits[key] = eligible.map(credit => credit.id);
+    }
+    if (price) {
+      if (!Number.isInteger(price.decimals) || price.decimals < 0 || price.decimals > 255) throw new Error("expiry token decimals");
+      const usd = BigInt(utils.parseUnits(price.usd, 18).toString());
+      if (usd <= 0n || total * usd < 100n * 10n ** BigInt(price.decimals) * 10n ** 18n) {
+        batches.splice(start);
+        continue;
+      }
+    }
+    if (batches.length > start && distribution[treasury]?.[token] === undefined) return null;
+  }
+  if (!batches.length) return null;
+  batches[batches.length - 1].last = true;
+  return { chainId: state.chainId, distributor: state.distributor, treasury, at, policy, state: structuredClone(state), parent: expiryParent(distribution, parent.merkleRoot),
+    module, ...(prices ? { prices } : {}), batches, plan: { round, index: first, parent: parent.merkleRoot, batches: batches.map(expiryCommitment) } };
+}
+
+export function preparePlannedExpiry(state: Ledger, parent: MerkleData, plan: PreparedRound, index: number): PreparedExpiry {
+  assertExpiryLedger(state);
+  const distribution = verifyExpiryParent(parent);
+  const selected = plan.batches[index - plan.plan.index];
+  const run = state.runs[String(plan.plan.round)];
+  if (!selected || selected.index !== index || run?.complete || index !== (run?.nextBatch ?? 0) || state.root !== parent.merkleRoot || state.chainId !== plan.chainId || state.distributor !== plan.distributor || expiryCommitment(selected) !== plan.plan.batches[index - plan.plan.index]) throw new Error("expiry round batch mismatch");
+  for (const row of selected.rows) {
+    if (distribution[row.account]?.[selected.token] !== row.amount || run?.processed.includes(expiryKey(row.account, selected.token))) throw new Error("expiry round entitlement changed");
+  }
+  const { credits, ...committed } = selected;
+  const treasury = getAddress(plan.treasury);
+  const treasuryAmount = distribution[treasury]?.[selected.token];
+  if (treasuryAmount === undefined) throw new Error("expiry treasury missing");
+  const batch = { ...committed, ledger: "", parent: parent.merkleRoot, treasuryAmount, ...expiryFrontier(distribution, selected.token, treasury, selected.rows) };
+  const input: PreparedExpiry = { plan: expiryPlanDigest(plan), chainId: state.chainId, distributor: state.distributor, treasury, at: plan.at, policy: plan.policy, state: structuredClone(state), parent: expiryParent(distribution, parent.merkleRoot), credits, batch, module: plan.module };
+  batch.ledger = utils.sha256(utils.toUtf8Bytes(JSON.stringify(input)));
+  return input;
 }
 
 export function expiryDigest(prepared: PreparedExpiry): string {
@@ -425,7 +533,8 @@ export function recordExpiryDistribution(ledger: Ledger, publication: Publicatio
     const delta = quantity(rewards[key] ?? "0");
     const cumulative = pair.credits.reduce((total, credit) => total + quantity(credit.granted) - quantity(credit.recovered), 0n);
     if (leaf) {
-      if (quantity(leaf.amount) !== cumulative + delta) throw new Error("fresh rewards do not explain cumulative change");
+      const unchangedPaid = delta === 0n && leaf.amount === pair.activeAmount && quantity(pair.activeAmount) <= quantity(pair.paid);
+      if (quantity(leaf.amount) !== cumulative + delta && !unchangedPaid) throw new Error("fresh rewards do not explain cumulative change");
       const eligible = ledger.distributor === EXTRA_REWARDS_DISTRIBUTOR ? quantity(vmRewards[key] ?? "0") : delta;
       if (eligible > delta) throw new Error("VM rewards exceed distribution");
       for (const [amount, protection] of [[eligible, null], [delta - eligible, "non-VM or unknown source"]] as const) {
@@ -440,6 +549,7 @@ export function recordExpiryDistribution(ledger: Ledger, publication: Publicatio
   }
   const updated = syncExpiryClaims(result, claims);
   updated.root = publication.root;
+  updated.lastDistributionAt = publication.timestamp;
   updated.checkpoint = { block: publication.block, blockHash: publication.blockHash, ...(publication.logIndex === undefined ? {} : { logIndex: publication.logIndex }) };
   return updated;
 }

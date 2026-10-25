@@ -10,7 +10,7 @@ import expiryAbi from "../../../abis/RewardsExpiry.json";
 import expiryDeployment from "./fixtures/rewards-expiry.json";
 import { ALL_MIGHT_V2 } from "../../utils/constants";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
-import { applyConfirmedExpiry, bootstrapExpiryLedger, EXPIRY_DISTRIBUTOR, EXTRA_REWARDS_DISTRIBUTOR, expiryDigest, expiryKey, expiryRound, prepareExpiry, Publication, recordExpiryDistribution, sixCalendarMonths, syncExpiryClaims, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
+import { applyConfirmedExpiry, bootstrapExpiryLedger, EXPIRY_DISTRIBUTOR, EXTRA_REWARDS_DISTRIBUTOR, expiryDigest, expiryCommitment, expiryPlanDigest, ExpiryBatch, prepareExpiryRound, preparePlannedExpiry, expiryKey, expiryRound, prepareExpiry, Publication, recordExpiryDistribution, sixCalendarMonths, syncExpiryClaims, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
 import { readVmRewards } from "../../extraRewards/expiry/sources";
 import { readConfirmedExpiry } from "../../vlCVX/expiry/chain";
 import { replayExpiryJournal } from "../../vlCVX/expiry/journal";
@@ -22,13 +22,15 @@ import { resolveBaseline } from "../../verify/invariants/baseline";
 import { loadArchivedPairs, toPairMap } from "../../verify/invariants/artifact";
 import { positiveDeltas } from "../../verify/invariants/exclusivity";
 
+const singlePlan = (batch: ExpiryBatch) => ({ round: batch.round, index: batch.index, parent: batch.parent, batches: [expiryCommitment(batch)] });
+
 describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and Safe", () => {
   it("records live recoveries, preserves recent credits and resumes the next round", async () => {
     const reservation = net.createServer();
     await new Promise<void>(resolve => reservation.listen(0, "127.0.0.1", resolve));
     const port = (reservation.address() as net.AddressInfo).port;
     await new Promise<void>(resolve => reservation.close(() => resolve()));
-    const processHandle: ChildProcess = spawn("anvil", ["--fork-url", process.env.EXPIRY_RPC!, "--fork-block-number", "26190047", "--chain-id", "1", "--port", String(port), "--silent", "--no-mining"], { stdio: "ignore" });
+    const processHandle: ChildProcess = spawn("anvil", ["--fork-url", process.env.EXPIRY_RPC!, "--fork-block-number", "26190047", "--chain-id", "1", "--port", String(port), "--silent", "--no-mining", "--prune-history", "2048"], { stdio: "ignore" });
     const directory = fs.mkdtempSync(path.resolve("script/test/integration/expiry-run-"));
     const stateDir = path.join(directory, "state/1");
     const rootsDir = path.join(directory, "roots/1");
@@ -37,6 +39,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
     let serving: ChildProcess | undefined;
     try {
       const provider = new providers.JsonRpcProvider(`http://127.0.0.1:${port}`);
+      provider.pollingInterval = 50;
       let ready = false;
       for (let attempt = 0; attempt < 300; ++attempt) {
         if (processHandle.exitCode !== null) throw new Error("isolated fork process exited");
@@ -45,8 +48,8 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       expect(ready).toBe(true);
-      const client = createPublicClient({ chain: mainnet, transport: http(`http://127.0.0.1:${port}`) });
-      const urd = new Contract(EXPIRY_DISTRIBUTOR, ["function owner() view returns(address)", "function timelock() view returns(uint256)", "function root() view returns(bytes32)", "function claimed(address,address) view returns(uint256)", "function submitRoot(bytes32,bytes32)", "function acceptRoot()", "function claim(address,address,uint256,bytes32[]) returns(uint256)"], provider);
+      const client = createPublicClient({ chain: mainnet, transport: http(`http://127.0.0.1:${port}`), batch: { multicall: { batchSize: 100000 } } });
+      const urd = new Contract(EXPIRY_DISTRIBUTOR, ["function owner() view returns(address)", "function timelock() view returns(uint256)", "function root() view returns(bytes32)", "function claimed(address,address) view returns(uint256)", "function submitRoot(bytes32,bytes32)", "function acceptRoot()", "function setRoot(bytes32,bytes32)", "function claim(address,address,uint256,bytes32[]) returns(uint256)"], provider);
       const safe = await urd.owner();
       expect(safe.toLowerCase()).toBe("0xb0552b6860ce5c0202976db056b5e3cc4f9cc765");
       expect((await urd.timelock()).toNumber()).toBe(10800);
@@ -80,7 +83,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const guardedPrepare = async (input: ReturnType<typeof prepareExpiry>, ready?: any) => {
         const decisionFile = path.join(directory, "prepare-guard-input.json");
         const resultFile = path.join(directory, "prepare-guard-result.json");
-        fs.writeFileSync(decisionFile, JSON.stringify(ready ?? { phase: "prepare", chainId: 1, target: module.address, calldata: module.interface.encodeFunctionData("prepare", [input!.batch]) }));
+        fs.writeFileSync(decisionFile, JSON.stringify(ready ?? { phase: "prepare", chainId: 1, target: module.address, calldata: module.interface.encodeFunctionData("prepare", [singlePlan(input!.batch)]) }));
         const run = spawnSync(path.resolve("../../../automation-guard/.venv/bin/python"), ["-m", "pytest", "-q", "tests/jobs/vlcvx_expiry/test_expiry_fork.py", "-k", "guarded_activation"], { cwd: path.resolve("../automation-guard"), env: { ...process.env, EXPIRY_JOB_RPC: `http://127.0.0.1:${port}`, EXPIRY_JOB_INPUT: decisionFile, EXPIRY_JOB_RESULT: resultFile }, encoding: "utf8", timeout: 60000 });
         if (run.status !== 0) throw new Error(`${run.error ?? ""}${run.stdout}${run.stderr}`);
         return JSON.parse(fs.readFileSync(resultFile, "utf8"));
@@ -105,6 +108,15 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
         return claims;
       };
       const initialClaims = await readClaims();
+      const paidBaseline = bootstrapExpiryLedger(1, [publications[0], { ...preceding, merkle: null }, known], initialClaims, { block: 26190047, blockHash: (await provider.getBlock(26190047)).hash });
+      const paidLeaf = Object.values(paidBaseline.pairs).find(pair => BigInt(pair.activeAmount) < BigInt(pair.paid) && BigInt(pair.activeAmount) > 0n)!;
+      expect(paidLeaf).toBeDefined();
+      const unchanged = await mine(urd.connect(safeSigner).setRoot(original.merkleRoot, utils.hexZeroPad("0x00", 32)));
+      const unchangedBlock = await provider.getBlock(unchanged.receipt.blockNumber);
+      const unchangedPublication = { root: original.merkleRoot, block: unchangedBlock.number, blockHash: unchangedBlock.hash, timestamp: unchangedBlock.timestamp, merkle: original };
+      const paidReplay = recordExpiryDistribution(paidBaseline, unchangedPublication, {}, await readClaims());
+      expect(paidReplay.pairs[expiryKey(paidLeaf.account, paidLeaf.token)]).toEqual(paidLeaf);
+      expect(() => recordExpiryDistribution(paidBaseline, unchangedPublication, { [expiryKey(paidLeaf.account, paidLeaf.token)]: "1" }, initialClaims)).toThrow("fresh rewards do not explain cumulative change");
       for (const [account, tokens] of Object.entries(distribution)) {
         for (const reward of Object.keys(tokens)) {
           const paid = BigInt(initialClaims[expiryKey(account, reward)]);
@@ -179,6 +191,8 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const codeHash = utils.keccak256(await provider.getCode(module.address));
       vi.doMock("../../vlCVX/expiry/deployment.json", () => ({ default: { "1": { ...domain, codeHash } } }));
       vi.doMock("../../utils/getClients", () => ({ getClient: async () => client }));
+      const prices = vi.fn(async () => ({} as Record<string, number>));
+      vi.doMock("../../utils/priceUtils", () => ({ getTokenPrices: prices, LLAMA_NETWORK_MAPPING: { 1: "ethereum" } }));
       const { main: runExpiry } = await import("../../vlCVX/expiry/run");
       let published = false;
       const runtime = async (phase: string) => {
@@ -204,10 +218,26 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
         }
       };
       const { round } = await readExpiryRound(client);
+      expect(round).toBe(202704);
       expect(prepareExpiry(ledger, second.merkle!, policy, token, round, 0, expires - 1, domain)).toBeNull();
       expect(new Date(sixCalendarMonths(Date.UTC(2027, 7, 31, 12) / 1000) * 1000).toISOString()).toBe("2028-02-29T12:00:00.000Z");
+      const rootBeforeSkip = await urd.root();
+      expect(await runtime("plan")).toMatchObject({ status: "skipped" });
+      prices.mockResolvedValue({ [`ethereum:${token.toLowerCase()}`]: 49.999999 });
+      expect(await runtime("plan")).toMatchObject({ status: "skipped" });
+      expect(await urd.root()).toBe(rootBeforeSkip);
+      expect(fs.readdirSync(path.join(stateDir, "plans"))).toHaveLength(0);
+      const skippedSnapshot = await provider.send("evm_snapshot", []);
+      const skippedClaim = await servedClaim(protectedUser);
+      await mine(urd.connect(signer).claim(protectedUser, token, skippedClaim.amount, skippedClaim.proof));
+      expect((await urd.claimed(protectedUser, token)).toString()).toBe("1400000");
+      expect(await provider.send("evm_revert", [skippedSnapshot])).toBe(true);
+      prices.mockResolvedValue({ [`ethereum:${token.toLowerCase()}`]: 50 });
       const planned = await runtime("plan");
-      const prepared = JSON.parse(fs.readFileSync(path.join(directory, planned.input), "utf8"));
+      const pricedPlan = JSON.parse(fs.readFileSync(path.join(directory, planned.roundInput), "utf8"));
+      expect(pricedPlan.prices[token]).toEqual({ usd: "50.000000000000000000", decimals: 6 });
+      prices.mockRejectedValue(new Error("must reuse committed prices"));
+      let prepared = JSON.parse(fs.readFileSync(path.join(directory, planned.input), "utf8"));
       await expect(runtime("prepare")).rejects.toThrow("durably published");
       published = true;
       const preparation = await runtime("prepare");
@@ -217,21 +247,28 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       writeExpiryInput(path.join(directory, "prepared.json"), prepared);
       const preparedDir = path.join(stateDir, "prepared");
       fs.mkdirSync(preparedDir, { recursive: true });
-      const preparedFile = path.join(preparedDir, `${expiryDigest(prepared)}.json`);
+      let preparedFile = path.join(preparedDir, `${expiryDigest(prepared)}.json`);
       writeExpiryInput(preparedFile, prepared);
       const snapshot = await provider.send("evm_snapshot", []);
       await guardedPrepare(prepared, preparation);
       const proposedAt = await module.proposedAt();
-      expect(await runtime("prepare")).toMatchObject({ status: "waiting", reason: "already prepared", digest: expiryDigest(prepared) });
+      expect(await runtime("prepare")).toMatchObject({ status: "waiting", reason: "already prepared", planDigest: preparation.planDigest });
       expect((await module.proposedAt()).eq(proposedAt)).toBe(true);
       expect(await runtime("activate")).toMatchObject({ status: "waiting", phase: "activate" });
       const competingClaim = second.merkle!.claims[competing].tokens[token];
       await mine(urd.connect(signer).claim(competing, token, competingClaim.amount, competingClaim.proof));
       const balance = await usdc.balanceOf(EXPIRY_DISTRIBUTOR);
-      await provider.send("evm_increaseTime", [10800]);
+      await provider.send("evm_setNextBlockTimestamp", [Date.UTC(2027, 4, 1, 12) / 1000]);
       await provider.send("evm_mine", []);
+      await provider.send("anvil_mine", ["0x40"]);
+      expect((await readExpiryRound(client)).round).toBe(202705);
+      expect(await runtime("prepare")).toMatchObject({ status: "waiting", reason: "already prepared", round });
+      expect((await module.proposedAt()).eq(proposedAt)).toBe(true);
       const activationReady = await runtime("activate");
-      expect(activationReady).toMatchObject({ status: "ready", phase: "activate", digest: expiryDigest(prepared) });
+      expect(activationReady).toMatchObject({ status: "ready", phase: "activate", planDigest: preparation.planDigest });
+      prepared = JSON.parse(fs.readFileSync(path.join(directory, activationReady.input), "utf8"));
+      preparedFile = path.join(preparedDir, `${expiryDigest(prepared)}.json`);
+      fs.writeFileSync(path.join(directory, "prepared.json"), JSON.stringify(prepared));
       const decisionFile = path.join(directory, "guard-input.json");
       const guardResultFile = path.join(directory, "guard-result.json");
       fs.writeFileSync(decisionFile, JSON.stringify(activationReady));
@@ -250,7 +287,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       await expect(replayExpiryJournal(client, stateDir, domain)).rejects.toThrow();
       fs.renameSync(`${preparedFile}.missing`, preparedFile);
       fs.unlinkSync(path.join(stateDir, "current.json"));
-      await runtime("prepare");
+      expect(await runtime("prepare")).toMatchObject({ status: "waiting", round: 202705, reason: "no finalized ordinary distribution this month" });
       const pointer = JSON.parse(fs.readFileSync(path.join(stateDir, "current.json"), "utf8"));
       const replayed = JSON.parse(fs.readFileSync(path.join(stateDir, "states", `${pointer.state}.json`), "utf8"));
       expect(replayed.root).toBe(applied.merkle.merkleRoot);
@@ -275,10 +312,11 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       await guardedPrepare(prepared);
       await mine(urd.connect(signer).claim(competing, token, competingClaim.amount, competingClaim.proof));
       await provider.send("evm_increaseTime", [10800]);
-      const { transaction: retried } = await mine(module.connect(signer).activate(prepared.batch, { gasLimit: 12000000 }));
+      const { transaction: retried } = await mine(module.connect(safeSigner).activate(prepared.batch, { gasLimit: 12000000 }));
       await provider.send("anvil_mine", ["0x40"]);
       const confirmedRetry = await readConfirmedExpiry(client, prepared, retried.hash);
       const restored = applyConfirmedExpiry(ledger, prepared, confirmedRetry!);
+      expect(await runtime("prepare")).toMatchObject({ status: "complete", round });
       const retriedState = await replayExpiryJournal(client, stateDir, domain);
       expect(retriedState.root).toBe(restored.merkle.merkleRoot);
       expect(retriedState.recoveries).toHaveLength(1);
@@ -336,7 +374,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       expect(positiveDeltas(toPairMap(next.merkle!), carriedDelta.pairs).size).toBe(0);
       fs.writeFileSync(parentFile, JSON.stringify(next.merkle));
       ledger = recordExpiryDistribution(ledger, next, { [expiryKey(protectedUser, token)]: "100000" }, await readClaims());
-      expect(prepareExpiry(ledger, next.merkle!, policy, token, round + 2, 0, next.timestamp, domain)).toBeNull();
+      expect(prepareExpiry(ledger, next.merkle!, policy, token, round + 1, 0, next.timestamp, domain)).toBeNull();
       const claim = await servedClaim(protectedUser);
       expect(claim.amount).toBe("500000");
       await mine(urd.connect(signer).claim(protectedUser, token, claim.amount, claim.proof));
@@ -349,10 +387,10 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       await provider.send("anvil_mine", ["0x40"]);
       expect((await replayExpiryJournal(client, stateDir, domain)).root).toBe(next.root);
       const idleCheckpoint = await client.getBlock({ blockTag: "finalized" });
-      const idleEntry = { kind: "idle", id: utils.id(`1:${round + 2}:${next.root}:${idleCheckpoint.hash}`), round: round + 2, root: next.root, checkpoint: { block: Number(idleCheckpoint.number), blockHash: idleCheckpoint.hash }, claims: Object.fromEntries(Object.entries(ledger.pairs).map(([key, pair]) => [key, pair.paid])) };
+      const idleEntry = { kind: "idle", id: utils.id(`1:${round + 1}:${next.root}:${idleCheckpoint.hash}`), round: round + 1, root: next.root, checkpoint: { block: Number(idleCheckpoint.number), blockHash: idleCheckpoint.hash }, claims: Object.fromEntries(Object.entries(ledger.pairs).map(([key, pair]) => [key, pair.paid])) };
       writeExpiryInput(path.join(stateDir, "journal", `${utils.sha256(utils.toUtf8Bytes(JSON.stringify(idleEntry)))}.json`), idleEntry);
       const idleLedger = await replayExpiryJournal(client, stateDir, domain);
-      expect(idleLedger.runs[String(round + 2)].complete).toBe(true);
+      expect(idleLedger.runs[String(round + 1)].complete).toBe(true);
       expect((await replayExpiryJournal(client, stateDir, domain)).pairs[expiryKey(protectedUser, token)].paid).toBe("500000");
       ledger = idleLedger;
       distribution[competing][token] = "1700000";
@@ -367,32 +405,83 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       ledger = recordExpiryDistribution(ledger, partialParent, { [expiryKey(competing, token)]: "100000", [expiryKey(protectedUser, token)]: "100000" }, await readClaims());
       await provider.send("anvil_mine", ["0x40"]);
       const partialRound = (await readExpiryRound(client)).round;
-      const part1 = prepareExpiry(ledger, partialParent.merkle!, policy, token, partialRound, 0, partialParent.timestamp, domain, 1)!;
+      const thresholdPrices = { [token]: { usd: "200", decimals: 6 } };
+      const roundPlan = prepareExpiryRound(ledger, partialParent.merkle!, policy, partialRound, partialParent.timestamp, domain, 1, thresholdPrices)!;
+      expect(roundPlan.batches).toHaveLength(2);
+      const part1 = preparePlannedExpiry(ledger, partialParent.merkle!, roundPlan, 0);
       expect(part1.batch.last).toBe(false);
-      await guardedPrepare(part1);
+      await guardedPrepare(part1, { phase: "prepare", chainId: 1, target: module.address, calldata: module.interface.encodeFunctionData("prepare", [roundPlan.plan]) });
+      const roundPreparedAt = await module.proposedAt();
+      await expect(module.connect(safeSigner).callStatic.activate(part1.batch)).rejects.toThrow();
       await provider.send("evm_increaseTime", [10800]);
-      const firstPart = await mine(module.connect(signer).activate(part1.batch, { gasLimit: 12000000 }));
+      const firstPart = await mine(module.connect(safeSigner).activate(part1.batch, { gasLimit: 12000000 }));
       await provider.send("anvil_mine", ["0x40"]);
       const firstActual = await readConfirmedExpiry(client, part1, firstPart.transaction.hash);
       const firstState = applyConfirmedExpiry(ledger, part1, firstActual!);
       ledger = firstState.ledger;
-      await provider.send("evm_increaseTime", [14 * 86400]);
-      await provider.send("anvil_mine", ["0x41"]);
-      const pollRound = (await readExpiryRound(client)).round;
-      expect(pollRound).toBe(partialRound + 2);
-      expect(expiryRound(ledger, pollRound)).toBe(partialRound);
-      const part2 = prepareExpiry(ledger, firstState.merkle, policy, token, expiryRound(ledger, pollRound), 1, Number((await client.getBlock({ blockTag: "finalized" })).timestamp), domain, 1)!;
-      expect(part2.batch.last).toBe(true);
-      await guardedPrepare(part2);
-      await provider.send("evm_increaseTime", [10800]);
-      const secondPart = await mine(module.connect(signer).activate(part2.batch, { gasLimit: 12000000 }));
+      expect((await module.proposedAt()).eq(roundPreparedAt)).toBe(true);
+      await expect(module.connect(safeSigner).callStatic.activate(part1.batch)).rejects.toThrow();
+      const remainingUser = roundPlan.batches[1].rows[0].account;
+      const belowMinimumSnapshot = await provider.send("evm_snapshot", []);
+      const bootstrapFiles = [path.join(stateDir, "bootstrap.json"), path.join(runtimeBootstrap, "ledger.json")];
+      const originalBootstraps = bootstrapFiles.map(file => fs.readFileSync(file));
+      const updatedUser = roundPlan.batches[0].rows[0].account;
+      Object.assign(distribution, verifyExpiryParent(firstState.merkle));
+      distribution[updatedUser][token] = (BigInt(distribution[updatedUser][token]) + 1n).toString();
+      await mine(usdc.connect(signer).mint(EXPIRY_DISTRIBUTOR, 1));
+      const replaced = await ordinary((await provider.getBlock("latest")).timestamp + 10801);
+      writeExpiryInput(path.join(rootsDir, `${replaced.root.toLowerCase()}.json`), replaced.merkle);
+      writeExpiryInput(path.join(rootsDir, `${replaced.root.toLowerCase()}.rewards.json`), { chainId: 1, distributor: EXPIRY_DISTRIBUTOR, parent: firstState.merkle.merkleRoot, root: replaced.root, rewards: { [expiryKey(updatedUser, token)]: "1" } });
+      for (const file of bootstrapFiles) fs.writeFileSync(file, JSON.stringify(firstState.ledger));
+      writeExpiryInput(path.join(stateDir, "plans", `${expiryPlanDigest(roundPlan)}.json`), roundPlan);
+      await provider.send("anvil_mine", ["0x40"]);
+      prices.mockResolvedValue({ [`ethereum:${token.toLowerCase()}`]: 200 });
+      const skippedRemainder = await runtime("plan");
+      expect(skippedRemainder).toMatchObject({ status: "complete", round: partialRound });
+      const skippedLedger = await replayExpiryJournal(client, stateDir, domain);
+      expect(skippedLedger.runs[String(partialRound)].complete).toBe(true);
+      expect(skippedLedger.pairs[expiryKey(remainingUser, token)].credits).toEqual(firstState.ledger.pairs[expiryKey(remainingUser, token)].credits);
+      prices.mockResolvedValue({ [`ethereum:${token.toLowerCase()}`]: 400 });
+      expect(await runtime("plan")).toMatchObject({ status: "complete", round: partialRound });
+      await provider.send("evm_setNextBlockTimestamp", [Date.UTC(2028, 0, 2, 12) / 1000]);
+      await provider.send("evm_mine", []);
+      await provider.send("anvil_mine", ["0x40"]);
+      expect(await runtime("plan")).toMatchObject({ status: "waiting", round: 202801, reason: "no finalized ordinary distribution this month" });
+      distribution[updatedUser][token] = (BigInt(distribution[updatedUser][token]) + 1n).toString();
+      await mine(usdc.connect(signer).mint(EXPIRY_DISTRIBUTOR, 1));
+      const followingMonth = await ordinary((await provider.getBlock("latest")).timestamp + 10801);
+      writeExpiryInput(path.join(rootsDir, `${followingMonth.root.toLowerCase()}.json`), followingMonth.merkle);
+      writeExpiryInput(path.join(rootsDir, `${followingMonth.root.toLowerCase()}.rewards.json`), { chainId: 1, distributor: EXPIRY_DISTRIBUTOR, parent: replaced.root, root: followingMonth.root, rewards: { [expiryKey(updatedUser, token)]: "1" } });
+      expect(await runtime("plan")).toMatchObject({ status: "waiting", reason: "active root is not finalized" });
+      await provider.send("anvil_mine", ["0x40"]);
+      const laterPlan = await runtime("plan");
+      expect(laterPlan.status).toBe("prepared");
+      expect(laterPlan.round).toBeGreaterThan(partialRound);
+      const nextPlan = JSON.parse(fs.readFileSync(path.join(directory, laterPlan.roundInput), "utf8"));
+      await module.connect(safeSigner).callStatic.prepare(nextPlan.plan);
+      const skippedRemainderClaim = followingMonth.merkle!.claims[remainingUser].tokens[token];
+      await mine(urd.connect(signer).claim(remainingUser, token, skippedRemainderClaim.amount, skippedRemainderClaim.proof));
+      expect(await provider.send("evm_revert", [belowMinimumSnapshot])).toBe(true);
+      bootstrapFiles.forEach((file, i) => fs.writeFileSync(file, originalBootstraps[i]));
+      Object.assign(distribution, verifyExpiryParent(firstState.merkle));
+      prices.mockRejectedValue(new Error("must reuse committed prices"));
+      const between = firstState.merkle.claims[remainingUser].tokens[token];
+      await mine(urd.connect(signer).claim(remainingUser, token, between.amount, between.proof));
+      const part2 = preparePlannedExpiry(ledger, firstState.merkle, roundPlan, 1);
+      const changed = structuredClone(part2.batch);
+      changed.rows[0].expiredThrough = (BigInt(changed.rows[0].expiredThrough) + 1n).toString();
+      await expect(module.connect(safeSigner).callStatic.activate(changed)).rejects.toThrow();
+      const beforeSecond = (await provider.getBlock("latest")).timestamp;
+      const secondPart = await mine(module.connect(safeSigner).activate(part2.batch, { gasLimit: 12000000 }));
+      expect((await provider.getBlock("latest")).timestamp - beforeSecond).toBeLessThan(10800);
       await provider.send("anvil_mine", ["0x40"]);
       const secondActual = await readConfirmedExpiry(client, part2, secondPart.transaction.hash);
       const secondState = applyConfirmedExpiry(ledger, part2, secondActual!);
-      expect(BigInt(firstActual!.recovered) + BigInt(secondActual!.recovered)).toBe(600000n);
+      expect(BigInt(firstActual!.recovered) + BigInt(secondActual!.recovered)).toBe(300000n);
+      expect(secondActual!.recovered).toBe("0");
       expect(secondState.ledger.runs[String(partialRound)].complete).toBe(true);
-      expect(expiryRound(secondState.ledger, pollRound)).toBe(pollRound);
-      for (const [account, amount] of [[competing, "100000"], [protectedUser, "100000"], [treasury, "600000"]]) {
+      expect(expiryRound(secondState.ledger, 202801)).toBe(202801);
+      for (const [account, amount] of [[roundPlan.batches[0].rows[0].account, "100000"], [treasury, "300000"]]) {
         const leaf = secondState.merkle.claims[account].tokens[token];
         const before = await urd.claimed(account, token);
         const claimed = await mine(urd.connect(signer).claim(account, token, leaf.amount, leaf.proof));
@@ -424,6 +513,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const unionCredits = unionLedger.pairs[expiryKey(unionUser, token)].credits;
       expect(unionCredits[0].paid).toBe("50000");
       expect(unionCredits[2]).toMatchObject({ granted: "100000", paid: "0", activatedAt: unionAssigned.timestamp, ageBoundAt: unionSource.timestamp, protection: null });
+      await provider.send("anvil_mine", ["0x40"]);
       const unionRound = (await readExpiryRound(client)).round;
       const unionPrepared = prepareExpiry(unionLedger, unionAssigned.merkle!, policy, token, unionRound, 0, unionAssigned.timestamp, domain)!;
       expect(unionPrepared.batch.rows).toEqual([{ account: unionUser, amount: "200000", expiredThrough: "150000" }]);
@@ -432,7 +522,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const fullUnionClaim = unionAssigned.merkle!.claims[unionUser].tokens[token];
       await mine(urd.connect(signer).claim(unionUser, token, fullUnionClaim.amount, fullUnionClaim.proof));
       await provider.send("evm_increaseTime", [10800]);
-      const racedUnion = await mine(module.connect(signer).activate(unionPrepared.batch, { gasLimit: 12000000 }));
+      const racedUnion = await mine(module.connect(safeSigner).activate(unionPrepared.batch, { gasLimit: 12000000 }));
       await provider.send("anvil_mine", ["0x40"]);
       const racedActual = await readConfirmedExpiry(client, unionPrepared, racedUnion.transaction.hash);
       expect(racedActual!.recovered).toBe("0");
@@ -441,7 +531,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       expect(await urd.root()).toBe(unionAssigned.root);
       expect(await provider.send("evm_revert", [unionSnapshot])).toBe(true);
       await provider.send("evm_increaseTime", [10800]);
-      const recoveredUnion = await mine(module.connect(signer).activate(unionPrepared.batch, { gasLimit: 12000000 }));
+      const recoveredUnion = await mine(module.connect(safeSigner).activate(unionPrepared.batch, { gasLimit: 12000000 }));
       await provider.send("anvil_mine", ["0x40"]);
       const unionActual = await readConfirmedExpiry(client, unionPrepared, recoveredUnion.transaction.hash);
       expect(unionActual!.recovered).toBe("100000");
@@ -459,7 +549,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       processHandle.kill("SIGTERM");
       fs.rmSync(directory, { recursive: true });
     }
-  }, 900000);
+  }, 1800000);
   it("expires only VM allocations in the mixed-source extra rewards distributor", async () => {
     const reservation = net.createServer();
     await new Promise<void>(resolve => reservation.listen(0, "127.0.0.1", resolve));
@@ -472,12 +562,13 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
     let server: ChildProcess | undefined;
     try {
       const provider = new providers.JsonRpcProvider(`http://127.0.0.1:${port}`);
+      provider.pollingInterval = 50;
       for (let attempt = 0; attempt < 300; ++attempt) {
         try { if (await provider.getBlockNumber() === 26190047) break; } catch {}
         if (fork.exitCode !== null) throw new Error("extra rewards fork exited");
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      const client = createPublicClient({ chain: mainnet, transport: http(`http://127.0.0.1:${port}`) });
+      const client = createPublicClient({ chain: mainnet, transport: http(`http://127.0.0.1:${port}`), batch: { multicall: { batchSize: 100000 } } });
       const urd = new Contract(EXTRA_REWARDS_DISTRIBUTOR, ["function owner() view returns(address)", "function timelock() view returns(uint256)", "function root() view returns(bytes32)", "function claimed(address,address) view returns(uint256)", "function setRoot(bytes32,bytes32)", "function claim(address,address,uint256,bytes32[]) returns(uint256)"], provider);
       const safe = await urd.owner();
       expect((await urd.timelock()).toNumber()).toBe(0);
@@ -559,8 +650,19 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       vi.doMock("../../extraRewards/expiry/policy.json", () => ({ default: { "1": policy } }));
       const codeHash = utils.keccak256(await provider.getCode(module.address));
       vi.doMock("../../extraRewards/expiry/deployment.json", () => ({ default: { "1": { ...domain, codeHash } } }));
+      const prices = vi.fn(async () => ({ [`ethereum:${token.toLowerCase()}`]: 5e16 }));
+      vi.doMock("../../utils/priceUtils", () => ({ getTokenPrices: prices, LLAMA_NETWORK_MAPPING: { 1: "ethereum" } }));
       const { main: runExtraExpiry } = await import("../../vlCVX/expiry/run");
       process.chdir(directory);
+      await runExtraExpiry("plan", "1", "extra");
+      expect(JSON.parse(fs.readFileSync("expiry-job.json", "utf8")).status).toBe("skipped");
+      expect(await urd.root()).toBe(fresh.root);
+      const skippedSnapshot = await provider.send("evm_snapshot", []);
+      const skippedLeaf = fresh.merkle.claims[user].tokens[token];
+      await (await urd.connect(signer).claim(user, token, skippedLeaf.amount, skippedLeaf.proof)).wait();
+      expect((await urd.claimed(user, token)).toString()).toBe("2500");
+      expect(await provider.send("evm_revert", [skippedSnapshot])).toBe(true);
+      prices.mockResolvedValue({ [`ethereum:${token.toLowerCase()}`]: 1e17 });
       await runExtraExpiry("plan", "1", "extra");
       const decision = JSON.parse(fs.readFileSync("expiry-job.json", "utf8"));
       expect(decision.status).toBe("prepared");
@@ -570,8 +672,18 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       process.chdir(originalDirectory);
       expect(input.batch.rows.map(row => row.account)).not.toContain(gaugeOnly);
       expect(input.batch.rows.find(row => row.account === user)?.expiredThrough).toBe("1000");
-      await (await module.connect(safeSigner).prepare(input.batch)).wait();
-      await expect(module.callStatic.activate(input.batch)).rejects.toThrow();
+      await (await module.connect(safeSigner).prepare(singlePlan(input.batch))).wait();
+      await expect(module.connect(safeSigner).callStatic.activate(input.batch)).rejects.toThrow();
+      const proposedAt = await module.proposedAt();
+      const month = new Date(fresh.timestamp * 1000);
+      await provider.send("evm_setNextBlockTimestamp", [Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1, 12) / 1000]);
+      await provider.send("evm_mine", []);
+      await provider.send("anvil_mine", ["0x40"]);
+      process.chdir(directory);
+      await runExtraExpiry("plan", "1", "extra");
+      expect(JSON.parse(fs.readFileSync("expiry-job.json", "utf8"))).toMatchObject({ status: "prepared", round: decision.round, planDigest: decision.planDigest });
+      expect((await module.proposedAt()).eq(proposedAt)).toBe(true);
+      process.chdir(originalDirectory);
       const competingLeaf = fresh.merkle.claims[competing].tokens[token];
       await (await urd.connect(signer).claim(competing, token, competingLeaf.amount, competingLeaf.proof)).wait();
       await provider.send("evm_increaseTime", [10800]);
@@ -615,11 +727,15 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       expect((await urd.claimed(gaugeOnly, token)).toString()).toBe("1100");
       process.chdir(originalDirectory);
       await provider.send("evm_revert", [snapshot]);
-      const receipt = await (await module.activate(input.batch)).wait();
+      const receipt = await (await module.connect(safeSigner).activate(input.batch)).wait();
       await provider.send("anvil_mine", ["0x40"]);
       const confirmed = await readConfirmedExpiry(client, input, receipt.transactionHash);
       expect(confirmed?.recovered).toBe("400");
       const applied = applyConfirmedExpiry(ledger, input, confirmed!);
+      process.chdir(directory);
+      await runExtraExpiry("plan", "1", "extra");
+      expect(JSON.parse(fs.readFileSync("expiry-job.json", "utf8"))).toMatchObject({ status: "waiting", reason: "no finalized ordinary distribution this month" });
+      process.chdir(originalDirectory);
       expect(applied.merkle.claims[user].tokens[token].amount).toBe("2100");
       expect(applied.merkle.claims[gaugeOnly].tokens[token].amount).toBe("1000");
       expect(applied.ledger.pairs[key].credits.filter(credit => credit.protection !== null).reduce((sum, credit) => sum + BigInt(credit.granted) - BigInt(credit.paid), 0n)).toBe(1000n);

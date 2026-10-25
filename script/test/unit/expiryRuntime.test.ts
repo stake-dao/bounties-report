@@ -4,16 +4,17 @@ import path from "path";
 import { utils } from "ethers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
-import { bootstrapExpiryLedger, expiryDigest, expiryKey, prepareExpiry, recordExpiryDistribution } from "../../shared/merkle/expiry";
+import { bootstrapExpiryLedger, expiryDigest, expiryKey, prepareExpiryRound, preparePlannedExpiry, expiryPlanDigest, recordExpiryDistribution } from "../../shared/merkle/expiry";
 import { ALL_MIGHT_V2 } from "../../utils/constants";
 
-const fixture = vi.hoisted(() => ({ deployment: {} as any, policy: {} as any, ledger: null as any, history: {} as Record<string, any>, round: 242, merkle: null as any, claims: {} as Record<string, string>, historicalClaims: {} as Record<string, string>, client: { getBytecode: vi.fn(), getBlock: vi.fn(), getChainId: vi.fn(), readContract: vi.fn() } }));
+const fixture = vi.hoisted(() => ({ deployment: {} as any, policy: {} as any, ledger: null as any, history: {} as Record<string, any>, round: 202610, merkle: null as any, claims: {} as Record<string, string>, historicalClaims: {} as Record<string, string>, client: { getBytecode: vi.fn(), getBlock: vi.fn(), getChainId: vi.fn(), readContract: vi.fn() } }));
 vi.mock("../../vlCVX/expiry/deployment.json", () => ({ default: { "1": fixture.deployment } }));
 vi.mock("../../vlCVX/expiry/policy.json", () => ({ default: { "1": fixture.policy } }));
+vi.mock("../../utils/priceUtils", () => ({ getTokenPrices: async () => ({ "ethereum:0x0000000000000000000000000000000000000002": 1 }), LLAMA_NETWORK_MAPPING: { 1: "ethereum" } }));
 vi.mock("../../utils/getClients", () => ({ getClient: async () => fixture.client }));
 vi.mock("../../vlCVX/expiry/journal", () => ({ replayExpiryJournal: async (_client: any, _directory: string, _module: any, until: any) => structuredClone(until ? fixture.history[String(until.block)] : fixture.ledger), readLedgerClaims: async (_client: any, _ledger: any, block: bigint) => block === 100n ? fixture.historicalClaims : fixture.claims }));
 vi.mock("../../vlCVX/expiry/active", () => ({ readActiveVotersMerkle: async () => fixture.merkle }));
-vi.mock("../../vlCVX/expiry/round", () => ({ readExpiryRound: async () => ({ round: fixture.round }) }));
+vi.mock("../../vlCVX/expiry/round", () => ({ readExpiryRound: async () => ({ round: fixture.round, startsAt: Date.UTC(Math.floor(fixture.round / 100), fixture.round % 100 - 1, 1) / 1000 }) }));
 import { main } from "../../vlCVX/expiry/run";
 
 const USER = "0x0000000000000000000000000000000000000001";
@@ -38,15 +39,16 @@ beforeEach(() => {
   fixture.claims = { [expiryKey(USER, TOKEN)]: "0", [expiryKey(TREASURY, TOKEN)]: "0" };
   fixture.historicalClaims = { ...fixture.claims };
   fixture.ledger = bootstrapExpiryLedger(1, [{ root: ZERO, block: 0, blockHash: HASH, timestamp: 0, merkle: null }, { root: fixture.merkle.merkleRoot, block: 1, blockHash: HASH, timestamp: AT - 365 * 86400, merkle: fixture.merkle }], fixture.claims, { block: 100, blockHash: HASH });
+  fixture.ledger.lastDistributionAt = AT;
   fixture.history = { "100": structuredClone(fixture.ledger) };
-  fixture.round = 242;
+  fixture.round = 202610;
   Object.assign(fixture.deployment, { address: MODULE, safe: SAFE, preparer: ALL_MIGHT_V2, delay: 10800, codeHash: utils.keccak256("0x6000") });
   Object.assign(fixture.policy, { treasury: TREASURY, approval: { reference: "fixture", passedAt: 0 }, notices: [{ url: "https://gov.stakedao.org/t/fixture", announcedAt: 0 }, { url: "https://stakedao.org/fixture", announcedAt: 0 }] });
   for (const folder of ["bounties-reports/expiry/state/1", "bounties-reports/expiry/bootstrap/1"]) {
     fs.mkdirSync(folder, { recursive: true });
     fs.writeFileSync(`${folder}/${folder.includes("state") ? "bootstrap" : "ledger"}.json`, JSON.stringify(fixture.ledger));
   }
-  values = { root: fixture.ledger.root, owner: SAFE, timelock: 10800n, pendingRoot: [ZERO, ZERO, 0n], proposal: ZERO, proposedAt: 0n, PREPARER: ALL_MIGHT_V2, SAFE, TREASURY, DELAY: 10800n, DISTRIBUTOR: fixture.ledger.distributor };
+  values = { decimals: 0, round: 0n, nextBatch: 0n, complete: false, expectedRoot: fixture.ledger.root, root: fixture.ledger.root, owner: SAFE, timelock: 10800n, pendingRoot: [ZERO, ZERO, 0n], proposal: ZERO, proposedAt: 0n, PREPARER: ALL_MIGHT_V2, SAFE, TREASURY, DELAY: 10800n, DISTRIBUTOR: fixture.ledger.distributor };
   fixture.client.getChainId.mockResolvedValue(1);
   fixture.client.getBytecode.mockResolvedValue("0x6000");
   fixture.client.getBlock.mockImplementation(async () => ({ number: 100n, hash: HASH, timestamp: BigInt(AT) }));
@@ -69,8 +71,8 @@ describe("automated expiry prepare", () => {
     expect(fetch).not.toHaveBeenCalled();
     await main("prepare", "1");
     expect(decision()).toMatchObject({ phase: "prepare", status: "ready", target: MODULE });
-    expect(decision().calldata.slice(0, 10)).toBe(utils.id("prepare((uint256,uint256,bool,bytes32,bytes32,address,uint256,(address,uint256,uint256)[],bytes,bytes32[]))").slice(0, 10));
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(decision().calldata.slice(0, 10)).toBe(utils.id("prepare((uint256,uint256,bytes32,bytes32[]))").slice(0, 10));
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it("requires exact durable inputs in execute mode and when mode is unset", async () => {
@@ -91,13 +93,12 @@ describe("automated expiry prepare", () => {
 
   it("never resets an existing proposal or replaces a conflicting proposal", async () => {
     await main("plan", "1");
-    values.proposal = decision().digest;
+    values.proposal = decision().planDigest;
     values.proposedAt = BigInt(AT - 100);
     await main("prepare", "1");
     expect(decision()).toMatchObject({ status: "waiting", reason: "already prepared" });
     values.proposal = HASH;
-    await main("prepare", "1");
-    expect(decision()).toMatchObject({ status: "waiting", reason: "another expiry proposal is pending" });
+    await expect(main("prepare", "1")).rejects.toThrow("immutable expiry round missing");
     expect(values.proposedAt).toBe(BigInt(AT - 100));
   });
 
@@ -105,13 +106,14 @@ describe("automated expiry prepare", () => {
     values.pendingRoot[2] = 1n;
     await main("prepare", "1");
     expect(decision()).toMatchObject({ status: "waiting", reason: "distributor root is pending" });
+    values.pendingRoot[2] = 0n;
     values.owner = USER;
     await expect(main("prepare", "1")).rejects.toThrow("owner changed");
   });
 
   it("retains the longer distributor timelock before activation", async () => {
     await main("plan", "1");
-    values.proposal = decision().digest;
+    values.proposal = decision().planDigest;
     values.proposedAt = BigInt(AT - 10800);
     values.timelock = 21600n;
     await main("activate", "1");
@@ -124,7 +126,7 @@ describe("automated expiry prepare", () => {
   it("preserves the pending digest after a full competing claim", async () => {
     await main("plan", "1");
     const digest = decision().digest;
-    values.proposal = digest;
+    values.proposal = decision().planDigest;
     values.proposedAt = BigInt(AT);
     fixture.claims[expiryKey(USER, TOKEN)] = "100";
     fixture.client.getBlock.mockImplementation(async ({ blockNumber }: any = {}) => ({ number: blockNumber ?? 101n, hash: HASH, timestamp: BigInt(blockNumber === 100n ? AT : AT + 100) }));
@@ -133,35 +135,35 @@ describe("automated expiry prepare", () => {
     expect(values.proposedAt).toBe(BigInt(AT));
   });
 
-  it("keeps a prepared first batch and its round across epoch rollover", async () => {
+  it("keeps a prepared first batch and its round across month rollover", async () => {
     await main("plan", "1");
     const digest = decision().digest;
-    values.proposal = digest;
+    values.proposal = decision().planDigest;
     values.proposedAt = BigInt(AT);
-    fixture.round = 244;
+    fixture.round = 202611;
     await main("prepare", "1");
-    expect(decision()).toMatchObject({ status: "waiting", reason: "already prepared", round: 242, digest });
+    expect(decision()).toMatchObject({ status: "waiting", reason: "already prepared", round: 202610, digest });
   });
 
   it("selects the onchain proposal when another valid candidate sorts first", async () => {
     await main("plan", "1");
-    const first = decision().digest;
+    const first = decision().planDigest;
     const state = structuredClone(fixture.ledger);
     state.checkpoint = { block: 101, blockHash: HASH };
     fixture.history["101"] = structuredClone(state);
-    const other = prepareExpiry(state, fixture.merkle, fixture.policy, TOKEN, 242, 0, AT + 100, { address: MODULE, safe: SAFE, preparer: ALL_MIGHT_V2, delay: 10800 })!;
-    const second = expiryDigest(other);
-    fs.writeFileSync(`bounties-reports/expiry/state/1/prepared/${second}.json`, JSON.stringify(other));
+    const other = prepareExpiryRound(state, fixture.merkle, fixture.policy, 202611, AT + 100, { address: MODULE, safe: SAFE, preparer: ALL_MIGHT_V2, delay: 10800 }, 64, { [TOKEN]: { usd: "1.000000000000000000", decimals: 0 } })!;
+    const second = expiryPlanDigest(other);
+    fs.writeFileSync(`bounties-reports/expiry/state/1/plans/${second}.json`, JSON.stringify(other));
     values.proposal = [first, second].sort()[1];
     values.proposedAt = BigInt(AT + 100);
     fixture.client.getBlock.mockImplementation(async ({ blockNumber }: any = {}) => ({ number: blockNumber ?? 101n, hash: HASH, timestamp: BigInt(blockNumber === 100n ? AT : AT + 100) }));
     await main("prepare", "1");
-    expect(decision()).toMatchObject({ status: "waiting", reason: "already prepared", digest: values.proposal });
+    expect(decision()).toMatchObject({ status: "waiting", reason: "already prepared", planDigest: values.proposal });
   });
 
   it("replaces only a canonical known proposal invalidated by an ordinary root", async () => {
     await main("plan", "1");
-    const stale = decision().digest;
+    const stale = decision().planDigest;
     values.proposal = stale;
     values.proposedAt = BigInt(AT);
     fixture.merkle = generateMerkleTree({ [USER]: { [TOKEN]: "150" }, [TREASURY]: { [TOKEN]: "0" } });
@@ -182,9 +184,10 @@ describe("automated expiry prepare", () => {
     const file = decision().input;
     const original = JSON.parse(fs.readFileSync(file, "utf8"));
     original.state.pairs[expiryKey(USER, TOKEN)].credits[0].activatedAt--;
-    const forged = prepareExpiry(original.state, original.parent, original.policy, TOKEN, original.batch.round, original.batch.index, original.at, original.module)!;
+    const plan = JSON.parse(fs.readFileSync(decision().roundInput, "utf8"));
+    const forged = preparePlannedExpiry(original.state, original.parent, plan, original.batch.index);
     fs.unlinkSync(file);
     fs.writeFileSync(path.join(path.dirname(file), `${expiryDigest(forged)}.json`), JSON.stringify(forged));
-    await expect(main("prepare", "1")).rejects.toThrow("canonical prepared input");
+    await expect(main("prepare", "1")).rejects.toThrow("canonical expiry batch");
   });
 });

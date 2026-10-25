@@ -22,6 +22,19 @@
   },
   {
     "type": "function",
+    "name": "CHAIN_ID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "DELAY",
     "inputs": [],
     "outputs": [
@@ -169,6 +182,25 @@
   },
   {
     "type": "function",
+    "name": "batches",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "checkRoot",
     "inputs": [
       {
@@ -179,6 +211,94 @@
     ],
     "outputs": [],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "commitment",
+    "inputs": [
+      {
+        "name": "batch",
+        "type": "tuple",
+        "internalType": "struct RewardsExpiry.Batch",
+        "components": [
+          {
+            "name": "round",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "index",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "last",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "ledger",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "parent",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "token",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "treasuryAmount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "rows",
+            "type": "tuple[]",
+            "internalType": "struct RewardsExpiry.Row[]",
+            "components": [
+              {
+                "name": "account",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "amount",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "expiredThrough",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "program",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "nodes",
+            "type": "bytes32[]",
+            "internalType": "bytes32[]"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "pure"
   },
   {
     "type": "function",
@@ -302,6 +422,32 @@
   },
   {
     "type": "function",
+    "name": "expectedRoot",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "firstBatch",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "nextBatch",
     "inputs": [],
     "outputs": [
@@ -315,12 +461,12 @@
   },
   {
     "type": "function",
-    "name": "prepare",
+    "name": "planDigest",
     "inputs": [
       {
-        "name": "batch",
+        "name": "plan",
         "type": "tuple",
-        "internalType": "struct RewardsExpiry.Batch",
+        "internalType": "struct RewardsExpiry.Plan",
         "components": [
           {
             "name": "round",
@@ -333,14 +479,45 @@
             "internalType": "uint256"
           },
           {
-            "name": "last",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "ledger",
+            "name": "parent",
             "type": "bytes32",
             "internalType": "bytes32"
+          },
+          {
+            "name": "batches",
+            "type": "bytes32[]",
+            "internalType": "bytes32[]"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "prepare",
+    "inputs": [
+      {
+        "name": "plan",
+        "type": "tuple",
+        "internalType": "struct RewardsExpiry.Plan",
+        "components": [
+          {
+            "name": "round",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "index",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
             "name": "parent",
@@ -348,44 +525,7 @@
             "internalType": "bytes32"
           },
           {
-            "name": "token",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "treasuryAmount",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "rows",
-            "type": "tuple[]",
-            "internalType": "struct RewardsExpiry.Row[]",
-            "components": [
-              {
-                "name": "account",
-                "type": "address",
-                "internalType": "address"
-              },
-              {
-                "name": "amount",
-                "type": "uint256",
-                "internalType": "uint256"
-              },
-              {
-                "name": "expiredThrough",
-                "type": "uint256",
-                "internalType": "uint256"
-              }
-            ]
-          },
-          {
-            "name": "program",
-            "type": "bytes",
-            "internalType": "bytes"
-          },
-          {
-            "name": "nodes",
+            "name": "batches",
             "type": "bytes32[]",
             "internalType": "bytes32[]"
           }
