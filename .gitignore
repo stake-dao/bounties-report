@@ -51,3 +51,6 @@ bounties-reports/*/vlCVX/vp_breakdown.json
 # reconcile with the Union's line in the merkle to the wei.
 script/vlCVX/union_reassign/out/*
 !script/vlCVX/union_reassign/out/union_end_user_merkle.json
+
+/script/test/integration/evidence/expiry-lifecycle/
+/script/test/integration/evidence/expiry-lifecycle.json

@@ -203,8 +203,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
           else process.env.MODE = beforeMode;
         }
       };
-      const roundSource = await readExpiryRound(client);
-      const { round } = roundSource;
+      const { round } = await readExpiryRound(client);
       expect(prepareExpiry(ledger, second.merkle!, policy, token, round, 0, expires - 1, domain)).toBeNull();
       expect(new Date(sixCalendarMonths(Date.UTC(2027, 7, 31, 12) / 1000) * 1000).toISOString()).toBe("2028-02-29T12:00:00.000Z");
       const planned = await runtime("plan");
@@ -240,7 +239,6 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       if (guardRun.status !== 0) throw new Error(`${guardRun.error ?? ""}${guardRun.stdout}${guardRun.stderr}`);
       const guardResult = JSON.parse(fs.readFileSync(guardResultFile, "utf8"));
       const transaction = await provider.getTransaction(guardResult.hash);
-      const receipt = await provider.getTransactionReceipt(guardResult.hash);
       expect(await readConfirmedExpiry(client, prepared, transaction.hash as `0x${string}`)).toBeNull();
       await provider.send("anvil_mine", ["0x40"]);
       const activation = await readConfirmedExpiry(client, prepared, transaction.hash as `0x${string}`);
@@ -456,10 +454,6 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
         await mine(urd.connect(signer).claim(account, token, leaf.amount, leaf.proof));
         expect((await urd.claimed(account, token)).sub(before).toString()).toBe(expected);
       }
-      const evidence = { productionActive: false, chainId: 1, forkBlock: 26190047, module: module.address, firstPublication: first.root, firstPublishedAt: first.timestamp, calendarExpiry: expires, roundSource, nextRound: round + 2, activeRoot: restored.merkle.merkleRoot, actualRecovery: confirmedRetry!.recovered, activationHash: retried.hash, revertedActivationHash: transaction.hash, guard: guardResult.guard, guardedActivationHash: guardResult.hash, nextRoot: next.root, nextPaid: ledger.pairs[expiryKey(protectedUser, token)].paid, activationGas: receipt.gasUsed.toString(), httpRoute: "/v1/merkles", delayedResultPublication: true, journalReplayedAfterCrash: true, journalReplayedAfterReorg: true, missingInputsRejected: true, noRewardRoundCompleted: true, fundingPreflight: "100000 fresh; no recovery funding", fullTreeRoute: "/v1/merkles/active", cachedResponseAmounts: ["1400000", "400000", "1400000", "400000", "500000"] };
-      const destination = path.resolve("script/test/integration/evidence/expiry-lifecycle.json");
-      fs.mkdirSync(path.dirname(destination), { recursive: true });
-      fs.writeFileSync(destination, JSON.stringify(evidence, null, 2) + "\n");
     } finally {
       serving?.kill("SIGTERM");
       processHandle.kill("SIGTERM");
