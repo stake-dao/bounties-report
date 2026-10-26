@@ -10,6 +10,7 @@ import * as snapshot from "../../utils/snapshot";
 const [directory, periodArg, account, rootCRV = zeroHash, rootFXN = zeroHash, mode] = process.argv.slice(2);
 const period = Number(periodArg);
 const aladdin = "0x1c0D72a330F2768dAF718DEf8A19BAb019EEAd09";
+const threeFinance = "0xD7Ba3691750153f94dc0EB40bE09448F52f33b13";
 const carried = "0x2000000000000000000000000000000000000002";
 const paid = "0x3000000000000000000000000000000000000003";
 const gauge = "0xbbbb22220000000000000000000000000000bbbb";
@@ -24,10 +25,10 @@ mock.module("../../utils/snapshot", () => ({
 mock.module("../../utils/utils", () => ({
   ...utils,
   addVotersFromAutoVoter: async (_space, _proposal, voters) => voters,
-  getDelegationVotingPower: async () => currentSpace === constants.SDCRV_SPACE ? (mode === "legacy-only" ? { [aladdin]: 100 } : { [aladdin]: 60, [account]: 40 }) : { [account]: 100, [carried]: 20, [paid]: 20 },
+  getDelegationVotingPower: async () => currentSpace === constants.SDCRV_SPACE ? (mode === "legacy-only" ? { [aladdin]: 90, [threeFinance]: 10 } : { [aladdin]: 50, [threeFinance]: 10, [account]: 40 }) : { [account]: 100, [carried]: 20, [paid]: 20 },
   getAllAccountClaimedSinceLastFreeze: async () => ({ [paid.toLowerCase()]: true, ...(mode === "legacy-only" ? { [account.toLowerCase()]: true } : {}) })
 }));
-mock.module("../../utils/cacheUtils", () => ({ processAllDelegators: async () => [aladdin, account] }));
+mock.module("../../utils/cacheUtils", () => ({ processAllDelegators: async () => [aladdin, threeFinance, account] }));
 const { createMultiMerkle } = await import("../../utils/merkle/createMultiMerkle");
 const { buildUniversalSdMerkle } = await import("../../utils/merkle/universalSdMerkle");
 const { buildDistribution } = await import("../../sdTkns/prepareDistribution");
@@ -50,8 +51,10 @@ for (const [space, root] of [[constants.SDCRV_SPACE, rootCRV], [constants.SDFXN_
     [paid]: { amount: BigNumber.from(parseEther("3")), index: 2, proof: [] }
   } }] : [{ address: token, merkle: { [aladdin.toLowerCase()]: { amount: BigNumber.from(parseEther("1")), index: 0, proof: [] } } }];
   const split = await createMultiMerkle(["fixture"], space, previousLegacy, { [gauge]: space === constants.SDCRV_SPACE ? 10 : mode === "legacy-only" ? 0 : 14 }, { total_vp: 1 }, { total_vp: 1 }, {}, undefined, { legacyRecipients: constants.LEGACY_STASH_RECIPIENTS, readOnlyClaimCache: true });
-  if (split.diverted[aladdin.toLowerCase()])
-    throw new Error("Aladdin diverted");
+  for (const recipient of [aladdin, threeFinance]) {
+    assert.equal(split.diverted[recipient.toLowerCase()], undefined);
+    if (space === constants.SDCRV_SPACE) assert.ok(split.merkle.merkle[recipient.toLowerCase()]);
+  }
   if (space === constants.SDCRV_SPACE) {
     if (split.merkle.merkle[paid])
       throw new Error("paid legacy leaf retained");
@@ -94,6 +97,6 @@ if (process.env.LOCAL_FORK_RPC && entries.length) {
 const distribution = buildDistribution(log, legacy, period, true, balances, files);
 fs.writeFileSync(`bounties-reports/${period}/merkle.json`, JSON.stringify(legacy));
 fs.writeFileSync(`bounties-reports/${period}/sdtokens-distribution.json`, JSON.stringify(distribution));
-fs.writeFileSync("fixture.json", JSON.stringify({ period, account: getAddress(account), aladdin, carried, paid, log, legacy, distribution }));
+fs.writeFileSync("fixture.json", JSON.stringify({ period, account: getAddress(account), aladdin, threeFinance, carried, paid, log, legacy, distribution }));
 
 fs.writeFileSync(`bounties-reports/${period}/delegationsAPRs.json`, "{}");
