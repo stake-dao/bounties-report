@@ -42,21 +42,21 @@
     "size": 701
   },
   "data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xd1b5651e55d4ceed36251c61c50c889b36f6abb5.json": {
-    "cid": "QmVfjjJbTBc9jFzHAkdAss3gr4pvQ3ZDvJvRZW67e7UVjk",
-    "ipfsHash": "0x6ce5854def7c38db535fb2353deecbfd89b60aee47c9a379b07fe93a72683957",
-    "sha256": "6aac3f3fe88c26bbc4dfad9a8389084be6bccd74a49e411fd7f68dbd9b0cc130",
-    "size": 89
+    "cid": "QmbvfGhdSRtq7FFkLtHYnWQdEzQKFaX5URD5nfmANRuqZV",
+    "ipfsHash": "0xc9de501f7d64082f1bbaa6de831bafad31e1474e30a41df99fa8567825c1bc1c",
+    "sha256": "4d80f728d7eafab04e31787a6c90df8c3e6ea18b9d4e51aa348e72d6b6a7bd25",
+    "size": 80
   },
   "data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad.json": {
-    "cid": "QmVfjjJbTBc9jFzHAkdAss3gr4pvQ3ZDvJvRZW67e7UVjk",
-    "ipfsHash": "0x6ce5854def7c38db535fb2353deecbfd89b60aee47c9a379b07fe93a72683957",
-    "sha256": "6aac3f3fe88c26bbc4dfad9a8389084be6bccd74a49e411fd7f68dbd9b0cc130",
-    "size": 89
+    "cid": "QmbvfGhdSRtq7FFkLtHYnWQdEzQKFaX5URD5nfmANRuqZV",
+    "ipfsHash": "0xc9de501f7d64082f1bbaa6de831bafad31e1474e30a41df99fa8567825c1bc1c",
+    "sha256": "4d80f728d7eafab04e31787a6c90df8c3e6ea18b9d4e51aa348e72d6b6a7bd25",
+    "size": 80
   },
   "log.json": {
-    "cid": "QmY9UT6Rk1TzLEdE3Bvqazvvsh4ZYjZMqVfGSK62n6nLGg",
-    "ipfsHash": "0x91b7e1734731efbf3f77064a1db494b34d13ddc84ad92f3cbcc3c9e42c46c771",
-    "sha256": "79732bd791ce002bff715d2941c7d8a724c0d7e10a778f6d39deb25c4e18a217",
-    "size": 9043
+    "cid": "QmUVBQbpJdhjmeaptboM2K63rmTCNbBRZCgT6igrmLWCNM",
+    "ipfsHash": "0x5b557a83cc8dd838917235c73d73b3ee7d5474323043283f9f6764a1a1b0e25a",
+    "sha256": "f66d6b1fe88eecc8fb2d105ebe9f6b3371437b2ed6acf90649837ff5f7e692a3",
+    "size": 9051
   }
 }
