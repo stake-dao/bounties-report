@@ -2,8 +2,7 @@
  * AI-powered distribution verification CLI with multi-model consensus.
  *
  * Runs verification scripts once, queries multiple LLM models in parallel,
- * and resolves a final verdict by consensus. Scripts are the source of truth:
- * if all scripts pass but every LLM is down, the pipeline still passes.
+ * and resolves a final verdict by consensus.
  *
  * Usage:
  *   pnpm tsx script/verify/aiVerify.ts [--timestamp WEEK] [--protocol vlCVX|bounties|spectra|frax|all] [--target voters|delegators|both] [--run-type voters|delegators] [--models m1,m2] [--deep]
@@ -31,9 +30,9 @@ import { parseTarget, type Target as InvariantTarget } from "./invariants/cli";
 dotenv.config();
 
 const DEFAULT_MODELS = [
-  "claude-opus-4-7",
-  "gpt-5.5",
-  "minimax-m2.7",
+  "claude-sonnet-5-5",
+  "gpt-6.1-sol",
+  "minimax-m3",
 ];
 
 const VERDICT_ICON: Record<string, string> = { pass: "✅", warning: "⚠️ ", fail: "❌" };

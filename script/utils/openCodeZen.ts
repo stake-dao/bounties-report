@@ -1,10 +1,6 @@
 /**
  * OpenCodeZenClient — LLMClient implementation for the Opencode ZEN API.
  *
- * All models are called via the OpenAI /chat/completions wire format.
- * ZEN's Anthropic /messages endpoint has a server-side bug that causes HTTP 500
- * when the upstream Anthropic API returns any non-200 response.
- *
  * Usage:
  *   const client = createZenClient();           // kimi-k2.6 (default)
  *   const text   = await client.ask("...");
@@ -80,10 +76,6 @@ class OpenCodeZenClient implements LLMClient {
 
   // ── Core ───────────────────────────────────────────────────────────────────
 
-  async chat(messages: LLMMessage[], options: LLMOptions = {}): Promise<string> {
-    return this.chatOpenAI(messages, options);
-  }
-
   async ask(prompt: string, options: LLMOptions = {}): Promise<string> {
     return this.chat([{ role: "user", content: prompt }], options);
   }
@@ -103,11 +95,9 @@ class OpenCodeZenClient implements LLMClient {
     }
   }
 
-  // ── OpenAI wire format ─────────────────────────────────────────────────────
-
-  private async chatOpenAI(
+  async chat(
     messages: LLMMessage[],
-    options: LLMOptions
+    options: LLMOptions = {}
   ): Promise<string> {
     // Prepend system message if provided
     const fullMessages: Array<{ role: string; content: string }> = [];
@@ -116,23 +106,68 @@ class OpenCodeZenClient implements LLMClient {
     }
     fullMessages.push(...messages);
 
-    const body: Record<string, unknown> = {
-      model: this.model,
-      max_tokens: options.maxTokens ?? 1024,
-      messages: fullMessages,
+    let endpoint = "chat/completions";
+    let headers: Record<string, string> = {
+      Authorization: `Bearer ${this.apiKey}`,
+      "Content-Type": "application/json",
     };
+    let body: Record<string, unknown>;
+
+    if (this.model.startsWith("claude-")) {
+      endpoint = "messages";
+      headers = {
+        "x-api-key": this.apiKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      };
+      body = {
+        model: this.model,
+        max_tokens: options.maxTokens ?? 1024,
+        messages,
+      };
+      if (options.systemPrompt) body.system = options.systemPrompt;
+    } else if (this.model.startsWith("gpt-")) {
+      endpoint = "responses";
+      body = {
+        model: this.model,
+        max_output_tokens: options.maxTokens ?? 1024,
+        input: fullMessages,
+      };
+    } else {
+      body = {
+        model: this.model,
+        max_tokens: options.maxTokens ?? 1024,
+        messages: fullMessages,
+      };
+    }
 
     try {
-      const res = await axios.post(`${this.baseUrl}/chat/completions`, body, {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
+      const res = await axios.post(`${this.baseUrl}/${endpoint}`, body, {
+        headers,
         timeout: options.timeout ?? 60_000,
       });
-      return (res.data.choices?.[0]?.message?.content ?? "").trim();
+      if (endpoint === "messages") {
+        return (res.data.content ?? [])
+          .filter((block: { type: string }) => block.type === "text")
+          .map((block: { text: string }) => block.text)
+          .join("")
+          .trim();
+      }
+      if (endpoint === "responses") {
+        return (res.data.output ?? [])
+          .flatMap((output: { content?: { type: string; text: string }[] }) => output.content ?? [])
+          .filter((content: { type: string }) => content.type === "output_text")
+          .map((content: { text: string }) => content.text)
+          .join("")
+          .trim();
+      }
+      const choice = res.data.choices?.[0];
+      if (choice?.finish_reason === "length") {
+        throw new Error(`[${this.model}] Response truncated at max_tokens=${body.max_tokens}`);
+      }
+      return (choice?.message?.content ?? "").trim();
     } catch (err) {
-      throw new Error(`[${this.model}] OpenAI API error: ${axiosErrorDetail(err)}`);
+      throw new Error(`[${this.model}] Zen API error: ${axiosErrorDetail(err)}`);
     }
   }
 }

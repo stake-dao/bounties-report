@@ -28,9 +28,9 @@ import { WEEK } from "../utils/constants";
 dotenv.config();
 
 const DEFAULT_MODELS = [
-  "claude-opus-4-7",          // Anthropic frontier
-  "gpt-5.5",                  // OpenAI frontier (non-pro: avoids reasoning-overflow truncation)
-  "minimax-m2.7",             // Minimax frontier (provider diversity)
+  "claude-sonnet-5-5",
+  "gpt-6.1-sol",
+  "minimax-m3",
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
