@@ -289,6 +289,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const originalDirectory = process.cwd();
       const originalFetch = globalThis.fetch;
       try {
+        vi.stubEnv("DATA_HUB_URL", "https://hub.example.test");
         process.chdir(directory);
         globalThis.fetch = ((input, init) => {
           if (String(input).startsWith(getDataHubUrl()) || String(input).startsWith("https://raw.githubusercontent.com")) return Promise.reject(new Error("isolated publication/API outage"));
@@ -305,6 +306,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       } finally {
         process.chdir(originalDirectory);
         globalThis.fetch = originalFetch;
+        vi.unstubAllEnvs();
       }
       ledger = restored.ledger;
       expect(restored.merkle.merkleRoot).toBe(applied.merkle.merkleRoot);
