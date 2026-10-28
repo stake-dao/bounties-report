@@ -10,14 +10,18 @@ import {
   ETHEREUM,
   LABELS_TO_SPACE,
   LEGACY_SD_MERKLE_TOKENS,
+  LEGACY_STASH_RECIPIENTS,
   MERKLE_ADDRESS,
   NETWORK_TO_MERKLE,
   SPACE_TO_NETWORK,
   SPACES_SYMBOL,
   SPACES_TOKENS,
   SPACE_TO_CHAIN_ID,
+  UNIVERSAL_SD_MERKLES,
   WEEK,
 } from "../../utils/constants";
+import { weeklyDistribution } from "../../utils/merkle/universalSdMerkle";
+import type { MerkleData } from "../../interfaces/MerkleData";
 import { processAllDelegators } from "../../utils/cacheUtils";
 import {
   createMultiMerkle,
@@ -46,16 +50,21 @@ import {
   checkV1,
   checkV3,
   checkV8,
+  checkV12,
   entryKey,
   ethereumTargets,
   loadMerkle,
+  loadUniversalFiles,
   parseJson,
   runCheck,
+  universalTargets,
   type CheckResult,
   type ClaimAwareContext,
   type ClientForChain,
   type LogData,
   type MerkleEntry,
+  type UniversalEntry,
+  type UniversalFiles,
 } from "./checkBeforeSetRoots";
 
 const REPORTS_DIR = "bounties-reports";
@@ -71,6 +80,8 @@ interface ReconstructionLog extends LogData {
   TotalRewards?: unknown;
   MerkleRoots?: unknown;
   TopHolders?: unknown;
+  UniversalReported?: unknown;
+  UniversalTotalRewards?: unknown;
 }
 
 interface Attribution {
@@ -292,13 +303,61 @@ export function compareClaimAwareWeeklyDistributions(
   return mismatches;
 }
 
+export function compareUniversalWeeklyDistributions(
+  entries: UniversalEntry[],
+  files: UniversalFiles,
+  diverted: Map<string, Record<string, number>>,
+): string[] {
+  const mismatches: string[] = [];
+  for (const [space, rewards] of diverted) {
+    if (Object.keys(weeklyDistribution(rewards, SPACES_TOKENS[space])).length && !entries.some((entry) => entry.space === space)) {
+      mismatches.push(`${space} is missing its universal distribution`);
+    }
+  }
+  for (const entry of entries) {
+    const loaded = files.get(entry.file);
+    const rewards = diverted.get(entry.space);
+    if (!loaded || !rewards) {
+      mismatches.push(`${entry.symbol} universal distribution was not rebuilt`);
+      continue;
+    }
+    const expected = new Map<string, bigint>();
+    for (const [account, data] of Object.entries(weeklyDistribution(rewards, entry.token))) {
+      expected.set(account, data.tokens[entry.token]);
+    }
+    const amountsOf = (data: MerkleData): Map<string, bigint> =>
+      new Map(Object.entries(data.claims).map(([account, claim]) => [
+        lc(account),
+        Object.entries(claim.tokens).reduce((sum, [, tokenClaim]) => sum + BigInt(tokenClaim.amount), 0n),
+      ]));
+    const current = amountsOf(loaded.current);
+    const previous = amountsOf(loaded.previous);
+    let tokenAbsoluteDiff = 0n;
+    for (const holder of new Set([...expected.keys(), ...current.keys(), ...previous.keys()])) {
+      const actualWeekly = (current.get(holder) ?? 0n) - (previous.get(holder) ?? 0n);
+      const absoluteDiff = absoluteWei(actualWeekly - (expected.get(holder) ?? 0n));
+      tokenAbsoluteDiff += absoluteDiff;
+      if (absoluteDiff > V2_HOLDER_EPSILON_WEI) {
+        mismatches.push(`${entry.symbol} universal ${holder} expectedWeekly=${expected.get(holder) ?? 0n} actualWeekly=${actualWeekly}`);
+      }
+    }
+    if (tokenAbsoluteDiff > V2_TOKEN_EPSILON_WEI) {
+      mismatches.push(`${entry.symbol} universal tokenCumulativeAbsDiff=${tokenAbsoluteDiff} tokenBound=${V2_TOKEN_EPSILON_WEI}`);
+    }
+  }
+  return mismatches;
+}
+
 async function checkV2(
   period: number,
   log: ReconstructionLog,
   current: MerkleEntry[],
   claimContext: ClaimAwareContext,
+  universalEntries: UniversalEntry[],
+  universalFiles: UniversalFiles,
 ): Promise<CheckResult> {
   const rebuilt: MerkleEntry[] = [];
+  const diverted = new Map<string, Record<string, number>>();
   let sourceBuckets = 0;
 
   for (const { space, ids } of snapshotEntries(log)) {
@@ -314,9 +373,12 @@ async function checkV2(
       { total_vp: 1 },
       {},
       undefined,
-      { readOnlyClaimCache: true },
+      UNIVERSAL_SD_MERKLES[space]
+        ? { readOnlyClaimCache: true, legacyRecipients: LEGACY_STASH_RECIPIENTS }
+        : { readOnlyClaimCache: true },
     );
-    rebuilt.push(result.merkle);
+    diverted.set(space, result.diverted);
+    if (!UNIVERSAL_SD_MERKLES[space] || result.weeklyTotal > 0) rebuilt.push(result.merkle);
   }
 
   const raw = await extractAllRawTokenCSVs(period);
@@ -353,11 +415,10 @@ async function checkV2(
     rebuilt.push(result.merkle);
   }
 
-  const mismatches = compareClaimAwareWeeklyDistributions(
-    rebuilt,
-    current,
-    claimContext,
-  );
+  const mismatches = [
+    ...compareClaimAwareWeeklyDistributions(rebuilt, current, claimContext),
+    ...compareUniversalWeeklyDistributions(universalEntries, universalFiles, diverted),
+  ];
   if (mismatches.length > 0) {
     throw new Error(`${mismatches.length} wallet-token mismatches; ${mismatches.slice(0, 3).join("; ")}`);
   }
@@ -365,7 +426,7 @@ async function checkV2(
     id: "V2" as CheckResult["id"],
     name: "Conservation",
     ok: true,
-    detail: `${sourceBuckets} CSV gauge buckets independently re-routed; ${rebuilt.length} claim-aware weekly distributions match wei-exact`,
+    detail: `${sourceBuckets} CSV gauge buckets independently re-routed; ${rebuilt.length} claim-aware weekly distributions and ${universalEntries.length} universal deltas match wei-exact`,
   };
 }
 
@@ -724,6 +785,11 @@ export function buildNotifyDigest(
   for (const [symbol, delta] of Object.entries(reported)) {
     lines.push(`- ${symbol}: +${abbreviate(delta)} -> ${abbreviate(totals[symbol] ?? 0)} on merkle`);
   }
+  const universalReported = (log.UniversalReported ?? {}) as Record<string, number>;
+  const universalTotals = (log.UniversalTotalRewards ?? {}) as Record<string, number>;
+  for (const [symbol, delta] of Object.entries(universalReported)) {
+    lines.push(`- ${symbol}: +${abbreviate(delta)} -> ${abbreviate(universalTotals[symbol] ?? 0)} on universal`);
+  }
   const aprs = (log.DelegationsAPRsDetails ?? {}) as Record<string, number>;
   lines.push(`APRs: ${Object.entries(aprs).map(([space, value]) => {
     const previous = previousAprs[space] ?? 0;
@@ -749,6 +815,8 @@ async function main(): Promise<void> {
   const log = parseJson<ReconstructionLog>("log.json");
   const merkle = loadMerkle(period);
   const targets = ethereumTargets(log);
+  const universalEntries = universalTargets(log);
+  const universalFiles = loadUniversalFiles(period, universalEntries);
   const clients = new Map<number, Promise<PublicClient>>();
   const clientForChain: ClientForChain = (chainId) => {
     const existing = clients.get(chainId);
@@ -765,14 +833,15 @@ async function main(): Promise<void> {
   );
 
   const results: CheckResult[] = [];
-  results.push(await runCheck("V1", "Rebuild", () => checkV1(merkle, targets, log)));
-  results.push(await runCheck("V2" as CheckResult["id"], "Conservation", async () => checkV2(period, log, merkle, await claimContext)));
+  results.push(await runCheck("V1", "Rebuild", () => checkV1(merkle, targets, log, universalEntries, universalFiles)));
+  results.push(await runCheck("V2" as CheckResult["id"], "Conservation", async () => checkV2(period, log, merkle, await claimContext, universalEntries, universalFiles)));
   results.push(await runCheck("V3", "Continuity", async () => checkV3(period, merkle, clientForChain, await claimContext)));
   results.push(await runCheck("V4", "Attribution", async () => checkV4(period, await clientForChain(1), transferDestination)));
   results.push(await runCheck("V8", "Scope", () => checkV8(log, merkle, targets)));
   results.push(await runCheck("V9" as CheckResult["id"], "Snapshot", () => checkV9(period, log)));
   results.push(await runCheck("V10" as CheckResult["id"], "Registry", () => checkV10(merkle)));
   results.push(await runCheck("V11" as CheckResult["id"], "APR presence", () => checkV11(period, log)));
+  results.push(await runCheck("V12", "Universal continuity", () => checkV12(universalEntries, universalFiles)));
 
   console.log(`sdMerkle reconstruction: period=${period}`);
   for (const result of results) console.log(`[${result.ok ? "PASS" : "FAIL"}] ${result.id} ${result.name} — ${result.detail}`);

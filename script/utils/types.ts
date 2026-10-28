@@ -105,6 +105,8 @@ export interface MerkleStat {
   apr: number;
   merkle: Merkle;
   logs: Log[];
+  weeklyTotal: number;
+  diverted: Record<string, number>;
 }
 
 export interface Merkle {

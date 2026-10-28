@@ -99,14 +99,14 @@ jobs:
           BOTS_ENVIO_GRAPHQL_URL_WORKER: ${{ secrets.BOTS_ENVIO_GRAPHQL_URL_WORKER }}
 
       - name: Reconstruct sdMerkle
-        if: inputs.stage == 'post-freeze'
+        if: inputs.stage == 'post-freeze' && steps.existing.outputs.reuse != 'true'
         run: pnpm tsx script/sdTkns/verify/reconstructSdMerkle.ts --period "${{ steps.period.outputs.current }}"
         env:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       - name: Verify before submission
-        if: inputs.stage == 'post-freeze'
+        if: inputs.stage == 'post-freeze' && steps.existing.outputs.reuse != 'true'
         run: pnpm tsx script/sdTkns/verify/checkBeforeSetRoots.ts --period "${{ steps.period.outputs.current }}"
         env:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
@@ -143,6 +143,7 @@ jobs:
             bounties-reports/$PERIOD/{curve,fxn}.csv \
             bounties-reports/$PERIOD/{curve,fxn}-otc.csv \
             bounties-reports/$PERIOD/{curve,fxn}-attribution.json \
+            bounties-reports/$PERIOD/sdTkns/sdtkns_merkle_1_{sdcrv,sdfxn}.json \
             data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xd1b5651e55d4ceed36251c61c50c889b36f6abb5.json \
             data/merkle_updates/1/0x03e34b085c52985f6a5d27243f20c84bddc01db4/0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad.json
 

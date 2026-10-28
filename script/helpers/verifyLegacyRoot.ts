@@ -1,6 +1,8 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { UNIVERSAL_SD_MERKLES } from "../utils/constants";
 import { getClient } from "../utils/getClients";
+import { verifyFile } from "./verifyOnchainRoot";
 
 const MERKLE_ABI = [
   {
@@ -43,6 +45,26 @@ export function classifyLegacyRootStatus(
   return "BLOCK";
 }
 
+async function verifyUniversalRoots(period: number): Promise<{ hasBlock: boolean; hasWaiting: boolean }> {
+  const distribution = JSON.parse(readFileSync(`bounties-reports/${period}/sdtokens-distribution.json`, "utf8"));
+  if (distribution.period !== period || distribution.verified !== true || distribution.postFreeze !== true || !Array.isArray(distribution.universal)) {
+    throw new Error("missing verified universal distribution");
+  }
+  let hasBlock = false;
+  let hasWaiting = false;
+  for (const entry of distribution.universal) {
+    const config = Object.values(UNIVERSAL_SD_MERKLES).find((value) => value.file === entry.file);
+    if (!config || config.distributor.toLowerCase() !== entry.distributor.toLowerCase()) throw new Error("unexpected universal target");
+    const filePath = path.join("bounties-reports", String(period), config.file);
+    const result = await verifyFile({ path: filePath, chainId: 1, distributor: config.distributor as `0x${string}` });
+    if (result.source !== entry.root.toLowerCase()) throw new Error("universal artifact root mismatch");
+    console.log(`[${result.status}] ${config.distributor}: ${result.source}`);
+    hasBlock ||= result.status === "BLOCK";
+    hasWaiting ||= result.onchain !== result.source;
+  }
+  return { hasBlock, hasWaiting };
+}
+
 function emitOutput(key: string, value: string): void {
   const outputPath = process.env.GITHUB_OUTPUT;
   if (!outputPath) return;
@@ -81,11 +103,31 @@ async function main(): Promise<void> {
   let entries: LegacyMerkleEntry[];
   try {
     period = parsePeriod();
+    const file = `bounties-reports/${period}/sdtokens-distribution.json`;
+    const distribution = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
+    if (!distribution || distribution.verified !== true) {
+      emitOutput("skip", "true");
+      console.log("No verified sdToken distribution for this period. Skipping publish.");
+      return;
+    }
     entries = parseEthereumEntries(
       path.join("bounties-reports", String(period), "merkle.json"),
     );
-    if (entries.length === 0) {
-      throw new Error(`No Ethereum entries found for period ${period}`);
+    for (const token of distribution.tokens) {
+      if (!entries.some((entry) => String(entry.address).toLowerCase() === token.address.toLowerCase() &&
+          String(entry.root).toLowerCase() === token.root.toLowerCase() &&
+          String(entry.merkleContract).toLowerCase() === distribution.distributor.toLowerCase())) {
+        throw new Error(`missing verified legacy root for ${token.address}`);
+      }
+    }
+    const published = "bounties-reports/latest/merkle.json";
+    if (existsSync(published)) {
+      for (const previous of parseEthereumEntries(published)) {
+        if (!entries.some((entry) => String(entry.address).toLowerCase() === String(previous.address).toLowerCase() &&
+            String(entry.merkleContract).toLowerCase() === String(previous.merkleContract).toLowerCase())) {
+          throw new Error(`missing previously published legacy token ${previous.address}`);
+        }
+      }
     }
   } catch (error) {
     emitOutput("skip", "false");
@@ -143,6 +185,10 @@ async function main(): Promise<void> {
     }
   }
 
+  const universal = await verifyUniversalRoots(period);
+  hasBlock ||= universal.hasBlock;
+  hasWaiting ||= universal.hasWaiting;
+
   if (hasBlock) {
     emitOutput("skip", "false");
     console.error("\nLegacy publish blocked — see failures above.");
@@ -151,7 +197,7 @@ async function main(): Promise<void> {
   }
   if (hasWaiting) {
     emitOutput("skip", "true");
-    console.log("\nLegacy roots are still frozen. Skipping publish.");
+    console.log("\nLegacy roots are still frozen or universal roots still pending. Skipping publish.");
     return;
   }
 

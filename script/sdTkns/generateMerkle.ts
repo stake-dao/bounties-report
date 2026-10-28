@@ -3,6 +3,7 @@ import * as dotenv from "dotenv";
 import { fetchLastProposalsIds } from "../utils/snapshot";
 import { fetchGlobalTotalVp } from "../utils/envioClient";
 import {
+  LEGACY_STASH_RECIPIENTS,
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDFXS_SPACE,
@@ -12,8 +13,10 @@ import {
   SPACES_SYMBOL,
   SPACES_TOKENS,
   SPACES_UNDERLYING_TOKEN,
+  UNIVERSAL_SD_MERKLES,
   WEEK,
 } from "../utils/constants";
+import { buildUniversalSdMerkle } from "../utils/merkle/universalSdMerkle";
 import moment from "moment";
 import {
   checkSpace,
@@ -23,7 +26,7 @@ import {
 } from "../utils/utils";
 import { createMultiMerkle } from "../utils/merkle/createMultiMerkle";
 import {
-  formatUnits,
+  formatUnits, parseAbi,
 } from "viem";
 import * as fs from "fs";
 import * as path from "path";
@@ -39,6 +42,7 @@ const logData: Record<string, any> = {
   TotalReported: {},
   Transactions: [],
   SnapshotIds: [],
+  Universal: [],
 }; // Used to store logs in a JSON file
 
 const convertToProperHex = (value: any): string => {
@@ -74,6 +78,12 @@ const main = async () => {
   const now = moment.utc().unix();
   const filter: string = "*Gauge vote.*$";
   const currentPeriodTimestamp = Math.floor(now / WEEK) * WEEK;
+  const distributionPath = `bounties-reports/${currentPeriodTimestamp}/sdtokens-distribution.json`;
+  if (fs.existsSync(distributionPath) && JSON.parse(fs.readFileSync(distributionPath, "utf8")).verified) {
+    throw new Error("current distribution is already verified; reuse its artifacts");
+  }
+  const ethereum = await getClient(1);
+  const baselineBlock = await ethereum.getBlockNumber();
 
   // Resolve `lastMerkles` from the PREVIOUS period's archived merkle, not from
   // `latest/`. `latest/` is overwritten by the publish step in the current period,
@@ -190,9 +200,7 @@ const main = async () => {
       0
     );
     const ids = [proposalIdPerSpace[space]];
-
-    // Save using the token symbol as key
-    logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
+    const universal = UNIVERSAL_SD_MERKLES[space];
 
     logData["SnapshotIds"].push({
       space,
@@ -207,10 +215,15 @@ const main = async () => {
       csvResult,
       sdFXSWorkingData,
       sdCakeWorkingData,
-      {}
+      {},
+      undefined,
+      universal ? { legacyRecipients: LEGACY_STASH_RECIPIENTS } : {}
     );
 
-    newMerkles.push(merkleStat.merkle);
+    // Save using the token symbol as key
+    logData["TotalReported"][SPACES_SYMBOL[space]] = universal
+      ? merkleStat.weeklyTotal
+      : totalSDToken;
 
     if (!toFreeze[network]) {
       toFreeze[network] = [];
@@ -218,8 +231,47 @@ const main = async () => {
     if (!toSet[network]) {
       toSet[network] = [];
     }
-    toFreeze[network].push(merkleStat.merkle.address);
-    toSet[network].push(merkleStat.merkle.root);
+
+    if (universal) {
+      const token = SPACES_TOKENS[space];
+      const built = buildUniversalSdMerkle(
+        currentPeriodTimestamp,
+        universal.file,
+        merkleStat.diverted,
+        token,
+        await ethereum.readContract({
+          address: universal.distributor as `0x${string}`,
+          abi: parseAbi(["function root() view returns (bytes32)"]),
+          functionName: "root",
+          blockNumber: baselineBlock,
+        })
+      );
+      if (built.weekly > 0n) {
+        const filePath = path.join("bounties-reports", String(currentPeriodTimestamp), universal.file);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, JSON.stringify(built.merkle, null, 2));
+        logData["Universal"].push({
+          space,
+          symbol: SPACES_SYMBOL[space],
+          token,
+          distributor: universal.distributor,
+          file: universal.file,
+          root: built.merkle.merkleRoot,
+          previousRoot: built.previous.merkleRoot || null,
+          weekly: built.weekly.toString(),
+          total: built.total.toString(),
+          previousTotal: built.previousTotal.toString(),
+          recipients: Object.keys(built.merkle.claims).length,
+          weeklyRecipients: Object.keys(merkleStat.diverted).length,
+        });
+      }
+    }
+
+    if (!universal || merkleStat.weeklyTotal > 0) {
+      newMerkles.push(merkleStat.merkle);
+      toFreeze[network].push(merkleStat.merkle.address);
+      toSet[network].push(merkleStat.merkle.root);
+    }
 
     delegationAPRs[space] = merkleStat.apr;
 
@@ -411,6 +463,12 @@ const main = async () => {
       logData["TotalRewards"][merkle.symbol] = amount;
     }
   }
+  logData["UniversalReported"] = {};
+  logData["UniversalTotalRewards"] = {};
+  for (const entry of logData["Universal"]) {
+    logData["UniversalReported"][entry.symbol] = parseFloat(formatUnits(BigInt(entry.weekly), 18));
+    logData["UniversalTotalRewards"][entry.symbol] = parseFloat(formatUnits(BigInt(entry.total), 18));
+  }
 
   // Add full file paths to the log
   logData["Merkle"] = path.join(__dirname, "..", "merkle.json");
@@ -458,6 +516,9 @@ export const checkDistribution = async (
   // Now TotalReported is keyed by token symbol.
   for (const tokenSymbol of Object.keys(logData["TotalReported"])) {
     const amountToDistribute = logData["TotalReported"][tokenSymbol];
+    if (amountToDistribute <= 0) {
+      continue;
+    }
 
     // Find the merkle object using token symbol.
     const merkle = newMerkles.find((merkle) => merkle.symbol === tokenSymbol);

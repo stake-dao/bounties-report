@@ -141,7 +141,7 @@ export function classifyRootStatus(input: RootStatusInput): Pick<VerifyResult, "
   };
 }
 
-async function verifyFile(spec: FileSpec): Promise<VerifyResult> {
+export async function verifyFile(spec: FileSpec): Promise<VerifyResult> {
   const raw = readFileSync(spec.path, "utf8");
   const data = JSON.parse(raw) as { merkleRoot?: string };
   if (!data.merkleRoot) {
