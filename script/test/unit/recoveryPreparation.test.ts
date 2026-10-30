@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { decodeFunctionData, getAddress, keccak256, parseAbi, PublicClient } from "viem";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { ABI, EXTRA, OWNER, RECIPIENT, Review, VOTERS, pairKey, refreshRecovery, safeBatch } from "../../recovery/prepare";
-import { main, notification, prepareOnchain } from "../../recovery/run";
+import { main, notification, prepareOnchain, recoverySummary } from "../../recovery/run";
 import { adoptionFiles, verifyAdoption } from "../../recovery/adopt";
 import { findMerkleMatchingRoot, findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import * as clients from "../../utils/getClients";
@@ -234,30 +234,61 @@ describe("reviewed recovery", () => {
     const previousExitCode = process.exitCode;
     const rpc = vi.spyOn(clients, "getClient").mockRejectedValue(new Error("RPC https://example.test/private-key"));
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const summary = path.join(output, "summary.md");
+    vi.stubEnv("GITHUB_STEP_SUMMARY", summary);
     try {
       await main("voters", output, false);
       expect(process.exitCode).toBe(2);
       expect(fs.readdirSync(directory)).toEqual(["report.json"]);
       const report = fs.readFileSync(path.join(directory, "report.json"), "utf8");
       expect(JSON.parse(report).status).toBe("blocked");
-      expect(report + JSON.stringify(log.mock.calls)).not.toContain("private-key");
+      const published = fs.readFileSync(summary, "utf8");
+      expect(published).toContain("Ethereum · Voters");
+      expect(published).toContain("Base · Voters");
+      expect(published).toContain("Arbitrum · Voters");
+      expect(report + published + JSON.stringify(log.mock.calls)).not.toContain("private-key");
     } finally {
       process.exitCode = previousExitCode;
       rpc.mockRestore(); log.mockRestore();
+      vi.unstubAllEnvs();
       fs.rmSync(output, { recursive: true, force: true });
     }
   });
 
-  it("reports roots, amounts and deficits without rendering token names as Telegram HTML", () => {
-    const result = { status: "blocked", reason: "Funding deficits", cutoff: 100, block: "20", sourceRoot: HASH, recoveryRoot: ZERO, accounts: 1,
-      amounts: Array.from({ length: 60 }, () => ({ token: T, symbol: "<TOK&>", formatted: "0.45", grossAmount: "60", fundingOffset: "15", decimals: 2 })), deficits: [{ token: U, missing: "1" }] };
+  it("keeps Telegram short even for many tokens, with explicit safety status and a report link", () => {
+    const result = { status: "blocked", reason: "Funding <deficits>", cutoff: 100, block: "20", sourceRoot: HASH, recoveryRoot: ZERO, accounts: 1,
+      amounts: Array.from({ length: 60 }, () => ({ token: T, symbol: "<TOK&>", amount: "45", grossAmount: "60", fundingOffset: "15", decimals: 2 })), deficits: [{ token: U, missing: "1" }] };
     const messages = notification("voters-1", result, "https://github.com/run");
-    expect(messages.length).toBeGreaterThan(1);
-    expect(messages.every(m => m.length <= 3500)).toBe(true);
-    expect(messages.join("\n")).toContain("0.45 &lt;TOK&amp;&gt;");
-    expect(messages.join("\n")).toContain("NET; gross 0.6, deficit absorbed 0.15");
-    expect(messages.join("\n")).toContain(`SHORT ${U}: 1 raw units`);
-    expect(messages[0]).toContain(`Source root: ${HASH}`);
-    expect(messages[0]).toContain(`Recovery root: ${ZERO}`);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].length).toBeLessThan(600);
+    expect(messages[0]).toContain("Blocked — do not sign");
+    expect(messages[0]).toContain("Uncovered deficit");
+    expect(messages[0]).toContain("Funding &lt;deficits&gt;");
+    expect(messages[0]).toContain("60 tokens");
+    expect(messages[0]).toContain("https://github.com/run");
+    expect(messages[0]).not.toContain(HASH);
+    expect(messages[0]).not.toContain(T);
+    const ready = notification("voters-1", { ...result, status: "awaiting-safe", deficits: [], fundingOffsets: { [T]: "15" } }, "https://github.com/run")[0];
+    expect(ready).toContain("Ready for Safe review");
+    expect(ready).toContain("Nothing executed");
+    expect(ready).toContain("5DAO only");
+    expect(notification("extra-1", { status: "waiting", reason: "Pending root" }, "https://github.com/run")[0]).toContain("Waiting for distribution");
+  });
+
+  it("puts readable amounts and funding warnings in the summary without losing tiny deductions", () => {
+    const result = { status: "blocked", reason: "Funding deficits", cutoff: 100, block: "20", sourceRoot: HASH, recoveryRoot: ZERO, accounts: 1,
+      amounts: [
+        { symbol: "<TOK&>|\n", grossAmount: "1234567890123456789012", fundingOffset: "1", amount: "1234567890123456789011", decimals: 18 },
+        { symbol: "USDC", grossAmount: "1234567", fundingOffset: "234567", amount: "1000000", decimals: 6 },
+      ], deficits: [{ token: U, missing: "1" }] };
+    const summary = recoverySummary("voters-1", result);
+    expect(summary).toContain("Gross recovery | Deficit deduction | Net 5DAO credit");
+    expect(summary).toContain("<code>&lt;TOK&amp;&gt;&#124; </code> | ≈1,234.56789 | &lt;0.000001 | ≈1,234.56789");
+    expect(summary).toContain("<code>USDC</code> | 1.234567 | 0.234567 | 1");
+    expect(summary).toContain("STOP: uncovered funding deficits");
+    expect(summary).toContain(`<code>${U}</code> | 1`);
+    expect(summary).toContain("<details><summary>Technical details</summary>");
+    expect(summary).toContain(HASH);
+    expect(summary).toContain("Exact amounts");
   });
 });

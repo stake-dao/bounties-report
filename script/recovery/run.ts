@@ -129,20 +129,37 @@ export async function prepareOnchain(review: Review, source: MerkleData, client:
 }
 
 const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const poolNames: Record<string, string> = { "voters-1": "Ethereum · Voters", "voters-8453": "Base · Voters", "voters-42161": "Arbitrum · Voters", "extra-1": "Ethereum · Extra rewards" };
 export function notification(pool: string, result: any, runUrl: string): string[] {
-  const head = `<b>Rewards recovery · ${escape(pool)} · ${escape(result.status)}</b>\n${escape(result.reason)}\nDAO: ${RECIPIENT}\nCutoff: ${new Date(result.cutoff * 1000).toISOString()}\nSnapshot: ${result.block ?? "unavailable"}\nSource root: ${result.sourceRoot ?? "unavailable"}\nActive root: ${result.activeRoot ?? "unavailable"}\nPending root: ${result.pendingRoot ?? "unavailable"}\nRecovery root: ${result.recoveryRoot ?? "not computed"}\nAffected accounts: ${result.accounts ?? "not computed"}\n${escape(runUrl)}\n`;
-  const rows = (result.amounts ?? []).map((t: any) => {
-    const offset = BigInt(t.fundingOffset ?? "0");
-    const breakdown = offset > 0n ? ` NET; gross ${formatUnits(BigInt(t.grossAmount), t.decimals)}, deficit absorbed ${formatUnits(offset, t.decimals)}` : "";
-    return `${escape(t.formatted)} ${escape(t.symbol)}${breakdown} (${t.token})`;
-  });
-  const deficits = (result.deficits ?? []).map((d: any) => `SHORT ${d.token}: ${d.missing} raw units`);
-  const messages = [head];
-  for (const line of [...rows, ...deficits]) {
-    if ((messages.at(-1)!.length + line.length + 1) > 3500) messages.push(`<b>Rewards recovery · ${escape(pool)} · continued</b>\n`);
-    messages[messages.length - 1] += line + "\n";
+  const ready = result.status === "awaiting-safe";
+  const status = ready ? "Ready for Safe review" : result.status === "blocked" ? "Blocked — do not sign" : result.status === "noop" ? "Nothing to recover" : "Waiting for distribution";
+  const counts = result.accounts === undefined ? "" : `\n${result.accounts} accounts · ${result.amounts?.length ?? 0} tokens · recipient 5DAO`;
+  const funding = result.deficits?.length ? "\n⚠ Uncovered deficit — see report." : Object.values(result.fundingOffsets ?? {}).some(value => BigInt(value as string) > 0n) ? "\nDeficit deduction applies to 5DAO only; see report." : "";
+  const action = ready ? "Nothing executed. Review and sign the atomic Safe batch." : escape(String(result.reason).slice(0, 300));
+  return [`<b>${escape(poolNames[pool] ?? pool)}</b>\n${status}${counts}${funding}\n\n${action}\n\nDetails and downloads:\n${escape(runUrl)}`];
+}
+
+function displayAmount(amount: string, decimals: number): string {
+  const [whole, fraction = ""] = formatUnits(BigInt(amount), decimals).split(".");
+  const approximate = /[1-9]/.test(fraction.slice(6));
+  const shown = fraction.slice(0, 6).replace(/0+$/, "");
+  if (whole === "0" && !shown && approximate) return "&lt;0.000001";
+  return `${approximate ? "≈" : ""}${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${shown ? `.${shown}` : ""}`;
+}
+
+export function recoverySummary(pool: string, result: any): string {
+  const cell = (value: string) => escape(value).replace(/\|/g, "&#124;").replace(/[\r\n]/g, " ");
+  const lines = [`## ${poolNames[pool] ?? pool}`, "", `**${result.status}** — ${cell(result.reason)}`, "", `Recipient: **5DAO** · Affected accounts: **${result.accounts ?? "not computed"}**`, "", "Amounts below use at most six decimals (≈ means truncated). Exact amounts, token addresses, proofs and Safe batches are in the run's downloadable recovery artifact."];
+  if (result.amounts?.length) {
+    lines.push("", "| Token | Gross recovery | Deficit deduction | Net 5DAO credit |", "| --- | ---: | ---: | ---: |");
+    for (const token of result.amounts) lines.push(`| <code>${cell(token.symbol)}</code> | ${displayAmount(token.grossAmount, token.decimals)} | ${displayAmount(token.fundingOffset ?? "0", token.decimals)} | ${displayAmount(token.amount, token.decimals)} |`);
   }
-  return messages;
+  if (result.deficits?.length) {
+    lines.push("", "**STOP: uncovered funding deficits. No Safe batch is ready for this pool.**", "", "| Token address | Missing raw units |", "| --- | ---: |");
+    for (const deficit of result.deficits) lines.push(`| <code>${cell(deficit.token)}</code> | ${cell(deficit.missing)} |`);
+  }
+  lines.push("", "<details><summary>Technical details</summary>", "", `- Cutoff (UTC): ${new Date(result.cutoff * 1000).toISOString()}`, `- Snapshot block: ${result.block ?? "unavailable"}`, `- Source root: ${result.sourceRoot ?? "unavailable"}`, `- Recovery root: ${result.recoveryRoot ?? "not computed"}`, "", "</details>", "");
+  return lines.join("\n");
 }
 
 export async function main(scope = process.argv[2] ?? "all", output = process.argv[3] ?? "/tmp/rewards-recovery", notify = process.argv.includes("--notify"), monthly = process.argv.includes("--monthly")) {
@@ -203,6 +220,7 @@ export async function main(scope = process.argv[2] ?? "all", output = process.ar
     save(path.join(directory, "report.json"), result);
     results.push({ pool: pool.name, ...result });
     console.log(`${pool.name}: ${result.status} — ${result.reason}`);
+    if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, recoverySummary(pool.name, result) + "\n");
     if (notify && result.status !== "noop") {
       const url = process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : "Local preparation";
       for (const message of notification(pool.name, result, url)) await sendTelegramMessage(message, "HTML", true);
