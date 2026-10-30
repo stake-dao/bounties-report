@@ -1,4 +1,5 @@
 name: "Rewards: Prepare Safe recovery"
+run-name: ${{ inputs.dispatch_id || 'Manual recovery preparation' }}
 
 on:
   workflow_dispatch:
@@ -13,13 +14,21 @@ on:
         type: boolean
         default: true
         description: Send the detailed Telegram report
+      monthly:
+        type: boolean
+        default: true
+        description: Reconcile fresh six-month eligibility for the monthly period
+      period:
+        type: string
+        default: ''
+        description: Optional YYYY-MM period to finish after a delayed Safe approval
       dispatch_id:
         type: string
         required: false
         default: ''
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: rewards-recovery-preparation
@@ -28,7 +37,7 @@ concurrency:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
         if: always()
@@ -60,6 +69,8 @@ jobs:
         env:
           RECOVERY_SCOPE: ${{ inputs.scope }}
           NOTIFY: ${{ inputs.notify }}
+          MONTHLY: ${{ inputs.monthly }}
+          RECOVERY_PERIOD: ${{ inputs.period }}
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
@@ -67,7 +78,27 @@ jobs:
         run: |
           args=()
           if [ "$NOTIFY" = true ]; then args+=(--notify); fi
+          if [ "$MONTHLY" = true ]; then args+=(--monthly); fi
           pnpm tsx script/recovery/run.ts "$RECOVERY_SCOPE" "$RUNNER_TEMP/rewards-recovery" "${args[@]}"
+
+      - name: Preserve the exact preparation beyond artifact expiry
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          archive="recovery-preparations/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.zip"
+          mkdir -p recovery-preparations
+          (
+            cd "$RUNNER_TEMP/rewards-recovery"
+            python3 -m zipfile -c "$GITHUB_WORKSPACE/$archive" ./*
+          )
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "$archive"
+          git commit -m "Archive recovery preparation $GITHUB_RUN_ID attempt $GITHUB_RUN_ATTEMPT"
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/recovery-preparation-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
 
       - name: Upload reports and Safe review files
         if: always()

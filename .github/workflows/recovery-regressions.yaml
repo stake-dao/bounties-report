@@ -1,0 +1,42 @@
+name: Recovery regressions
+
+on:
+  pull_request:
+    paths:
+      - 'script/recovery/**'
+      - 'script/shared/merkle/**'
+      - 'script/test/unit/**'
+      - '.github/workflows/recovery*.yaml'
+      - '.github/workflows/rewards-recovery*.yaml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'script/recovery/**'
+      - 'script/shared/merkle/**'
+      - 'script/test/unit/**'
+      - '.github/workflows/recovery*.yaml'
+      - '.github/workflows/rewards-recovery*.yaml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.33.0'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:unit --maxWorkers=2

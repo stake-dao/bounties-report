@@ -8,6 +8,7 @@ import { getClient } from "../utils/getClients";
 import { sendTelegramMessage } from "../utils/telegramUtils";
 import { fetchClaimed } from "../verify/invariants/preservation";
 import { ABI, EXTRA, OWNER, RECIPIENT, Review, pairKey, refreshRecovery, safeBatch } from "./prepare";
+import { monthlyPeriod, prepareMonthly } from "./monthly";
 import configuration from "./config.json";
 
 type Checker = { address: string; codeHash: string } | null;
@@ -144,14 +145,22 @@ export function notification(pool: string, result: any, runUrl: string): string[
   return messages;
 }
 
-export async function main(scope = process.argv[2] ?? "all", output = process.argv[3] ?? "/tmp/rewards-recovery", notify = process.argv.includes("--notify")) {
+export async function main(scope = process.argv[2] ?? "all", output = process.argv[3] ?? "/tmp/rewards-recovery", notify = process.argv.includes("--notify"), monthly = process.argv.includes("--monthly")) {
   assert(["all", "voters", "extra"].includes(scope), "scope must be all, voters or extra");
+  let at = Math.floor(Date.now() / 1000);
+  if (monthly && process.env.RECOVERY_PERIOD) {
+    assert(/^\d{4}-(0[1-9]|1[0-2])$/.test(process.env.RECOVERY_PERIOD), "invalid monthly period");
+    const [year, month] = process.env.RECOVERY_PERIOD.split("-").map(Number);
+    const window = monthlyPeriod(Date.UTC(year, month, 0, 23) / 1000);
+    assert(window.cutoff <= at, "monthly window has not opened");
+    at = window.cutoff;
+  }
   fs.mkdirSync(output, { recursive: true });
   const results: any[] = [];
   for (const pool of configuration.pools.filter(p => scope === "all" || p.name.startsWith(scope))) {
     const directory = path.join(output, pool.name);
     fs.mkdirSync(directory, { recursive: true });
-    for (const file of ["safe-batch.json", "recovery-merkle.json", "reductions.json"]) fs.rmSync(path.join(directory, file), { force: true });
+    for (const file of ["safe-batch.json", "recovery-merkle.json", "reductions.json", "review.json", "source-merkle.json", "ledger.json"]) fs.rmSync(path.join(directory, file), { force: true });
     let result: any;
     let review: Review | undefined;
     try {
@@ -159,7 +168,20 @@ export async function main(scope = process.argv[2] ?? "all", output = process.ar
       const archive = `bounties-reports/recovery/${pool.name}`;
       const completed = fs.existsSync(archive) && fs.readdirSync(archive).filter(file => file.endsWith(".json")).map(file => read(path.join(archive, file))).find(entry =>
         entry.review.sourceRoot === review!.sourceRoot && entry.review.checkpoint.hash === review!.checkpoint.hash);
-      if (completed) {
+      if (monthly) {
+        const client = await getClient(review!.chainId);
+        const prepared = await prepareMonthly(review!, client, at, archive);
+        if (!("review" in prepared)) result = prepared;
+        else {
+          review = prepared.review;
+          save(path.join(directory, "review.json"), review);
+          save(path.join(directory, "source-merkle.json"), prepared.source);
+          save(path.join(directory, "ledger.json"), prepared.ledger);
+          const checker = (configuration.checkers as Record<string, Checker>)[String(review.chainId)];
+          result = await prepareOnchain(review, prepared.source, client, checker);
+          result.period = review.period;
+        }
+      } else if (completed) {
         result = { status: "noop", reason: "Reviewed round already adopted; new eligibility needs a new review", cutoff: review!.cutoff, recoveryRoot: completed.recoveryRoot };
       } else {
         const checker = (configuration.checkers as Record<string, Checker>)[String(review!.chainId)];

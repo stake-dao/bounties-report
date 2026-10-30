@@ -1,5 +1,9 @@
 {
-  "checkers": { "1": null, "8453": null, "42161": null },
+  "checkers": {
+    "1": { "address": "0x532cFF5A3983D87d43cFB954259C0Bd72E0Aae9A", "codeHash": "0x7be16d32cb5a7a9bd9f35b9a23c366330822f1acce4f6cb844667667f0b07fd5" },
+    "8453": { "address": "0x532cFF5A3983D87d43cFB954259C0Bd72E0Aae9A", "codeHash": "0x7be16d32cb5a7a9bd9f35b9a23c366330822f1acce4f6cb844667667f0b07fd5" },
+    "42161": { "address": "0x532cFF5A3983D87d43cFB954259C0Bd72E0Aae9A", "codeHash": "0x7be16d32cb5a7a9bd9f35b9a23c366330822f1acce4f6cb844667667f0b07fd5" }
+  },
   "pools": [
     { "name": "voters-1", "review": "recovery-reviews/2026-10-29/voters-1.json" },
     { "name": "voters-8453", "review": "recovery-reviews/2026-10-29/voters-8453.json" },

@@ -1,4 +1,5 @@
 name: "Rewards: Adopt confirmed Safe recovery"
+run-name: ${{ inputs.dispatch_id || 'Manual recovery adoption' }}
 
 on:
   workflow_dispatch:
@@ -11,10 +12,30 @@ on:
         type: string
         required: true
         description: Successful rewards-recovery.yaml run ID
+      preparation_attempt:
+        type: string
+        required: true
+        description: Exact preparation attempt used for the signed proposal
+      archive_commit:
+        type: string
+        required: true
+        description: Immutable preparation archive commit used for the signed proposal
+      archive_sha256:
+        type: string
+        required: true
+        description: SHA256 of the preparation ZIP used for the signed proposal
       transaction:
         type: string
         required: true
         description: Finalized on-chain owner Safe execution hash (not Safe proposal hash)
+      publish:
+        type: boolean
+        default: false
+        description: Commit verified baseline data to main while publishers are held
+      dispatch_id:
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -27,8 +48,11 @@ concurrency:
 jobs:
   adopt:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
+      - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
+        if: always()
+        run: echo "Temporal tracking"
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -49,17 +73,24 @@ jobs:
           version: '10.33.0'
       - run: pnpm install --frozen-lockfile
 
-      - name: Download the preparation artifact
+      - name: Download the durable signed preparation
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ inputs.preparation_run }}
+          ATTEMPT: ${{ inputs.preparation_attempt }}
+          ARCHIVE_COMMIT: ${{ inputs.archive_commit }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
         run: |
-          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ && "$ATTEMPT" =~ ^[1-9][0-9]*$ && "$ARCHIVE_COMMIT" =~ ^[a-f0-9]{40}$ && "$ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]
           workflow_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/rewards-recovery.yaml" --jq .id)
-          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")
-          echo "$run" | jq -e --argjson workflow "$workflow_id" --arg repo "$GITHUB_REPOSITORY" '.workflow_id == $workflow and .conclusion == "success" and .head_repository.full_name == $repo'
-          attempt=$(echo "$run" | jq -r .run_attempt)
-          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "rewards-recovery-$RUN_ID-$attempt" --dir "$RUNNER_TEMP/recovery-input"
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/attempts/$ATTEMPT")
+          echo "$run" | jq -e --argjson workflow "$workflow_id" --arg repo "$GITHUB_REPOSITORY" '.workflow_id == $workflow and .conclusion == "success" and .head_branch == "main" and .head_repository.full_name == $repo'
+          head=$(echo "$run" | jq -r .head_sha)
+          gh api "repos/$GITHUB_REPOSITORY/git/commits/$ARCHIVE_COMMIT" | jq -e --arg head "$head" '.parents | length == 1 and .[0].sha == $head'
+          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/recovery-preparations/$RUN_ID-$ATTEMPT.zip?ref=$ARCHIVE_COMMIT" > "$RUNNER_TEMP/recovery-input.zip"
+          echo "$ARCHIVE_SHA256  $RUNNER_TEMP/recovery-input.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/recovery-input.zip" -d "$RUNNER_TEMP/recovery-input"
 
       - name: Verify receipt, replay preparation and build canonical baseline changes
         env:
@@ -71,7 +102,7 @@ jobs:
 
       - name: Propose the extra-rewards baseline
         id: extra
-        if: inputs.pool == 'extra-1'
+        if: inputs.pool == 'extra-1' && !inputs.publish
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
@@ -90,6 +121,7 @@ jobs:
 
       - name: Propose the canonical voter baseline or extra audit record
         id: audit
+        if: '!inputs.publish'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
@@ -104,6 +136,30 @@ jobs:
             The adoption replay validates claims, deficits, root history and finality. The archive preserves original and reduced trees, the approved review, gross/offset/net amounts and receipt.
             Keep root publishers paused and drained until all adoption PRs are reviewed and merged. Recheck the live root before merge. No execution, merge, timelock change or signing is performed by this workflow.
 
+      - name: Publish verified baseline data
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+          POOL: ${{ inputs.pool }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          publish() {
+            local directory="$1"
+            shift
+            git -C "$directory" config user.name 'github-actions[bot]'
+            git -C "$directory" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git -C "$directory" add -- "$@"
+            if git -C "$directory" diff --cached --quiet; then return; fi
+            git -C "$directory" commit -m "Adopt confirmed monthly Safe recovery: $POOL"
+            # No rebase/force push: a concurrent baseline update requires replay.
+            git -C "$directory" push origin HEAD:main
+          }
+          if [ "$POOL" = extra-1 ]; then
+            publish merkl-toolkit data/last_merkle.json data/recoveries/
+          fi
+          publish . bounties-reports/
+
       - name: Report adoption outcome to Telegram
         if: always()
         env:
@@ -114,5 +170,6 @@ jobs:
           TRANSACTION: ${{ inputs.transaction }}
           AUDIT_PR: ${{ steps.audit.outputs.pull-request-url }}
           EXTRA_PR: ${{ steps.extra.outputs.pull-request-url }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
-          pnpm tsx -e 'import {sendTelegramMessage} from "./script/utils/telegramUtils"; const text = ["Recovery adoption: " + process.env.OUTCOME, process.env.POOL, process.env.TRANSACTION, process.env.AUDIT_PR, process.env.EXTRA_PR, "Keep publishers paused until baseline PRs are reviewed and merged.", process.env.GITHUB_SERVER_URL + "/" + process.env.GITHUB_REPOSITORY + "/actions/runs/" + process.env.GITHUB_RUN_ID].filter(Boolean).join("\n").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); sendTelegramMessage(text, "HTML", true).catch(() => { console.error("Telegram delivery failed"); process.exitCode = 1; });'
+          pnpm tsx -e 'import {sendTelegramMessage} from "./script/utils/telegramUtils"; const text = ["Recovery adoption: " + process.env.OUTCOME, process.env.POOL, process.env.TRANSACTION, process.env.AUDIT_PR, process.env.EXTRA_PR, process.env.PUBLISH === "true" && process.env.OUTCOME === "success" ? "Verified proofs and reduced baseline published. Coordinator can reconcile completion." : "Keep publishers paused until baseline publication is verified.", process.env.GITHUB_SERVER_URL + "/" + process.env.GITHUB_REPOSITORY + "/actions/runs/" + process.env.GITHUB_RUN_ID].filter(Boolean).join("\n").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); sendTelegramMessage(text, "HTML", true).catch(() => { console.error("Telegram delivery failed"); process.exitCode = 1; });'

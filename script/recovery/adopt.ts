@@ -3,10 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { getAddress, parseAbiItem, PublicClient } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
-import { verifyExpiryParent } from "../shared/merkle/expiry";
+import { Ledger, verifyExpiryParent } from "../shared/merkle/expiry";
 import { getClient } from "../utils/getClients";
 import { ABI, EXTRA, OWNER, Review, pairKey } from "./prepare";
 import { loadRoot, prepareOnchain } from "./run";
+import { prepareMonthly, recoverLedger } from "./monthly";
 import configuration from "./config.json";
 
 const rootEvent = parseAbiItem("event RootSet(bytes32 indexed newRoot,bytes32 indexed newIpfsHash)");
@@ -58,12 +59,12 @@ export async function verifyAdoption(review: Review, report: { block: string; bl
   assert.equal(await client.readContract({ ...at, functionName: "root" }), candidate.merkleRoot, "recovery is no longer active");
   assert.equal((await client.readContract({ ...at, functionName: "pendingRoot" }))[2], 0n, "another root is pending; keep publishers paused");
   assert.equal((await client.getBlock({ blockNumber: latest.number! })).hash, latest.hash, "adoption snapshot reorged");
-  return { prepared, receipt: { transactionHash: txHash, block: receipt.blockNumber.toString(), blockHash: receipt.blockHash }, parent: resolveRoot(report.sourceRoot) };
+  return { prepared, receipt: { transactionHash: txHash, block: receipt.blockNumber.toString(), blockHash: receipt.blockHash, logIndex: publication.logIndex }, parent: resolveRoot(report.sourceRoot) };
 }
 
 /** Build the whole file plan before writing. Generated data is changed only by
  * the explicit adoption CLI, after verification, for a separately reviewed PR. */
-export function adoptionFiles(review: Review, verified: Awaited<ReturnType<typeof verifyAdoption>>, reports = "bounties-reports", toolkit = "merkl-toolkit") {
+export function adoptionFiles(review: Review, verified: Awaited<ReturnType<typeof verifyAdoption>>, reports = "bounties-reports", toolkit = "merkl-toolkit", ledger?: Ledger) {
   const { prepared, parent, receipt } = verified;
   const tree = prepared.recovery.merkle;
   const extra = getAddress(review.distributor) === EXTRA;
@@ -71,7 +72,7 @@ export function adoptionFiles(review: Review, verified: Awaited<ReturnType<typeo
   const archive = path.join(reports, extra ? "recovery/extra/roots" : "expiry/roots", String(review.chainId));
   files.set(path.join(archive, `${parent.merkleRoot}.json`), serialize(parent));
   files.set(path.join(archive, `${tree.merkleRoot}.json`), serialize(tree));
-  files.set(path.join(reports, "recovery", `${extra ? "extra" : "voters"}-${review.chainId}`, `${tree.merkleRoot}.json`), serialize({ review, ...prepared, receipt }));
+  files.set(path.join(reports, "recovery", `${extra ? "extra" : "voters"}-${review.chainId}`, `${tree.merkleRoot}.json`), serialize({ review, ...prepared, receipt, ...(ledger ? { ledger } : {}) }));
   const requireParent = (file: string) => {
     const current = read(file);
     verifyExpiryParent(current);
@@ -105,9 +106,22 @@ async function main() {
   const [poolName, directory, txHash] = process.argv.slice(2);
   const pool = configuration.pools.find(pool => pool.name === poolName);
   assert(pool && directory, "usage: adopt.ts <pool> <prepared-pool-directory> <safe-tx-hash> [--write]");
-  const review: Review = read(pool.review);
-  const verified = await verifyAdoption(review, read(path.join(directory, "report.json")), read(path.join(directory, "recovery-merkle.json")), txHash as `0x${string}`, await getClient(review.chainId));
-  const files = adoptionFiles(review, verified);
+  const seed: Review = read(pool.review);
+  const review: Review = fs.existsSync(path.join(directory, "review.json")) ? read(path.join(directory, "review.json")) : seed;
+  assert.equal(review.chainId, seed.chainId, "review chain mismatch");
+  assert.equal(review.distributor, seed.distributor, "review distributor mismatch");
+  const client = await getClient(review.chainId);
+  let ledger: Ledger | undefined;
+  if (review.period) {
+    const replay = await prepareMonthly(seed, client, review.cutoff, `bounties-reports/recovery/${poolName}`, BigInt(review.checkpoint.block));
+    assert("review" in replay, "monthly eligibility is not reproducible");
+    assert.deepEqual(replay.review, review, "monthly eligibility differs from canonical replay");
+    ledger = replay.ledger;
+  } else assert.deepEqual(review, seed, "unapproved fixed review");
+  const resolve = (root: string) => review.period && root === review.sourceRoot ? read(path.join(directory, "source-merkle.json")) : loadRoot(review, root);
+  const verified = await verifyAdoption(review, read(path.join(directory, "report.json")), read(path.join(directory, "recovery-merkle.json")), txHash as `0x${string}`, client, resolve);
+  if (ledger) ledger = recoverLedger(ledger, review, verified.prepared.recovery.rows, verified.prepared.recovery.merkle, { block: Number(verified.receipt.block), blockHash: verified.receipt.blockHash, logIndex: verified.receipt.logIndex });
+  const files = adoptionFiles(review, verified, "bounties-reports", "merkl-toolkit", ledger);
   for (const [file, contents] of files) {
     if (process.argv.includes("--write")) {
       fs.mkdirSync(path.dirname(file), { recursive: true });

@@ -29,6 +29,7 @@ export interface Review {
   sourceRoot: string;
   sourceFile: string;
   cutoff: number;
+  period?: string;
   checkpoint: { block: string; hash: string };
   provenance: string;
   rows: { account: string; token: string; claimed: string; maximum: string }[];
