@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { decodeFunctionData, keccak256, parseAbi, PublicClient } from "viem";
+import { decodeFunctionData, getAddress, keccak256, parseAbi, PublicClient } from "viem";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { ABI, EXTRA, OWNER, RECIPIENT, Review, VOTERS, pairKey, refreshRecovery, safeBatch } from "../../recovery/prepare";
 import { main, notification, prepareOnchain } from "../../recovery/run";
@@ -100,6 +100,30 @@ describe("reviewed recovery", () => {
     const check = decodeFunctionData({ abi: parseAbi(["function check(uint256,address,bytes32,address,address[],bytes) view"]), data: batch.transactions[0].data });
     expect(check.args).toEqual([1n, VOTERS, source.merkleRoot, RECIPIENT, [T], `0x${A.slice(2)}00${35n.toString(16).padStart(24, "0")}`]);
     expect(decodeFunctionData({ abi: ABI, data: batch.transactions[1].data })).toMatchObject({ functionName: "setRoot", args: [recovery.merkle.merkleRoot, ZERO] });
+  });
+
+  it.each([(1n << 96n) - 1n, 1n << 96n, (1n << 256n) - 101n])("encodes full claim counters without truncation: %s", paid => {
+    const tree = generateMerkleTree({ [A]: { [T]: (paid + 100n).toString() } });
+    const input = { ...review, sourceRoot: tree.merkleRoot, rows: [{ account: A, token: T, claimed: paid.toString(), maximum: "60" }] };
+    const recovery = refreshRecovery(input, tree, new Map([[pairKey(A, T), paid]]));
+    const data = safeBatch(input, recovery, CHECK, 0).transactions[0].data;
+    if (paid < (1n << 96n)) {
+      const check = decodeFunctionData({ abi: parseAbi(["function check(uint256,address,bytes32,address,address[],bytes) view"]), data });
+      expect(check.args?.[5]).toBe(`0x${A.slice(2)}00${paid.toString(16).padStart(24, "0")}`);
+    } else {
+      const check = decodeFunctionData({ abi: parseAbi(["function check(uint256,address,bytes32,address,(address account,address token,uint256 claimed)[]) view"]), data });
+      expect(check.args?.[4]).toEqual([{ account: A, token: T, claimed: paid }]);
+    }
+  });
+
+  it("uses the typed checker for more than 256 tokens", () => {
+    const tokens = Array.from({ length: 257 }, (_, i) => getAddress(`0x${(i + 1).toString(16).padStart(40, "0")}`));
+    const tree = generateMerkleTree({ [A]: Object.fromEntries(tokens.map(token => [token, "100"])) });
+    const input = { ...review, sourceRoot: tree.merkleRoot, rows: tokens.map(token => ({ account: A, token, claimed: "0", maximum: "60" })) };
+    const recovery = refreshRecovery(input, tree, new Map(tokens.map(token => [pairKey(A, token), 0n])));
+    const data = safeBatch(input, recovery, CHECK, 0).transactions[0].data;
+    const check = decodeFunctionData({ abi: parseAbi(["function check(uint256,address,bytes32,address,(address account,address token,uint256 claimed)[]) view"]), data });
+    expect(check.args?.[4]).toEqual(tokens.map(token => ({ account: A, token, claimed: 0n })));
   });
 
   it("waits until the exact reviewed root is active and no other root is queued", async () => {

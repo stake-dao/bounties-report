@@ -16,7 +16,11 @@ export const ABI = parseAbi([
   "function setRoot(bytes32,bytes32)",
   "function claim(address,address,uint256,bytes32[]) returns(uint256)",
 ]);
-const CHECK_ABI = parseAbi(["function check(uint256,address,bytes32,address,address[],bytes) view"]);
+// contracts-monorepo/packages/shared/src/distributors/ClaimSnapshotCheck.sol
+const CHECK_ABI = parseAbi([
+  "function check(uint256,address,bytes32,address,address[],bytes) view",
+  "function check(uint256,address,bytes32,address,(address account,address token,uint256 claimed)[]) view",
+]);
 
 export interface Review {
   chainId: number;
@@ -87,12 +91,16 @@ export function refreshRecovery(review: Review, source: MerkleData, claims: Map<
 export function safeBatch(review: Review, recovery: ReturnType<typeof refreshRecovery>, checker: string, createdAt: number) {
   assert(recovery.rows.length, "empty recovery");
   const tokens = Object.keys(recovery.totals);
-  assert(tokens.length <= 256, "too many tokens for snapshot encoding");
-  const snapshots = concat(recovery.rows.map(row => {
-    assert(BigInt(row.claimed) < (1n << 96n), "snapshot exceeds uint96");
-    return encodePacked(["address", "uint8", "uint96"], [getAddress(row.account), tokens.indexOf(row.token), BigInt(row.claimed)]);
-  }));
-  const check = encodeFunctionData({ abi: CHECK_ABI, functionName: "check", args: [BigInt(review.chainId), getAddress(review.distributor), review.sourceRoot as `0x${string}`, RECIPIENT, tokens.map(token => getAddress(token)), snapshots] });
+  const state = [BigInt(review.chainId), getAddress(review.distributor), review.sourceRoot as `0x${string}`, RECIPIENT] as const;
+  let check: `0x${string}`;
+  if (tokens.length <= 256 && recovery.rows.every(row => BigInt(row.claimed) < (1n << 96n))) {
+    const snapshots = concat(recovery.rows.map(row =>
+      encodePacked(["address", "uint8", "uint96"], [getAddress(row.account), tokens.indexOf(row.token), BigInt(row.claimed)])));
+    check = encodeFunctionData({ abi: CHECK_ABI, functionName: "check", args: [...state, tokens.map(token => getAddress(token)), snapshots] });
+  } else {
+    const snapshots = recovery.rows.map(row => ({ account: getAddress(row.account), token: getAddress(row.token), claimed: BigInt(row.claimed) }));
+    check = encodeFunctionData({ abi: CHECK_ABI, functionName: "check", args: [...state, snapshots] });
+  }
   assert((check.length - 2) / 2 < 120000, "split and re-review: Safe batch would approach txpool size limit");
   return {
     version: "1.0", chainId: String(review.chainId), createdAt,
