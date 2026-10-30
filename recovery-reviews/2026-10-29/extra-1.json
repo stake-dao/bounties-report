@@ -1,0 +1,808 @@
+{
+  "chainId": 1,
+  "distributor": "0xD4898A378eA555595c4E7dbDE722B134a3F346D1",
+  "recipient": "0x5DA07af8913A4EAf09E5F569c20138b658906c17",
+  "sourceRoot": "0x87d976560426a5ab65caa9d290edb8dfd2892a327ab41b412f38360b72a73312",
+  "sourceFile": "merkl-toolkit/data/distributions/1793275283/merkle.json",
+  "cutoff": 1793232000,
+  "checkpoint": {
+    "block": "26298481",
+    "hash": "0x21bc8ec3e7a3d67c7f387dcb076dd22f91545d9299c265e183cbc7dc13c684e0"
+  },
+  "provenance": "https://github.com/stake-dao/bounties-report/pull/236",
+  "reductionsSha256": "4f328db71f78700828f09c369c46dcfde8135a74946f4d104e02ea2396d3d53f",
+  "rows": [
+    {
+      "account": "0xD8f1bf6404787fc6d80a5C596449e8cC1c4CB728",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "703353487682969131276"
+    },
+    {
+      "account": "0x242EedaEc01332261DD6D207595Caa397671Db01",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "4316937428538917668"
+    },
+    {
+      "account": "0xd7A7992989C5B20eF48452C96aC4C6B71A17D61e",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "21288516811092103"
+    },
+    {
+      "account": "0x794addD03889C2b96b16ad230E372B78964d9C76",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "69195092166129510"
+    },
+    {
+      "account": "0x6276279Faf847Cbb2ee0B8569177cC672EaCd533",
+      "token": "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B",
+      "claimed": "0",
+      "maximum": "39168789232788701803"
+    },
+    {
+      "account": "0xe651B64F2C2ad84603a8548B37d0173d417958AF",
+      "token": "0x090185f2135308BaD17527004364eBcC2D37e5F6",
+      "claimed": "33567485646030437401454945",
+      "maximum": "248314171325711903041"
+    },
+    {
+      "account": "0x6f07B3D90477b807d092B0f277193B098B399fb7",
+      "token": "0x090185f2135308BaD17527004364eBcC2D37e5F6",
+      "claimed": "0",
+      "maximum": "2782924432657311930548692"
+    },
+    {
+      "account": "0xD8292e8EDa2c04BC70622a4940EA6256eE57730D",
+      "token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "claimed": "0",
+      "maximum": "123290628820531200"
+    },
+    {
+      "account": "0xC4fC7075c4D60107B051C6f35026dBAf7865E1De",
+      "token": "0x7159cc276D7d17Ab4b3bEb19959E1F39368a45Ba",
+      "claimed": "0",
+      "maximum": "153002170413937479226"
+    },
+    {
+      "account": "0x96c07D27d239758361Afac650847d82e7d2a8480",
+      "token": "0x090185f2135308BaD17527004364eBcC2D37e5F6",
+      "claimed": "0",
+      "maximum": "238767231265494660971"
+    },
+    {
+      "account": "0xaA0d9205AE55dCF6321dF019da9265B12bA41a7f",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "382066054"
+    },
+    {
+      "account": "0xA8192F71f0Ec42Bf8cA501E80475E2287Ee54EB1",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "8848812"
+    },
+    {
+      "account": "0x794addD03889C2b96b16ad230E372B78964d9C76",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "771"
+    },
+    {
+      "account": "0x1B91ADD55CD43068bD4ca64Fb6C5ca0439Dc9622",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "641"
+    },
+    {
+      "account": "0xABD95f7D67e76280df18220AA6F5A7358956C58b",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "27219404996703664239"
+    },
+    {
+      "account": "0xfD98422fa15FFDa7513F9d17bed099Ffb74Ce0A0",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "6375257709393343"
+    },
+    {
+      "account": "0x076E714869CEcd1eEA6f343D5CE1439D94E079Cd",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "1068084751678606"
+    },
+    {
+      "account": "0xE588611e7A2392507879E3be80531654b85C16aA",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "336373040"
+    },
+    {
+      "account": "0x814EEfc6EbEDf943f115BCDbcf928F39e908d7ea",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "299086219"
+    },
+    {
+      "account": "0xB621A1621Fa3b561Ea5AF683888D0DCf93edcf55",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "2796425",
+      "maximum": "3058022"
+    },
+    {
+      "account": "0xF8881e43Fb4676f61428F31E60bc15F718FaddB4",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "4026284"
+    },
+    {
+      "account": "0x24bb3844394a7cf254B470260D73b881b9B4d476",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "1005971"
+    },
+    {
+      "account": "0x000755Fbe4A24d7478bfcFC1E561AfCE82d1ff62",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "75612"
+    },
+    {
+      "account": "0xaA0d9205AE55dCF6321dF019da9265B12bA41a7f",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "4562274422052156641378"
+    },
+    {
+      "account": "0xA8192F71f0Ec42Bf8cA501E80475E2287Ee54EB1",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "10516507274154720686"
+    },
+    {
+      "account": "0x794addD03889C2b96b16ad230E372B78964d9C76",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "15203625804246346"
+    },
+    {
+      "account": "0x1B91ADD55CD43068bD4ca64Fb6C5ca0439Dc9622",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "7504068243099159"
+    },
+    {
+      "account": "0x07c2D0E24530199e2c9A15bfeD4496d8E3798003",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "432931390220270676"
+    },
+    {
+      "account": "0xDD0CDF8D98d9Ad3ADfaa49AaECD444Bfa01d9C9a",
+      "token": "0xD33526068D116cE69F19A9ee46F0bd304F21A51f",
+      "claimed": "0",
+      "maximum": "96566390026402131"
+    },
+    {
+      "account": "0x67A4073E10591706377f0f3431d43e2184B1e21F",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "122087204145925129648"
+    },
+    {
+      "account": "0x1743Dfc45400D2e6334bA9ebdEA32703DB4578a5",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "2092657680557750618",
+      "maximum": "36988379304961643"
+    },
+    {
+      "account": "0xA8eacA2c40d20832a77f4f757564246640Cb57fb",
+      "token": "0xD33526068D116cE69F19A9ee46F0bd304F21A51f",
+      "claimed": "90359058860735484",
+      "maximum": "1119966303458925"
+    },
+    {
+      "account": "0x3539A5Df2E02100400980F7bd79eE2A4cD1D4AFF",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "323717"
+    },
+    {
+      "account": "0x3539A5Df2E02100400980F7bd79eE2A4cD1D4AFF",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "222290030663197025544",
+      "maximum": "26982582883643043300"
+    },
+    {
+      "account": "0xc5E53CaCb12e1feea03A4b8BB12FC4eB77f0bcF9",
+      "token": "0xD33526068D116cE69F19A9ee46F0bd304F21A51f",
+      "claimed": "0",
+      "maximum": "3487357166992950"
+    },
+    {
+      "account": "0x57cBcbD9Ff6905c7Ac25df1e3F5307C07Ba57563",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "3737319"
+    },
+    {
+      "account": "0x6e74053a3798e0fC9a9775F7995316b27f21c4D2",
+      "token": "0x04ACaF8D2865c0714F79da09645C13FD2888977f",
+      "claimed": "0",
+      "maximum": "10045827662802985320"
+    },
+    {
+      "account": "0xf053349467228f6D1Cd8305C759707310D7684a2",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "4877466512335940081"
+    },
+    {
+      "account": "0xAf79312EB821871208ac76A80c8E282f8796964e",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "6464888009019363",
+      "maximum": "33671581819129938"
+    },
+    {
+      "account": "0x2aC895b844Bea949e63c271436bA5aB86216021f",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "5930976"
+    },
+    {
+      "account": "0x242EedaEc01332261DD6D207595Caa397671Db01",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "6900767"
+    },
+    {
+      "account": "0xDA694a5467B8830E648Da728fE3195f87E63f464",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "6543288"
+    },
+    {
+      "account": "0x268E04BBb280a4280982a41330c70A855e8730Ad",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "900913"
+    },
+    {
+      "account": "0xCdF198A569FEE3AF4D4e2aA82F4B696C21A64396",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "862076304441318"
+    },
+    {
+      "account": "0xcAD30F661ed3bf0dda1c9e3F63b0819fC7A9702E",
+      "token": "0xD33526068D116cE69F19A9ee46F0bd304F21A51f",
+      "claimed": "0",
+      "maximum": "542256283322633822"
+    },
+    {
+      "account": "0x43A996fa50d2f378d707aCA9dDCDE1C30CB68f63",
+      "token": "0x04ACaF8D2865c0714F79da09645C13FD2888977f",
+      "claimed": "0",
+      "maximum": "8390972718914240"
+    },
+    {
+      "account": "0x57cBcbD9Ff6905c7Ac25df1e3F5307C07Ba57563",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "3562760452369788583"
+    },
+    {
+      "account": "0x07096A292CeACB23cD306C9f60e6312A6409436A",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "364836003142115447878"
+    },
+    {
+      "account": "0xb51074Da03c55E79e3526cF6bBf31873443EfC63",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "318080427437030367762"
+    },
+    {
+      "account": "0x42ccD58a2f006045bCEcc5cD31509687A55183FE",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "127158926875282996655",
+      "maximum": "180153116766306188488"
+    },
+    {
+      "account": "0xD4851BA14a4c4C2784Ed31B76432900d8605C169",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "104325969854215615977"
+    },
+    {
+      "account": "0x1a1A54d0Fb518d91cB6794F1A74E80b0bE73C4c7",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "20997452191199757053"
+    },
+    {
+      "account": "0x13F210c8bAf5f5DBAFf3E917E2e5A49E73BBAF12",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "22582138378943494986"
+    },
+    {
+      "account": "0x9bB056a970FC695f24888F15d61d21A41e20bD00",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "20098916713412594208"
+    },
+    {
+      "account": "0x777d1868Fc2099ADd81AC239ed3F2D31420a52EB",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "13371241967267566397"
+    },
+    {
+      "account": "0x47318cB89C00e3073397970b0Ae2f4BB624fc841",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "10727128067140400340",
+      "maximum": "5103789177306370"
+    },
+    {
+      "account": "0x31242027C460Db3bf63A70DbFaFc718fa62536fA",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "2699411661186786665"
+    },
+    {
+      "account": "0x3A673D076Aa6C1060386d75f87dA28d0955E8497",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "2465165253685213935637"
+    },
+    {
+      "account": "0x6Ca1675244a743871c5d1A4223De53D6d3A9c2F9",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "69872266739848612623"
+    },
+    {
+      "account": "0x00C6d212501Fe3e3a8fc19871ff0ae46C342E5fd",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "19176558121270991110"
+    },
+    {
+      "account": "0x2fb5d95B0Ad55D403fb7E6B0677f8632e4360a71",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "351495836537484981"
+    },
+    {
+      "account": "0xB48C52d98920Fe82d4717f3f8d5176F55c905f89",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "138339373403802310"
+    },
+    {
+      "account": "0x05fE883cBb4Ee071aACE4db15a171357a3758f2d",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "68299625791349013"
+    },
+    {
+      "account": "0xa2978b69D04B22cCA376ACE320cd3b4389Cb5323",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "6910178905755842"
+    },
+    {
+      "account": "0x826bDB55C4d7C5d53CC1A49b40599B20AD8eA703",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "1477712063117205"
+    },
+    {
+      "account": "0xcFae084c26582c38c2e9Bfb92Da7d54f842A7A5f",
+      "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "claimed": "0",
+      "maximum": "363241335027071435684"
+    },
+    {
+      "account": "0xbCbc8cb4D1e8ED048a6276a5E94A3e952660BcbC",
+      "token": "0x18084fbA666a33d37592fA2633fD49a74DD93a88",
+      "claimed": "0",
+      "maximum": "30400232544855298"
+    },
+    {
+      "account": "0xD100b6645EB05Bd88FF6491cb9f1C2688948B838",
+      "token": "0x18084fbA666a33d37592fA2633fD49a74DD93a88",
+      "claimed": "169023756796488",
+      "maximum": "1736102435671"
+    },
+    {
+      "account": "0x95a40697A1129FfDa81437b641e605927809D773",
+      "token": "0x18084fbA666a33d37592fA2633fD49a74DD93a88",
+      "claimed": "0",
+      "maximum": "28151282680573"
+    },
+    {
+      "account": "0x473bFe4B8dC264BcD6ABcC31E0938dF8FB9b82f2",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "430033392834832585"
+    },
+    {
+      "account": "0xD720f40D0856892C66177D81c9D46d4aD8eB0006",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "26345056308434394"
+    },
+    {
+      "account": "0x78bFf1DD7E02ae2A84Ce9605c8D406E459F0f7BE",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "706632808295759722"
+    },
+    {
+      "account": "0xCE5042216ecA65F552605A7049c8C2099c01AC59",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "3722377780377426148"
+    },
+    {
+      "account": "0xfCC06F7F02f6ab02051F259Db4f82F20d8d02112",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "2133860916701370533"
+    },
+    {
+      "account": "0x8c2AEcCef3B3634D039c96993577F80D3278FEe8",
+      "token": "0xD33526068D116cE69F19A9ee46F0bd304F21A51f",
+      "claimed": "0",
+      "maximum": "181106159846407213"
+    },
+    {
+      "account": "0xbfe2B85525E56CA0C5813BCA33B38c90690c329A",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "13935371073923936741"
+    },
+    {
+      "account": "0x6623215826F8be557DAe02f03dd1187c72F590ba",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "5344980479202856316"
+    },
+    {
+      "account": "0x9cf5cafaE43EDa4b53bb0656f02537FEB763CFE3",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "1108924252111808410"
+    },
+    {
+      "account": "0xDcE62b21A8B1A9b39dD3ded27C876d416CC91B3e",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "935153451230140613"
+    },
+    {
+      "account": "0x233eFcC9b1EadD45bccB7ba764Aa8C6D1e81F6bf",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "3118554838559"
+    },
+    {
+      "account": "0x182F155fFccF496796a15f315515C7A060268d2a",
+      "token": "0xC0c17dD08263C16f6b64E772fB9B723Bf1344DdF",
+      "claimed": "0",
+      "maximum": "261882847231"
+    },
+    {
+      "account": "0x8a041643caBcCCE7a5E24f4eE4FEC664E1E36d24",
+      "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "claimed": "0",
+      "maximum": "2797925162215500007"
+    },
+    {
+      "account": "0x2d2F4D838242642cD50805994439d3E870320a5b",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "271517903992291762",
+      "maximum": "17143127932478460"
+    },
+    {
+      "account": "0x794addD03889C2b96b16ad230E372B78964d9C76",
+      "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "claimed": "0",
+      "maximum": "3770554177769871"
+    },
+    {
+      "account": "0x0482B2Aa10783e226bAda033ed4084d60Bfd1D94",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "7133078"
+    },
+    {
+      "account": "0x0CDe7d1864c84697F03d903f54f4cf14eDA92172",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "2009138753933996634"
+    },
+    {
+      "account": "0x1689562b07d84Afe0Be876D5771f837911E06ff3",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "3213475189040939920"
+    },
+    {
+      "account": "0xda8a435Bc5C6b1b56357e6Aa40A2530ec47058ea",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "3076582037458516992",
+      "maximum": "4175201282452835"
+    },
+    {
+      "account": "0x1368EB291511cFA4B2396421c9dCA60895f6bd66",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "4244988841355089404"
+    },
+    {
+      "account": "0xEb2A77971d5A8d3b458b81e7964DE27a2453F84a",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "9942247466793676331",
+      "maximum": "124459556020415498"
+    },
+    {
+      "account": "0x08D009dB7b209ca24a13FEf31C4DCAb128cA2E1c",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "26600762065423234546",
+      "maximum": "128487311457290904"
+    },
+    {
+      "account": "0xdF0C262cf36e5cad243DFC23046401c494E9775C",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "594997",
+      "maximum": "318782"
+    },
+    {
+      "account": "0x737a349C8326BE1558497871Aceaf7E2478fAdcf",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "31319135059110671"
+    },
+    {
+      "account": "0x050c6fE35973EC0f58FfD878192C503643168C38",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "15367012202396430397"
+    },
+    {
+      "account": "0xc2aFBF4C3D7634E774636e92aF525c8f4e2b357B",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "1784690"
+    },
+    {
+      "account": "0x604EED0F97178D59e4Bc2Ed1E0B5856537DF1cc0",
+      "token": "0x04ACaF8D2865c0714F79da09645C13FD2888977f",
+      "claimed": "0",
+      "maximum": "558931145751279380561"
+    },
+    {
+      "account": "0x43fc2E06F323830eFFBeD116e8EdcFDC0B73C2FF",
+      "token": "0x04ACaF8D2865c0714F79da09645C13FD2888977f",
+      "claimed": "0",
+      "maximum": "132240219938630585187"
+    },
+    {
+      "account": "0xA8752762470a6a73aC874258677043c226d080ec",
+      "token": "0x04ACaF8D2865c0714F79da09645C13FD2888977f",
+      "claimed": "0",
+      "maximum": "67756786430250784893"
+    },
+    {
+      "account": "0xa1FC03e69e031AE9682b6e1B2c9669A33dE39b09",
+      "token": "0x04ACaF8D2865c0714F79da09645C13FD2888977f",
+      "claimed": "0",
+      "maximum": "12851948583990181140"
+    },
+    {
+      "account": "0x3aE693A5A4fc028800e8667FCE13c58d72C95FD5",
+      "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "claimed": "0",
+      "maximum": "5190895623847614"
+    },
+    {
+      "account": "0xfDad50617fcDa25Ca2904A645BCA6607f212A7C5",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "864048"
+    },
+    {
+      "account": "0x53Af683f4ABD7D425E117eDdaB82e49dA463CFF7",
+      "token": "0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f",
+      "claimed": "0",
+      "maximum": "95499842369796761"
+    },
+    {
+      "account": "0xB1ef9591413E6cbE68149B98FC4e543dD9c758ED",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "33800573",
+      "maximum": "202743"
+    },
+    {
+      "account": "0x35341d0F2eAe4aE3782c4F7a08C86f7717fD0839",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "4851245834641620783"
+    },
+    {
+      "account": "0x0E7aF95de26BF10E6B9f00D846C22757aa582B9C",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "788635570556192425"
+    },
+    {
+      "account": "0x074a47b4a107BEaEf9D8fb5cBb66D7A829383168",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "1590935169764215323"
+    },
+    {
+      "account": "0x280d5813BEB5773e27437CF4f63C499D8cd04a58",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "276164539003722057675"
+    },
+    {
+      "account": "0x022426719795F82A15BB850df9Ee90796bA4Ef5E",
+      "token": "0xD33526068D116cE69F19A9ee46F0bd304F21A51f",
+      "claimed": "0",
+      "maximum": "1677521106956705922"
+    },
+    {
+      "account": "0x4Cf77e42656CE89ce0813a2d93c3D476673D11e6",
+      "token": "0xD33526068D116cE69F19A9ee46F0bd304F21A51f",
+      "claimed": "1554594869396086261",
+      "maximum": "75449184882652263"
+    },
+    {
+      "account": "0xA9f589F74103D33ef9DC1D7A0266fECB84Cc1139",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "476"
+    },
+    {
+      "account": "0x22Fb11148Fa39b07098B35b3c5EF2DDaa9FB2375",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "49"
+    },
+    {
+      "account": "0xfD98422fa15FFDa7513F9d17bed099Ffb74Ce0A0",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "25426139313020"
+    },
+    {
+      "account": "0xfD98422fa15FFDa7513F9d17bed099Ffb74Ce0A0",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "1719"
+    },
+    {
+      "account": "0x585214216D3524D6d7E8c59921d0706ca49AAAc2",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "11503254",
+      "maximum": "257538"
+    },
+    {
+      "account": "0x0638A90272B17b53Bef4d762aFD8c734379Ba9d9",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "14951686715916"
+    },
+    {
+      "account": "0x553784cd0fa8b799ecd674Fd707c870F46056fe7",
+      "token": "0x7CB20517776636eD76b68EdB3D99DCce356ABf02",
+      "claimed": "0",
+      "maximum": "16438492063492049184"
+    },
+    {
+      "account": "0xc42C6A92903DF5BE83F2c4cED557dfacB093DB08",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "1060497"
+    },
+    {
+      "account": "0xCd818ef199e5aB0f4EE92eF6c90268EEb147EFD0",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "2048059746586326194011"
+    },
+    {
+      "account": "0xF43d1aBC2b06Fd3fB37f294710c3dEa3856976Ca",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "129202530972446081564"
+    },
+    {
+      "account": "0x2E5b0aA712a05A9B61Fe6B976148f0B9AFb2C550",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "19"
+    },
+    {
+      "account": "0x2E5b0aA712a05A9B61Fe6B976148f0B9AFb2C550",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "861445379844478"
+    },
+    {
+      "account": "0x000000000004444c5dc75cB358380D2e3dE08A90",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "809"
+    },
+    {
+      "account": "0x000000000004444c5dc75cB358380D2e3dE08A90",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "10008023742639"
+    },
+    {
+      "account": "0x1B82850E491e6176170b32eC3f29AF48Eb2Fe372",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "936097989130656281175"
+    },
+    {
+      "account": "0x2E5b0aA712a05A9B61Fe6B976148f0B9AFb2C550",
+      "token": "0x090185f2135308BaD17527004364eBcC2D37e5F6",
+      "claimed": "0",
+      "maximum": "441325577674097050"
+    },
+    {
+      "account": "0x000000000004444c5dc75cB358380D2e3dE08A90",
+      "token": "0x090185f2135308BaD17527004364eBcC2D37e5F6",
+      "claimed": "0",
+      "maximum": "10346570490133576"
+    },
+    {
+      "account": "0x6f22b9f222D9e9AF4481df55B863A567dfe1dd42",
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "claimed": "0",
+      "maximum": "39810"
+    },
+    {
+      "account": "0x2E5b0aA712a05A9B61Fe6B976148f0B9AFb2C550",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "14155489391524"
+    },
+    {
+      "account": "0x2E5b0aA712a05A9B61Fe6B976148f0B9AFb2C550",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "1316334704505"
+    },
+    {
+      "account": "0x000000000004444c5dc75cB358380D2e3dE08A90",
+      "token": "0x73968b9a57c6E53d41345FD57a6E6ae27d6CDB2F",
+      "claimed": "0",
+      "maximum": "289951917349"
+    },
+    {
+      "account": "0x000000000004444c5dc75cB358380D2e3dE08A90",
+      "token": "0xf4c13D631450De6B12a19829E37c8e2826891dC4",
+      "claimed": "0",
+      "maximum": "13831215285"
+    },
+    {
+      "account": "0x0b2f3C85811018C8226033d209f8CFa0b0AE6868",
+      "token": "0x01791F726B4103694969820be083196cC7c045fF",
+      "claimed": "0",
+      "maximum": "82980600446091840355"
+    }
+  ]
+}
