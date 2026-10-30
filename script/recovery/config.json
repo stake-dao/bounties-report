@@ -1,0 +1,9 @@
+{
+  "checkers": { "1": null, "8453": null, "42161": null },
+  "pools": [
+    { "name": "voters-1", "review": "recovery-reviews/2026-10-29/voters-1.json" },
+    { "name": "voters-8453", "review": "recovery-reviews/2026-10-29/voters-8453.json" },
+    { "name": "voters-42161", "review": "recovery-reviews/2026-10-29/voters-42161.json" },
+    { "name": "extra-1", "review": "recovery-reviews/2026-10-29/extra-1.json" }
+  ]
+}

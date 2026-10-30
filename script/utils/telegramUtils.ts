@@ -7,7 +7,8 @@ async function postToTelegram(
   message: string,
   apiKey: string,
   chatId: string,
-  parseMode: "MarkdownV2" | "HTML"
+  parseMode: "MarkdownV2" | "HTML",
+  required = false
 ): Promise<void> {
   const url = `https://api.telegram.org/bot${apiKey}/sendMessage`;
   const payload = {
@@ -19,29 +20,33 @@ async function postToTelegram(
 
   try {
     const response = await axios.post(url, payload);
-    if (response.status !== 200) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.status !== 200 || response.data?.ok === false) {
+      throw new Error("Telegram rejected the message");
     }
-  } catch (error) {
-    console.error("Failed to send the message:", error);
+  } catch {
+    // Axios errors include the request URL, which contains the bot token.
+    if (required) throw new Error("Telegram delivery failed");
+    console.error("Telegram delivery failed");
   }
 }
 
 export async function sendTelegramMessage(
   message: string,
-  parseMode: "MarkdownV2" | "HTML" = "MarkdownV2"
+  parseMode: "MarkdownV2" | "HTML" = "MarkdownV2",
+  required = false
 ) {
   const TELEGRAM_API_KEY = process.env.TELEGRAM_VERIF_API_KEY;
   const TELEGRAM_CHAT_ID = process.env.TELEGRAM_VERIF_CHAT_ID;
 
   if (!TELEGRAM_API_KEY || !TELEGRAM_CHAT_ID) {
+    if (required) throw new Error("Telegram credentials are not configured");
     console.error(
       "Telegram API key or Chat ID is not set in environment variables."
     );
     return;
   }
 
-  await postToTelegram(message, TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, parseMode);
+  await postToTelegram(message, TELEGRAM_API_KEY, TELEGRAM_CHAT_ID, parseMode, required);
 }
 
 /**

@@ -1,0 +1,95 @@
+name: "Rewards: Prepare Safe recovery"
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        type: choice
+        options: [all, voters, extra]
+        default: all
+        required: true
+        description: Reviewed pools to refresh after root acceptance
+      notify:
+        type: boolean
+        default: true
+        description: Send the detailed Telegram report
+      dispatch_id:
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rewards-recovery-preparation
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
+        if: always()
+        run: echo "Temporal tracking"
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout reviewed extra-rewards source
+        if: inputs.scope != 'voters'
+        uses: actions/checkout@v4
+        with:
+          repository: stake-dao/merkl-toolkit
+          ref: main
+          path: merkl-toolkit
+          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.33.0'
+      - run: pnpm install --frozen-lockfile
+
+      - name: Refresh claims and prepare review artifacts
+        env:
+          RECOVERY_SCOPE: ${{ inputs.scope }}
+          NOTIFY: ${{ inputs.notify }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
+        run: |
+          args=()
+          if [ "$NOTIFY" = true ]; then args+=(--notify); fi
+          pnpm tsx script/recovery/run.ts "$RECOVERY_SCOPE" "$RUNNER_TEMP/rewards-recovery" "${args[@]}"
+
+      - name: Upload reports and Safe review files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rewards-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rewards-recovery
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Write Maestro result
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ "$JOB_STATUS" = success ]; then
+            printf '%s\n' '{"status":"executed","reason":"Recovery review prepared; no transaction submitted"}' > "$RUNNER_TEMP/job_result.json"
+          else
+            printf '%s\n' '{"status":"error","reason":"Recovery preparation or notification blocked; see artifacts"}' > "$RUNNER_TEMP/job_result.json"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: job-result
+          path: ${{ runner.temp }}/job_result.json

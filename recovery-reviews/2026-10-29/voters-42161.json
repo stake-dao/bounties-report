@@ -1,0 +1,34 @@
+{
+  "chainId": 42161,
+  "distributor": "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db",
+  "recipient": "0x5DA07af8913A4EAf09E5F569c20138b658906c17",
+  "sourceRoot": "0x0b9a4b036d94fb26e7a3c197691d1933710462cee2ed53d1b463a0002cc3eec5",
+  "sourceFile": "bounties-reports/1790208000/vlCVX/vlcvx_merkle_42161.json",
+  "cutoff": 1793232000,
+  "checkpoint": {
+    "block": "519360951",
+    "hash": "0xcd3ee6bb82cd401b7a87d814cbd072af30e9674a354e7f9c2d053bda9fd3f4b2"
+  },
+  "provenance": "https://ampcode.com/threads/T-01a187b0-b4c4-72c0-9da2-f6b1d0ff810f",
+  "reductionsSha256": "d413abb7972a1cfd7aa10b52c6e042d7ef4592f23fdf76c225f90c21e0226ff7",
+  "rows": [
+    {
+      "account": "0xC0c21F1Ae0C7c194A76168288DD251e0CD551ac4",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "claimed": "0",
+      "maximum": "197551377380931076096"
+    },
+    {
+      "account": "0x311D58DA101D6D7Ec8f6179a56e686F7e48220Cc",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "claimed": "0",
+      "maximum": "101839327354157449216"
+    },
+    {
+      "account": "0x2C2c41D71C553aCe39A175385acf42879001d3b9",
+      "token": "0x7A10F506E4c7658e6AD15Fdf0443d450B7FA80D7",
+      "claimed": "0",
+      "maximum": "669895743871216844800"
+    }
+  ]
+}
