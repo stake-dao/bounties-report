@@ -88,7 +88,8 @@ jobs:
           echo "$run" | jq -e --argjson workflow "$workflow_id" --arg repo "$GITHUB_REPOSITORY" '.workflow_id == $workflow and .conclusion == "success" and .head_branch == "main" and .head_repository.full_name == $repo'
           head=$(echo "$run" | jq -r .head_sha)
           gh api "repos/$GITHUB_REPOSITORY/git/commits/$ARCHIVE_COMMIT" | jq -e --arg head "$head" '.parents | length == 1 and .[0].sha == $head'
-          gh api -H 'Accept: application/vnd.github.raw+json' "repos/$GITHUB_REPOSITORY/contents/recovery-preparations/$RUN_ID-$ATTEMPT.zip?ref=$ARCHIVE_COMMIT" > "$RUNNER_TEMP/recovery-input.zip"
+          blob=$(gh api "repos/$GITHUB_REPOSITORY/contents/recovery-preparations/$RUN_ID-$ATTEMPT.zip?ref=$ARCHIVE_COMMIT" --jq .sha)
+          gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob" --jq .content | base64 --decode > "$RUNNER_TEMP/recovery-input.zip"
           echo "$ARCHIVE_SHA256  $RUNNER_TEMP/recovery-input.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/recovery-input.zip" -d "$RUNNER_TEMP/recovery-input"
 
