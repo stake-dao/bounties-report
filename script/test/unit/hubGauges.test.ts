@@ -1,5 +1,5 @@
 import axios from "axios";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { addGaugeNamesToBounties, getGaugesInfos } from "../../utils/reportUtils";
 
 const ROOT = "0xE40DeF1147775411Ce8Bd5a169dA0303200D438A";
@@ -12,9 +12,22 @@ const GAUGES = [
   { gauge: FXN, childGauge: FXN, name: "Not votable", inController: false },
 ];
 
-afterEach(() => vi.restoreAllMocks());
+beforeEach(() => vi.stubEnv("DATA_HUB_URL", "https://hub.example.test"));
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 
 describe("hub gauge metadata", () => {
+  it.each([undefined, "", "   "])("rejects an unset or blank Hub URL (%j) before HTTP", async (value) => {
+    vi.stubEnv("DATA_HUB_URL", value);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const get = vi.spyOn(axios, "get");
+    expect(await getGaugesInfos("unsupported")).toEqual([]);
+    await expect(getGaugesInfos("curve")).rejects.toThrow("DATA_HUB_URL must be set");
+    expect(get).not.toHaveBeenCalled();
+  });
+
   it("preserves child and root aliases, including zero-weight and killed gauges", async () => {
     const get = vi.spyOn(axios, "get").mockResolvedValue({ status: 200, data: { gauges: GAUGES } });
     const gauges = await getGaugesInfos("curve");
@@ -23,7 +36,7 @@ describe("hub gauge metadata", () => {
       { name: "ava-frxUSD+USDp ", address: ROOT.toLowerCase(), actualGauge: CHILD.toLowerCase() },
       { name: "frxUSD/sUSDat", address: MAINNET.toLowerCase() },
     ]);
-    expect(get).toHaveBeenCalledExactlyOnceWith("https://hub.stakedao.org/v1/votemarket/curve/gauges");
+    expect(get).toHaveBeenCalledExactlyOnceWith("https://hub.example.test/v1/votemarket/curve/gauges");
   });
 
   it("keeps report amounts and resolves both claim-address forms to the child", async () => {
@@ -43,7 +56,16 @@ describe("hub gauge metadata", () => {
       status: 200, data: { gauges: [{ gauge: FXN, name: "GHO+fxUSD" }] },
     });
     expect(await getGaugesInfos("fxn")).toEqual([{ name: "GHO+fxUSD", address: FXN.toLowerCase() }]);
-    expect(get).toHaveBeenCalledExactlyOnceWith("https://hub.stakedao.org/v1/votemarket/fxn/gauges");
+    expect(get).toHaveBeenCalledExactlyOnceWith("https://hub.example.test/v1/votemarket/fxn/gauges");
+  });
+
+  it("uses the configured Hub root without duplicating path separators", async () => {
+    vi.stubEnv("DATA_HUB_URL", "https://data-hub.example.test/");
+    const get = vi.spyOn(axios, "get").mockResolvedValue({
+      status: 200, data: { gauges: [{ gauge: FXN, name: "GHO+fxUSD" }] },
+    });
+    await getGaugesInfos("fxn");
+    expect(get).toHaveBeenCalledExactlyOnceWith("https://data-hub.example.test/v1/votemarket/fxn/gauges");
   });
 
   it("rejects unavailable Curve metadata instead of losing root aliases", async () => {
@@ -64,7 +86,7 @@ describe("hub gauge metadata", () => {
     expect(await getGaugesInfos(protocol)).toEqual([]);
     get.mockRejectedValue(new Error("503"));
     expect(await getGaugesInfos(protocol)).toEqual([]);
-    expect(get.mock.calls.every(([url]) => String(url).startsWith("https://hub.stakedao.org/"))).toBe(true);
+    expect(get.mock.calls.every(([url]) => String(url).startsWith("https://hub.example.test/"))).toBe(true);
     expect(get).toHaveBeenCalledTimes(3);
   });
 });

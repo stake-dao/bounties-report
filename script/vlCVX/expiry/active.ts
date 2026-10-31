@@ -7,6 +7,7 @@ import { MerkleData } from "../../interfaces/MerkleData";
 import { EXPIRY_DISTRIBUTOR, verifyExpiryParent } from "../../shared/merkle/expiry";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { getClient } from "../../utils/getClients";
+import { getDataHubUrl } from "../../utils/dataHub";
 
 export async function readActiveVotersMerkle(chainId: number, root: string, client?: PublicClient): Promise<MerkleData> {
   if (![1, 8453, 42161].includes(chainId)) throw new Error("expiry chain");
@@ -22,7 +23,7 @@ export async function readActiveVotersMerkle(chainId: number, root: string, clie
   const stored = local(root);
   if (stored) return stored;
   try {
-    const response = await fetch(`https://hub.stakedao.org/v1/merkles/active?chainId=${chainId}`);
+    const response = await fetch(getDataHubUrl(`/v1/merkles/active?chainId=${chainId}`));
     if (response.ok) return verified(await response.json() as MerkleData, root);
   } catch {}
   const rpc = client ?? await getClient(chainId);

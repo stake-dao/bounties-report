@@ -30,6 +30,7 @@ on:
         default: false
 
 env:
+  DATA_HUB_URL: ${{ secrets.DATA_HUB_URL }}
   NODE_OPTIONS: --use-openssl-ca
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
 

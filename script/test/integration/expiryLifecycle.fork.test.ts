@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import expiryAbi from "../../../abis/RewardsExpiry.json";
 import expiryDeployment from "./fixtures/rewards-expiry.json";
 import { ALL_MIGHT_V2 } from "../../utils/constants";
+import { getDataHubUrl } from "../../utils/dataHub";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { applyConfirmedExpiry, bootstrapExpiryLedger, EXPIRY_DISTRIBUTOR, expiryDigest, expiryKey, expiryRound, prepareExpiry, Publication, recordExpiryDistribution, sixCalendarMonths, syncExpiryClaims, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
 import { readConfirmedExpiry } from "../../vlCVX/expiry/chain";
@@ -288,9 +289,10 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       const originalDirectory = process.cwd();
       const originalFetch = globalThis.fetch;
       try {
+        vi.stubEnv("DATA_HUB_URL", "https://hub.example.test");
         process.chdir(directory);
         globalThis.fetch = ((input, init) => {
-          if (String(input).startsWith("https://hub.stakedao.org") || String(input).startsWith("https://raw.githubusercontent.com")) return Promise.reject(new Error("isolated publication/API outage"));
+          if (String(input).startsWith(getDataHubUrl()) || String(input).startsWith("https://raw.githubusercontent.com")) return Promise.reject(new Error("isolated publication/API outage"));
           return originalFetch(input, init);
         }) as typeof fetch;
         const localBaseline = await readActiveVotersMerkle(1, restored.merkle.merkleRoot, client);
@@ -304,6 +306,7 @@ describe.skipIf(!process.env.EXPIRY_RPC)("expiry lifecycle on deployed URD and S
       } finally {
         process.chdir(originalDirectory);
         globalThis.fetch = originalFetch;
+        vi.unstubAllEnvs();
       }
       ledger = restored.ledger;
       expect(restored.merkle.merkleRoot).toBe(applied.merkle.merkleRoot);

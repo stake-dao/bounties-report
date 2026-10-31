@@ -18,6 +18,7 @@ import { Proposal } from "../interfaces/Proposal";
 import { Interface } from "ethers/lib/utils";
 import { debug, sampleArray, isDebugEnabled } from "./logger";
 import { getTokenByAddress } from "./tokenService";
+import { getDataHubUrl } from "./dataHub";
 
 const WEEK = 604800; // One week in seconds
 
@@ -1096,7 +1097,7 @@ export async function getGaugesInfos(protocol: string): Promise<GaugeInfo[]> {
 async function getCurveGaugesInfos(): Promise<GaugeInfo[]> {
   try {
     const response = await axios.get(
-      "https://hub.stakedao.org/v1/votemarket/curve/gauges"
+      getDataHubUrl("/v1/votemarket/curve/gauges")
     );
     if (response.status === 200 && Array.isArray(response.data.gauges) && response.data.gauges.length > 0) {
       const data = response.data.gauges;
@@ -1182,7 +1183,7 @@ async function getFraxGaugesInfos(): Promise<GaugeInfo[]> {
 async function getFxnGaugesInfos(): Promise<GaugeInfo[]> {
   try {
     const response = await axios.get(
-      "https://hub.stakedao.org/v1/votemarket/fxn/gauges"
+      getDataHubUrl("/v1/votemarket/fxn/gauges")
     );
     if (response.status === 200 && Array.isArray(response.data.gauges)) {
       return response.data.gauges.map(
