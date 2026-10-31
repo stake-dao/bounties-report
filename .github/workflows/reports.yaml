@@ -182,7 +182,7 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
         with:
-          python-version: '3.10'
+          python-version: '3.12.15'
 
       - name: Revalidate completion without signing
         run: uv run --project "$RUNNER_TEMP/guard/jobs" --frozen "$GUARD_JOB" --check-only --completion "/tmp/$GUARD_JOB-completion.input.json"
