@@ -54,7 +54,7 @@ jobs:
           repository: stake-dao/merkl-toolkit
           ref: main
           path: merkl-toolkit
-          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          token: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
           persist-credentials: false
 
       - uses: actions/setup-node@v4
