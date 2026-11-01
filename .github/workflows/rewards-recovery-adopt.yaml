@@ -32,6 +32,10 @@ on:
         type: boolean
         default: false
         description: Commit verified baseline data to main while publishers are held
+      check_access_only:
+        type: boolean
+        default: false
+        description: Check Git push access without replaying or publishing a recovery
       dispatch_id:
         type: string
         required: false
@@ -46,7 +50,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check recovery publication access
+        env:
+          GH_TOKEN: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN" || { echo "RECOVERY_GITHUB_TOKEN is missing"; exit 1; }
+          gh auth setup-git
+          for repository in bounties-report merkl-toolkit; do
+            git clone --bare --depth 1 --filter=blob:none --single-branch --branch main \
+              "https://github.com/stake-dao/$repository.git" "$RUNNER_TEMP/$repository"
+            git -C "$RUNNER_TEMP/$repository" push --dry-run origin HEAD:refs/heads/main
+            echo "Git push authentication passed: stake-dao/$repository (dry run; no changes)"
+          done
+
   adopt:
+    needs: access
+    if: '!inputs.check_access_only'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -63,7 +87,7 @@ jobs:
           repository: stake-dao/merkl-toolkit
           ref: main
           path: merkl-toolkit
-          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          token: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -106,7 +130,7 @@ jobs:
         if: inputs.pool == 'extra-1' && !inputs.publish
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          token: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
           path: merkl-toolkit
           branch: recovery/adopt-${{ inputs.pool }}-${{ inputs.preparation_run }}
           title: "Adopt confirmed recovery: ${{ inputs.pool }}"
@@ -125,7 +149,7 @@ jobs:
         if: '!inputs.publish'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GIT_ACCESS_TOKEN }}
+          token: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
           branch: recovery/adopt-${{ inputs.pool }}-${{ inputs.preparation_run }}
           title: "Adopt confirmed recovery: ${{ inputs.pool }}"
           commit-message: "Record confirmed Safe recovery and canonical proofs"
@@ -140,7 +164,7 @@ jobs:
       - name: Publish verified baseline data
         if: inputs.publish
         env:
-          GH_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
           POOL: ${{ inputs.pool }}
         run: |
           set -euo pipefail
