@@ -1,0 +1,103 @@
+{
+  "protocol": "fxn",
+  "period": 1793232000,
+  "aggregator": "0xDBd24b092f686b12650EC1450e3A7138F714506c",
+  "totals": {
+    "sdInTotal": 84.95405945433421,
+    "sdAssigned": 84.95405945433421,
+    "wethInTotal": 0,
+    "wethOutTotal": 0
+  },
+  "dropped": {
+    "tokensNotSwapped": [],
+    "wethNotSwapped": true
+  },
+  "perToken": {
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": {
+      "mappedWeth": 0,
+      "sd": 26.223611275856605,
+      "mappedNative": 26.223611275856605
+    },
+    "0x365accfca291e7d3914637abf1f7635db165bb09": {
+      "mappedWeth": 0,
+      "sd": 58.73044817847761
+    }
+  },
+  "txs": [
+    {
+      "tx": "0x048f851c20ae16813ee1a018d0b5e7cc5e14a1b1c11345f728c65a78025684f9",
+      "wethIn": 0,
+      "wethOut": 0,
+      "sdIn": 29.365224089238808,
+      "nativeIn": 0,
+      "nativeOut": 29.365224089238808,
+      "nativeShareSd": 20.300769412313635,
+      "wethBasis": 0,
+      "tokenWeth": {},
+      "tokenSd": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 9.064454676925171,
+        "0x365accfca291e7d3914637abf1f7635db165bb09": 20.300769412313635
+      }
+    },
+    {
+      "tx": "0x928cb3e5e9114c555e04e3c5251886ece559914693220b17d3b4380364dd0b23",
+      "wethIn": 0,
+      "wethOut": 0,
+      "sdIn": 6.071039630612874,
+      "nativeIn": 6.071039630612874,
+      "nativeOut": 6.071039630612874,
+      "nativeShareSd": 4.197031674594125,
+      "wethBasis": 0,
+      "tokenWeth": {},
+      "tokenSd": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 1.8740079560187481,
+        "0x365accfca291e7d3914637abf1f7635db165bb09": 4.197031674594125
+      }
+    },
+    {
+      "tx": "0x850ac34594668e739fab810112995cdfe08098e9263a73b7e83c62a26fc261ce",
+      "wethIn": 0,
+      "wethOut": 0,
+      "sdIn": 8.899358695023466,
+      "nativeIn": 8.899358695023466,
+      "nativeOut": 8.899358695023466,
+      "nativeShareSd": 6.152305469766393,
+      "wethBasis": 0,
+      "tokenWeth": {},
+      "tokenSd": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 2.7470532252570723,
+        "0x365accfca291e7d3914637abf1f7635db165bb09": 6.152305469766393
+      }
+    },
+    {
+      "tx": "0xa6c4beeb64ebdfaca4c5caa084ceefafbf91a25b53f5bdef31bdbb620e3613d0",
+      "wethIn": 0,
+      "wethOut": 0,
+      "sdIn": 8.890020465637527,
+      "nativeIn": 8.890020465637527,
+      "nativeOut": 8.890020465637527,
+      "nativeShareSd": 6.145849764170307,
+      "wethBasis": 0,
+      "tokenWeth": {},
+      "tokenSd": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 2.74417070146722,
+        "0x365accfca291e7d3914637abf1f7635db165bb09": 6.145849764170307
+      }
+    },
+    {
+      "tx": "0x03efe256615eb6a34f7c0346092ad394a2690bb408ea5a2c24cd2f1b152a03aa",
+      "wethIn": 0,
+      "wethOut": 0,
+      "sdIn": 31.72841657382154,
+      "nativeIn": 2.3631924845827377,
+      "nativeOut": 31.72841657382154,
+      "nativeShareSd": 21.934491857633148,
+      "wethBasis": 0,
+      "tokenWeth": {},
+      "tokenSd": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": 9.793924716188394,
+        "0x365accfca291e7d3914637abf1f7635db165bb09": 21.934491857633148
+      }
+    }
+  ]
+}
