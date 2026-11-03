@@ -18,6 +18,9 @@ import { Proposal } from "../interfaces/Proposal";
 import { Interface } from "ethers/lib/utils";
 import { debug, sampleArray, isDebugEnabled } from "./logger";
 import { getTokenByAddress } from "./tokenService";
+import { SWAP_EXECUTOR } from "./constants";
+
+export { SWAP_EXECUTOR };
 
 const WEEK = 604800; // One week in seconds
 
@@ -113,9 +116,6 @@ export const BOTMARKET = getAddress(
   "0xADfBFd06633eB92fc9b58b3152Fe92B0A24eB1FF"
 );
 // Both executor generations measure native-token outputs at ALL_MIGHT_V2.
-export const SWAP_EXECUTOR = getAddress(
-  "0xb3619b30910df374965A6169082d2597a1Cf15dc"
-);
 export const LEGACY_SWAP_EXECUTOR = getAddress(
   "0xCE1d84E654DB546e3EdFf1481bA3d4c9394ba1C5"
 );

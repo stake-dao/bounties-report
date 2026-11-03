@@ -28,6 +28,7 @@ import path from "node:path";
 import { encodePacked, keccak256, pad } from "viem";
 import {
 	ALL_MIGHT_V2,
+	SWAP_EXECUTOR,
 	VOTIUM_FORWARDER,
 	VOTIUM_MERKLE_SPLIT_FROM_PERIOD,
 	WEEK,
@@ -346,9 +347,9 @@ export function pooledVotiumRemainder(
 
 /**
  * The Votium batch's fingerprint: the vault's reward tokens moving to the
- * shared executor. The Thursday voters batch also withdraws from the vault but
- * sends the tokens elsewhere and mints no sCRVUSD to this distributor, so
- * requiring both halves keeps it out.
+ * shared executor (historical) or the atomic SwapExecutor. The Thursday voters
+ * batch sends the tokens elsewhere and mints no sCRVUSD to this distributor,
+ * so requiring both halves keeps it out.
  */
 export function isVotiumSwapReceipt(
 	logs: readonly { topics?: readonly (string | null)[] }[],
@@ -356,14 +357,16 @@ export function isVotiumSwapReceipt(
 	const from = pad(VOTIUM_FORWARDER as `0x${string}`, {
 		size: 32,
 	}).toLowerCase();
-	const to = pad(ALL_MIGHT_V2 as `0x${string}`, { size: 32 }).toLowerCase();
+	const destinations = [ALL_MIGHT_V2, SWAP_EXECUTOR].map((address) =>
+		pad(address as `0x${string}`, { size: 32 }).toLowerCase(),
+	);
 
 	return logs.some((log) => {
 		const topics = log.topics ?? [];
 		return (
 			topics[0]?.toLowerCase() === TRANSFER_TOPIC &&
 			topics[1]?.toLowerCase() === from &&
-			topics[2]?.toLowerCase() === to
+			destinations.includes(topics[2]?.toLowerCase() ?? "")
 		);
 	});
 }
