@@ -7,9 +7,11 @@ import MerkleTree from "merkletreejs";
 import {
   computeLeaf,
   computeRoot,
+  loadArtifact,
   loadArchivedPairs,
   toPairMap,
 } from "../../verify/invariants/artifact";
+import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { findDuplicateKeys } from "../../verify/invariants/jsonSafe";
 import {
   checkPreservation,
@@ -72,6 +74,44 @@ describe("invariants: structural", () => {
     expect(computeRoot(toPairMap(data))).toBe(data.merkleRoot);
   });
 
+  it.each(["unchanged", "amount", "proof"])(
+    "verifies zero leaves without overlooking tampering: %s",
+    (mutation) => {
+      // Use the production generator (ethers encoding), not the verifier's
+      // computeLeaf/computeRoot helpers, to construct the input and proofs.
+      const data = generateMerkleTree({
+        [A1]: { [T1]: "100" },
+        [A2]: { [T1]: "0", [T2]: "7" },
+      });
+      expect(data.merkleRoot).toBe(
+        "0x636b6330c89e1b922bf27b6a68c31aa2b46a04150fa38511feeb6cf40987d453"
+      );
+      if (mutation === "amount") data.claims[A2].tokens[T1].amount = "1";
+      if (mutation === "proof") data.claims[A2].tokens[T1].proof = [];
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "inv-zero-"));
+      try {
+        const file = path.join(dir, "merkle.json");
+        fs.writeFileSync(file, JSON.stringify(data));
+        const violations: Violation[] = [];
+        const artifact = loadArtifact(
+          { ...ctx, relPath: "merkle.json" }, file, violations
+        )!;
+        if (mutation === "unchanged") {
+          expect(violations).toEqual([]);
+          expect(artifact.computedRoot).toBe(data.merkleRoot);
+          expect(artifact.pairs.get(A2)?.get(T1)).toBe(0n);
+        } else {
+          expect(violations.map((v) => v.invariant)).toContain("STRUCT_PROOF_INVALID");
+          if (mutation === "amount") {
+            expect(violations.map((v) => v.invariant)).toContain("STRUCT_ROOT_MISMATCH");
+          }
+        }
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  );
+
   it("flags duplicate (account, token) pairs across case variants", () => {
     const violations: Omit<Violation, "target" | "chainId">[] = [];
     // T1 checksummed vs lowercased are distinct JSON keys for the same account.
@@ -79,7 +119,7 @@ describe("invariants: structural", () => {
       {
         merkleRoot: "0x",
         claims: {
-          [T1]: { tokens: { [T2]: { amount: "1", proof: [] } } },
+          [T1]: { tokens: { [T2]: { amount: "0", proof: [] } } },
           [T1.toLowerCase()]: { tokens: { [T2.toLowerCase()]: { amount: "2", proof: [] } } },
         },
       } as unknown as MerkleData,
@@ -88,8 +128,8 @@ describe("invariants: structural", () => {
     expect(violations.some((v) => v.invariant === "STRUCT_DUPLICATE_PAIR")).toBe(true);
   });
 
-  it("rejects zero, negative-ish and non-integer amounts", () => {
-    for (const bad of ["0", "-5", "1.5", "0x10", ""]) {
+  it("rejects negative, non-integer and non-string amounts", () => {
+    for (const bad of ["-5", "1.5", "0x10", "", " 0", "1e3", 0, null]) {
       const violations: Omit<Violation, "target" | "chainId">[] = [];
       toPairMap(
         {
@@ -203,10 +243,10 @@ describe("invariants: cumulative preservation", () => {
     expect(violations).toHaveLength(0);
   });
 
-  it("flags a reduced cumulative amount even when partially claimed", () => {
+  it.each([60n, 0n])("flags a reduced cumulative amount %s even when partially claimed", (amount) => {
     const violations: Violation[] = [];
     const baseline = pairs([[A1, T1, 100n]]);
-    const current = pairs([[A1, T1, 60n]]);
+    const current = pairs([[A1, T1, amount]]);
     const claimed = new Map([[`${A1}:${T1}`, 20n]]);
     checkPreservation(ctx, current, baseline, claimed, violations);
     expect(violations.map((v) => v.invariant)).toContain("PRESERVE_AMOUNT_REDUCED");
@@ -228,9 +268,9 @@ describe("invariants: cumulative preservation", () => {
     expect(violations).toHaveLength(0);
   });
 
-  it("flags proposed amounts below claimedOnChain (claim would revert)", () => {
+  it.each([5n, 0n])("flags proposed amount %s below claimedOnChain (claim would revert)", (amount) => {
     const violations: Violation[] = [];
-    const current = pairs([[A2, T2, 5n]]);
+    const current = pairs([[A2, T2, amount]]);
     const claimed = new Map([[`${A2}:${T2}`, 9n]]);
     checkPreservation(ctx, current, pairs([]), claimed, violations);
     expect(violations.map((v) => v.invariant)).toContain("PRESERVE_BELOW_CLAIMED");

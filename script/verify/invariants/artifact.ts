@@ -81,16 +81,18 @@ export function toPairMap(
       }
       const token = getAddress(rawToken);
       const rawAmount = (tokenClaim as { amount?: string })?.amount;
+      // The generator encodes zero-amount leaves too. Retain them so root
+      // reconstruction, proof checks and cumulative preservation see the
+      // exact committed tree rather than a positive-only subset.
       if (
         typeof rawAmount !== "string" ||
-        !/^[0-9]+$/.test(rawAmount) ||
-        BigInt(rawAmount) === 0n
+        !/^[0-9]+$/.test(rawAmount)
       ) {
         onViolation?.({
           invariant: "STRUCT_BAD_AMOUNT",
           severity: "CRITICAL",
           subject: `${account} / ${token}`,
-          detail: `amount must be a positive base-10 integer string, got: ${String(rawAmount)}`,
+          detail: `amount must be a non-negative base-10 integer string, got: ${String(rawAmount)}`,
         });
         continue;
       }
