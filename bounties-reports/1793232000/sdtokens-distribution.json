@@ -1,0 +1,21 @@
+{
+  "period": 1793232000,
+  "postFreeze": false,
+  "verified": false,
+  "distributor": "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4",
+  "owner": "0xbd2A781f11A32929393e6959D08F78346bEDA8f6",
+  "tokens": [
+    {
+      "address": "0xd1b5651e55d4ceed36251c61c50c889b36f6abb5",
+      "root": "0x2830d910ec6de4508d456acf78ccd269fe1405fe8817a7404f44fc10f8fa64ec",
+      "total": "941069147467990943597565",
+      "maxFunding": "229614662902990372262429"
+    },
+    {
+      "address": "0xe19d1c837b8a1c83a56cd9165b2c0256d39653ad",
+      "root": "0x342ce5fb6b6b700515c75549987384f41b442794e0b9a0670d3c1fe73ed65fad",
+      "total": "280525869823809341625",
+      "maxFunding": "84954059999821304337"
+    }
+  ]
+}
