@@ -201,14 +201,17 @@ describe("isVotiumSwapReceipt", () => {
     expect(isVotiumSwapReceipt([votiumLog])).toBe(true);
   });
 
-  it("ignores transfers from other senders", () => {
+  it.each([
+    ALL_MIGHT_V2,
+    "0xb3619b30910df374965A6169082d2597a1Cf15dc",
+  ])("ignores transfers from other senders to %s", (executor) => {
     expect(
       isVotiumSwapReceipt([
         {
           topics: [
             TRANSFER_TOPIC,
             pad32("0x000000000000000000000000000000000000dEaD"),
-            pad32(ALL_MIGHT_V2),
+            pad32(executor),
           ],
         },
       ])
@@ -229,10 +232,13 @@ describe("isVotiumSwapReceipt", () => {
     ).toBe(false);
   });
 
-  it("ignores non-Transfer events", () => {
+  it.each([
+    ALL_MIGHT_V2,
+    "0xb3619b30910df374965A6169082d2597a1Cf15dc",
+  ])("ignores non-Transfer events targeting %s", (executor) => {
     expect(
       isVotiumSwapReceipt([
-        { topics: [`0x${"11".repeat(32)}`, pad32(VOTIUM_FORWARDER), pad32(ALL_MIGHT_V2)] },
+        { topics: [`0x${"11".repeat(32)}`, pad32(VOTIUM_FORWARDER), pad32(executor)] },
       ])
     ).toBe(false);
   });
@@ -251,6 +257,45 @@ describe("classifyVotiumDeposits", () => {
     expect(result.votiumAmount).toBe(300n);
     expect(result.nonVotiumAmount).toBe(700n);
     expect(result.votiumTxs).toEqual([TX_VOTIUM]);
+  });
+
+  it("attributes the November 2 atomic Votium conversion without reclassifying other deposits", async () => {
+    const txHash = "0x88168a869984e4236b34445cf300bcdd4c0c8626813b0896373d600aa1edbf79";
+    // Transfer logs from the confirmed receipt: WFRAX goes to SwapExecutor,
+    // then sCRVUSD shares are minted to the delegators distributor.
+    const logs = [
+      {
+        address: "0x04acaf8d2865c0714f79da09645c13fd2888977f",
+        topics: [
+          TRANSFER_TOPIC,
+          "0x000000000000000000000000ae86a3993d13c8d77ab77dbb8ccdb9b7bc18cd09",
+          "0x000000000000000000000000b3619b30910df374965a6169082d2597a1cf15dc",
+        ],
+        data: "0x00000000000000000000000000000000000000000000004d9814251f888604b6",
+      },
+      {
+        address: "0x0655977feb2f289a4ab78af67bab0d17aab84367",
+        topics: [
+          TRANSFER_TOPIC,
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x00000000000000000000000017f513cde031c8b1e878bde1cb020ce29f77f380",
+        ],
+        data: "0x0000000000000000000000000000000000000000000000111d14b5ffcdf5be60",
+      },
+    ];
+    const result = await classifyVotiumDeposits(
+      async (hash) => hash === txHash ? { logs } : getReceipt(hash),
+      [
+        { txHash, amount: 315690149089973223008n },
+        { txHash: TX_VOTIUM, amount: 300n },
+        { txHash: TX_OTHER, amount: 700n },
+      ],
+    );
+    expect(result).toEqual({
+      votiumAmount: 315690149089973223308n,
+      nonVotiumAmount: 700n,
+      votiumTxs: [txHash, TX_VOTIUM],
+    });
   });
 
   it("sums several mints inside one transaction", async () => {

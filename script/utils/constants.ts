@@ -31,11 +31,12 @@ export const DELEGATE_REGISTRY = "0x469788fE6E9E9681C6ebF3bF78e7Fd26Fc015446";
 export const VOTIUM_FORWARDER = "0xAe86A3993D13C8D77Ab77dBB8ccdb9b7Bc18cd09"; // 0xCC2a0F5e95C88AAbD7b8E0Db5C5252820Cd47f91 => The Union
 export const VOTIUM_FORWARDER_REGISTRY =
   "0x92e6E43f99809dF84ed2D533e1FD8017eb966ee2";
-// Shared swap executor (automation-jobs ContractRegistry.ALL_MIGHT_V2). The
-// Votium swap withdraws the vault's tokens to it in the same transaction that
-// mints the delegators' sCRVUSD, which is what makes those deposits
-// identifiable among the other sources feeding the same distributor.
+// Historical Votium withdrawals target AllMight directly; atomic swaps pull
+// the reward tokens into SwapExecutor and send their output to AllMight.
 export const ALL_MIGHT_V2 = "0xDBd24b092f686b12650EC1450e3A7138F714506c";
+export const SWAP_EXECUTOR = getAddress(
+  "0xb3619b30910df374965A6169082d2597a1Cf15dc"
+);
 
 export const DELEGATE_REGISTRY_CREATION_BLOCK_ETH = 11225329;
 export const DELEGATE_REGISTRY_CREATION_BLOCK_BSC = 10963355;
