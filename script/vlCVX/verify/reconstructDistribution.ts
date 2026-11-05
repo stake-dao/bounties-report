@@ -7,7 +7,9 @@
  *
  * Checks:
  * 1. Proofs — every leaf folds to the published merkleRoot
- * 2. Monotonicity — cumulative claims never shrink or drop vs the previous merkle
+ * 2. Monotonicity — cumulative claims never shrink or drop vs the previous merkle;
+ *    a dropped leaf is legal only when nothing is left to claim on it:
+ *    claimed() >= its previous amount (zero-amount recovered leaves, stale leaves)
  * 3. Conservation — flattened perDelegate attribution equals totalPerGroup
  *    per gauge / group / token (routing: pooled = forwarders behind
  *    VLCVX_POOLED_DELEGATES; everyone else raw)
@@ -30,8 +32,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { keccak256, encodeAbiParameters, concat } from "viem";
+import { keccak256, encodeAbiParameters, concat, getAddress } from "viem";
 import { WEEK, VLCVX_POOLED_DELEGATES } from "../../utils/constants";
+import { getClient } from "../../utils/getClients";
 import {
   CheckResult,
   REPORTS_DIR,
@@ -45,6 +48,20 @@ import {
 const WEEKLY_BOUNTIES_DIR = path.join(__dirname, "../../../weekly-bounties");
 const GAUGES = ["curve", "fxn"] as const;
 const POOLED = new Set(VLCVX_POOLED_DELEGATES.map((a) => a.toLowerCase()));
+
+const VOTERS_DISTRIBUTOR = "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db" as const;
+const CLAIMED_ABI = [
+  {
+    name: "claimed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "account", type: "address" },
+      { name: "reward", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
 
 const lc = (s: string) => s.toLowerCase();
 const legKey = (w: string, t: string) => `${lc(w)}|${lc(t)}`;
@@ -68,6 +85,52 @@ function indexMerkle(merkle: any): Map<string, bigint> {
     for (const [token, v] of Object.entries<any>(claim.tokens)) {
       out.set(legKey(addr, token), BigInt(typeof v === "string" ? v : v.amount));
     }
+  }
+  return out;
+}
+
+/** Leaves of `prev` missing from `cur`. */
+export function droppedLeaves(prev: Map<string, bigint>, cur: Map<string, bigint>): string[] {
+  return [...prev.keys()].filter((k) => !cur.has(k));
+}
+
+/**
+ * Monotonicity vs the previous merkle. A dropped leaf is legal only when its
+ * on-chain claimed() is at least its previous amount: nothing is left to claim,
+ * and the generator re-bases on claimed() if the pair reappears.
+ */
+export function checkMonotonicity(
+  prev: Map<string, bigint>,
+  cur: Map<string, bigint>,
+  claimed: Map<string, bigint>
+): { shrunk: number; pruned: number; dropped: number } {
+  let shrunk = 0;
+  let pruned = 0;
+  let dropped = 0;
+  for (const [k, v] of prev) {
+    const c = cur.get(k);
+    if (c === undefined) {
+      if ((claimed.get(k) ?? 0n) >= v) pruned++;
+      else dropped++;
+    } else if (c < v) shrunk++;
+  }
+  return { shrunk, pruned, dropped };
+}
+
+async function readClaimed(keys: string[]): Promise<Map<string, bigint>> {
+  const out = new Map<string, bigint>();
+  if (keys.length === 0) return out;
+  const client = await getClient(1);
+  for (let i = 0; i < keys.length; i += 400) {
+    const chunk = keys.slice(i, i + 400);
+    const results = await client.multicall({
+      contracts: chunk.map((k) => {
+        const [w, t] = k.split("|");
+        return { address: VOTERS_DISTRIBUTOR, abi: CLAIMED_ABI, functionName: "claimed" as const, args: [getAddress(w), getAddress(t)] };
+      }),
+      allowFailure: false,
+    });
+    chunk.forEach((k, j) => out.set(k, results[j] as bigint));
   }
   return out;
 }
@@ -108,7 +171,7 @@ function verifyProofs(merkle: any): CheckResult {
   };
 }
 
-function main() {
+async function main() {
   const timestamp = parseTimestamp();
   console.log(`\nvlCVX Thursday reconstruction — week ${timestamp}`);
 
@@ -124,19 +187,15 @@ function main() {
   // 2. monotonicity ------------------------------------------------------------
   const curIdx = indexMerkle(merkle);
   const prevIdx = indexMerkle(prev.data);
-  let shrunk = 0;
-  let dropped = 0;
-  for (const [k, v] of prevIdx) {
-    const c = curIdx.get(k);
-    if (c === undefined) dropped++;
-    else if (c < v) shrunk++;
-  }
+  // claimed() only grows, so reading it now cannot hide a leaf dropped with an open balance.
+  const claimed = await readClaimed(droppedLeaves(prevIdx, curIdx));
+  const { shrunk, pruned, dropped } = checkMonotonicity(prevIdx, curIdx, claimed);
   sections.push(
     printSection("cumulative monotonicity", [
       {
         label: `vs ${prev.foundAt}`,
         ok: shrunk === 0 && dropped === 0,
-        detail: `${shrunk} shrunk, ${dropped} dropped leaves`,
+        detail: `${shrunk} shrunk, ${dropped} dropped with an open balance, ${pruned} pruned (nothing left to claim)`,
       },
     ])
   );
@@ -341,4 +400,9 @@ function main() {
   process.exit(allOk ? 0 : 1);
 }
 
-main();
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}
