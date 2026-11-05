@@ -203,7 +203,8 @@ jobs:
       # repartition, perDelegate with pooled/raw routing, votium raw legs) and
       # requires the committed voters merkle to match to the wei; also checks
       # proofs, monotonicity, conservation, pooled containment, votium payee
-      # legality, claimed cap and the staged withdrawal. Fully offline. Not
+      # legality, claimed cap and the staged withdrawal. Offline except
+      # claimed() reads for leaves dropped since the previous merkle. Not
       # gated on voters_merkle_state.skip — a rerun that reuses existing
       # artifacts must still validate them before anything moves on-chain.
       - name: Reconstruction invariant (voters)
@@ -212,6 +213,9 @@ jobs:
           WEEK=604800
           PERIOD=$(( $(date +%s) / WEEK * WEEK ))
           pnpm tsx script/vlCVX/verify/reconstructDistribution.ts --timestamp "$PERIOD"
+        env:
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       # ── AI Verification (voters only) ──
       - name: AI verify distribution (voters)
