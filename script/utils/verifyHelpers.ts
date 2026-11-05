@@ -156,8 +156,14 @@ export function checkWeekComparison(
 
     if (!fileExists(currPath)) continue;
 
+    // Count only addresses with a nonzero entitlement: expiry recoveries zero
+    // leaves in place, and the next build prunes those all-zero addresses.
+    const countClaimants = (data: any) =>
+      (Object.values(data.claims || {}) as any[]).filter((c) =>
+        Object.values(c.tokens || {}).some((t: any) => BigInt(t.amount ?? 0) > 0n)
+      ).length;
     const currData = readJSON(currPath);
-    const currCount = Object.keys(currData.claims || {}).length;
+    const currCount = countClaimants(currData);
 
     if (!fileExists(prevPath)) {
       results.push({
@@ -169,7 +175,7 @@ export function checkWeekComparison(
     }
 
     const prevData = readJSON(prevPath);
-    const prevCount = Object.keys(prevData.claims || {}).length;
+    const prevCount = countClaimants(prevData);
     const change = prevCount > 0 ? ((currCount / prevCount - 1) * 100) : 0;
     // Cumulative merkles can only grow (new delegators) — a decrease is critical,
     // a large increase is notable but not an error.

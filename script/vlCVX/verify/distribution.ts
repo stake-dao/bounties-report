@@ -305,14 +305,21 @@ function checkWeekAB(timestamp: number): CheckResult[] {
     const prevData = readJSON(prevPath);
     const prevId: string | undefined = prevData.proposalId;
     const isWeekB = !!prevId && currId === prevId;
+    if (!isWeekB)
+      return [{ label: "Week A/B", ok: true, detail: `Week A — new proposalId: ${currId.slice(0, 14)}...` }];
 
-    return [{
-      label: "Week A/B",
-      ok: true,
-      detail: isWeekB
-        ? `Week B — same proposalId as prev week (${currId.slice(0, 14)}...) — delegator sets must be identical`
-        : `Week A — new proposalId: ${currId.slice(0, 14)}...`,
-    }];
+    // Week B: same vote as last week, so each gauge's delegator set must match.
+    const parts = [`Week B — same proposalId as prev week (${currId.slice(0, 14)}...)`];
+    let same = true;
+    for (const gauge of ["curve", "fxn"]) {
+      const curr = delegatorSet(path.join(base, `vlCVX/${gauge}/repartition_delegation.json`));
+      const prev = delegatorSet(path.join(prevBase, `vlCVX/${gauge}/repartition_delegation.json`));
+      if (!curr || !prev) continue;
+      const eq = setsEqual(curr, prev);
+      same &&= eq;
+      parts.push(`${gauge}: ${curr.size} curr vs ${prev.size} prev (${eq ? "identical" : "differ"})`);
+    }
+    return [{ label: "Week A/B", ok: same, detail: parts.join(" | ") }];
   }
 
   // Fallback: compare delegator sets (curr vs prev) for both gauges
