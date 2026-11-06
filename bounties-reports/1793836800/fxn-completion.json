@@ -1,0 +1,145 @@
+{
+  "carryIn": {
+    "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": "1408893513975616741"
+  },
+  "chainId": 1,
+  "checkRunAttempt": "1",
+  "checkRunId": "42139927985",
+  "checkedBlock": 26352330,
+  "checkedBlockHash": "0xb091cb46b1f50e771b0e20a57384c699e7d0d63eebf0d8cdf7438913be773303",
+  "confirmations": 12,
+  "delegated": {},
+  "epoch": 1793836800,
+  "excluded": [],
+  "expected": {
+    "0x365accfca291e7d3914637abf1f7635db165bb09": "58737681236067577433",
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "1049873518685265704069958"
+  },
+  "fromBlock": 26344899,
+  "guardCommit": "5e67b33f1392efade7ca8e44b5fc10862dbd2712",
+  "inventoryBoundary": 26309654,
+  "inventoryBoundaryHash": "0xf16e4db3c4c3c85eedd28c7c759d62ee5fc8222b99f7b032571073cbfc20598a",
+  "laneId": "0xb47ff6b6acbeb1889cd35f85691ba66fa3aa69d4b8ca79c2e9ceae71005cb304",
+  "nativeConverted": "92812761678092033130",
+  "nativeFunded": "58737681236067577433",
+  "pipelineRun": "fxn-swaps-guard:1793836800:9d02f699-9931-4586-bcd8-3e24841b5257",
+  "protocol": "fxn",
+  "purged": {},
+  "remaining": {
+    "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": "1408893513975616741"
+  },
+  "remainingReasons": {
+    "0xdbdb4d16eda451d0503b854cf79d55697f90c8df": "dust"
+  },
+  "schema": 1,
+  "sdDelivered": "92812761678092033130",
+  "sdProduced": "92812761678092033130",
+  "sdPulled": "0",
+  "sold": {
+    "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "1049873518685265704069958"
+  },
+  "sourceCommit": "ae10529e2633cd032ae355f7394ba5a2ddf49829",
+  "sourceDigest": "0x63a9ce3667eebac49f53d1072cfbfd29910cfbf493f1069e7ebc0eff5cecaa7b",
+  "sources": {
+    "votemarket_v2": {
+      "digest": "0x8efe3c1960b46aa4038bc404c8d9dc6feb0d84a088de77e2e6f0c06c24d5a73c",
+      "path": "weekly-bounties/1793836800/votemarket-v2/claimed_bounties.json"
+    }
+  },
+  "strict": true,
+  "transactions": [
+    {
+      "blockHash": "0xe5a6f256ee3d5fe08e34130ffcc3905976cb946ca1adc6ebbfc140732217fddf",
+      "blockNumber": 26352090,
+      "hash": "0xe0dd4e06a8ea4648bcc1b25d8d953c299fb584bb4a0737834da106400bedd63b",
+      "logIndices": [
+        766,
+        767,
+        768,
+        769,
+        770,
+        772,
+        776,
+        780,
+        781,
+        782,
+        783,
+        784,
+        785,
+        786,
+        787,
+        788,
+        793,
+        795,
+        796
+      ],
+      "nativeBought": "20163271566975630252",
+      "nativeConverted": "49532112185009417132",
+      "nativeFunded": "29368840618033786880",
+      "sdDelivered": "49532112185009417132",
+      "sdProduced": "49532112185009417132",
+      "sdPulled": "0",
+      "sold": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "616824960990476849119232"
+      },
+      "swaps": [
+        {
+          "amountIn": "616824960990476849119232",
+          "amountOut": "20163271566975630252",
+          "logIndex": 784,
+          "sellToken": "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef"
+        }
+      ]
+    },
+    {
+      "blockHash": "0x4b503803a9a331d0e8f2069f2ce84eb52787ed5d2ae2bd520ed10c1db386802a",
+      "blockNumber": 26352252,
+      "hash": "0xa235c0ccf91c1b676f38fcfdc63d51e9fc98d8306b61073ee045578d5d429a36",
+      "logIndices": [
+        197,
+        198,
+        199,
+        200,
+        201,
+        203,
+        207,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        224,
+        226,
+        227
+      ],
+      "nativeBought": "13911808875048825445",
+      "nativeConverted": "43280649493082615998",
+      "nativeFunded": "29368840618033790553",
+      "sdDelivered": "43280649493082615998",
+      "sdProduced": "43280649493082615998",
+      "sdPulled": "0",
+      "sold": {
+        "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef": "433048557694788854950726"
+      },
+      "swaps": [
+        {
+          "amountIn": "433048557694788854950726",
+          "amountOut": "13911808875048825445",
+          "logIndex": 215,
+          "sellToken": "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef"
+        }
+      ]
+    }
+  ],
+  "reportFingerprint": "e94d171cf76106fa985b56ff2d4e0fd498d87f6b11941cb45f0e29a5055e3ea0",
+  "outputs": {
+    "bounties-reports/1793836800/fxn.csv": "56d7164fc1eb8976c0c172bf738323e94af13012cabd369b2851631c5670d11c",
+    "bounties-reports/1793836800/fxn-attribution.json": "f6b6655b7e2506a07d9238d03a50e0a23e5f732f8cafa785551f0f5fd0532911",
+    "bounties-reports/1793836800/raw/fxn/fxn.csv": null,
+    "bounties-reports/1793836800/delegation/fxn.csv": null
+  }
+}
