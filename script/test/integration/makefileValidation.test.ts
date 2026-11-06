@@ -9,6 +9,7 @@
  * 5. All workflow make references are valid
  */
 import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
 import fs from "fs";
 import path from "path";
 
@@ -212,14 +213,24 @@ describe("Consolidated GitHub Actions workflows", () => {
     );
   });
 
-  it("keeps the post-delegators AI gate on the both-target default", () => {
+  it("executes the AI gate with both targets for delegators and voters only for voters", () => {
     const content = fs.readFileSync(
       path.join(workflowDir, "ai-verify-vlcvx.yaml"),
       "utf-8"
     );
 
-    expect(content).toContain("--protocol vlCVX --deep");
-    expect(content).not.toContain("--target");
+    const script = content.match(/- name: AI verify vlCVX distribution\n\s+run: \|\n([\s\S]*?)\n        env:/)?.[1];
+    expect(script).toBeDefined();
+    for (const [runType, target] of [["delegators", "both"], ["voters", "voters"]]) {
+      const output = execFileSync("bash", ["-e", "-c", `pnpm() { printf '%s\\n' "$@"; }\n${script}`], {
+        env: { ...process.env, EPOCH_INPUT: "1792627200", RUN_TYPE: runType },
+        encoding: "utf8",
+      });
+      expect(output.trim().split("\n").slice(1)).toEqual([
+        "tsx", "script/verify/aiVerify.ts", "--timestamp", "1792627200",
+        "--protocol", "vlCVX", "--target", target, "--deep", "--run-type", runType,
+      ]);
+    }
   });
 
   it("consolidated workflows should reference automation/distribution.mk", () => {

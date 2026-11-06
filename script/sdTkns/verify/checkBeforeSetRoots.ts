@@ -9,8 +9,13 @@ import { formatUnits, toHex, type PublicClient } from "viem";
 import {
   BOTMARKETS,
   NETWORK_TO_MERKLE,
+  UNIVERSAL_SD_MERKLES, SPACES_TOKENS,
 } from "../../utils/constants";
 import { getClient } from "../../utils/getClients";
+import { findMerkleMatchingRoot } from "../../utils/merkle/findPreviousMerkle";
+import { tokenTotal } from "../../utils/merkle/universalSdMerkle";
+import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
+import type { MerkleData } from "../../interfaces/MerkleData";
 
 const WEEK = 604_800;
 const MAX_WEEKS_BACK = 8;
@@ -79,6 +84,7 @@ export interface LogData {
   Transactions?: unknown;
   TotalReported?: unknown;
   DistributionSurplus?: unknown;
+  Universal?: unknown;
 }
 
 export interface EthereumTargets {
@@ -86,8 +92,23 @@ export interface EthereumTargets {
   roots: string[];
 }
 
+export interface UniversalEntry {
+  space: string;
+  symbol: string;
+  token: string;
+  distributor: string;
+  file: string;
+  root: string;
+  previousRoot: string | null;
+  weekly: bigint;
+  total: bigint;
+  previousTotal: bigint;
+}
+
+export type UniversalFiles = Map<string, { current: MerkleData; previous: MerkleData; previousFile?: string | null }>;
+
 export interface CheckResult {
-  id: "V1" | "V2" | "V3" | "V4" | "V5" | "V6" | "V7" | "V8" | "V9" | "V10" | "V11";
+  id: "V1" | "V2" | "V3" | "V4" | "V5" | "V6" | "V7" | "V8" | "V9" | "V10" | "V11" | "V12";
   name: string;
   ok: boolean;
   detail: string;
@@ -218,7 +239,7 @@ export function ethereumTargets(log: LogData): EthereumTargets {
   const transactions = (log.Transactions as LogTransaction[]).filter(
     (transaction) => transaction.network === ETHEREUM_NETWORK,
   );
-  if (transactions.length === 0) {
+  if (transactions.length === 0 && universalTargets(log).length === 0 && !Array.isArray(log.Universal)) {
     throw new Error("log.Transactions has no ethereum entry");
   }
 
@@ -249,8 +270,148 @@ export function ethereumTargets(log: LogData): EthereumTargets {
       );
     }
   }
-  if (tokens.length === 0) throw new Error("ethereum target list is empty");
+  if (tokens.length === 0 && universalTargets(log).length === 0 && !Array.isArray(log.Universal)) {
+    throw new Error("ethereum target list is empty");
+  }
   return { tokens, roots };
+}
+
+export function universalTargets(log: LogData): UniversalEntry[] {
+  if (log.Universal === undefined) return [];
+  if (!Array.isArray(log.Universal)) throw new Error("log.Universal is not an array");
+  const known = new Map(
+    Object.entries(UNIVERSAL_SD_MERKLES).map(([space, config]) => [space, config]),
+  );
+  const seen = new Set<string>();
+  return (log.Universal as Array<Record<string, unknown>>).map((raw, index) => {
+    const label = `Universal[${index}]`;
+    if (!raw || typeof raw !== "object") throw new Error(`${label} is not an object`);
+    if (typeof raw.space !== "string" || typeof raw.symbol !== "string" || typeof raw.file !== "string") {
+      throw new Error(`${label} is missing space, symbol or file`);
+    }
+    const config = known.get(raw.space);
+    if (!config) throw new Error(`${label} space ${raw.space} has no universal distributor`);
+    const distributor = normalizeAddress(raw.distributor, `${label} distributor`);
+    if (distributor !== config.distributor.toLowerCase() || raw.file !== config.file) {
+      throw new Error(`${label} distributor or file differs from constants`);
+    }
+    const previousRoot = raw.previousRoot === null || raw.previousRoot === undefined
+      ? null
+      : normalizeRoot(raw.previousRoot, `${label} previousRoot`);
+    const entry: UniversalEntry = {
+      space: raw.space,
+      symbol: raw.symbol,
+      token: normalizeAddress(raw.token, `${label} token`),
+      distributor,
+      file: raw.file,
+      root: normalizeRoot(raw.root, `${label} root`),
+      previousRoot,
+      weekly: toBigInt(raw.weekly, `${label} weekly`),
+      total: toBigInt(raw.total, `${label} total`),
+      previousTotal: toBigInt(raw.previousTotal, `${label} previousTotal`),
+    };
+    if (entry.token !== SPACES_TOKENS[entry.space].toLowerCase() || seen.has(entry.token)) {
+      throw new Error(`${label} unexpected or duplicate token`);
+    }
+    seen.add(entry.token);
+    if (entry.weekly <= 0n || entry.total !== entry.previousTotal + entry.weekly) {
+      throw new Error(`${label} totals are inconsistent`);
+    }
+    return entry;
+  });
+}
+
+function parseUniversalFile(filePath: string): MerkleData {
+  if (!existsSync(filePath)) throw new Error(`universal merkle not found: ${filePath}`);
+  const data = parseJson<MerkleData>(filePath);
+  if (!data || typeof data !== "object" || typeof data.merkleRoot !== "string" || !data.claims || typeof data.claims !== "object") {
+    throw new Error(`${filePath} is not a universal merkle`);
+  }
+  return data;
+}
+
+export function loadUniversalFiles(period: number, entries: UniversalEntry[]): UniversalFiles {
+  const files: UniversalFiles = new Map();
+  for (const entry of entries) {
+    const current = parseUniversalFile(path.join("bounties-reports", String(period), entry.file));
+    const { data: previous, foundAt: previousFile } = findMerkleMatchingRoot(period, entry.file, entry.previousRoot ?? ZERO_ROOT);
+    if (entry.previousRoot && !previousFile) throw new Error(`${entry.file} active baseline missing`);
+    files.set(entry.file, { current, previous, previousFile });
+  }
+  return files;
+}
+
+export function universalLeaf(account: string, token: string, amount: bigint): string {
+  return utils.keccak256(
+    utils.keccak256(utils.defaultAbiCoder.encode(["address", "address", "uint256"], [account, token, amount])),
+  ).toLowerCase();
+}
+
+export function recomputeUniversalRoot(data: MerkleData): string {
+  const distribution: Record<string, Record<string, string>> = {};
+  for (const [account, claim] of Object.entries(data.claims)) {
+    distribution[account] = {};
+    for (const [token, tokenClaim] of Object.entries(claim.tokens ?? {})) {
+      distribution[account][token] = toBigInt(tokenClaim.amount, `${account} ${token} amount`).toString();
+    }
+  }
+  return generateMerkleTree(distribution).merkleRoot.toLowerCase();
+}
+
+function verifyUniversalProofs(entry: UniversalEntry, data: MerkleData): number {
+  let leafCount = 0;
+  for (const [account, claim] of Object.entries(data.claims)) {
+    for (const [token, tokenClaim] of Object.entries(claim.tokens ?? {})) {
+      if (!Array.isArray(tokenClaim.proof)) throw new Error(`${entry.symbol} ${account} proof is not an array`);
+      let hash = universalLeaf(account, token, toBigInt(tokenClaim.amount, `${account} amount`));
+      for (const [proofIndex, sibling] of tokenClaim.proof.entries()) {
+        hash = hashPair(hash, normalizeRoot(sibling, `${entry.symbol} ${account} proof ${proofIndex}`));
+      }
+      if (hash !== entry.root) throw new Error(`${entry.symbol} proof does not fold to root for ${account}`);
+      leafCount++;
+    }
+  }
+  return leafCount;
+}
+
+export function checkV12(entries: UniversalEntry[], files: UniversalFiles): CheckResult {
+  const details: string[] = [];
+  for (const entry of entries) {
+    const loaded = files.get(entry.file);
+    if (!loaded) throw new Error(`${entry.symbol} universal merkle ${entry.file} was not loaded`);
+    const { current, previous } = loaded;
+    const root = normalizeRoot(current.merkleRoot, `${entry.symbol} universal root`);
+    if (root !== entry.root) throw new Error(`${entry.symbol} universal root ${root} differs from log ${entry.root}`);
+    if (recomputeUniversalRoot(current) !== root) throw new Error(`${entry.symbol} universal root does not rebuild from its claims`);
+    const previousRoot = previous.merkleRoot ? normalizeRoot(previous.merkleRoot, `${entry.symbol} previous universal root`) : null;
+    if (previousRoot !== entry.previousRoot) throw new Error(`${entry.symbol} previous universal root differs from log`);
+    if (tokenTotal(current, entry.token) !== entry.total) throw new Error(`${entry.symbol} universal total differs from log`);
+    if (tokenTotal(previous, entry.token) !== entry.previousTotal) throw new Error(`${entry.symbol} previous universal total differs from log`);
+    let weekly = 0n;
+    const currentAmounts = new Map<string, bigint>();
+    for (const [account, claim] of Object.entries(current.claims)) {
+      currentAmounts.set(account.toLowerCase(), toBigInt(claim.tokens[getAddressKey(claim.tokens, entry.token)]?.amount, `${account} amount`));
+    }
+    for (const [account, claim] of Object.entries(previous.claims)) {
+      const previousAmount = toBigInt(claim.tokens[getAddressKey(claim.tokens, entry.token)]?.amount, `${account} previous amount`);
+      const currentAmount = currentAmounts.get(account.toLowerCase()) ?? 0n;
+      if (currentAmount < previousAmount) {
+        throw new Error(`${entry.symbol} ${account} cumulative decreased ${previousAmount} -> ${currentAmount}`);
+      }
+      weekly += currentAmount - previousAmount;
+      currentAmounts.delete(account.toLowerCase());
+    }
+    for (const amount of currentAmounts.values()) weekly += amount;
+    if (weekly !== entry.weekly) throw new Error(`${entry.symbol} universal weekly delta ${weekly} differs from log ${entry.weekly}`);
+    details.push(`${entry.symbol}: +${formatUnits(entry.weekly, 18)} -> ${formatUnits(entry.total, 18)} (${Object.keys(current.claims).length} holders)`);
+  }
+  return { id: "V12", name: "Universal continuity", ok: true, detail: details.join("; ") || "no universal distribution" };
+}
+
+function getAddressKey(tokens: Record<string, unknown>, token: string): string {
+  const key = Object.keys(tokens).find((candidate) => candidate.toLowerCase() === token);
+  if (!key) throw new Error(`claim is missing token ${token}`);
+  return key;
 }
 
 export function entryKey(entry: MerkleEntry): string {
@@ -347,8 +508,15 @@ export function checkV1(
   merkle: MerkleEntry[],
   targets: EthereumTargets,
   log?: LogData,
+  universalEntries: UniversalEntry[] = [],
+  universalFiles: UniversalFiles = new Map(),
 ): CheckResult {
   let leafCount = 0;
+  for (const entry of universalEntries) {
+    const loaded = universalFiles.get(entry.file);
+    if (!loaded) throw new Error(`${entry.symbol} universal merkle ${entry.file} was not loaded`);
+    leafCount += verifyUniversalProofs(entry, loaded.current);
+  }
   for (const entry of merkle) {
     const symbol = typeof entry.symbol === "string" ? entry.symbol : "unknown";
     const root = normalizeRoot(entry.root, `${symbol} root`);
@@ -753,17 +921,32 @@ function displayToken(entry: MerkleEntry, address: string): string {
   return typeof entry.symbol === "string" ? `${entry.symbol} (${address})` : address;
 }
 
-async function checkV5(
+export async function checkV5(
   clientPromise: Promise<PublicClient>,
   merkle: MerkleEntry[],
   targets: EthereumTargets,
+  universalEntries: UniversalEntry[] = [],
 ): Promise<CheckResult> {
   const client = await clientPromise;
   const entries = entriesByEthereumAddress(merkle);
   const details: string[] = [];
+  const universalWeekly = new Map<string, bigint>();
+  for (const universal of universalEntries) {
+    universalWeekly.set(universal.token, (universalWeekly.get(universal.token) ?? 0n) + universal.weekly);
+  }
 
-  for (const token of targets.tokens) {
+  for (const token of new Set([...targets.tokens, ...universalWeekly.keys()])) {
     const entry = entries.get(token);
+    if (!targets.tokens.includes(token)) {
+      const available = await client.readContract({
+        address: token as `0x${string}`, abi: ERC20_ABI, functionName: "balanceOf",
+        args: [BOTMARKETS[ETHEREUM_NETWORK] as `0x${string}`],
+      });
+      const weekly = universalWeekly.get(token)!;
+      if (available < weekly) throw new Error(`${token} has insufficient universal funding`);
+      details.push(`${token}: universal weekly ${formatUnits(weekly, 18)} funded`);
+      continue;
+    }
     if (!entry) throw new Error(`target token ${token} is absent from merkle.json`);
     const distributor = normalizeAddress(
       entry.merkleContract,
@@ -783,16 +966,16 @@ async function checkV5(
         args: [BOTMARKETS[ETHEREUM_NETWORK] as `0x${string}`],
       }),
     ]);
-    const treeTotal = toBigInt(entry.total, `${token} tree total`);
+    const weekly = universalWeekly.get(token) ?? 0n;
+    const symbol = typeof entry.symbol === "string" ? entry.symbol : token;
+    const treeTotal = toBigInt(entry.total, `${token} tree total`) + weekly;
     const difference = absolute(distributorBalance + botmarketBalance - treeTotal);
     if (difference * 10_000n > treeTotal) {
       throw new Error(
         `${displayToken(entry, token)} difference=${formatUnits(difference, 18)} exceeds 0.01%`,
       );
     }
-    details.push(
-      `${typeof entry.symbol === "string" ? entry.symbol : token}: diff=${formatUnits(difference, 18)}`,
-    );
+    details.push(`${symbol}: diff=${formatUnits(difference, 18)}`);
   }
 
   return {
@@ -975,6 +1158,8 @@ async function main(): Promise<void> {
   const period = resolvePeriod(log);
   const merkle = loadMerkle(period);
   const targets = ethereumTargets(log);
+  const universalEntries = universalTargets(log);
+  const universalFiles = loadUniversalFiles(period, universalEntries);
   const clients = new Map<number, Promise<PublicClient>>();
   const clientForChain: ClientForChain = (chainId) => {
     let client = clients.get(chainId);
@@ -988,7 +1173,7 @@ async function main(): Promise<void> {
 
   console.log(`sdMerkle pre-set verification: period=${period}`);
   const results: CheckResult[] = [];
-  results.push(await runCheck("V1", "Rebuild", () => checkV1(merkle, targets, log)));
+  results.push(await runCheck("V1", "Rebuild", () => checkV1(merkle, targets, log, universalEntries, universalFiles)));
   results.push(
     await runCheck("V3", "Continuity", () =>
       checkV3(period, merkle, clientForChain),
@@ -996,7 +1181,7 @@ async function main(): Promise<void> {
   );
   results.push(
     await runCheck("V5", "Funding two-way (pre-flip)", () =>
-      checkV5(clientPromise, merkle, targets),
+      checkV5(clientPromise, merkle, targets, universalEntries),
     ),
   );
   results.push(await runCheck("V6", "Surplus", () => checkV6(log, merkle, targets)));
@@ -1006,6 +1191,7 @@ async function main(): Promise<void> {
     ),
   );
   results.push(await runCheck("V8", "Scope", () => checkV8(log, merkle, targets)));
+  results.push(await runCheck("V12", "Universal continuity", () => checkV12(universalEntries, universalFiles)));
 
   for (const result of results) {
     console.log(`[${result.ok ? "PASS" : "FAIL"}] ${result.id} ${result.name} — ${result.detail}`);

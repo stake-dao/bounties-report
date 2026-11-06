@@ -36,6 +36,7 @@ import { processAllDelegators } from "../cacheUtils";
 
 export interface MerkleGenerationOptions {
   readOnlyClaimCache?: boolean;
+  legacyRecipients?: ReadonlySet<string>;
 }
 
 export function removeDirectVoterPowerFromDelegators(
@@ -390,6 +391,16 @@ export const createMultiMerkle = async (
       (userRewards[WEEK_A_YB_REPAYMENT.user] || 0) + WEEK_A_YB_REPAYMENT.amount;
   }
 
+  const diverted: Record<string, number> = {};
+  if (options.legacyRecipients) {
+    for (const [address, amount] of Object.entries(userRewards)) {
+      if (options.legacyRecipients.has(address)) continue;
+      diverted[address] = amount;
+      delete userRewards[address];
+    }
+  }
+  const weeklyTotal = Object.values(userRewards).reduce((acc, amount) => acc + amount, 0);
+
   // Determine which token to distribute:
   // - Use overrideTokenAddress for raw tokens (e.g., CRV instead of sdCRV)
   // - Otherwise use the default sdToken for the space
@@ -515,5 +526,7 @@ export const createMultiMerkle = async (
       merkleContract: NETWORK_TO_MERKLE[network],
     },
     logs,
+    weeklyTotal,
+    diverted,
   };
 };
