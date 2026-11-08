@@ -5,6 +5,7 @@ import { verifyExpiryParent } from "../shared/merkle/expiry";
 import { generateMerkleTree } from "../shared/merkle/generateMerkleTree";
 
 export const RECIPIENT = getAddress("0x5DA07af8913A4EAf09E5F569c20138b658906c17");
+export const TREASURY_RECIPIENT = getAddress("0x9EBBb3d59d53D6aD3FA5464f36c2E84aBb7cf5c1");
 export const OWNER = getAddress("0xB0552b6860CE5C0202976Db056b5e3Cc4f9CC765");
 export const VOTERS = getAddress("0x000000006feeE0b7a0564Cd5CeB283e10347C4Db");
 export const EXTRA = getAddress("0xD4898A378eA555595c4E7dbDE722B134a3F346D1");
@@ -36,6 +37,12 @@ export interface Review {
 }
 
 export const pairKey = (account: string, token: string) => `${getAddress(account)}:${getAddress(token)}`;
+export function recoveryRecipient(review: Pick<Review, "recipient" | "chainId">) {
+  const recipient = getAddress(review.recipient);
+  assert(recipient === RECIPIENT || (review.chainId === 1 && recipient === TREASURY_RECIPIENT), "recipient differs from approved DAO recovery recipients");
+  return recipient;
+}
+
 const quantity = (value: string) => {
   assert(/^\d+$/.test(value), "invalid integer amount");
   const amount = BigInt(value);
@@ -45,7 +52,7 @@ const quantity = (value: string) => {
 
 /** Refresh a reviewed age/provenance allowance, never create a new allowance. */
 export function refreshRecovery(review: Review, source: MerkleData, claims: Map<string, bigint>, fundingOffsets: Record<string, bigint> = {}) {
-  assert.equal(getAddress(review.recipient), RECIPIENT, "recipient differs from approved DAO Safe");
+  const recipient = recoveryRecipient(review);
   assert([1, 8453, 42161].includes(review.chainId), "unsupported recovery chain");
   assert(getAddress(review.distributor) === VOTERS || (review.chainId === 1 && getAddress(review.distributor) === EXTRA), "unsupported distributor");
   assert.equal(source.merkleRoot, review.sourceRoot, "reviewed source root mismatch");
@@ -57,7 +64,7 @@ export function refreshRecovery(review: Review, source: MerkleData, claims: Map<
     const account = getAddress(row.account), token = getAddress(row.token), key = pairKey(account, token);
     assert(!seen.has(key), "duplicate reviewed pair");
     seen.add(key);
-    assert.notEqual(account, RECIPIENT, "recipient cannot be reduced");
+    assert(account !== RECIPIENT && account !== TREASURY_RECIPIENT, "recipient cannot be reduced");
     const before = quantity(distribution[account]?.[token] ?? "0");
     const paid = quantity(row.claimed), maximum = quantity(row.maximum);
     assert(paid + maximum <= before, "review exceeds source entitlement");
@@ -79,20 +86,25 @@ export function refreshRecovery(review: Review, source: MerkleData, claims: Map<
     // entitlements and every non-expired entitlement remain untouched.
     totals[token] = (totals[token] ?? 0n) - offset;
   }
-  distribution[RECIPIENT] ??= {};
+  distribution[recipient] ??= {};
   for (const [token, amount] of Object.entries(totals)) {
-    const before = quantity(distribution[RECIPIENT][token] ?? "0");
-    assert(before >= (claims.get(pairKey(RECIPIENT, token)) ?? 0n), "recipient claimed offset needs review");
-    distribution[RECIPIENT][token] = (before + amount).toString();
+    const before = quantity(distribution[recipient][token] ?? "0");
+    assert(before >= (claims.get(pairKey(recipient, token)) ?? 0n), "recipient claimed offset needs review");
+    distribution[recipient][token] = (before + amount).toString();
   }
-  return { merkle: generateMerkleTree(distribution), rows, grossTotals, totals, fundingOffsets };
+  const merkle = generateMerkleTree(distribution);
+  const payouts = recipient === TREASURY_RECIPIENT ? Object.keys(totals).flatMap(token => {
+    const amount = merkle.claims[recipient].tokens[token].amount;
+    return BigInt(amount) > (claims.get(pairKey(recipient, token)) ?? 0n) ? [{ token, amount }] : [];
+  }) : [];
+  return { merkle, rows, grossTotals, totals, fundingOffsets, payouts };
 }
 
-/** Safe Transaction Builder batches execute both CALLs in one MultiSend. */
+/** Root replacement and Treasury payouts must execute in one atomic MultiSend. */
 export function safeBatch(review: Review, recovery: ReturnType<typeof refreshRecovery>, checker: string, createdAt: number) {
   assert(recovery.rows.length, "empty recovery");
   const tokens = Object.keys(recovery.totals);
-  const state = [BigInt(review.chainId), getAddress(review.distributor), review.sourceRoot as `0x${string}`, RECIPIENT] as const;
+  const state = [BigInt(review.chainId), getAddress(review.distributor), review.sourceRoot as `0x${string}`, recoveryRecipient(review)] as const;
   let check: `0x${string}`;
   if (tokens.length <= 256 && recovery.rows.every(row => BigInt(row.claimed) < (1n << 96n))) {
     const snapshots = concat(recovery.rows.map(row =>
@@ -102,13 +114,18 @@ export function safeBatch(review: Review, recovery: ReturnType<typeof refreshRec
     const snapshots = recovery.rows.map(row => ({ account: getAddress(row.account), token: getAddress(row.token), claimed: BigInt(row.claimed) }));
     check = encodeFunctionData({ abi: CHECK_ABI, functionName: "check", args: [...state, snapshots] });
   }
-  assert((check.length - 2) / 2 < 120000, "split and re-review: Safe batch would approach txpool size limit");
+  const transactions = [
+    { to: getAddress(checker), value: "0", data: check },
+    { to: getAddress(review.distributor), value: "0", data: encodeFunctionData({ abi: ABI, functionName: "setRoot", args: [recovery.merkle.merkleRoot as `0x${string}`, `0x${"0".repeat(64)}`] }) },
+    ...recovery.payouts.map(({ token, amount }) => ({
+      to: getAddress(review.distributor), value: "0",
+      data: encodeFunctionData({ abi: ABI, functionName: "claim", args: [TREASURY_RECIPIENT, getAddress(token), BigInt(amount), recovery.merkle.claims[TREASURY_RECIPIENT].tokens[token].proof as `0x${string}`[]] }),
+    })),
+  ];
+  assert(transactions.reduce((size, tx) => size + 85 + (tx.data.length - 2) / 2, 0) < 120000, "split and re-review: Safe batch would approach txpool size limit");
   return {
     version: "1.0", chainId: String(review.chainId), createdAt,
-    meta: { name: "Reviewed six-month recovery", createdFromSafeAddress: OWNER, description: "Execute as ONE atomic batch. Owner setRoot bypasses the recovery-root timelock; the normal distribution timelock is unchanged. Recompute/re-sign if the snapshot check fails. Publish the matching reduced baseline after confirmation. DAO credits are net of funding deficits; review gross, offset and net amounts in report.json." },
-    transactions: [
-      { to: getAddress(checker), value: "0", data: check },
-      { to: getAddress(review.distributor), value: "0", data: encodeFunctionData({ abi: ABI, functionName: "setRoot", args: [recovery.merkle.merkleRoot as `0x${string}`, `0x${"0".repeat(64)}`] }) },
-    ],
+    meta: { name: "Reviewed six-month recovery", createdFromSafeAddress: OWNER, description: "Execute as ONE atomic batch. Owner setRoot bypasses the recovery-root timelock; the normal distribution timelock is unchanged. Recompute/re-sign if the snapshot check fails. Publish the matching reduced baseline after confirmation. DAO credits are net of funding deficits; review gross, offset and net amounts in report.json." + (review.recipient === TREASURY_RECIPIENT ? " Claims pay the Treasury fee recipient directly; any failed claim reverts the entire root update. Treasury conversion runs separately." : "") },
+    transactions,
   };
 }

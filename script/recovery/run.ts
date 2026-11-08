@@ -7,7 +7,7 @@ import { verifyExpiryParent } from "../shared/merkle/expiry";
 import { getClient } from "../utils/getClients";
 import { sendTelegramMessage } from "../utils/telegramUtils";
 import { fetchClaimed } from "../verify/invariants/preservation";
-import { ABI, EXTRA, OWNER, RECIPIENT, Review, pairKey, refreshRecovery, safeBatch } from "./prepare";
+import { ABI, EXTRA, OWNER, RECIPIENT, TREASURY_RECIPIENT, Review, pairKey, recoveryRecipient, refreshRecovery, safeBatch } from "./prepare";
 import { monthlyPeriod, prepareMonthly } from "./monthly";
 import configuration from "./config.json";
 
@@ -37,6 +37,7 @@ export function loadRoot(review: Review, root: string): MerkleData {
 
 export async function prepareOnchain(review: Review, source: MerkleData, client: PublicClient, checker: Checker, resolveRoot?: (root: string) => MerkleData) {
   assert.equal(source.merkleRoot, review.sourceRoot, "reviewed source root mismatch");
+  const beneficiary = recoveryRecipient(review);
   let distribution = verifyExpiryParent(source);
   assert.equal(await client.getChainId(), review.chainId, "RPC chain mismatch");
   const block = await client.getBlock();
@@ -47,13 +48,13 @@ export async function prepareOnchain(review: Review, source: MerkleData, client:
   const at = { address, abi: ABI, blockNumber: block.number! };
   const root = await client.readContract({ ...at, functionName: "root" });
   const pending = await client.readContract({ ...at, functionName: "pendingRoot" });
-  const context = { chainId: review.chainId, distributor: address, recipient: RECIPIENT, reviewedRoot: review.sourceRoot, sourceRoot: review.sourceRoot, activeRoot: root, pendingRoot: pending[0], pendingValidAt: pending[2].toString(), block: block.number!.toString(), blockHash: block.hash, cutoff: review.cutoff };
+  const context = { chainId: review.chainId, distributor: address, recipient: beneficiary, reviewedRoot: review.sourceRoot, sourceRoot: review.sourceRoot, activeRoot: root, pendingRoot: pending[0], pendingValidAt: pending[2].toString(), block: block.number!.toString(), blockHash: block.hash, cutoff: review.cutoff };
   if ((root !== review.sourceRoot && !resolveRoot) || pending[2] !== 0n) {
     return { ...context, status: "waiting", reason: "Reviewed source must be active with no pending root; do not reuse this review against another root" };
   }
   assert.equal(getAddress(await client.readContract({ ...at, functionName: "owner" })), OWNER, "distributor owner changed");
-  const recipient = await client.readContract({ ...at, functionName: "recipients", args: [RECIPIENT] });
-  assert(/^0x0{40}$/.test(recipient) || getAddress(recipient) === RECIPIENT, "DAO recipient is redirected");
+  const recipient = await client.readContract({ ...at, functionName: "recipients", args: [beneficiary] });
+  assert(/^0x0{40}$/.test(recipient) || getAddress(recipient) === beneficiary, "DAO recipient is redirected");
   const original = source;
   let activated = await client.readContract({ ...at, functionName: "root", blockNumber: checkpoint.number! }) === review.sourceRoot;
   // Later distributions may add rewards, but no intermediate reduction or
@@ -63,6 +64,8 @@ export async function prepareOnchain(review: Review, source: MerkleData, client:
     const logs = await client.getLogs({ address, event, fromBlock: start, toBlock });
     for (const log of logs) {
       assert(!log.removed && log.args.newRoot, "publication reorged");
+      assert(log.blockNumber !== null && log.blockHash && log.blockNumber >= start && log.blockNumber <= toBlock, "publication outside snapshot");
+      assert.equal((await client.getBlock({ blockNumber: log.blockNumber })).hash, log.blockHash, "publication block is not canonical");
       if (!activated) {
         assert.equal(log.args.newRoot, review.sourceRoot, "reviewed root was never activated");
         activated = true;
@@ -88,7 +91,7 @@ export async function prepareOnchain(review: Review, source: MerkleData, client:
   refreshRecovery(review, original, historical); // Original allowance must fit the approved tree, not later additions.
   review = { ...review, sourceRoot: source.merkleRoot };
   const tokens = [...new Set(keys.map(([, token]) => token))];
-  for (const token of tokens) if (!keys.some(([account, t]) => account === RECIPIENT && token === t)) keys.push([RECIPIENT, token]);
+  for (const token of tokens) if (!keys.some(([account, t]) => account === beneficiary && token === t)) keys.push([beneficiary, token]);
   const claims = await fetchClaimed(client, { target: "voters", chainId: review.chainId, distributor: address, pinnedBlock: block.number! }, keys, 150);
   let recovery = refreshRecovery(review, source, claims);
   const deficits: { token: string; missing: string }[] = [];
@@ -117,7 +120,7 @@ export async function prepareOnchain(review: Review, source: MerkleData, client:
     }
   }
   assert.equal((await client.getBlock({ blockNumber: block.number! })).hash, block.hash, "snapshot reorged");
-  const details = { ...context, recoveryRoot: recovery.merkle.merkleRoot, accounts: new Set(recovery.rows.map(row => row.account)).size, amounts, fundingOffsets, deficits: covered ? [] : deficits, recovery };
+  const details = { ...context, recoveryRoot: recovery.merkle.merkleRoot, accounts: new Set(recovery.rows.map(row => row.account)).size, amounts, fundingOffsets, deficits: covered ? [] : deficits, recovery, ...(beneficiary === TREASURY_RECIPIENT ? { payouts: recovery.payouts } : {}) };
   if (!covered) return { ...details, status: "blocked", reason: "Funding deficits exceed newly recovered rewards; no Safe batch emitted" };
   if (!recovery.rows.length) return { ...details, status: "noop", reason: "No reviewed old rewards remain unclaimed" };
   if (!checker) return { ...details, status: "blocked", reason: "Stateless checker deployment needs review; no Safe batch emitted" };
@@ -130,11 +133,12 @@ export async function prepareOnchain(review: Review, source: MerkleData, client:
 
 const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const poolNames: Record<string, string> = { "voters-1": "Ethereum · Voters", "voters-8453": "Base · Voters", "voters-42161": "Arbitrum · Voters", "extra-1": "Ethereum · Extra rewards" };
+const recipientName = (result: any) => result.recipient === TREASURY_RECIPIENT ? "Treasury fee recipient" : result.recipient === RECIPIENT ? "5DAO" : "unavailable";
 export function notification(pool: string, result: any, runUrl: string): string[] {
   const ready = result.status === "awaiting-safe";
   const status = ready ? "Ready for Safe review" : result.status === "blocked" ? "Blocked — do not sign" : result.status === "noop" ? "Nothing to recover" : "Waiting for distribution";
-  const counts = result.accounts === undefined ? "" : `\n${result.accounts} accounts · ${result.amounts?.length ?? 0} tokens · recipient 5DAO`;
-  const funding = result.deficits?.length ? "\n⚠ Uncovered deficit — see report." : Object.values(result.fundingOffsets ?? {}).some(value => BigInt(value as string) > 0n) ? "\nDeficit deduction applies to 5DAO only; see report." : "";
+  const counts = result.accounts === undefined ? "" : `\n${result.accounts} accounts · ${result.amounts?.length ?? 0} tokens · recipient ${recipientName(result)} (${result.recipient ?? "unavailable"})`;
+  const funding = result.deficits?.length ? "\n⚠ Uncovered deficit — see report." : Object.values(result.fundingOffsets ?? {}).some(value => BigInt(value as string) > 0n) ? `\nDeficit deduction applies to ${recipientName(result)} only; see report.` : "";
   const action = ready ? "Nothing executed. Review and sign the atomic Safe batch." : escape(String(result.reason).slice(0, 300));
   return [`<b>${escape(poolNames[pool] ?? pool)}</b>\n${status}${counts}${funding}\n\n${action}\n\nDetails and downloads:\n${escape(runUrl)}`];
 }
@@ -149,9 +153,9 @@ function displayAmount(amount: string, decimals: number): string {
 
 export function recoverySummary(pool: string, result: any): string {
   const cell = (value: string) => escape(value).replace(/\|/g, "&#124;").replace(/[\r\n]/g, " ");
-  const lines = [`## ${poolNames[pool] ?? pool}`, "", `**${result.status}** — ${cell(result.reason)}`, "", `Recipient: **5DAO** · Affected accounts: **${result.accounts ?? "not computed"}**`, "", "Amounts below use at most six decimals (≈ means truncated). Exact amounts, token addresses, proofs and Safe batches are in the run's downloadable recovery artifact."];
+  const lines = [`## ${poolNames[pool] ?? pool}`, "", `**${result.status}** — ${cell(result.reason)}`, "", `Recipient: **${recipientName(result)}** (${result.recipient ?? "unavailable"}) · Affected accounts: **${result.accounts ?? "not computed"}**`, "", "Amounts below use at most six decimals (≈ means truncated). Exact amounts, token addresses, proofs and Safe batches are in the run's downloadable recovery artifact."];
   if (result.amounts?.length) {
-    lines.push("", "| Token | Gross recovery | Deficit deduction | Net 5DAO credit |", "| --- | ---: | ---: | ---: |");
+    lines.push("", `| Token | Gross recovery | Deficit deduction | Net ${recipientName(result)} credit |`, "| --- | ---: | ---: | ---: |");
     for (const token of result.amounts) lines.push(`| <code>${cell(token.symbol)}</code> | ${displayAmount(token.grossAmount, token.decimals)} | ${displayAmount(token.fundingOffset ?? "0", token.decimals)} | ${displayAmount(token.amount, token.decimals)} |`);
   }
   if (result.deficits?.length) {
@@ -174,7 +178,7 @@ export async function main(scope = process.argv[2] ?? "all", output = process.ar
   }
   fs.mkdirSync(output, { recursive: true });
   const results: any[] = [];
-  for (const pool of configuration.pools.filter(p => scope === "all" || p.name.startsWith(scope))) {
+  for (const pool of configuration.pools.filter(p => (scope === "all" || p.name.startsWith(scope)) && (!monthly || p.name.endsWith("-1")))) {
     const directory = path.join(output, pool.name);
     fs.mkdirSync(directory, { recursive: true });
     for (const file of ["safe-batch.json", "recovery-merkle.json", "reductions.json", "review.json", "source-merkle.json", "ledger.json"]) fs.rmSync(path.join(directory, file), { force: true });
@@ -201,6 +205,7 @@ export async function main(scope = process.argv[2] ?? "all", output = process.ar
       } else if (completed) {
         result = { status: "noop", reason: "Reviewed round already adopted; new eligibility needs a new review", cutoff: review!.cutoff, recoveryRoot: completed.recoveryRoot };
       } else {
+        assert.equal(recoveryRecipient(review!), TREASURY_RECIPIENT, "New recovery proposals must use the Ethereum Treasury recipient; legacy reviews are replay-only");
         const checker = (configuration.checkers as Record<string, Checker>)[String(review!.chainId)];
         result = await prepareOnchain(review!, loadRoot(review!, review!.sourceRoot), await getClient(review!.chainId), checker, root => loadRoot(review!, root));
       }

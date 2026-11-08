@@ -5,7 +5,7 @@ import { getAddress, parseAbi, parseAbiItem, PublicClient, zeroHash } from "viem
 import { MerkleData } from "../interfaces/MerkleData";
 import { assertExpiryLedger, expiryKey, Ledger, Publication, sixCalendarMonths, syncExpiryClaims, verifyExpiryParent } from "../shared/merkle/expiry";
 import { fetchClaimed } from "../verify/invariants/preservation";
-import { ABI, EXTRA, RECIPIENT, Review } from "./prepare";
+import { ABI, EXTRA, RECIPIENT, TREASURY_RECIPIENT, Review, recoveryRecipient } from "./prepare";
 
 const read = (file: string) => JSON.parse(fs.readFileSync(file, "utf8"));
 const remaining = (credit: Ledger["pairs"][string]["credits"][number]) => BigInt(credit.granted) - BigInt(credit.paid) - BigInt(credit.recovered);
@@ -65,14 +65,15 @@ export function appendPublication(input: Ledger, publication: Publication, vmRew
   return ledger;
 }
 
-export function monthlyReview(ledger: Ledger, cutoff: number, period: string): Review {
+export function monthlyReview(ledger: Ledger, cutoff: number, period: string, recipient: string = TREASURY_RECIPIENT): Review {
   assertExpiryLedger(ledger);
+  recoveryRecipient({ chainId: ledger.chainId, recipient });
   return {
-    chainId: ledger.chainId, distributor: ledger.distributor, recipient: RECIPIENT,
+    chainId: ledger.chainId, distributor: ledger.distributor, recipient,
     sourceRoot: ledger.root, sourceFile: "source-merkle.json", cutoff, period,
     checkpoint: { block: String(ledger.checkpoint.block), hash: ledger.checkpoint.blockHash },
     provenance: "Canonical publication ledger; six UTC calendar months; extra rewards VM-only",
-    rows: Object.values(ledger.pairs).filter(pair => pair.account !== RECIPIENT).flatMap(pair => {
+    rows: Object.values(ledger.pairs).filter(pair => pair.account !== RECIPIENT && pair.account !== TREASURY_RECIPIENT).flatMap(pair => {
       const maximum = pair.credits.filter(credit => eligible(credit, cutoff)).reduce((sum, credit) => sum + remaining(credit), 0n);
       return maximum > 0n ? [{ account: pair.account, token: pair.token, claimed: pair.paid, maximum: maximum.toString() }] : [];
     }),
@@ -97,9 +98,10 @@ export function recoverLedger(input: Ledger, review: Review, rows: { account: st
   }
   // New treasury credit is protected. Funding offsets never touch old treasury credit.
   const distribution = verifyExpiryParent(tree);
-  for (const [token, amount] of Object.entries(distribution[RECIPIENT] ?? {})) {
-    const key = expiryKey(RECIPIENT, token);
-    const pair = ledger.pairs[key] ??= { account: RECIPIENT, token, activeAmount: "0", paid: "0", credits: [] };
+  const recipient = recoveryRecipient(review);
+  for (const [token, amount] of Object.entries(distribution[recipient] ?? {})) {
+    const key = expiryKey(recipient, token);
+    const pair = ledger.pairs[key] ??= { account: recipient, token, activeAmount: "0", paid: "0", credits: [] };
     const delta = BigInt(amount) - BigInt(pair.activeAmount);
     assert(delta >= 0n, "existing DAO entitlement decreased");
     if (delta) pair.credits.push({ id: `${tree.merkleRoot}:${key}`, root: tree.merkleRoot, granted: delta.toString(), paid: "0", recovered: "0", activatedAt: null, protection: "recovered DAO rewards" });
@@ -165,7 +167,7 @@ export function rootFiles(extra: boolean, chainId: number) {
   return entries;
 }
 
-export async function prepareMonthly(seed: Review, client: PublicClient, at: number, archive: string, until?: bigint) {
+export async function prepareMonthly(seed: Review, client: PublicClient, at: number, archive: string, until?: bigint, recipient: string = TREASURY_RECIPIENT) {
   const window = monthlyPeriod(at);
   assert.equal(await client.getChainId(), seed.chainId, "RPC chain mismatch");
   let finalized = await client.getBlock({ blockTag: "finalized" });
@@ -270,5 +272,22 @@ export async function prepareMonthly(seed: Review, client: PublicClient, at: num
   assert.equal((await client.getBlock({ blockNumber: finalized.number! })).hash, finalized.hash, "monthly snapshot reorged");
   const source = resolve(active);
   assert(source, "active publication artifact missing");
-  return { ...window, ledger, review: monthlyReview(ledger, window.cutoff, window.period), source };
+  if (recipient === TREASURY_RECIPIENT && until === undefined) {
+    const pool = extra ? "extra-1" : "voters-1";
+    const file = `bounties-reports/recovery/treasury-claims/${pool}.json`;
+    const index = fs.existsSync(file) ? read(file) : undefined;
+    if (index) {
+      assert(index.version === 1 && index.chainId === 1 && index.recipient === TREASURY_RECIPIENT, "claim index target mismatch");
+      assert(Object.keys(index.pools).every(name => name === pool), "claim index pool target mismatch");
+    }
+    const approved = index?.pools[pool]?.amounts ?? {};
+    const opening = source.claims[TREASURY_RECIPIENT]?.tokens ?? {};
+    for (const token of new Set([...Object.keys(opening), ...Object.keys(approved)])) {
+      assert.equal(opening[token]?.amount ?? "0", approved[token] ?? "0", "unaccounted Treasury Merkle entitlement; review the cutover before proposing");
+    }
+    for (const pair of Object.values(ledger.pairs).filter(pair => pair.account === TREASURY_RECIPIENT)) {
+      assert(BigInt(pair.paid) <= BigInt(approved[pair.token] ?? "0"), "unaccounted historical Treasury claim; review the cutover before proposing");
+    }
+  }
+  return { ...window, ledger, review: monthlyReview(ledger, window.cutoff, window.period, recipient), source };
 }

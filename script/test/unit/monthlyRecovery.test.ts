@@ -6,7 +6,7 @@ import { PublicClient, zeroHash } from "viem";
 import { bootstrapExpiryLedger, expiryKey, sixCalendarMonths, syncExpiryClaims } from "../../shared/merkle/expiry";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { appendPublication, monthlyPeriod, monthlyReview, prepareMonthly, recoverLedger, vmRewards } from "../../recovery/monthly";
-import { EXTRA, pairKey, RECIPIENT, refreshRecovery } from "../../recovery/prepare";
+import { EXTRA, pairKey, RECIPIENT, TREASURY_RECIPIENT, refreshRecovery } from "../../recovery/prepare";
 
 const A = "0x1111111111111111111111111111111111111111";
 const T = "0x2222222222222222222222222222222222222222";
@@ -37,17 +37,24 @@ describe("monthly Safe recovery", () => {
     const october = monthlyReview(ledger, time("2026-10-29T12:00:00Z"), "2026-10");
     expect(october.rows).toEqual([{ account: A, token: T, claimed: "20", maximum: "70" }]);
     const result = refreshRecovery(october, young.merkle, new Map([[pairKey(A, T), 20n], [pairKey(RECIPIENT, T), 0n]]), { [T]: 13n });
-    expect(result.merkle.claims[RECIPIENT].tokens[T].amount).toBe("64");
+    expect(october.recipient).toBe(TREASURY_RECIPIENT);
+    expect(result.merkle.claims[RECIPIENT].tokens[T].amount).toBe("7");
+    expect(result.merkle.claims[TREASURY_RECIPIENT].tokens[T].amount).toBe("57");
     ledger = recoverLedger(ledger, october, result.rows, result.merkle, { block: 5, blockHash: hash, logIndex: 2 });
     expect(monthlyReview(ledger, october.cutoff, october.period!).rows).toEqual([]);
     // Claims after recovery consume the next VM credit before the older direct credit.
-    ledger = syncExpiryClaims(ledger, { [key]: "35", [expiryKey(RECIPIENT, T)]: "57" });
+    ledger = syncExpiryClaims(ledger, { [key]: "35", [expiryKey(RECIPIENT, T)]: "0", [expiryKey(TREASURY_RECIPIENT, T)]: "57" });
     const november = monthlyReview(ledger, time("2026-11-26T12:00:00Z"), "2026-11");
     expect(november.rows).toEqual([{ account: A, token: T, claimed: "35", maximum: "45" }]);
     expect(ledger.pairs[key].credits.filter(c => c.protection !== null).map(c => c.paid)).toEqual(["0"]);
     expect(monthlyReview(ledger, time("2026-11-01T00:00:00Z") - 1, "boundary").rows).toEqual([]);
     expect(monthlyReview(ledger, time("2026-11-01T00:00:00Z"), "boundary").rows[0].maximum).toBe("45");
     expect(() => recoverLedger(ledger, october, result.rows, result.merkle, { block: 6, blockHash: hash })).toThrow();
+    // An archived 5DAO review still replays to its original recipient/root.
+    const legacy = monthlyReview(bootstrapExpiryLedger(1, [{ ...direct, root: zeroHash, merkle: null, block: 1 }, direct, old, young], { [key]: "20", [expiryKey(RECIPIENT, T)]: "0" }, { block: 4, blockHash: hash }, null, EXTRA), october.cutoff, october.period!, RECIPIENT);
+    const replay = refreshRecovery(legacy, young.merkle, new Map([[pairKey(A, T), 20n]]), { [T]: 13n });
+    expect(replay.merkle.claims[RECIPIENT].tokens[T].amount).toBe("64");
+    expect(replay.merkle.claims[TREASURY_RECIPIENT]).toBeUndefined();
   });
 
   it("ages only the positive publication delta and blocks unadopted reductions", () => {
@@ -110,8 +117,24 @@ describe("monthly Safe recovery", () => {
         multicall: async ({ contracts }: any) => contracts.map((c: any) => c.functionName === "claimed" ? 10n : [A, T, 0n, 0n, 0n, 42161n, "0x06ab7052b00d038f8eef33b267c23b5154ce8cdc"]),
       } as unknown as PublicClient;
       const seed = { chainId: 1, distributor: EXTRA, recipient: RECIPIENT, sourceRoot: trees[3].merkleRoot, sourceFile: "unused", cutoff: time("2026-10-29T12:00:00Z"), checkpoint: { block: "8", hash }, provenance: "fixture", rows: [] };
+      const cachedOrphan = {
+        ...client,
+        getLogs: async (args: any) => (await client.getLogs(args)).map(log => ({ ...log, removed: false, blockHash: zeroHash })),
+      } as unknown as PublicClient;
+      await expect(prepareMonthly(seed, cachedOrphan, seed.cutoff, "archive", 8n)).rejects.toThrow("publication reorged");
       const prepared = await prepareMonthly(seed, client, seed.cutoff, "archive", 8n);
       expect("review" in prepared && prepared.review.rows).toEqual([{ account: A, token: T, claimed: "10", maximum: "40" }]);
+      expect(await prepareMonthly(seed, client, seed.cutoff, "archive")).toMatchObject({ review: { recipient: TREASURY_RECIPIENT } });
+      const original = trees[3];
+      trees[3] = generateMerkleTree({ [A]: { [T]: "200" }, [TREASURY_RECIPIENT]: { [T]: "5" } });
+      put("merkl-toolkit/data/distributions/5/merkle.json", trees[3]);
+      put("merkl-toolkit/data/last_merkle.json", trees[3]);
+      await expect(prepareMonthly(seed, client, seed.cutoff, "archive")).rejects.toThrow("unaccounted Treasury Merkle entitlement");
+      put("bounties-reports/recovery/treasury-claims/extra-1.json", { version: 1, chainId: 1, recipient: TREASURY_RECIPIENT, pools: { "extra-1": { amounts: { [T]: "5" } } } });
+      await expect(prepareMonthly(seed, client, seed.cutoff, "archive")).rejects.toThrow("unaccounted historical Treasury claim");
+      trees[3] = original;
+      put("merkl-toolkit/data/distributions/5/merkle.json", original);
+      fs.rmSync("bounties-reports/recovery/treasury-claims/extra-1.json");
       put("archive/adopted.json", { receipt: { block: "9" }, review: { period: "2026-10" } });
       put("merkl-toolkit/data/last_merkle.json", generateMerkleTree({ [A]: { [T]: "160" }, [RECIPIENT]: { [T]: "40" } }));
       expect(await prepareMonthly(seed, client, seed.cutoff, "archive", 8n)).toEqual(prepared);
