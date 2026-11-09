@@ -1,4 +1,4 @@
-name: "Rewards: Prepare Safe recovery"
+name: "Rewards: Prepare automatic expiry recovery"
 run-name: ${{ inputs.dispatch_id || 'Manual recovery preparation' }}
 
 on:
@@ -21,7 +21,7 @@ on:
       period:
         type: string
         default: ''
-        description: Optional YYYY-MM period to finish after a delayed Safe approval
+        description: Optional YYYY-MM period to finish across delayed recovery chunks
       dispatch_id:
         type: string
         required: false
@@ -65,7 +65,7 @@ jobs:
           version: '10.33.0'
       - run: pnpm install --frozen-lockfile
 
-      - name: Refresh claims and prepare review artifacts
+      - name: Refresh claims and prepare constrained transition artifacts
         env:
           RECOVERY_SCOPE: ${{ inputs.scope }}
           NOTIFY: ${{ inputs.notify }}

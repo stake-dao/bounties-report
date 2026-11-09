@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { getAddress, parseAbiItem, PublicClient } from "viem";
+import { getAddress, keccak256, parseAbiItem, PublicClient } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
 import { Ledger, verifyExpiryParent } from "../shared/merkle/expiry";
 import { getClient } from "../utils/getClients";
-import { ABI, EXTRA, OWNER, Review, pairKey } from "./prepare";
+import { ABI, EXTRA, OWNER, TREASURY_RECIPIENT, Review, pairKey } from "./prepare";
 import { loadRoot, prepareOnchain } from "./run";
 import { prepareMonthly, recoverLedger } from "./monthly";
+import { transition } from "./transition";
 import configuration from "./config.json";
 
 const rootEvent = parseAbiItem("event RootSet(bytes32 indexed newRoot,bytes32 indexed newIpfsHash)");
@@ -17,7 +18,7 @@ const serialize = (value: unknown) => JSON.stringify(value, (_, v) => typeof v =
 
 /** Recompute the proposal, then prove it was published without an intervening
  * affected claim. This is a post-execution audit, NOT an execution-time guard. */
-export async function verifyAdoption(review: Review, report: { block: string; blockHash: string; sourceRoot: string; recoveryRoot: string }, candidate: MerkleData, txHash: `0x${string}`, client: PublicClient, resolveRoot = (root: string) => loadRoot(review, root)) {
+export async function verifyAdoption(review: Review, report: { block: string; blockHash: string; sourceRoot: string; recoveryRoot: string; payouts?: { token: string; amount: string }[]; automatic?: ReturnType<typeof transition> }, candidate: MerkleData, txHash: `0x${string}`, client: PublicClient, resolveRoot = (root: string) => loadRoot(review, root)) {
   assert(/^\d+$/.test(report.block) && /^0x[0-9a-f]{64}$/i.test(txHash), "invalid adoption input");
   verifyExpiryParent(candidate);
   const snapshot = await client.getBlock({ blockNumber: BigInt(report.block) });
@@ -29,37 +30,85 @@ export async function verifyAdoption(review: Review, report: { block: string; bl
   assert.equal(prepared.sourceRoot, report.sourceRoot, "proposal parent mismatch");
   assert.equal(prepared.recoveryRoot, report.recoveryRoot, "proposal root mismatch");
   assert.equal(prepared.recoveryRoot, candidate.merkleRoot, "candidate differs from recomputed recovery");
+  // Archived root-only preparations remain replayable. New preparations also
+  // prove that their claims occurred in the very same Safe execution.
+  if (report.payouts !== undefined) assert.deepEqual(report.payouts, prepared.recovery.payouts, "payouts differ from preparation replay");
+  if (review.execution === "module-v1") {
+    assert(report.automatic, "module authorization missing");
+    const pool = getAddress(review.distributor) === EXTRA ? "extra-1" : "voters-1";
+    const module = (configuration.modules as Record<string, { address: string; codeHash: string } | null>)[pool];
+    assert(module && getAddress(module.address) === getAddress(report.automatic.module), "unapproved recovery module");
+    const code = await client.getBytecode({ address: getAddress(module.address), blockNumber: snapshot.number! });
+    assert(code && keccak256(code) === module.codeHash, "module bytecode mismatch");
+    assert.deepEqual(report.automatic, transition(review, resolveRoot(report.sourceRoot), prepared.recovery, module.address, BigInt(report.automatic.nonce)), "module transition differs from replay");
+  } else assert(!report.automatic, "legacy review cannot authorize a module");
 
   const receipt = await client.getTransactionReceipt({ hash: txHash });
   const finalized = await client.getBlock({ blockTag: "finalized" });
   assert(receipt.status === "success" && receipt.blockNumber <= finalized.number!, "execution must be successful and finalized");
   assert(receipt.blockNumber > snapshot.number!, "execution must follow the preparation snapshot");
   assert.equal((await client.getBlock({ blockNumber: receipt.blockNumber })).hash, receipt.blockHash, "execution reorged");
-  assert.equal(getAddress(receipt.to!), OWNER, "expected direct owner Safe transaction");
+  if (report.automatic) {
+    const activations = await client.getLogs({ address: getAddress(report.automatic.module), event: parseAbiItem("event Activated(bytes32 indexed proposal,bytes32 indexed parent,bytes32 indexed root)"), fromBlock: receipt.blockNumber, toBlock: receipt.blockNumber });
+    const matching = activations.filter(log => log.transactionHash === txHash);
+    assert.equal(matching.length, 1, "expected one module activation in execution transaction");
+    const activation = matching[0];
+    assert(!activation.removed && activation.blockHash === receipt.blockHash, "module activation reorged");
+    assert.equal(activation.args.proposal, report.automatic.proposal, "wrong module proposal");
+    assert.equal(activation.args.parent, report.sourceRoot, "wrong module parent");
+    assert.equal(activation.args.root, candidate.merkleRoot, "wrong module root");
+  } else assert.equal(getAddress(receipt.to!), OWNER, "expected direct owner Safe transaction");
   const address = getAddress(review.distributor);
   const affected = new Set(prepared.recovery.rows.map(row => pairKey(row.account, row.token)));
+  const paid = new Set<string>();
+  const treasuryPaid = new Map<string, bigint>();
+  if (report.automatic) for (const payout of report.payouts ?? []) {
+    treasuryPaid.set(getAddress(payout.token), await client.readContract({ address, abi: ABI, functionName: "claimed", args: [TREASURY_RECIPIENT, getAddress(payout.token)], blockNumber: snapshot.number! }));
+  }
   let publication: { blockNumber: bigint; logIndex: number } | undefined;
   for (let start = snapshot.number! + 1n; start <= receipt.blockNumber; start += 10000n) {
     const toBlock = start + 9999n < receipt.blockNumber ? start + 9999n : receipt.blockNumber;
     const roots = await client.getLogs({ address, event: rootEvent, fromBlock: start, toBlock });
     for (const log of roots) {
       assert(!log.removed && log.transactionHash === txHash && log.args.newRoot === candidate.merkleRoot && !publication, "unexpected root replacement after preparation");
+      assert(log.blockNumber !== null && log.logIndex !== null && log.blockHash && log.blockNumber >= start && log.blockNumber <= toBlock, "publication outside snapshot");
+      assert.equal((await client.getBlock({ blockNumber: log.blockNumber })).hash, log.blockHash, "publication block is not canonical");
+      if (report.automatic) assert.equal(log.args.newIpfsHash, report.automatic.proposal, "root publication is not bound to module proposal");
       publication = { blockNumber: log.blockNumber!, logIndex: log.logIndex! };
     }
     const claims = await client.getLogs({ address, event: claimEvent, fromBlock: start, toBlock });
     for (const log of claims) {
       assert(!log.removed && log.args.account && log.args.reward, "claim history incomplete");
+      assert(log.blockNumber !== null && log.logIndex !== null && log.blockHash && log.blockNumber >= start && log.blockNumber <= toBlock, "claim outside snapshot");
+      assert.equal((await client.getBlock({ blockNumber: log.blockNumber })).hash, log.blockHash, "claim block is not canonical");
       const beforePublication = !publication || log.blockNumber! < publication.blockNumber || (log.blockNumber === publication.blockNumber && log.logIndex! < publication.logIndex);
       assert(!beforePublication || !affected.has(pairKey(log.args.account, log.args.reward)), "affected wallet claimed before recovery execution");
+      const token = getAddress(log.args.reward);
+      if (report.automatic && getAddress(log.args.account) === TREASURY_RECIPIENT && treasuryPaid.has(token)) {
+        const payout = report.payouts!.find(p => getAddress(p.token) === token)!;
+        const cumulative = treasuryPaid.get(token)! + log.args.amount!;
+        assert(cumulative <= BigInt(payout.amount), "unexpected Treasury overpayment");
+        treasuryPaid.set(token, cumulative);
+        if (beforePublication && cumulative === BigInt(payout.amount)) paid.add(token);
+      }
+      if (report.payouts !== undefined && log.transactionHash === txHash && getAddress(log.args.account) === TREASURY_RECIPIENT) {
+        assert(!beforePublication && log.args.recipient && getAddress(log.args.recipient) === TREASURY_RECIPIENT, "Treasury claim not paid directly after publication");
+        paid.add(getAddress(log.args.reward));
+      }
     }
   }
   assert(publication, "recovery publication missing");
+  if (report.automatic) for (const payout of report.payouts ?? []) {
+    assert.equal(treasuryPaid.get(getAddress(payout.token)), BigInt(payout.amount), "Treasury payout amount mismatch");
+  }
+  if (report.payouts !== undefined) assert.deepEqual([...paid].sort(), report.payouts.map(p => getAddress(p.token)).sort(), "atomic Treasury claims missing or unexpected");
   const latest = await client.getBlock();
   const at = { address, abi: ABI, blockNumber: latest.number! };
   assert.equal(await client.readContract({ ...at, functionName: "root" }), candidate.merkleRoot, "recovery is no longer active");
   assert.equal((await client.readContract({ ...at, functionName: "pendingRoot" }))[2], 0n, "another root is pending; keep publishers paused");
+  assert.equal((await client.getBlock({ blockNumber: receipt.blockNumber })).hash, receipt.blockHash, "execution reorged during adoption");
   assert.equal((await client.getBlock({ blockNumber: latest.number! })).hash, latest.hash, "adoption snapshot reorged");
-  return { prepared, receipt: { transactionHash: txHash, block: receipt.blockNumber.toString(), blockHash: receipt.blockHash, logIndex: publication.logIndex }, parent: resolveRoot(report.sourceRoot) };
+  return { prepared: { ...prepared, ...(report.automatic ? { automatic: report.automatic, status: "executed" } : {}) }, receipt: { transactionHash: txHash, block: receipt.blockNumber.toString(), blockHash: receipt.blockHash, logIndex: publication.logIndex }, parent: resolveRoot(report.sourceRoot) };
 }
 
 /** Build the whole file plan before writing. Generated data is changed only by
@@ -73,6 +122,25 @@ export function adoptionFiles(review: Review, verified: Awaited<ReturnType<typeo
   files.set(path.join(archive, `${parent.merkleRoot}.json`), serialize(parent));
   files.set(path.join(archive, `${tree.merkleRoot}.json`), serialize(tree));
   files.set(path.join(reports, "recovery", `${extra ? "extra" : "voters"}-${review.chainId}`, `${tree.merkleRoot}.json`), serialize({ review, ...prepared, receipt, ...(ledger ? { ledger } : {}) }));
+  if (review.chainId === 1 && review.recipient === TREASURY_RECIPIENT) {
+    const pool = extra ? "extra-1" : "voters-1";
+    const pointer = path.join(reports, "recovery/treasury-claims", `${pool}.json`);
+    const index = fs.existsSync(pointer) ? read(pointer) : { version: 1, chainId: 1, recipient: TREASURY_RECIPIENT, pools: {} };
+    assert(index.version === 1 && index.chainId === 1 && index.recipient === TREASURY_RECIPIENT, "claim index target mismatch");
+    assert(Object.keys(index.pools).every(name => name === pool), "claim index pool target mismatch");
+    const previous = index.pools[pool];
+    const amounts = Object.fromEntries(Object.entries(tree.claims[TREASURY_RECIPIENT]?.tokens ?? {}).map(([token, claim]) => [token, claim.amount]));
+    // Retries may see this exact adoption already published. Otherwise every
+    // opening entitlement must come from the preceding approved recovery.
+    if (previous?.root !== tree.merkleRoot) {
+      const opening = parent.claims[TREASURY_RECIPIENT]?.tokens ?? {};
+      for (const token of new Set([...Object.keys(opening), ...Object.keys(previous?.amounts ?? {})])) {
+        assert.equal(opening[token]?.amount ?? "0", previous?.amounts[token] ?? "0", "unaccounted Treasury Merkle entitlement; review the cutover");
+      }
+    }
+    index.pools[pool] = { distributor: review.distributor, root: tree.merkleRoot, receipt, amounts };
+    files.set(pointer, serialize(index));
+  }
   const requireParent = (file: string) => {
     const current = read(file);
     verifyExpiryParent(current);
@@ -84,7 +152,19 @@ export function adoptionFiles(review: Review, verified: Awaited<ReturnType<typeo
     const distributions = read(path.join(toolkit, "data/distribution.json"));
     assert(distributions.length, "no extra distribution history");
     const lastArchive = path.join(toolkit, "data/distributions", String(distributions.at(-1).timestamp), "merkle.json");
-    requireParent(lastArchive);
+    if (review.execution === "module-v1") {
+      let ancestor = parent.merkleRoot;
+      const seen = new Set<string>();
+      while (fs.existsSync(path.join(toolkit, "data/recoveries", `${ancestor}.json`))) {
+        assert(!seen.has(ancestor), "recovery ancestry cycle");
+        seen.add(ancestor);
+        const prior = read(path.join(toolkit, "data/recoveries", `${ancestor}.json`));
+        assert.equal(prior.merkle.merkleRoot, ancestor, "recovery ancestry mismatch");
+        verifyExpiryParent(prior.merkle);
+        ancestor = prior.sourceRoot;
+      }
+      assert.equal(read(lastArchive).merkleRoot, ancestor, "ordinary extra baseline changed");
+    } else requireParent(lastArchive);
     files.set(path.join(toolkit, "data/recoveries", `${tree.merkleRoot}.json`), serialize({ sourceRoot: parent.merkleRoot, receipt, merkle: tree }));
     files.set(latest, serialize(tree));
   } else {
@@ -113,7 +193,7 @@ async function main() {
   const client = await getClient(review.chainId);
   let ledger: Ledger | undefined;
   if (review.period) {
-    const replay = await prepareMonthly(seed, client, review.cutoff, `bounties-reports/recovery/${poolName}`, BigInt(review.checkpoint.block));
+    const replay = await prepareMonthly(seed, client, review.cutoff, `bounties-reports/recovery/${poolName}`, BigInt(review.checkpoint.block), review.recipient, review.execution === "module-v1");
     assert("review" in replay, "monthly eligibility is not reproducible");
     assert.deepEqual(replay.review, review, "monthly eligibility differs from canonical replay");
     ledger = replay.ledger;

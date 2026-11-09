@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { decodeFunctionData, getAddress, keccak256, parseAbi, PublicClient } from "viem";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
-import { ABI, EXTRA, OWNER, RECIPIENT, Review, VOTERS, pairKey, refreshRecovery, safeBatch } from "../../recovery/prepare";
+import { ABI, EXTRA, OWNER, RECIPIENT, TREASURY_RECIPIENT, Review, VOTERS, pairKey, refreshRecovery, safeBatch } from "../../recovery/prepare";
 import { main, notification, prepareOnchain, recoverySummary } from "../../recovery/run";
 import { adoptionFiles, verifyAdoption } from "../../recovery/adopt";
 import { findMerkleMatchingRoot, findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
@@ -26,11 +26,11 @@ const review: Review = {
 };
 const claims = (paid = 35n) => new Map([[pairKey(A, T), paid], [pairKey(A, U), 0n], [pairKey(B, T), 0n], [pairKey(RECIPIENT, T), 2n], [pairKey(RECIPIENT, U), 0n]]);
 
-function client(options: { root?: string; publications?: string[]; pending?: bigint; replaced?: boolean; balance?: bigint; balanceT?: bigint; checkpoint?: string; historical?: bigint; code?: `0x${string}`; rejectCheck?: boolean; recipient?: string } = {}) {
+function client(options: { root?: string; publications?: string[]; publicationHash?: string; pending?: bigint; replaced?: boolean; balance?: bigint; balanceT?: bigint; checkpoint?: string; historical?: bigint; code?: `0x${string}`; rejectCheck?: boolean; recipient?: string } = {}) {
   return {
     getChainId: async () => 1,
     getBlock: async ({ blockNumber = 20n } = {}) => ({ number: blockNumber, timestamp: 200n, hash: blockNumber === 10n ? options.checkpoint ?? HASH : HASH }),
-    getLogs: async () => (options.publications ?? (options.replaced ? [ZERO] : [])).map(newRoot => ({ removed: false, args: { newRoot } })),
+    getLogs: async () => (options.publications ?? (options.replaced ? [ZERO] : [])).map((newRoot, index) => ({ removed: false, args: { newRoot }, blockNumber: BigInt(15 + index), blockHash: options.publicationHash ?? HASH })),
     multicall: async ({ contracts, blockNumber }: any) => contracts.map((c: any) => blockNumber === 10n ? options.historical ?? 20n : claims().get(pairKey(c.args[0], c.args[1]))!),
     readContract: async ({ functionName, address, blockNumber }: any) => {
       switch (functionName) {
@@ -92,6 +92,59 @@ describe("reviewed recovery", () => {
     expect(() => refreshRecovery(review, source, claims(19n))).toThrow("decreasing claimed");
   });
 
+  it("routes new Ethereum recovery credit to Treasury without rewriting 5DAO, and publishes an audit pointer only at adoption", () => {
+    const input = { ...review, recipient: TREASURY_RECIPIENT };
+    const recovery = refreshRecovery(input, source, claims(), { [T]: 17n });
+    expect(recovery.merkle.claims[RECIPIENT].tokens[T].amount).toBe("7");
+    expect(recovery.merkle.claims[TREASURY_RECIPIENT].tokens[T].amount).toBe("28");
+    expect(recovery.merkle.claims[A].tokens[T].amount).toBe("55");
+    const batch = safeBatch(input, recovery, CHECK, 123);
+    const check = decodeFunctionData({ abi: parseAbi(["function check(uint256,address,bytes32,address,address[],bytes) view"]), data: batch.transactions[0].data });
+    expect(check.args?.[3]).toBe(TREASURY_RECIPIENT);
+    expect(batch.transactions).toHaveLength(3);
+    expect(decodeFunctionData({ abi: ABI, data: batch.transactions[2].data })).toMatchObject({ functionName: "claim", args: [TREASURY_RECIPIENT, T, 28n, expect.any(Array)] });
+    for (const chainId of [8453, 42161]) expect(() => refreshRecovery({ ...input, chainId }, source, claims())).toThrow("approved DAO");
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "treasury-adoption-"));
+    const put = (file: string, data: unknown) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(data)); };
+    try {
+      put(path.join(directory, "100/vlCVX/vlcvx_merkle.json"), source);
+      put(path.join(directory, "latest/vlCVX/vlcvx_merkle.json"), source);
+      const verified = { prepared: { recovery }, parent: source, receipt: { transactionHash: HASH, block: "21", blockHash: HASH, logIndex: 5 } } as unknown as Awaited<ReturnType<typeof verifyAdoption>>;
+      const pointer = path.join(directory, "recovery/treasury-claims/voters-1.json");
+      const files = adoptionFiles(input, verified, directory);
+      const index = JSON.parse(files.get(pointer)!);
+      expect(index).toMatchObject({ version: 1, chainId: 1, recipient: TREASURY_RECIPIENT, pools: { "voters-1": { root: recovery.merkle.merkleRoot, amounts: { [T]: "28" }, receipt: { block: "21" } } } });
+      const toolkit = path.join(directory, "toolkit");
+      put(path.join(toolkit, "data/last_merkle.json"), source);
+      put(path.join(toolkit, "data/distribution.json"), [{ timestamp: 100 }]);
+      put(path.join(toolkit, "data/distributions/100/merkle.json"), source);
+      const extraReview = { ...input, distributor: EXTRA };
+      const extraFiles = adoptionFiles(extraReview, verified, directory, toolkit);
+      // Both PRs start from the same baseline; no shared added/modified file.
+      expect([...files.keys()].filter(file => extraFiles.has(file))).toEqual([]);
+      for (const [file, contents] of files) put(file, JSON.parse(contents));
+      for (const [file, contents] of extraFiles) put(file, JSON.parse(contents));
+      expect(adoptionFiles(input, verified, directory).get(pointer)).toBe(files.get(pointer));
+      const extraPointer = path.join(directory, "recovery/treasury-claims/extra-1.json");
+      expect(adoptionFiles(extraReview, verified, directory, toolkit).get(extraPointer)).toBe(extraFiles.get(extraPointer));
+      const chunkReview: Review = { ...extraReview, execution: "module-v1", sourceRoot: recovery.merkle.merkleRoot, rows: [{ account: A, token: T, claimed: "35", maximum: "7" }] };
+      const chunkClaims = claims();
+      chunkClaims.set(pairKey(TREASURY_RECIPIENT, T), 28n);
+      const chunk = refreshRecovery(chunkReview, recovery.merkle, chunkClaims);
+      const next = { ...verified, parent: recovery.merkle, prepared: { recovery: chunk } } as typeof verified;
+      const plan = adoptionFiles(chunkReview, next, directory, toolkit);
+      // Simulate toolkit push succeeding, then the audit-repo push failing.
+      for (const [file, contents] of plan) if (file.startsWith(toolkit)) put(file, JSON.parse(contents));
+      expect(adoptionFiles(chunkReview, next, directory, toolkit)).toEqual(plan);
+      for (const [file, contents] of plan) put(file, JSON.parse(contents));
+      expect(adoptionFiles(chunkReview, next, directory, toolkit)).toEqual(plan);
+      expect(JSON.parse(fs.readFileSync(extraPointer, "utf8")).pools["extra-1"].amounts[T]).toBe("35");
+      expect(JSON.parse(fs.readFileSync(path.join(toolkit, "data/distributions/100/merkle.json"), "utf8"))).toEqual(source);
+      const unknown = generateMerkleTree({ [A]: { [T]: "100" }, [TREASURY_RECIPIENT]: { [T]: "1" } });
+      expect(() => adoptionFiles(input, { ...verified, parent: unknown, prepared: { recovery: refreshRecovery({ ...input, sourceRoot: unknown.merkleRoot }, unknown, new Map([[pairKey(A, T), 35n]])) } } as typeof verified, directory)).toThrow("unaccounted Treasury");
+    } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+  });
+
   it("encodes an atomic assertion followed by owner root replacement, never module execution", () => {
     const recovery = refreshRecovery(review, source, claims());
     const batch = safeBatch(review, recovery, CHECK, 123);
@@ -100,6 +153,51 @@ describe("reviewed recovery", () => {
     const check = decodeFunctionData({ abi: parseAbi(["function check(uint256,address,bytes32,address,address[],bytes) view"]), data: batch.transactions[0].data });
     expect(check.args).toEqual([1n, VOTERS, source.merkleRoot, RECIPIENT, [T], `0x${A.slice(2)}00${35n.toString(16).padStart(24, "0")}`]);
     expect(decodeFunctionData({ abi: ABI, data: batch.transactions[1].data })).toMatchObject({ functionName: "setRoot", args: [recovery.merkle.merkleRoot, ZERO] });
+  });
+
+  it("claims cumulative Treasury entitlements, excludes settled zero-net tokens, and leaves legacy batches root-only", () => {
+    const tree = generateMerkleTree({ [A]: { [T]: "100" }, [TREASURY_RECIPIENT]: { [T]: "70" }, [RECIPIENT]: { [T]: "7" } });
+    const input = { ...review, recipient: TREASURY_RECIPIENT, sourceRoot: tree.merkleRoot };
+    const counters = new Map([[pairKey(A, T), 35n], [pairKey(TREASURY_RECIPIENT, T), 30n]]);
+    const recovered = refreshRecovery(input, tree, counters, { [T]: 17n });
+    const batch = safeBatch(input, recovered, CHECK, 0);
+    expect(recovered.payouts).toEqual([{ token: T, amount: "98" }]); // 70 opening + 45 gross - 17 deficit.
+    expect(decodeFunctionData({ abi: ABI, data: batch.transactions[2].data }).args?.slice(0, 3)).toEqual([TREASURY_RECIPIENT, T, 98n]);
+    expect(recovered.merkle.claims[RECIPIENT].tokens[T].amount).toBe("7");
+    counters.set(pairKey(TREASURY_RECIPIENT, T), 70n);
+    const zero = refreshRecovery(input, tree, counters, { [T]: 45n });
+    expect(zero.payouts).toEqual([]);
+    expect(safeBatch(input, zero, CHECK, 0).transactions).toHaveLength(2);
+    expect(safeBatch(review, refreshRecovery(review, source, claims()), CHECK, 0).transactions).toHaveLength(2);
+  });
+
+  it("requires the new preparation's Treasury claims in the same finalized root transaction", async () => {
+    const input = { ...review, recipient: TREASURY_RECIPIENT };
+    const base = client({ recipient: TREASURY_RECIPIENT });
+    const originalMulticall = base.multicall;
+    base.multicall = (async (args: any) => {
+      const values = await originalMulticall(args);
+      return args.contracts.map((c: any, i: number) => c.args[0] === TREASURY_RECIPIENT ? 0n : values[i]);
+    }) as typeof base.multicall;
+    const prepared = await prepareOnchain(input, source, base, null);
+    expect("payouts" in prepared && prepared.payouts).toEqual([{ token: T, amount: "45" }]);
+    const result = prepared as any;
+    let claimHash = HASH, claimRecipient = TREASURY_RECIPIENT;
+    const adopted = {
+      ...base,
+      getBlock: async (args: any = {}) => ({ number: args.blockNumber ?? 30n, timestamp: 200n, hash: HASH }),
+      getTransactionReceipt: async () => ({ status: "success", blockNumber: 21n, blockHash: HASH, to: OWNER }),
+      readContract: async (args: any) => args.functionName === "root" && args.blockNumber >= 21n ? result.recoveryRoot : base.readContract(args),
+      getLogs: async ({ event, fromBlock }: any) => fromBlock <= 20n ? [] : event.name === "RootSet"
+        ? [{ args: { newRoot: result.recoveryRoot }, blockNumber: 21n, blockHash: HASH, logIndex: 5, transactionHash: HASH }]
+        : [{ args: { account: TREASURY_RECIPIENT, recipient: claimRecipient, reward: T, amount: 45n }, blockNumber: 21n, blockHash: HASH, logIndex: 6, transactionHash: claimHash }],
+    } as unknown as PublicClient;
+    const verify = () => verifyAdoption(input, result, result.recovery.merkle, HASH as `0x${string}`, adopted, () => source);
+    await expect(verify()).resolves.toBeDefined();
+    claimHash = ZERO;
+    await expect(verify()).rejects.toThrow("atomic Treasury claims missing");
+    claimHash = HASH; claimRecipient = OWNER;
+    await expect(verify()).rejects.toThrow("not paid directly");
   });
 
   it.each([(1n << 96n) - 1n, 1n << 96n, (1n << 256n) - 101n])("encodes full claim counters without truncation: %s", paid => {
@@ -150,6 +248,7 @@ describe("reviewed recovery", () => {
     expect((result as any).recovery.merkle.claims[A].tokens[T].amount).toBe("62");
     await expect(prepareOnchain(review, source, client({ publications: [reduced.merkleRoot, source.merkleRoot] }), null, resolve)).rejects.toThrow("Intervening reduction");
     await expect(prepareOnchain(review, source, client({ root: added.merkleRoot }), null, resolve)).rejects.toThrow("history incomplete");
+    await expect(prepareOnchain(review, source, client({ publications: [source.merkleRoot], publicationHash: ZERO }), null, resolve)).rejects.toThrow("publication block is not canonical");
   });
 
   it("adopts only a finalized, reproducible Safe publication with no affected claims before execution", async () => {
@@ -157,15 +256,15 @@ describe("reviewed recovery", () => {
     const report = { block: "20", blockHash: HASH, sourceRoot: source.merkleRoot, recoveryRoot: recovery.merkle.merkleRoot };
     const txHash = `0x${"2".repeat(64)}` as `0x${string}`;
     const base = client();
-    const adopted = (options: { claimIndex?: number; claimAccount?: string; finalized?: bigint; pending?: bigint; to?: string; root?: string } = {}) => ({
+    const adopted = (options: { claimIndex?: number; claimAccount?: string; rootHash?: string; claimHash?: string; finalized?: bigint; pending?: bigint; to?: string; root?: string } = {}) => ({
       ...base,
       getBlock: async ({ blockNumber, blockTag }: any = {}) => ({ number: blockNumber ?? (blockTag === "finalized" ? options.finalized ?? 30n : 30n), timestamp: 200n, hash: HASH }),
       getTransactionReceipt: async () => ({ status: "success", to: options.to ?? OWNER, blockNumber: 21n, blockHash: HASH }),
       readContract: async (args: any) => args.blockNumber > 20n && args.functionName === "root" ? options.root ?? recovery.merkle.merkleRoot
         : args.blockNumber > 20n && args.functionName === "pendingRoot" ? [ZERO, ZERO, options.pending ?? 0n] : base.readContract(args),
       getLogs: async ({ fromBlock, event }: any) => fromBlock <= 20n ? [] : event.name === "RootSet"
-        ? [{ removed: false, transactionHash: txHash, blockNumber: 21n, logIndex: 5, args: { newRoot: recovery.merkle.merkleRoot } }]
-        : options.claimIndex === undefined ? [] : [{ removed: false, blockNumber: 21n, logIndex: options.claimIndex, args: { account: options.claimAccount ?? A, reward: T } }],
+        ? [{ removed: false, transactionHash: txHash, blockNumber: 21n, blockHash: options.rootHash ?? HASH, logIndex: 5, args: { newRoot: recovery.merkle.merkleRoot } }]
+        : options.claimIndex === undefined ? [] : [{ removed: false, blockNumber: 21n, blockHash: options.claimHash ?? HASH, logIndex: options.claimIndex, args: { account: options.claimAccount ?? A, reward: T } }],
     } as unknown as PublicClient);
     const verify = (options = {}) => verifyAdoption(review, report, recovery.merkle, txHash, adopted(options), () => source);
     const verified = await verify();
@@ -173,11 +272,29 @@ describe("reviewed recovery", () => {
     await expect(verify({ claimIndex: 4 })).rejects.toThrow("claimed before recovery");
     await expect(verify({ claimIndex: 6 })).resolves.toBeDefined(); // After RootSet in the same block is safe.
     await expect(verify({ claimIndex: 4, claimAccount: B })).resolves.toBeDefined();
+    await expect(verify({ rootHash: ZERO })).rejects.toThrow("publication block is not canonical");
+    await expect(verify({ claimIndex: 6, claimHash: ZERO })).rejects.toThrow("claim block is not canonical");
     await expect(verify({ finalized: 20n })).rejects.toThrow("finalized");
     await expect(verify({ to: B })).rejects.toThrow("owner Safe");
     await expect(verify({ root: source.merkleRoot })).rejects.toThrow("no longer active");
     await expect(verify({ pending: 500n })).rejects.toThrow("another root is pending");
     await expect(verifyAdoption(review, report, source, txHash, adopted(), () => source)).rejects.toThrow("differs from recomputed");
+
+    let scanned = false;
+    const stable = adopted();
+    const reorgDuringScan = {
+      ...stable,
+      getLogs: async (args: any) => {
+        const logs = await stable.getLogs(args);
+        if (args.fromBlock > 20n && args.event.name === "Claimed") scanned = true;
+        return logs;
+      },
+      getBlock: async (args: any) => {
+        const block = await stable.getBlock(args);
+        return scanned && args?.blockNumber === 21n ? { ...block, hash: ZERO } : block;
+      },
+    } as unknown as PublicClient;
+    await expect(verifyAdoption(review, report, recovery.merkle, txHash, reorgDuringScan, () => source)).rejects.toThrow("execution reorged during adoption");
 
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "recovery-adoption-"));
     const put = (file: string, data: unknown) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(data)); };
@@ -256,7 +373,7 @@ describe("reviewed recovery", () => {
   });
 
   it("keeps Telegram short even for many tokens, with explicit safety status and a report link", () => {
-    const result = { status: "blocked", reason: "Funding <deficits>", cutoff: 100, block: "20", sourceRoot: HASH, recoveryRoot: ZERO, accounts: 1,
+    const result = { status: "blocked", recipient: TREASURY_RECIPIENT, reason: "Funding <deficits>", cutoff: 100, block: "20", sourceRoot: HASH, recoveryRoot: ZERO, accounts: 1,
       amounts: Array.from({ length: 60 }, () => ({ token: T, symbol: "<TOK&>", amount: "45", grossAmount: "60", fundingOffset: "15", decimals: 2 })), deficits: [{ token: U, missing: "1" }] };
     const messages = notification("voters-1", result, "https://github.com/run");
     expect(messages).toHaveLength(1);
@@ -271,12 +388,13 @@ describe("reviewed recovery", () => {
     const ready = notification("voters-1", { ...result, status: "awaiting-safe", deficits: [], fundingOffsets: { [T]: "15" } }, "https://github.com/run")[0];
     expect(ready).toContain("Ready for Safe review");
     expect(ready).toContain("Nothing executed");
-    expect(ready).toContain("5DAO only");
+    expect(ready).toContain("Treasury fee recipient only");
+    expect(ready).toContain(TREASURY_RECIPIENT);
     expect(notification("extra-1", { status: "waiting", reason: "Pending root" }, "https://github.com/run")[0]).toContain("Waiting for distribution");
   });
 
   it("puts readable amounts and funding warnings in the summary without losing tiny deductions", () => {
-    const result = { status: "blocked", reason: "Funding deficits", cutoff: 100, block: "20", sourceRoot: HASH, recoveryRoot: ZERO, accounts: 1,
+    const result = { status: "blocked", recipient: RECIPIENT, reason: "Funding deficits", cutoff: 100, block: "20", sourceRoot: HASH, recoveryRoot: ZERO, accounts: 1,
       amounts: [
         { symbol: "<TOK&>|\n", grossAmount: "1234567890123456789012", fundingOffset: "1", amount: "1234567890123456789011", decimals: 18 },
         { symbol: "USDC", grossAmount: "1234567", fundingOffset: "234567", amount: "1000000", decimals: 6 },
