@@ -1,4 +1,4 @@
-name: "Rewards: Adopt confirmed Safe recovery"
+name: "Rewards: Adopt finalized recovery"
 run-name: ${{ inputs.dispatch_id || 'Manual recovery adoption' }}
 
 on:
@@ -27,7 +27,7 @@ on:
       transaction:
         type: string
         required: true
-        description: Finalized on-chain owner Safe execution hash (not Safe proposal hash)
+        description: Finalized module or archived owner Safe execution transaction hash
       publish:
         type: boolean
         default: false
@@ -134,7 +134,7 @@ jobs:
           path: merkl-toolkit
           branch: recovery/adopt-${{ inputs.pool }}-${{ inputs.preparation_run }}
           title: "Adopt confirmed recovery: ${{ inputs.pool }}"
-          commit-message: "Adopt confirmed Safe recovery baseline"
+          commit-message: "Adopt finalized recovery baseline"
           add-paths: |
             data/last_merkle.json
             data/recoveries/
@@ -152,7 +152,7 @@ jobs:
           token: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
           branch: recovery/adopt-${{ inputs.pool }}-${{ inputs.preparation_run }}
           title: "Adopt confirmed recovery: ${{ inputs.pool }}"
-          commit-message: "Record confirmed Safe recovery and canonical proofs"
+          commit-message: "Record finalized recovery and canonical proofs"
           add-paths: bounties-reports/
           body: |
             Confirmed transaction: `${{ inputs.transaction }}`.
@@ -176,7 +176,7 @@ jobs:
             git -C "$directory" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git -C "$directory" add -- "$@"
             if git -C "$directory" diff --cached --quiet; then return; fi
-            git -C "$directory" commit -m "Adopt confirmed monthly Safe recovery: $POOL"
+            git -C "$directory" commit -m "Adopt finalized monthly recovery: $POOL"
             # No rebase/force push: a concurrent baseline update requires replay.
             git -C "$directory" push origin HEAD:main
           }

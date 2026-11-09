@@ -15,6 +15,7 @@ export const ABI = parseAbi([
   "function owner() view returns(address)",
   "function recipients(address) view returns(address)",
   "function setRoot(bytes32,bytes32)",
+  "function claimed(address,address) view returns(uint256)",
   "function claim(address,address,uint256,bytes32[]) returns(uint256)",
 ]);
 // contracts-monorepo/packages/shared/src/distributors/ClaimSnapshotCheck.sol
@@ -31,6 +32,8 @@ export interface Review {
   sourceFile: string;
   cutoff: number;
   period?: string;
+  execution?: "module-v1";
+  remainingRows?: number;
   checkpoint: { block: string; hash: string };
   provenance: string;
   rows: { account: string; token: string; claimed: string; maximum: string }[];

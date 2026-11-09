@@ -24,6 +24,7 @@ import {
   findPreviousMerkle,
 } from "../../utils/merkle/findPreviousMerkle";
 import { canUseStandardGaugeMerge } from "../../utils/merkle/activeGaugeBaseline";
+import { TREASURY_RECIPIENT } from "../../recovery/prepare";
 import {
   hasPerDelegateAttribution,
   getExactGroupAmounts,
@@ -307,6 +308,16 @@ async function generateGlobalMerkleForChain(chainId: string) {
       const amount = BigInt(distribution[treasury][token] ?? "0");
       distribution[treasury][token] = (amount > (claimed[i] as bigint) ? amount : claimed[i] as bigint).toString();
     });
+    globalMerkle = generateMerkleTree(distribution);
+  }
+  if (numericChainId === 1) {
+    // Recovery proves membership in both roots; seed zero leaves through this
+    // ordinary validated publisher, including tokens first introduced this week.
+    const distribution = verifyExpiryParent(globalMerkle);
+    distribution[TREASURY_RECIPIENT] ??= {};
+    for (const token of new Set(Object.values(distribution).flatMap(tokens => Object.keys(tokens)))) {
+      distribution[TREASURY_RECIPIENT][token] ??= previousMerkleData.claims[TREASURY_RECIPIENT]?.tokens[token]?.amount ?? "0";
+    }
     globalMerkle = generateMerkleTree(distribution);
   }
   if ([1, 8453, 42161].includes(numericChainId)) {

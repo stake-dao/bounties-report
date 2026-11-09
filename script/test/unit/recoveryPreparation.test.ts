@@ -127,6 +127,19 @@ describe("reviewed recovery", () => {
       expect(adoptionFiles(input, verified, directory).get(pointer)).toBe(files.get(pointer));
       const extraPointer = path.join(directory, "recovery/treasury-claims/extra-1.json");
       expect(adoptionFiles(extraReview, verified, directory, toolkit).get(extraPointer)).toBe(extraFiles.get(extraPointer));
+      const chunkReview: Review = { ...extraReview, execution: "module-v1", sourceRoot: recovery.merkle.merkleRoot, rows: [{ account: A, token: T, claimed: "35", maximum: "7" }] };
+      const chunkClaims = claims();
+      chunkClaims.set(pairKey(TREASURY_RECIPIENT, T), 28n);
+      const chunk = refreshRecovery(chunkReview, recovery.merkle, chunkClaims);
+      const next = { ...verified, parent: recovery.merkle, prepared: { recovery: chunk } } as typeof verified;
+      const plan = adoptionFiles(chunkReview, next, directory, toolkit);
+      // Simulate toolkit push succeeding, then the audit-repo push failing.
+      for (const [file, contents] of plan) if (file.startsWith(toolkit)) put(file, JSON.parse(contents));
+      expect(adoptionFiles(chunkReview, next, directory, toolkit)).toEqual(plan);
+      for (const [file, contents] of plan) put(file, JSON.parse(contents));
+      expect(adoptionFiles(chunkReview, next, directory, toolkit)).toEqual(plan);
+      expect(JSON.parse(fs.readFileSync(extraPointer, "utf8")).pools["extra-1"].amounts[T]).toBe("35");
+      expect(JSON.parse(fs.readFileSync(path.join(toolkit, "data/distributions/100/merkle.json"), "utf8"))).toEqual(source);
       const unknown = generateMerkleTree({ [A]: { [T]: "100" }, [TREASURY_RECIPIENT]: { [T]: "1" } });
       expect(() => adoptionFiles(input, { ...verified, parent: unknown, prepared: { recovery: refreshRecovery({ ...input, sourceRoot: unknown.merkleRoot }, unknown, new Map([[pairKey(A, T), 35n]])) } } as typeof verified, directory)).toThrow("unaccounted Treasury");
     } finally { fs.rmSync(directory, { recursive: true, force: true }); }
