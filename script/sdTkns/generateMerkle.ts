@@ -70,6 +70,28 @@ export function buildTransactionLog(
   };
 }
 
+export function mergeLegacyMerkles(
+  generated: Merkle[],
+  previous: Merkle[],
+  published: Merkle[],
+): Merkle[] {
+  const key = (entry: Merkle) =>
+    `${entry.chainId ?? ""}:${entry.merkleContract?.toLowerCase() ?? ""}:${entry.address.toLowerCase()}`;
+  // Active distributions still use the previous period as their carry baseline.
+  // Untouched distributions must retain published expiry/recovery roots instead
+  // of resurrecting an older archived tree on a same-period rerun.
+  const carried = new Map(
+    [...previous, ...published].map((entry) => [key(entry), entry]),
+  );
+  const generatedKeys = new Set(generated.map(key));
+  return [
+    ...generated,
+    ...[...carried.entries()]
+      .filter(([id]) => !generatedKeys.has(id))
+      .map(([, entry]) => entry),
+  ];
+}
+
 const main = async () => {
   const now = moment.utc().unix();
   const filter: string = "*Gauge vote.*$";
@@ -117,12 +139,16 @@ const main = async () => {
 
   const [
     lastMerkles,
+    { data: publishedMerkles },
     proposalIdPerSpace,
     { data: delegationAPRsFromGithub },
     sdFXSTotalVp,
     { data: sdCakeWorkingData },
   ] = await Promise.all([
     resolveLastMerkles(),
+    axios.get<Merkle[]>(
+      "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/merkle.json",
+    ),
     fetchLastProposalsIds(SPACES, now, filter),
     axios.get(
       "https://raw.githubusercontent.com/stake-dao/bounties-report/main/bounties-reports/latest/delegationsAPRs.json"
@@ -155,7 +181,7 @@ const main = async () => {
     }
   }
 
-  const newMerkles: Merkle[] = [];
+  let newMerkles: Merkle[] = [];
   const toFreeze: Record<string, string[]> = {};
   const toSet: Record<string, string[]> = {};
 
@@ -334,20 +360,7 @@ const main = async () => {
     );
   }
 
-  for (const lastMerkle of lastMerkles) {
-    let found = false;
-    for (const newMerkle of newMerkles) {
-      if (
-        newMerkle.address.toLowerCase() === lastMerkle.address.toLowerCase()
-      ) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      newMerkles.push(lastMerkle);
-    }
-  }
+  newMerkles = mergeLegacyMerkles(newMerkles, lastMerkles, publishedMerkles);
 
   // Check if the tokens in the merkle contract plus the new tokens to distribute
   // are at least the total expected (with a small threshold)

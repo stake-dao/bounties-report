@@ -3,7 +3,8 @@ import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
 import { describe, expect, it } from "vitest";
 import { SD_CRV } from "../../utils/constants";
-import { buildTransactionLog } from "../../sdTkns/generateMerkle";
+import { buildTransactionLog, mergeLegacyMerkles } from "../../sdTkns/generateMerkle";
+import type { Merkle } from "../../utils/types";
 import {
   entryKey,
   recomputeMerkleRoot,
@@ -206,5 +207,26 @@ describe("Run 2 sdMerkle reconstruction helpers", () => {
     ]);
     expect(transaction).not.toHaveProperty("toFreeze");
     expect(transaction).not.toHaveProperty("toSet");
+  });
+
+  it("retains published recovery trees on reruns without replacing newly generated rewards", () => {
+    const active = { ...fixtureEntry([40n, 50n, 60n]), image: "" } as Merkle;
+    const retired = { ...fixtureEntry(), image: "", address: HOLDERS[0] } as Merkle;
+    const recovered = {
+      ...retired,
+      address: retired.address.toUpperCase(),
+      root: "0x" + "ab".repeat(32),
+      total: BigNumber.from(66),
+      merkle: { [HOLDERS[2]]: { index: 0, amount: BigNumber.from(66), proof: [] } },
+    };
+    const archiveOnly = { ...retired, address: HOLDERS[1] };
+    const publishedOnly = { ...retired, address: HOLDERS[2] };
+    const otherChain = { ...retired, chainId: 137 };
+    expect(mergeLegacyMerkles(
+      [active],
+      [{ ...active, ...fixtureEntry() }, retired, archiveOnly, otherChain],
+      [{ ...active, ...fixtureEntry([20n, 30n, 40n]) }, recovered, publishedOnly],
+    )).toEqual([active, recovered, archiveOnly, otherChain, publishedOnly]);
+    expect(mergeLegacyMerkles([], [retired], [])).toEqual([retired]);
   });
 });
