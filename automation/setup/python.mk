@@ -1,5 +1,5 @@
 # Common configuration
-PYTHON_VERSION := 3.10.13
+PYTHON_VERSION := 3.12.15
 VENV_DIR := $(shell pwd)/temp/venv
 PYTHON := $(VENV_DIR)/bin/python
 PIP := $(VENV_DIR)/bin/pip
