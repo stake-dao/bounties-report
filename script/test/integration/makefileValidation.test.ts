@@ -9,6 +9,7 @@
  * 5. All workflow make references are valid
  */
 import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
 import fs from "fs";
 import path from "path";
 
@@ -212,14 +213,23 @@ describe("Consolidated GitHub Actions workflows", () => {
     );
   });
 
-  it("keeps the post-delegators AI gate on the both-target default", () => {
+  it.each([
+    ["delegators", "both"],
+    ["voters", "voters"],
+  ])("scopes the %s AI gate to %s", (runType, target) => {
     const content = fs.readFileSync(
       path.join(workflowDir, "ai-verify-vlcvx.yaml"),
       "utf-8"
     );
+    const body = content.match(
+      /- name: AI verify vlCVX distribution\n\s+run: \|\n([\s\S]*?)\n\s+env:/
+    )![1];
+    const output = execFileSync("bash", ["-c", `pnpm() { printf '%s\\n' "$@"; }\n${body}`], {
+      encoding: "utf-8",
+      env: { ...process.env, EPOCH_INPUT: "1793836800", RUN_TYPE: runType },
+    });
 
-    expect(content).toContain("--protocol vlCVX --deep");
-    expect(content).not.toContain("--target");
+    expect(output).toContain(`--protocol\nvlCVX\n--target\n${target}\n--deep\n--run-type\n${runType}\n`);
   });
 
   it("consolidated workflows should reference automation/distribution.mk", () => {
