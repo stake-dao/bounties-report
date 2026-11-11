@@ -137,7 +137,8 @@ export async function prepareOnchain(review: Review, source: MerkleData, client:
     assert.equal(getAddress(await client.readContract({ ...moduleAt, functionName: "SAFE" })), OWNER, "module owner mismatch");
     assert.equal(getAddress(await client.readContract({ ...moduleAt, functionName: "TREASURY" })), TREASURY_RECIPIENT, "module Treasury mismatch");
     const nonce = await client.readContract({ ...moduleAt, functionName: "nonce" });
-    const automatic = transition(review, source, recovery, module.address, nonce);
+    const expectedProposal = await client.readContract({ ...moduleAt, functionName: "proposal" });
+    const automatic = transition(review, source, recovery, module.address, nonce, expectedProposal);
     await client.readContract({ ...moduleAt, functionName: "check", args: [automatic.payload] });
     return { ...details, status: "awaiting-delay", reason: "Constrained root transition and direct Treasury claims; no monthly Safe signature", automatic };
   }

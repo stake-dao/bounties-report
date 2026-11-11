@@ -2,11 +2,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { decodeFunctionData, getAddress, keccak256, parseAbi, PublicClient } from "viem";
+import { decodeAbiParameters, decodeFunctionData, getAddress, keccak256, parseAbi, PublicClient } from "viem";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { ABI, EXTRA, OWNER, RECIPIENT, TREASURY_RECIPIENT, Review, VOTERS, pairKey, refreshRecovery, safeBatch } from "../../recovery/prepare";
 import { main, notification, prepareOnchain, recoverySummary } from "../../recovery/run";
 import { adoptionFiles, verifyAdoption } from "../../recovery/adopt";
+import { BATCH, transition } from "../../recovery/transition";
+import configuration from "../../recovery/config.json";
 import { findMerkleMatchingRoot, findPreviousMerkle } from "../../utils/merkle/findPreviousMerkle";
 import * as clients from "../../utils/getClients";
 
@@ -341,6 +343,57 @@ describe("reviewed recovery", () => {
     expect(await prepareOnchain(review, source, client(), checker)).toMatchObject({ status: "awaiting-safe", amounts: [{ token: T, amount: "45", formatted: "0.45" }], batch: { chainId: "1" } });
     await expect(prepareOnchain(review, source, client({ code: "0x01" }), checker)).rejects.toThrow("runtime differs");
     await expect(prepareOnchain(review, source, client({ rejectCheck: true }), checker)).rejects.toThrow("claim changed");
+  });
+
+  it("binds preparation and adoption to the predecessor at the archived snapshot, not current state or metadata", async () => {
+    const tree = generateMerkleTree({ [A]: { [T]: "100" }, [TREASURY_RECIPIENT]: { [T]: "0" } });
+    const input: Review = { ...review, execution: "module-v1", recipient: TREASURY_RECIPIENT, sourceRoot: tree.merkleRoot };
+    const module = { address: CHECK, codeHash: keccak256("0x00") };
+    const base = client({ root: tree.merkleRoot, recipient: TREASURY_RECIPIENT });
+    let predecessor = HASH;
+    let result: any;
+    const rpc = {
+      ...base,
+      getBlock: async ({ blockNumber = 20n, blockTag }: any = {}) => ({ number: blockTag === "finalized" ? 30n : blockNumber, timestamp: 200n, hash: HASH }),
+      multicall: async ({ contracts, blockNumber }: any) => contracts.map((c: any) => c.args[0] === TREASURY_RECIPIENT ? 0n : blockNumber === 10n ? 20n : 35n),
+      readContract: async (args: any) => {
+        if (args.address === CHECK) {
+          switch (args.functionName) {
+            case "DISTRIBUTOR": return VOTERS;
+            case "SAFE": return OWNER;
+            case "TREASURY": return TREASURY_RECIPIENT;
+            case "nonce": return args.blockNumber === 20n ? 9n : 10n;
+            case "proposal": return args.blockNumber === 20n ? predecessor : ZERO;
+            case "check": return undefined;
+          }
+        }
+        if (args.functionName === "root") return args.blockNumber > 20n ? result.recoveryRoot : tree.merkleRoot;
+        if (args.functionName === "claimed") return 0n;
+        return base.readContract(args);
+      },
+      getTransactionReceipt: async () => ({ status: "success", blockNumber: 21n, blockHash: HASH }),
+      getLogs: async ({ event, fromBlock }: any) => fromBlock <= 20n ? [] : [{
+        blockNumber: 21n, blockHash: HASH, transactionHash: HASH, logIndex: event.name === "Claimed" ? 6 : 5,
+        args: event.name === "Activated" ? { proposal: result.automatic.proposal, parent: tree.merkleRoot, root: result.recoveryRoot }
+          : event.name === "RootSet" ? { newRoot: result.recoveryRoot, newIpfsHash: result.automatic.proposal }
+          : { account: TREASURY_RECIPIENT, recipient: TREASURY_RECIPIENT, reward: T, amount: 45n },
+      }],
+    } as unknown as PublicClient;
+    result = await prepareOnchain(input, tree, rpc, null, () => tree, module);
+    expect(result).toMatchObject({ status: "awaiting-delay", automatic: { nonce: "9", expectedProposal: HASH } });
+    expect(decodeAbiParameters(BATCH, result.automatic.payload)[0].expectedProposal).toBe(HASH);
+    const previous = configuration.modules["voters-1"];
+    configuration.modules["voters-1"] = module;
+    const adopted = { ...rpc, getBlock: (args: any = {}) => rpc.getBlock({ ...args, blockNumber: args.blockNumber ?? 30n }) } as PublicClient;
+    const verify = () => verifyAdoption(input, result, result.recovery.merkle, HASH as `0x${string}`, adopted, () => tree);
+    try {
+      await expect(verify()).resolves.toBeDefined();
+      // Even internally consistent replacement metadata must match the historical chain read.
+      result.automatic = transition(input, tree, result.recovery, CHECK, 9n, ZERO as `0x${string}`);
+      await expect(verify()).rejects.toThrow("module transition differs from replay");
+      predecessor = ZERO;
+      await expect(verify()).resolves.toBeDefined();
+    } finally { configuration.modules["voters-1"] = previous; }
   });
 
   it("removes stale signable files and emits a redacted failure report if a rerun fails", async () => {

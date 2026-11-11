@@ -8,7 +8,7 @@ import { getClient } from "../utils/getClients";
 import { ABI, EXTRA, OWNER, TREASURY_RECIPIENT, Review, pairKey } from "./prepare";
 import { loadRoot, prepareOnchain } from "./run";
 import { prepareMonthly, recoverLedger } from "./monthly";
-import { transition } from "./transition";
+import { MODULE_ABI, transition } from "./transition";
 import configuration from "./config.json";
 
 const rootEvent = parseAbiItem("event RootSet(bytes32 indexed newRoot,bytes32 indexed newIpfsHash)");
@@ -40,7 +40,8 @@ export async function verifyAdoption(review: Review, report: { block: string; bl
     assert(module && getAddress(module.address) === getAddress(report.automatic.module), "unapproved recovery module");
     const code = await client.getBytecode({ address: getAddress(module.address), blockNumber: snapshot.number! });
     assert(code && keccak256(code) === module.codeHash, "module bytecode mismatch");
-    assert.deepEqual(report.automatic, transition(review, resolveRoot(report.sourceRoot), prepared.recovery, module.address, BigInt(report.automatic.nonce)), "module transition differs from replay");
+    const expectedProposal = await client.readContract({ address: getAddress(module.address), abi: MODULE_ABI, functionName: "proposal", blockNumber: snapshot.number! });
+    assert.deepEqual(report.automatic, transition(review, resolveRoot(report.sourceRoot), prepared.recovery, module.address, BigInt(report.automatic.nonce), expectedProposal), "module transition differs from replay");
   } else assert(!report.automatic, "legacy review cannot authorize a module");
 
   const receipt = await client.getTransactionReceipt({ hash: txHash });

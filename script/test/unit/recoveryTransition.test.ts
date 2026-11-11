@@ -36,10 +36,16 @@ describe("automatic expiry transition", () => {
       counts.push(review.rows.length);
       const counters = new Map(Object.values(ledger.pairs).map(pair => [pairKey(pair.account, pair.token), BigInt(pair.paid)]));
       const recovery = refreshRecovery(review, source, counters, chunk === 0 ? { [token]: 37n } : {});
-      const encoded = transition(review, source, recovery, module, BigInt(chunk));
+      const encoded = transition(review, source, recovery, module, BigInt(chunk), zeroHash);
       const [batch] = decodeAbiParameters(BATCH, encoded.payload);
       expect(batch.rows.length).toBe(review.rows.length);
       expect(batch.credits[0].fundingOffset).toBe(chunk === 0 ? 37n : 0n);
+      expect(batch.expectedProposal).toBe(zeroHash);
+      const replacement = transition(review, source, recovery, module, BigInt(chunk), encoded.proposal);
+      expect(replacement.expectedProposal).toBe(encoded.proposal);
+      expect(decodeAbiParameters(BATCH, replacement.payload)[0].expectedProposal).toBe(encoded.proposal);
+      expect(replacement.payload).not.toBe(encoded.payload);
+      expect(replacement.proposal).not.toBe(encoded.proposal);
       ledger = recoverLedger(ledger, review, recovery.rows, recovery.merkle, { block: 3 + chunk, blockHash: zeroHash, logIndex: 1 });
       source = recovery.merkle;
       if (chunk < 2) expect(monthlyReview(ledger, review.cutoff, review.period!, TREASURY_RECIPIENT, true).rows.length).toBeGreaterThan(0);
@@ -58,6 +64,6 @@ describe("automatic expiry transition", () => {
     const source = generateMerkleTree({ [account(1)]: { [token]: "103" } });
     const review = { chainId: 1, distributor: VOTERS, recipient: TREASURY_RECIPIENT, sourceRoot: source.merkleRoot, sourceFile: "fixture", cutoff: 1, checkpoint: { block: "1", hash: zeroHash }, provenance: "fixture", rows: [{ account: account(1), token, claimed: "3", maximum: "100" }] };
     const result = refreshRecovery(review, source, new Map([[pairKey(account(1), token), 3n]]));
-    expect(() => transition(review, source, result, module, 0n)).toThrow("Treasury leaf absent");
+    expect(() => transition(review, source, result, module, 0n, zeroHash)).toThrow("Treasury leaf absent");
   });
 });

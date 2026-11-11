@@ -1,7 +1,8 @@
 {
+  "guardian": null,
   "modules": {
-    "voters-1": { "address": "0xd7f866a35AA61830D39d5c7fdb9F5730f6edd9Ce", "codeHash": "0x0458caa09e856888909919cf7fafd8c52bf49ea83251e51e703faea116b422bd" },
-    "extra-1": { "address": "0x79828fBCeCca228708bD80352d9AEaCA78596854", "codeHash": "0x2abce544d2bcfc4936fd1025a981f52bdf6f88ac1649d05c2871cc518c3ab553" }
+    "voters-1": { "address": "0x7e281fFE24e60D70bcC04938d30c56Ba16db65B3", "codeHash": "0x4a36297b2c7887e6e925a87abaf88cff2d7735f83a4b609a3c2c1ba0804b2874" },
+    "extra-1": { "address": "0x91f8Cc46373cD61AA7FDC607294EeAF90d30A27a", "codeHash": "0xd7e4986db02364b5c7047309e3e96e2f720d71b04418200947df55a613918f07" }
   },
   "checkers": {
     "1": { "address": "0x532cFF5A3983D87d43cFB954259C0Bd72E0Aae9A", "codeHash": "0x7be16d32cb5a7a9bd9f35b9a23c366330822f1acce4f6cb844667667f0b07fd5" },
