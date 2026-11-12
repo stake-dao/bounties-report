@@ -209,7 +209,7 @@ async function fetchDelegatorsForAddress(
 
   for (
     let currentBlock = fetchStartBlock;
-    currentBlock < endBlock;
+    currentBlock <= endBlock;
     currentBlock += chunkSize
   ) {
     const chunkEndBlock = Math.min(currentBlock + chunkSize - 1, endBlock);
@@ -244,28 +244,8 @@ async function getLatestProcessedBlock(
     return 0;
   }
 
-  try {
-    const fileStats = await fs.promises.stat(existingFile);
-    if (fileStats.size === 0) {
-      console.warn(
-        `Existing file for ${delegationAddress} is empty. Starting from block 0.`
-      );
-      return 0;
-    }
-
-    const delegators = await readParquetFile(existingFile);
-
-    const lastBlock = delegators[delegators.length - 1].blockNumber;
-
-    return lastBlock;
-  } catch (error) {
-    console.error(
-      `Error reading Parquet file for ${delegationAddress}:`,
-      error
-    );
-    console.warn(`Starting from block 0 due to error.`);
-    return 0;
-  }
+  const delegators = await readParquetFile(existingFile);
+  return Number(delegators[delegators.length - 1].blockNumber);
 }
 
 async function fetchLogs(
@@ -273,75 +253,24 @@ async function fetchLogs(
   startBlock: number,
   endBlock: number,
   paddedDelegationAddress: string,
-  chainId: number,
-  maxRetries: number = 3
+  chainId: number
 ) {
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
-        getAddress(DELEGATE_REGISTRY),
-        startBlock,
-        endBlock,
-        {
-          "0": setDelegateHash,
-          "3": paddedDelegationAddress,
-        },
-        chainId
-      );
-
-      const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
-        getAddress(DELEGATE_REGISTRY),
-        startBlock,
-        endBlock,
-        {
-          "0": clearDelegateHash,
-          "3": paddedDelegationAddress,
-        },
-        chainId
-      );
-
-      // Validate responses - if both are undefined/null, likely an API failure
-      if (!setDelegateLogs?.result && !clearDelegateLogs?.result) {
-        throw new Error("Both API calls returned no result object");
-      }
-
-      const results = [
-        ...(setDelegateLogs?.result || []),
-        ...(clearDelegateLogs?.result || []),
-      ];
-
-      // Log chunk info for monitoring
-      console.log(
-        `  Chunk ${startBlock}-${endBlock}: ${results.length} logs found`
-      );
-
-      return results;
-    } catch (error) {
-      console.warn(
-        `fetchLogs attempt ${attempt + 1}/${maxRetries} failed for blocks ${startBlock}-${endBlock}:`,
-        error
-      );
-
-      if (attempt < maxRetries - 1) {
-        const backoffMs = 5000 * Math.pow(2, attempt);
-        console.log(`  Retrying in ${backoffMs / 1000}s...`);
-        await delay(backoffMs);
-      } else {
-        console.error(
-          `fetchLogs: All ${maxRetries} retries failed for blocks ${startBlock}-${endBlock}`
-        );
-        // Return empty array but log the gap for manual review
-        console.error(
-          `  WARNING: Potential gap in data between blocks ${startBlock}-${endBlock}`
-        );
-        return [];
-      }
-    }
+  // The explorer owns retries and the request budget. A terminal failure must
+  // propagate before fetchAllDelegators can write its EndBlock checkpoint.
+  const setDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+    getAddress(DELEGATE_REGISTRY), startBlock, endBlock,
+    { "0": setDelegateHash, "3": paddedDelegationAddress }, chainId
+  );
+  const clearDelegateLogs = await explorerUtils.getLogsByAddressAndTopics(
+    getAddress(DELEGATE_REGISTRY), startBlock, endBlock,
+    { "0": clearDelegateHash, "3": paddedDelegationAddress }, chainId
+  );
+  if (!Array.isArray(setDelegateLogs?.result) || !Array.isArray(clearDelegateLogs?.result)) {
+    throw new Error("Invalid delegation logs response");
   }
-
-  return [];
+  const results = [...setDelegateLogs.result, ...clearDelegateLogs.result];
+  console.log(`  Chunk ${startBlock}-${endBlock}: ${results.length} logs found`);
+  return results;
 }
 
 function parseDelegatorData(log: any): DelegatorData {
@@ -377,16 +306,7 @@ async function storeDelegatorsAsParquet(
 
   let existingDelegators: DelegatorData[] = [];
   if (fs.existsSync(filePath)) {
-    try {
-      await readParquetFile(filePath);
-    } catch (error) {
-      console.error(
-        `Error reading existing Parquet file for ${delegationAddress}:`,
-        error
-      );
-      // If there's an error reading the file, we'll start with an empty array
-      existingDelegators = [];
-    }
+    await readParquetFile(filePath);
   }
 
   // Remove existing EndBlock entry if present
@@ -463,6 +383,6 @@ async function readParquetFile(filePath: string) {
     return data;
   } catch (error) {
     console.error(`Error reading Parquet file ${filePath}:`, error);
-    return [];
+    throw error;
   }
 }

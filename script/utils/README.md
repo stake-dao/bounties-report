@@ -15,6 +15,24 @@ Shared utilities used by the report, repartition, merkle, indexer, and verificat
 - `claims/` - Votemarket and Votium claim parsing helpers.
 - `merkle/` - reusable merkle distribution logic.
 
+## Explorer and indexer failures
+
+`explorerUtils.ts` shares a process-local limiter across factory instances:
+requests start at least 500 ms apart, with at most five in flight. Each API
+request has a 120-second budget including queueing and body parsing, at most
+four attempts, and a 30-second per-attempt timeout. HTTP 429/5xx, transport
+failures and identified API rate limits retry with bounded backoff; valid
+`Retry-After` values are honored only within the remaining budget. Permanent,
+unknown and malformed responses fail immediately. Only documented empty log
+responses become `[]`; a failed block lookup is not an empty log response.
+
+These limits do not coordinate separate jobs sharing an API key. Diagnostics
+include chain, action, attempt and sanitized response detail, never the key or
+full URL. Delegation/forwarder collectors do not add another retry layer: an
+incomplete collection or unreadable existing Parquet aborts before writing its
+checkpoint. Missing files alone are the bootstrap case. Financial consumers
+must not reinterpret these errors as empty successful histories.
+
 ## Merkle Helpers
 
 - `merkle/createMultiMerkle.ts` - legacy sdToken merkle calculation used by `script/sdTkns/generateMerkle.ts`.
