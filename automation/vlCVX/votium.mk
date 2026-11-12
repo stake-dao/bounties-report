@@ -11,11 +11,6 @@ all: setup install-deps run-votium
 
 setup: setup-node
 
-install-deps:
-	@echo "Installing dependencies..."
-	@$(PNPM) install
-	@$(PNPM) add -D tsx
-
 run-votium: setup install-deps
 	@echo "Generating Convex Votium claims..."
 	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotium.ts $(PAST_WEEK)

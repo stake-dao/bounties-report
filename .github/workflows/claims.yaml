@@ -75,7 +75,7 @@ jobs:
       # non-voting forwarders from this index.
       - name: Refresh Votium forwarders index (convex-votium only)
         if: env.PLATFORM == 'convex-votium'
-        run: make -f automation/indexer.mk get-forwarders
+        run: make -f automation/indexer.mk get-forwarders CI_SETUP_DONE=1
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
 
@@ -83,12 +83,12 @@ jobs:
         run: |
           case "$PLATFORM" in
             # sdTkns
-            votemarket)            make -f automation/weekly-bounties.mk run-votemarket PAST_WEEK=$PAST_WEEK ;;
-            votemarket-v2)         make -f automation/weekly-bounties.mk run-votemarket-v2 PAST_WEEK=$PAST_WEEK ;;
-            spectra)               make -f automation/weekly-bounties.mk run-spectra PAST_WEEK=$PAST_WEEK ;;
+            votemarket)            make -f automation/weekly-bounties.mk run-votemarket CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
+            votemarket-v2)         make -f automation/weekly-bounties.mk run-votemarket-v2 CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
+            spectra)               make -f automation/weekly-bounties.mk run-spectra CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
             # vlCVX
-            convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 PAST_WEEK=$PAST_WEEK ;;
-            convex-votium)         make -f automation/weekly-bounties.mk run-convex-votium PAST_WEEK=$PAST_WEEK ;;
+            convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
+            convex-votium)         make -f automation/weekly-bounties.mk run-convex-votium CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
           esac
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
@@ -96,14 +96,6 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
           TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
-
-      - name: Run delegators indexer (convex-votium only)
-        if: env.PLATFORM == 'convex-votium'
-        run: make -f automation/indexer.mk get-delegators
-        env:
-          EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}
-          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
-          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       - name: Commit and push
         uses: ./.github/actions/commit-and-push

@@ -18,7 +18,7 @@ inputs:
     default: 'true'
   frozen-lockfile:
     description: 'Use frozen lockfile'
-    default: 'false'
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -36,15 +36,17 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ inputs.node-version }}
-
     - name: Install pnpm
       uses: pnpm/action-setup@v4
       with:
         version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'pnpm'
+        cache-dependency-path: pnpm-lock.yaml
 
     - name: Install dependencies
       if: inputs.install-deps == 'true'

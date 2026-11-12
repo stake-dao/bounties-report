@@ -37,10 +37,8 @@ endif
 
 setup: setup-node
 
-install-deps:
-	@echo "Installing dependencies..."
-	@$(PNPM) install
-	@$(PNPM) add -D tsx
+# Keep the public target explicit; its recipe is shared in setup/node.mk.
+install-deps: setup-node
 
 run-repartition: setup install-deps
 	@echo "Generating $(PROTOCOL_LABEL) repartition..."

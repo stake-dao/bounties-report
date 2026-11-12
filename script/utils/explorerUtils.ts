@@ -1,4 +1,3 @@
-import axios from "axios";
 import dotenv from "dotenv";
 
 // Load the .env file from the project root
@@ -10,19 +9,37 @@ const EXPLORER_KEY =
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class RateLimiter {
-  private readonly queue: (() => Promise<void>)[] = [];
+  private readonly queue: (() => void)[] = [];
   private running = 0;
+  private nextStart = 0;
 
   constructor(private readonly maxConcurrent: number) {}
 
-  async add<T>(fn: () => Promise<T>): Promise<T> {
+  async add<T>(fn: () => Promise<T>, deadline: number): Promise<T> {
     while (this.running >= this.maxConcurrent) {
-      await new Promise((resolve) =>
-        this.queue.push(resolve as () => Promise<void>)
-      );
+      let wake!: () => void;
+      let timer!: ReturnType<typeof setTimeout>;
+      try {
+        await new Promise<void>((resolve, reject) => {
+          wake = resolve;
+          this.queue.push(wake);
+          timer = setTimeout(() => reject(new Error("Explorer queue budget exhausted")), Math.max(0, deadline - Date.now()));
+        });
+      } finally {
+        clearTimeout(timer);
+        const index = this.queue.indexOf(wake);
+        if (index !== -1) this.queue.splice(index, 1);
+      }
     }
     this.running++;
     try {
+      // Recheck after every wait: delayed timers must not release a burst.
+      while (Date.now() < this.nextStart) {
+        if (this.nextStart >= deadline) throw new Error("Explorer queue budget exhausted");
+        await delay(this.nextStart - Date.now());
+      }
+      if (Date.now() >= deadline) throw new Error("Explorer queue budget exhausted");
+      this.nextStart = Date.now() + 500;
       return await fn();
     } finally {
       this.running--;
@@ -49,69 +66,75 @@ class BlockchainExplorerUtils {
     return new BlockchainExplorerUtils();
   };
 
-  private async makeRequest(url: string, retries = 5, delayMs = 10000) {
-    // Never leak the API key if the URL ends up in an error message / logs
-    const redactedUrl = url.replace(/apikey=[^&]*/, "apikey=***");
-    let lastError: string = "unknown error";
-    for (let attempt = 0; attempt < retries; attempt++) {
+  private async makeRequest(url: string) {
+    const deadline = Date.now() + 120_000;
+    const params = new URL(url).searchParams;
+    const isLogs = params.get("action") === "getLogs";
+    const context = `chain=${params.get("chainid")} action=${params.get("action")}`;
+    const sanitize = (value: unknown) => {
+      let text = String(value);
+      if (this.apiKey) text = text.split(this.apiKey).join("***");
+      return text.replace(/https?:\/\/\S+/gi, "[url]").replace(/apikey=[^\s&]*/gi, "apikey=***").slice(0, 300);
+    };
+    for (let attempt = 0; attempt < 4; attempt++) {
+      let detail = "unknown error";
+      let retryable = false;
+      let retryAfterMs = 1000 * 2 ** attempt;
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 900000);
-
-        const response = await rateLimiter.add(() => 
-          fetch(url, { 
-            signal: controller.signal 
-          })
-        );
-
-        clearTimeout(timeoutId);
-
+        const { response, data } = await rateLimiter.add(async () => {
+          const controller = new AbortController();
+          let timer!: ReturnType<typeof setTimeout>;
+          try {
+            // The race also bounds body parsing and transports that ignore abort.
+            return await Promise.race([
+              (async () => {
+                const response = await fetch(url, { signal: controller.signal });
+                if (!response.ok) await response.body?.cancel();
+                const data = response.ok ? await response.json() : undefined;
+                return { response, data };
+              })(),
+              new Promise<never>((_resolve, reject) => {
+                timer = setTimeout(() => {
+                  controller.abort();
+                  reject(new DOMException("Explorer request timeout", "AbortError"));
+                }, Math.min(30_000, deadline - Date.now()));
+              }),
+            ]);
+          } finally {
+            clearTimeout(timer);
+          }
+        }, deadline);
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.status === "1") {
-          return data;
-        } else if (data.status === "0" && data.message === "No records found") {
+          detail = `HTTP ${response.status}`;
+          retryable = response.status === 429 || response.status >= 500;
+          const header = response.headers.get("Retry-After");
+          if (header) {
+            const ms = /^\d+(\.\d+)?$/.test(header)
+              ? Number(header) * 1000 : Date.parse(header) - Date.now();
+            if (Number.isFinite(ms) && ms >= 0) retryAfterMs = Math.max(retryAfterMs, ms);
+          }
+        } else if (data?.status === "1") {
+          if (isLogs ? Array.isArray(data.result) : /^[1-9]\d*$/.test(String(data.result))) {
+            return data;
+          }
+          detail = "Malformed explorer result";
+        } else if (isLogs && data?.status === "0" && data.message === "No records found" && Array.isArray(data.result) && data.result.length === 0) {
           return { result: [] };
-        }
-
-        lastError = String(data.message || data.result || "Unknown error");
-        if (attempt < retries - 1) {
-          console.warn(
-            `ExplorerUtils error (attempt ${attempt + 1}/${retries}):`,
-            lastError,
-            `Chain: ${url.match(/chainid=(\d+)/)?.[1]}`,
-            `Status: ${data.status}`
-          );
-          await delay(delayMs);
-          continue;
-        }
-        console.error(`ExplorerUtils: All retries failed. Final response:`, data);
-      } catch (error: any) {
-        lastError = error?.name === "AbortError" ? "timeout" : String(error);
-        if (error.name === 'AbortError') {
-          console.warn(`Request timed out (attempt ${attempt + 1}/${retries})`);
         } else {
-          console.warn(
-            `Request failed (attempt ${attempt + 1}/${retries}):`,
-            error
-          );
+          detail = `${sanitize(data?.message)}: ${sanitize(data?.result)}`;
+          retryable = data?.status === "0" && /rate limit|query timeout|server (?:too )?busy/i.test(String(data.result));
         }
-        
-        await delay(delayMs * Math.pow(2, attempt));
-        continue;
+      } catch (error) {
+        detail = sanitize(error instanceof Error ? error.message : error);
+        retryable = error instanceof TypeError || (error instanceof Error && error.name === "AbortError");
       }
+      const failure = `Explorer request failed (${context}, attempt=${attempt + 1}/4): ${detail}`;
+      if (!retryable || attempt === 3) throw new Error(failure);
+      if (Date.now() + retryAfterMs >= deadline) throw new Error(`${failure}; retry budget exhausted`);
+      console.warn(`${failure}; retry in ${retryAfterMs}ms`);
+      await delay(retryAfterMs);
     }
-    // A chunked caller (getLogsByAddressesAndTopics, ...) aggregates results:
-    // masking a failed request as an empty result would silently produce
-    // PARTIAL totals (e.g. sCRVUSD transfers) that downstream accepts. Fail
-    // the run instead — missing funds are not recovered automatically later.
-    throw new Error(
-      `Explorer API request failed after ${retries} attempts (${lastError}): ${redactedUrl}`
-    );
+    throw new Error(`Explorer retry budget exhausted (${context})`);
   }
 
   async getLogsByAddressAndTopics(

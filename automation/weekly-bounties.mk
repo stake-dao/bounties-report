@@ -13,11 +13,6 @@ all: setup install-deps run-all
 
 setup: setup-node
 
-install-deps:
-	@echo "Installing dependencies..."
-	@$(PNPM) install
-	@$(PNPM) add -D tsx
-
 # Run all protocols
 run-all: run-votemarket run-votemarket-v2 run-spectra
 
