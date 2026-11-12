@@ -139,6 +139,10 @@ export interface DelegationEventAPI {
 
 export interface DelegationAPIResponse {
   DelegationEvent: DelegationEventAPI[];
+  chain_metadata: {
+    chain_id: number;
+    latest_processed_block: number;
+  }[];
 }
 
 export type PlatformConfig = {

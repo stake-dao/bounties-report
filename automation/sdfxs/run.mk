@@ -10,11 +10,6 @@ all: setup install-deps run-report run-merkle
 
 setup: setup-node
 
-install-deps:
-	@echo "Installing dependencies..."
-	@$(PNPM) install
-	@$(PNPM) add -D tsx
-
 run-report: setup install-deps
 	@echo "Generating sdFXS report..."
 	@$(PNPM) tsx script/reports/generateReportFrax.ts

@@ -10,11 +10,6 @@ all: setup install-deps get-delegators
 
 setup: setup-node
 
-install-deps:
-	@echo "Installing dependencies..."
-	@$(PNPM) install
-	@$(PNPM) add -D tsx
-
 get-delegators: setup install-deps
 	@echo "Running vlCVX delegation data collection..."
 	@$(PNPM) tsx script/indexer/delegators.ts

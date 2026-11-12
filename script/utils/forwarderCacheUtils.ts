@@ -195,7 +195,7 @@ async function fetchForwardersForAddress(
 
   for (
     let currentBlock = fetchStartBlock;
-    currentBlock < endBlock;
+    currentBlock <= endBlock;
     currentBlock += chunkSize
   ) {
     const chunkEndBlock = Math.min(currentBlock + chunkSize - 1, endBlock);
@@ -227,22 +227,9 @@ async function getLatestProcessedBlock(
     return 0;
   }
 
-  try {
-    const fileStats = await fs.promises.stat(filePath);
-    if (fileStats.size === 0) {
-      console.warn(`Existing file for ${toAddress} is empty. Starting from block 0.`);
-      return 0;
-    }
-
-    const forwarders = await readParquetFile(filePath);
-    if (forwarders.length === 0) return 0;
-
-    return Number(forwarders[forwarders.length - 1].blockNumber);
-  } catch (error) {
-    console.error(`Error reading Parquet file for ${toAddress}:`, error);
-    console.warn("Starting from block 0 due to error.");
-    return 0;
-  }
+  const forwarders = await readParquetFile(filePath);
+  if (forwarders.length === 0) return 0;
+  return Number(forwarders[forwarders.length - 1].blockNumber);
 }
 
 async function fetchLogs(
@@ -250,90 +237,36 @@ async function fetchLogs(
   startBlock: number,
   endBlock: number,
   paddedToAddress: string,
-  chainId: number,
-  maxRetries = 3
+  chainId: number
 ) {
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      // Fetch setReg events (topic2 = _to address)
-      const setRegLogs = await explorerUtils.getLogsByAddressAndTopics(
-        getAddress(VOTIUM_FORWARDER_REGISTRY),
-        startBlock,
-        endBlock,
-        {
-          "0": setRegHash,
-          "2": paddedToAddress,
-        },
-        chainId
-      );
-
-      // Fetch expReg events for addresses that forwarded to us
-      // We need to get all expReg events and filter client-side since expReg doesn't have _to
-      // Actually, expReg only has _from and _end, so we need to cross-reference with setReg
-      // For now, we'll fetch all expReg and filter by known forwarders
-
-      // Get all setReg logs first to know which _from addresses we care about
-      const setRegResults = setRegLogs?.result || [];
-
-      // Extract unique _from addresses from setReg
-      const fromAddresses = new Set<string>();
-      for (const log of setRegResults) {
-        if (log.topics?.[1]) {
-          fromAddresses.add(log.topics[1].toLowerCase());
-        }
-      }
-
-      // Fetch expReg logs for each _from address we care about
-      const expRegResults: typeof setRegResults = [];
-      for (const paddedFrom of fromAddresses) {
-        const expRegLogs = await explorerUtils.getLogsByAddressAndTopics(
-          getAddress(VOTIUM_FORWARDER_REGISTRY),
-          startBlock,
-          endBlock,
-          {
-            "0": expRegHash,
-            "1": paddedFrom,
-          },
-          chainId
-        );
-        if (expRegLogs?.result) {
-          expRegResults.push(...expRegLogs.result);
-        }
-      }
-
-      const results = [...setRegResults, ...expRegResults];
-
-      console.log(
-        `  Chunk ${startBlock}-${endBlock}: ${results.length} logs found (${setRegResults.length} setReg, ${expRegResults.length} expReg)`
-      );
-
-      return results;
-    } catch (error) {
-      console.warn(
-        `fetchLogs attempt ${attempt + 1}/${maxRetries} failed for blocks ${startBlock}-${endBlock}:`,
-        error
-      );
-
-      if (attempt < maxRetries - 1) {
-        const backoffMs = 5000 * (2 ** attempt);
-        console.log(`  Retrying in ${backoffMs / 1000}s...`);
-        await delay(backoffMs);
-      } else {
-        // The EndBlock marker advances past whatever this run indexed, so a
-        // skipped chunk would become a PERMANENT hole: a wallet whose setReg
-        // sits in it is never discovered, and its rewards silently fold into
-        // the delegators pool. Abort instead — the parquet stays unwritten
-        // and the next run retries the same range.
-        throw new Error(
-          `fetchLogs: all ${maxRetries} retries failed for blocks ${startBlock}-${endBlock}. Error: ${error}`
-        );
-      }
-    }
+  // Retry policy lives in explorerUtils. Never checkpoint an incomplete chunk.
+  const setRegLogs = await explorerUtils.getLogsByAddressAndTopics(
+    getAddress(VOTIUM_FORWARDER_REGISTRY), startBlock, endBlock,
+    { "0": setRegHash, "2": paddedToAddress }, chainId
+  );
+  if (!Array.isArray(setRegLogs?.result)) {
+    throw new Error("Invalid forwarder registration logs response");
   }
-
-  return [];
+  const setRegResults = setRegLogs.result;
+  const fromAddresses = new Set<string>();
+  for (const log of setRegResults) {
+    if (log.topics?.[1]) fromAddresses.add(log.topics[1].toLowerCase());
+  }
+  // expReg has no _to: retain the existing per-_from query/filter behavior.
+  const expRegResults: typeof setRegResults = [];
+  for (const paddedFrom of fromAddresses) {
+    const expRegLogs = await explorerUtils.getLogsByAddressAndTopics(
+      getAddress(VOTIUM_FORWARDER_REGISTRY), startBlock, endBlock,
+      { "0": expRegHash, "1": paddedFrom }, chainId
+    );
+    if (!Array.isArray(expRegLogs?.result)) {
+      throw new Error("Invalid forwarder expiration logs response");
+    }
+    expRegResults.push(...expRegLogs.result);
+  }
+  const results = [...setRegResults, ...expRegResults];
+  console.log(`  Chunk ${startBlock}-${endBlock}: ${results.length} logs found (${setRegResults.length} setReg, ${expRegResults.length} expReg)`);
+  return results;
 }
 
 function parseForwarderData(log: { topics: string[]; timeStamp: string; blockNumber: string }): ForwarderData {
@@ -391,12 +324,7 @@ async function storeForwardersAsParquet(
 
   let existingForwarders: ForwarderData[] = [];
   if (fs.existsSync(filePath)) {
-    try {
-      existingForwarders = await readParquetFile(filePath);
-    } catch (error) {
-      console.error(`Error reading existing Parquet file for ${toAddress}:`, error);
-      existingForwarders = [];
-    }
+    existingForwarders = await readParquetFile(filePath);
   }
 
   // Remove existing EndBlock entry if present
@@ -474,6 +402,6 @@ async function readParquetFile(filePath: string): Promise<ForwarderData[]> {
     return data as ForwarderData[];
   } catch (error) {
     console.error(`Error reading Parquet file ${filePath}:`, error);
-    return [];
+    throw error;
   }
 }

@@ -3,7 +3,7 @@ import {
   DELEGATION_ADDRESS,
 } from "../utils/constants";
 import { fetchAllDelegators } from "../utils/cacheUtils";
-import { verifyAllSpacesAgainstGraphQL } from "../utils/delegationAPIUtils";
+import { verifyAllSpacesAgainstRPC } from "../utils/delegationRPCUtils";
 
 /*
  * Index delegators for all spaces on Stake DAO delegation + Autovoter
@@ -25,21 +25,16 @@ const indexDelegators = async () => {
 };
 
 /**
- * Cross-verify parquet cache against GraphQL API for DELEGATION_ADDRESS
- * Throws an error if any mismatches are found
- * Note: Only verifies Ethereum (chainId 1) - BSC and Base not fully tracked by API
+ * Cross-verify Ethereum parquet cache against the Snapshot registry at one
+ * finalized RPC block. Errors and mismatches remain blocking.
  */
 const verifyDelegations = async () => {
   console.log("\n" + "=".repeat(60));
-  console.log("Cross-verifying parquet cache against GraphQL API...");
+  console.log("Cross-verifying parquet cache against finalized RPC state...");
   console.log("=".repeat(60));
 
-  const currentTimestamp = Math.floor(Date.now() / 1000);
-  console.log(`Verification timestamp: ${currentTimestamp} (${new Date(currentTimestamp * 1000).toISOString()})`);
-
-  // Verify DELEGATION_ADDRESS only (not Auto Voter) for Ethereum only
-  // BSC (sdcake.eth) and Base (sdspectra.eth) are not fully tracked by the GraphQL API
-  await verifyAllSpacesAgainstGraphQL("1", DELEGATION_ADDRESS, currentTimestamp);
+  // Preserve the existing gate's scope: Stake DAO delegation on Ethereum.
+  await verifyAllSpacesAgainstRPC("1", DELEGATION_ADDRESS);
 
   console.log("\n" + "=".repeat(60));
   console.log("✓ All verifications passed");
@@ -51,4 +46,7 @@ const main = async () => {
   await verifyDelegations();
 };
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
