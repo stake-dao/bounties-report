@@ -10,11 +10,6 @@ all: setup install-deps run-report run-repartition
 
 setup: setup-node
 
-install-deps:
-	@echo "Installing dependencies..."
-	@$(PNPM) install
-	@$(PNPM) add -D tsx
-
 run-all: setup install-deps
 	@echo "Running report generation..."
 	@$(PNPM) tsx script/spectra/1_report.ts

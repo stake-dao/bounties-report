@@ -11,11 +11,6 @@ all: setup install-deps run-verify
 
 setup: setup-node
 
-install-deps:
-	@echo "Installing dependencies..."
-	@$(PNPM) install
-	@$(PNPM) add -D tsx
-
 run-verify: setup install-deps
 	@echo "Verifying sdTokens reports for $(PROTOCOL)..."
 	@$(PNPM) tsx script/repartition/sdTkns/reportVerifier.ts $(PROTOCOL)

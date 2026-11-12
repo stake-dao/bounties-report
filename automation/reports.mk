@@ -13,11 +13,6 @@ all: setup install-deps
 
 setup: setup-node
 
-install-deps:
-	@echo "Installing dependencies..."
-	@$(PNPM) install
-	@$(PNPM) add -D tsx
-
 # Weekly reports
 run-weekly-curve: setup install-deps
 	@echo "Generating Curve weekly report..."
