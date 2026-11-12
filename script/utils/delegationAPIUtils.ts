@@ -1,27 +1,55 @@
 import axios from "axios";
 import { DelegationEventAPI, DelegationAPIResponse, DelegatorData } from "./types";
-import { DELEGATION_ADDRESS, SPACE_TO_CHAIN_ID } from "./constants";
+import { DELEGATION_ADDRESS, SPACE_TO_CHAIN_ID, getClient } from "./constants";
 import { processAllDelegators } from "./cacheUtils";
 
 // StakeDAO Snapshot GraphQL API endpoint
 const GRAPHQL_ENDPOINT = "https://snapshot-indexer.contact-69d.workers.dev/v1/graphql";
 
 // Cache for API response (avoid multiple fetches in same session)
-let cachedAPIResponse: DelegationEventAPI[] | null = null;
+let cachedAPIResponse: DelegationAPIResponse | null = null;
 let cacheTimestamp: number = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
+// A quiet event history is valid; the indexer's processed-block watermark,
+// not its last delegation event, must cover the requested finalized state.
+async function assertGraphQLCoverage(
+  data: DelegationAPIResponse,
+  timestamp: number
+): Promise<void> {
+  const indexed = Number(data.chain_metadata?.find((row) => row.chain_id === 1)?.latest_processed_block);
+  if (!Number.isSafeInteger(indexed) || indexed <= 0) {
+    throw new Error("GraphQL delegation indexer has no valid Ethereum metadata watermark");
+  }
+  const client = await getClient(1);
+  const finalized = await client.getBlock({ blockTag: "finalized" });
+  if (BigInt(indexed) >= finalized.number) return;
+
+  const indexedBlock = await client.getBlock({ blockNumber: BigInt(indexed) });
+  const requiredTimestamp = Math.min(timestamp, Number(finalized.timestamp));
+  if (Number(indexedBlock.timestamp) < requiredTimestamp) {
+    throw new Error(
+      `GraphQL delegation indexer is behind: processed block ${indexed} ` +
+      `(timestamp ${indexedBlock.timestamp}) does not cover requested timestamp ${timestamp}. ` +
+      `Restore indexer synchronization before using it to verify or replace the parquet cache.`
+    );
+  }
+}
 
 /**
  * Fetch ALL delegation events from GraphQL API (cached)
  * The API returns all events for all spaces, we filter locally
  * @returns Array of all DelegationEventAPI objects
  */
-export const fetchAllDelegationEventsFromGraphQL = async (): Promise<DelegationEventAPI[]> => {
+export const fetchAllDelegationEventsFromGraphQL = async (
+  currentPeriodTimestamp: number
+): Promise<DelegationEventAPI[]> => {
   // Return cached if valid
   const now = Date.now();
   if (cachedAPIResponse && (now - cacheTimestamp) < CACHE_TTL_MS) {
     console.log("Using cached GraphQL response");
-    return cachedAPIResponse;
+    await assertGraphQLCoverage(cachedAPIResponse, currentPeriodTimestamp);
+    return cachedAPIResponse.DelegationEvent;
   }
 
   const query = `
@@ -34,6 +62,10 @@ export const fetchAllDelegationEventsFromGraphQL = async (): Promise<DelegationE
         event
         timestamp
         block
+      }
+      chain_metadata(where: { chain_id: { _eq: 1 } }) {
+        chain_id
+        latest_processed_block
       }
     }
   `;
@@ -51,17 +83,17 @@ export const fetchAllDelegationEventsFromGraphQL = async (): Promise<DelegationE
       }
     );
 
-    if (!response.data?.data?.DelegationEvent) {
-      console.warn("No DelegationEvent array in GraphQL response");
-      return [];
+    if (!Array.isArray(response.data?.data?.DelegationEvent)) {
+      throw new Error("No DelegationEvent array in GraphQL response");
     }
 
-    // Cache the response
-    cachedAPIResponse = response.data.data.DelegationEvent;
+    await assertGraphQLCoverage(response.data.data, currentPeriodTimestamp);
+    // Only cache responses whose coverage was checked successfully.
+    cachedAPIResponse = response.data.data;
     cacheTimestamp = now;
     
-    console.log(`Fetched ${cachedAPIResponse.length} total delegation events from GraphQL`);
-    return cachedAPIResponse;
+    console.log(`Fetched ${cachedAPIResponse.DelegationEvent.length} total delegation events from GraphQL`);
+    return cachedAPIResponse.DelegationEvent;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       console.error("GraphQL request failed:", error.message);
@@ -92,9 +124,10 @@ export const clearAPICache = (): void => {
  */
 export const fetchDelegationEventsFromGraphQL = async (
   space: string,
+  currentPeriodTimestamp: number,
   delegateAddress?: string
 ): Promise<DelegationEventAPI[]> => {
-  const allEvents = await fetchAllDelegationEventsFromGraphQL();
+  const allEvents = await fetchAllDelegationEventsFromGraphQL(currentPeriodTimestamp);
   
   // Filter by space
   let filtered = allEvents.filter(
@@ -202,7 +235,7 @@ export const verifyDelegators = async (
 
   // 2. Get delegators from GraphQL API
   console.log("Fetching delegators from GraphQL API...");
-  const apiEvents = await fetchDelegationEventsFromGraphQL(space, delegationAddress);
+  const apiEvents = await fetchDelegationEventsFromGraphQL(space, currentPeriodTimestamp, delegationAddress);
   const apiDelegators = processGraphQLDelegators(apiEvents, currentPeriodTimestamp, space);
   console.log(`GraphQL delegators: ${apiDelegators.length}`);
 
@@ -276,7 +309,7 @@ export const verifyAllSpacesAgainstGraphQL = async (
   console.log(`Spaces: ${spacesForChain.join(", ")}`);
 
   // Fetch all events from GraphQL once (will be cached for subsequent calls)
-  const allEvents = await fetchAllDelegationEventsFromGraphQL();
+  const allEvents = await fetchAllDelegationEventsFromGraphQL(currentPeriodTimestamp);
   
   // Determine which spaces exist in the GraphQL API
   const spacesInAPI = new Set(allEvents.map((e) => e.space.toLowerCase()));
@@ -379,7 +412,7 @@ export const fetchDelegatorsWithFallback = async (
 
     // Fallback: GraphQL API
     console.log(`Falling back to GraphQL API for ${space}...`);
-    const apiEvents = await fetchDelegationEventsFromGraphQL(space, delegationAddress);
+    const apiEvents = await fetchDelegationEventsFromGraphQL(space, currentPeriodTimestamp, delegationAddress);
     return processGraphQLDelegators(apiEvents, currentPeriodTimestamp, space);
   }
 };
@@ -401,7 +434,7 @@ export const getDelegationChanges = async (
   removedDelegators: string[];
   unchanged: string[];
 }> => {
-  const apiEvents = await fetchDelegationEventsFromGraphQL(space, delegationAddress);
+  const apiEvents = await fetchDelegationEventsFromGraphQL(space, toTimestamp, delegationAddress);
 
   const delegatorsAtFrom = processGraphQLDelegators(apiEvents, fromTimestamp, space);
   const delegatorsAtTo = processGraphQLDelegators(apiEvents, toTimestamp, space);
