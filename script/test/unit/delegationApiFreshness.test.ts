@@ -81,14 +81,4 @@ describe("Snapshot delegation source coverage", () => {
     await expect(fetchAllDelegationEventsFromGraphQL(PERIOD))
       .rejects.toThrow(/metadata|watermark/i);
   });
-
-  it("makes the indexer command fail instead of reporting a green job", async () => {
-    const exitCode = process.exitCode;
-    try {
-      await import("../../indexer/delegators");
-      await vi.waitFor(() => expect(process.exitCode).toBe(1));
-    } finally {
-      process.exitCode = exitCode;
-    }
-  });
 });

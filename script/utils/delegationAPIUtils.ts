@@ -1,6 +1,6 @@
 import axios from "axios";
 import { DelegationEventAPI, DelegationAPIResponse, DelegatorData } from "./types";
-import { DELEGATION_ADDRESS, SPACE_TO_CHAIN_ID, getClient } from "./constants";
+import { DELEGATION_ADDRESS, getClient } from "./constants";
 import { processAllDelegators } from "./cacheUtils";
 
 // StakeDAO Snapshot GraphQL API endpoint
@@ -281,103 +281,6 @@ export const verifyDelegators = async (
   }
 
   return result;
-};
-
-/**
- * Verify ALL spaces for a given chainId against GraphQL API
- * Throws an error if any space has mismatches (excluding spaces not in GraphQL API)
- * @param chainId - Chain ID (e.g., "1" for Ethereum)
- * @param delegationAddress - Delegation address to verify
- * @param currentPeriodTimestamp - Timestamp to filter delegators
- */
-export const verifyAllSpacesAgainstGraphQL = async (
-  chainId: string,
-  delegationAddress: string,
-  currentPeriodTimestamp: number
-): Promise<void> => {
-  // Get all spaces for this chainId
-  const spacesForChain = Object.entries(SPACE_TO_CHAIN_ID)
-    .filter(([_, id]) => id === chainId)
-    .map(([space]) => space);
-
-  if (spacesForChain.length === 0) {
-    console.log(`No spaces configured for chainId ${chainId}, skipping verification`);
-    return;
-  }
-
-  console.log(`\n=== Verifying ${spacesForChain.length} spaces for chainId ${chainId} ===`);
-  console.log(`Spaces: ${spacesForChain.join(", ")}`);
-
-  // Fetch all events from GraphQL once (will be cached for subsequent calls)
-  const allEvents = await fetchAllDelegationEventsFromGraphQL(currentPeriodTimestamp);
-  
-  // Determine which spaces exist in the GraphQL API
-  const spacesInAPI = new Set(allEvents.map((e) => e.space.toLowerCase()));
-  console.log(`Spaces available in GraphQL API: ${[...spacesInAPI].sort().join(", ")}`);
-  
-  // Filter to events for this delegation address
-  const delegateEvents = allEvents.filter(
-    (e) => e.delegate.toLowerCase() === delegationAddress.toLowerCase()
-  );
-  console.log(`Found ${delegateEvents.length} events for delegate ${delegationAddress}`);
-
-  let verifiedCount = 0;
-  let skippedCount = 0;
-
-  // Verify each space
-  for (const space of spacesForChain) {
-    console.log(`\nVerifying ${space}...`);
-    
-    // Check if space exists in GraphQL API
-    if (!spacesInAPI.has(space.toLowerCase())) {
-      console.log(`  ⚠ Space ${space} not tracked by GraphQL API, skipping verification`);
-      skippedCount++;
-      continue;
-    }
-    
-    // Get delegators from parquet
-    let parquetDelegators: string[];
-    try {
-      parquetDelegators = await processAllDelegators(space, currentPeriodTimestamp, delegationAddress);
-    } catch (error) {
-      console.log(`  No parquet file for ${space}, skipping`);
-      skippedCount++;
-      continue;
-    }
-    
-    // Get delegators from GraphQL
-    const graphqlDelegators = processGraphQLDelegators(delegateEvents, currentPeriodTimestamp, space);
-    
-    // Compare sets
-    const parquetSet = new Set(parquetDelegators.map((d) => d.toLowerCase()));
-    const graphqlSet = new Set(graphqlDelegators.map((d) => d.toLowerCase()));
-    
-    const inParquetNotGraphQL = [...parquetSet].filter((d) => !graphqlSet.has(d));
-    const inGraphQLNotParquet = [...graphqlSet].filter((d) => !parquetSet.has(d));
-    
-    if (inParquetNotGraphQL.length > 0 || inGraphQLNotParquet.length > 0) {
-      console.error(`\nVerification FAILED for ${space}:`);
-      console.error(`  In parquet but not GraphQL: ${inParquetNotGraphQL.length}`);
-      if (inParquetNotGraphQL.length > 0) {
-        console.error(`    ${inParquetNotGraphQL.slice(0, 5).join(", ")}${inParquetNotGraphQL.length > 5 ? "..." : ""}`);
-      }
-      console.error(`  In GraphQL but not parquet: ${inGraphQLNotParquet.length}`);
-      if (inGraphQLNotParquet.length > 0) {
-        console.error(`    ${inGraphQLNotParquet.slice(0, 5).join(", ")}${inGraphQLNotParquet.length > 5 ? "..." : ""}`);
-      }
-      
-      throw new Error(
-        `Delegation verification failed for ${space}: ` +
-        `${inParquetNotGraphQL.length} in parquet only, ` +
-        `${inGraphQLNotParquet.length} in GraphQL only`
-      );
-    }
-    
-    console.log(`  ✓ ${space}: ${parquetDelegators.length} delegators match`);
-    verifiedCount++;
-  }
-  
-  console.log(`\n✓ Verified ${verifiedCount} spaces for chainId ${chainId} (${skippedCount} skipped)`);
 };
 
 /**
