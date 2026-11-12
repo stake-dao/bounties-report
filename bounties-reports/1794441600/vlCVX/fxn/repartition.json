@@ -1,0 +1,36 @@
+{
+  "proposalId": "7",
+  "snapshotBlock": 244,
+  "distribution": {
+    "0x49049707b57178d0cc44137a31d404ff6e2a9eb0": {
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "102422952602126705"
+      }
+    },
+    "0x96c68d861ada016ed98c30c810879f9df7c64154": {
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "3338970594286921737089"
+      }
+    },
+    "0x3afb0b4ca9ab60165e207cb14067b07a04114413": {
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "182110556838768433816"
+      }
+    },
+    "0x0d396fbe683fa697054b7b50a6459dee7db01029": {
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "56107826133170208266"
+      }
+    },
+    "0xbdf81b19af7848f7384c38e68208885ff0c9f390": {
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "12920835756239058628"
+      }
+    },
+    "0x181ae03a7f3f320ec1255c913c9cb63fce12f77a": {
+      "tokens": {
+        "0x73968b9a57c6e53d41345fd57a6e6ae27d6cdb2f": "129625030896855914098"
+      }
+    }
+  }
+}
