@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PublicClient, zeroHash } from "viem";
+import { getAddress, PublicClient, zeroHash } from "viem";
 import { bootstrapExpiryLedger, expiryKey, sixCalendarMonths, syncExpiryClaims } from "../../shared/merkle/expiry";
 import { generateMerkleTree } from "../../shared/merkle/generateMerkleTree";
 import { appendPublication, monthlyPeriod, monthlyReview, prepareMonthly, recoverLedger, vmRewards } from "../../recovery/monthly";
-import { EXTRA, pairKey, RECIPIENT, TREASURY_RECIPIENT, refreshRecovery } from "../../recovery/prepare";
+import { EXTRA, VOTERS, pairKey, RECIPIENT, TREASURY_RECIPIENT, refreshRecovery } from "../../recovery/prepare";
 
 const A = "0x1111111111111111111111111111111111111111";
 const T = "0x2222222222222222222222222222222222222222";
@@ -93,6 +93,57 @@ describe("monthly Safe recovery", () => {
     expect(await vmRewards(client, allocations, { [key]: "110" }, 123n)).toEqual({ [key]: "70" });
     expect(await vmRewards(client, allocations, { [key]: "131" }, 123n)).toEqual({});
     expect(await vmRewards(client, [{ ...allocations[0], distribution: { incentiveId: 2 } }], { [key]: "90" }, 123n)).toEqual({});
+  });
+
+  it.each([VOTERS, EXTRA])("requires Treasury membership for tokens beyond the first chunk in %s", async distributor => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "monthly-leaves-"));
+    const cwd = process.cwd();
+    const put = (file: string, data: unknown) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(data)); };
+    const address = (n: number) => getAddress(`0x${n.toString(16).padStart(40, "0")}`);
+    const protectedToken = address(9999);
+    const distribution: Record<string, Record<string, string>> = {};
+    for (let i = 1; i <= 257; i++) distribution[address(i)] = { [i <= 256 ? T : OTHER]: "100" };
+    distribution[address(258)] = { [protectedToken]: "100" };
+    distribution[TREASURY_RECIPIENT] = { [T]: "0" };
+    let source = generateMerkleTree(distribution);
+    const claims = Object.fromEntries(Object.entries(distribution).flatMap(([a, ts]) => Object.keys(ts).map(t => [expiryKey(a, t), "0"])));
+    const vm = Object.fromEntries(Object.entries(distribution).flatMap(([a, ts]) => Object.entries(ts).map(([t, value]) => [expiryKey(a, t), value])));
+    let ledger = bootstrapExpiryLedger(1, [
+      { root: zeroHash, merkle: null, block: 1, blockHash: hash, timestamp: 1 },
+      { root: source.merkleRoot, merkle: source, block: 2, blockHash: hash, timestamp: 2, vmRewards: vm },
+    ], claims, { block: 2, blockHash: hash }, null, distributor);
+    for (const credit of ledger.pairs[expiryKey(address(258), protectedToken)].credits) credit.protection = "protected";
+    const cutoff = time("2026-10-29T12:00:00Z");
+    const seed = monthlyReview(ledger, cutoff, "2026-10", TREASURY_RECIPIENT, true);
+    expect(seed.rows).toHaveLength(256);
+    expect(seed.rows.every(row => row.token === T)).toBe(true);
+    expect(seed.remainingRows).toBe(1);
+    const rpc = {
+      getChainId: async () => 1,
+      getBlock: async ({ blockNumber = 3n }: any = {}) => ({ number: blockNumber, hash, timestamp: BigInt(cutoff) }),
+      getLogs: async () => [],
+      readContract: async () => source.merkleRoot,
+      multicall: async ({ contracts }: any) => contracts.map((c: any) => c.functionName === "claimed" ? 0n : 100000n),
+    } as unknown as PublicClient;
+    const publish = () => {
+      put("archive/latest.json", { receipt: { block: "2" }, review: { period: "2026-10" }, ledger });
+      put(distributor === EXTRA ? "merkl-toolkit/data/distributions/2/merkle.json" : "bounties-reports/2/vlCVX/vlcvx_merkle.json", source);
+      put(distributor === EXTRA ? "merkl-toolkit/data/last_merkle.json" : "bounties-reports/latest/vlCVX/vlcvx_merkle.json", source);
+    };
+    try {
+      process.chdir(directory);
+      publish();
+      expect(await prepareMonthly(seed, rpc, cutoff, "archive", undefined, TREASURY_RECIPIENT, true)).toMatchObject({ status: "waiting", missingTreasuryTokens: [OTHER] });
+      // An ordinary publication supplies the missing zero leaf. Protected tokens
+      // need no Treasury leaf, and membership is not the same as a positive balance.
+      distribution[TREASURY_RECIPIENT][OTHER] = "0";
+      source = generateMerkleTree(distribution);
+      ledger = appendPublication(ledger, { root: source.merkleRoot, merkle: source, block: 2, blockHash: hash, timestamp: 2 }, {});
+      publish();
+      const ready = await prepareMonthly(seed, rpc, cutoff, "archive", undefined, TREASURY_RECIPIENT, true);
+      expect(ready).toMatchObject({ review: { remainingRows: 1 } });
+      expect("review" in ready && ready.review.rows).toHaveLength(256);
+    } finally { process.chdir(cwd); fs.rmSync(directory, { recursive: true, force: true }); }
   });
 
   it("protects missing historical evidence and can replay an already-published adoption", async () => {
