@@ -323,6 +323,12 @@ export async function prepareMonthly(seed: Review, client: PublicClient, at: num
   }
   const deficits: Record<string, bigint> = {};
   if (automatic) {
+    // Publishers must seed every eligible token before the hold, including later chunks.
+    const allRows = monthlyReview(ledger, window.cutoff, window.period, recipient).rows;
+    const missingTreasuryTokens = [...new Set(allRows.map(row => row.token))].filter(token => !source.claims[TREASURY_RECIPIENT]?.tokens[token]);
+    if (missingTreasuryTokens.length) {
+      return { ...window, status: "waiting", reason: "Wait for ordinary publishers to seed Treasury leaves for all eligible tokens", missingTreasuryTokens };
+    }
     const liabilities: Record<string, bigint> = {};
     for (const pair of Object.values(ledger.pairs)) {
       const due = BigInt(pair.activeAmount) - BigInt(pair.paid);

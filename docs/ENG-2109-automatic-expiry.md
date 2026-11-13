@@ -1,13 +1,41 @@
-# Automatic reward expiry
+# RewardsExpiry release pins
 
-The initial Safe setup enables the reviewed RewardsExpiry module. Governance also installs Guard rules for its exact `prepare(Batch)` and `activate(Batch)` selectors. The module pins the existing AllMight V2 as its immutable `PREPARER`; deployment metadata must record that address and the reviewed deployed code hash. Policy, treasury and notice gates remain required.
+This is the release configuration for the signed module in
+[contracts-monorepo #527](https://github.com/stake-dao/contracts-monorepo/pull/527).
+It supersedes the PREPARER/64-account design. Nothing here authorizes deployment,
+signing, publication or schedule activation.
 
-All callers allowed by AllMight, including legacy callers, inherit that prepare authority. Ages and notices depend on the pinned off-chain authoring inputs. Revoking Guard rules stops future job transactions but cannot cancel an already prepared public activation; the Safe's `disableModule` is the final stop for root-changing recovery.
+* [Contract invariants and roles](https://github.com/stake-dao/contracts-monorepo/blob/feat/expiry-auto-ethereum/packages/shared/src/rewards-expiry/README.md): signed predecessor, 24-hour observation, proof bounds, atomic activation and emergency authority.
+* [Guard operating runbook](https://github.com/stake-dao/automation-guard/blob/feat/rewards-expiry-monthly-cycle/docs/REWARDS_EXPIRY.md): whole-period Treasury prerequisites in both pools, publication hold/drain, chunks, retries, adoption, incidents and release gates.
 
-For each batch, the job plans locally, durably publishes the immutable input and parent, then prepares through Guard → AllMight. A later dispatch activates after the longer of the module delay and current distributor timelock. A batch handles one token and at most 64 accounts. Each next batch and round follows the same automatic path without another Safe signature.
+## Candidate pins, not live deployment evidence
 
-Retries preserve an existing proposal and its original timer, including across epoch rollover and competing claims. An ordinary distribution can invalidate a proposal's parent; only a known, canonically reproduced, published proposal with an obsolete parent may be replaced, starting a fresh delay. Unknown proposals stop execution for review.
+`script/recovery/config.json` pins the candidate CREATE2 addresses and constructed
+runtime hashes, plus the exact expected Hypernative address in `guardian`.
+**That guardian pin is currently null and blocks coordinator preflight.** No
+approved Hypernative address has been established for this release. Supply its
+authoritative identity evidence and review the config change before any release;
+do not copy an arbitrary nonzero guardian from another contract. Guard compares
+both modules' live guardians to this pin and fails on any mismatch. Safe rotation
+requires a coordinated reviewed pin change, not automatic discovery.
 
-The reviewed code revision also pins the initial bootstrap ledger. Cached states are display outputs: execution replays canonical events and recreates pending inputs at their original block and claims. Test mode simulates without publishing; plan mode emits local artifacts without sending transactions.
+Reproduce module pins in contracts-monorepo `packages/shared` with
+`forge script script/PreviewRewardsExpiry.s.sol:PreviewRewardsExpiry`, using
+the pinned pnpm dependencies, solc 0.8.28, optimizer 200 and Cancun configuration.
+This offline preview mocks Boss ownership and timelocks of 3 hours (voters) and
+zero (extra), on chain 1.
+It uses factory `0x4e59b44847b379578588920cA78FbF26c0B4956C` and salts
+`keccak256("stake-dao/expiry-treasury-v1/<pool>")`. It does not broadcast.
+Its `guardian: null` output is an unresolved identity, not a deployment value;
+never overwrite an already approved guardian pin with this preview placeholder.
+Runtime hashes include the constructor's immutables and EIP-712 domain data.
+Hashing the compiler's unpatched runtime is incorrect. Any bytecode change
+requires coordinated config, automation-guard ABI and manifest updates;
+independently verify actual runtime/ownership before release. ABI generation:
+`jq '.abi' out/RewardsExpiry.sol/RewardsExpiry.json` from `packages/shared`.
 
-The intended initial Ethereum cleanup starts on 29 October. Allow roughly two weeks for the initial backlog under the per-batch delay; 29 October is the start date, not a promise that the backlog finishes that day. Production deployment and activation are separate from these code changes.
+`transition.ts`, Guard's `BATCH_TYPE` and the contract's `Batch` must agree.
+Preparations and adoption read `expectedProposal` at the archived snapshot block.
+Payloads encoded before that field are incompatible: regenerate preparation,
+never edit signed payloads or discard their audit archives. The existing Maestro
+pipeline stays initially paused; production activation requires separate approval.

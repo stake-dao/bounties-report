@@ -18,7 +18,7 @@ export const MODULE_ABI = parseAbi([
   "event Activated(bytes32 indexed proposal,bytes32 indexed parent,bytes32 indexed root)",
 ]);
 
-export const BATCH = parseAbiParameters("(uint256 nonce,bytes32 parent,bytes32 root,bytes32 ledger,(address account,uint256 tokenIndex,uint256 beforeAmount,uint256 afterAmount,uint256 claimed)[] rows,(address token,uint256 beforeAmount,uint256 afterAmount,uint256 fundingOffset,bytes32[] proof)[] credits,bytes program,bytes32[] nodes)");
+export const BATCH = parseAbiParameters("(uint256 nonce,bytes32 parent,bytes32 root,bytes32 ledger,(address account,uint256 tokenIndex,uint256 beforeAmount,uint256 afterAmount,uint256 claimed)[] rows,(address token,uint256 beforeAmount,uint256 afterAmount,uint256 fundingOffset,bytes32[] proof)[] credits,bytes program,bytes32[] nodes,bytes32 expectedProposal)");
 const leaf = (account: string, token: string, amount: string) => keccak256(keccak256(encodeAbiParameters(parseAbiParameters("address,address,uint256"), [getAddress(account), getAddress(token), BigInt(amount)])));
 const keyHash = (account: string, token: string) => keccak256(encodeAbiParameters(parseAbiParameters("address,address"), [getAddress(account), getAddress(token)]));
 const pair = (a: Hex, b: Hex) => keccak256(concat(a < b ? [a, b] : [b, a]));
@@ -26,7 +26,7 @@ const pair = (a: Hex, b: Hex) => keccak256(concat(a < b ? [a, b] : [b, a]));
 /** Encode the exact shape used by merkletreejs (sorted pairs, odd-node promotion).
  * There is deliberately no insertion opcode: a missing zero leaf is not membership.
  */
-export function transition(review: Review, source: MerkleData, recovery: ReturnType<typeof refreshRecovery>, module: string, nonce: bigint) {
+export function transition(review: Review, source: MerkleData, recovery: ReturnType<typeof refreshRecovery>, module: string, nonce: bigint, expectedProposal: Hex) {
   assert(review.chainId === 1 && review.recipient === TREASURY_RECIPIENT, "automatic recovery is Ethereum Treasury only");
   verifyExpiryParent(source);
   const tokens = Object.keys(recovery.grossTotals).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
@@ -64,8 +64,8 @@ export function transition(review: Review, source: MerkleData, recovery: ReturnT
   visit(layer[0]);
   assert(program.length <= 8192 && nodes.length <= 2048, "frontier bounds");
   const ledger = keccak256(toHex(JSON.stringify(review)));
-  const payload = encodeAbiParameters(BATCH, [{ nonce, parent: source.merkleRoot as Hex, root: recovery.merkle.merkleRoot as Hex, ledger, rows, credits, program: toHex(new Uint8Array(program)), nodes }]);
+  const payload = encodeAbiParameters(BATCH, [{ nonce, parent: source.merkleRoot as Hex, root: recovery.merkle.merkleRoot as Hex, ledger, rows, credits, program: toHex(new Uint8Array(program)), nodes, expectedProposal }]);
   assert((payload.length - 2) / 2 < 110000, "transition exceeds transaction size budget");
   const proposal = hashTypedData({ domain: { name: "StakeDAO RewardsExpiry", version: "1", chainId: 1, verifyingContract: getAddress(module) }, types: { Authorization: [{ name: "payloadHash", type: "bytes32" }] }, primaryType: "Authorization", message: { payloadHash: keccak256(payload) } });
-  return { module: getAddress(module), nonce: nonce.toString(), proposal, payload, ledger };
+  return { module: getAddress(module), nonce: nonce.toString(), expectedProposal, proposal, payload, ledger };
 }
