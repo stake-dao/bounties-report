@@ -20,6 +20,10 @@ on:
         required: false
         type: string
         default: ''
+      identity:
+        description: 'Immutable delegator identity from the producer (required for delegators)'
+        required: false
+        type: string
       dispatch_id:
         description: 'Unique dispatch ID for Temporal tracking (do not remove)'
         required: false
@@ -51,8 +55,24 @@ jobs:
           token: ${{ secrets.GIT_ACCESS_TOKEN }}
           fetch-depth: 0
 
+      - name: Checkout exact delegator evidence
+        if: inputs.type == 'delegators'
+        env:
+          DISTRIBUTION_IDENTITY: ${{ inputs.identity }}
+        run: |
+          revision=$(jq -er '.revision' <<< "$DISTRIBUTION_IDENTITY")
+          [[ "$revision" =~ ^[a-f0-9]{40}$ ]]
+          git checkout --detach "$revision"
+
       - name: Setup environment
         uses: ./.github/actions/setup-environment
+
+      - name: Bind verification to producer bytes
+        if: inputs.type == 'delegators'
+        env:
+          DISTRIBUTION_IDENTITY: ${{ inputs.identity }}
+          EPOCH: ${{ inputs.epoch }}
+        run: pnpm tsx script/helpers/distributionIdentity.ts verify "$RUNNER_TEMP/distribution-snapshot.json"
 
       - name: AI verify vlCVX distribution
         run: |
@@ -82,6 +102,17 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           TEST_TELEGRAM_API_KEY: ${{ secrets.TEST_TELEGRAM_API_KEY }}
           TEST_TELEGRAM_CHAT_ID: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+
+      - name: Export identity only after verification passes
+        if: inputs.type == 'delegators'
+        run: pnpm tsx script/helpers/distributionIdentity.ts export "$RUNNER_TEMP/distribution-snapshot.json"
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.type == 'delegators'
+        with:
+          name: job-result
+          path: /tmp/job_result.json
+          if-no-files-found: error
 
       - name: Notify on failure
         if: failure()
