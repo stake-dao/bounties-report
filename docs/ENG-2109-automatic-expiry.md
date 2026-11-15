@@ -12,10 +12,12 @@ signing, publication or schedule activation.
 
 `script/recovery/config.json` pins the candidate CREATE2 addresses and constructed
 runtime hashes, plus the exact expected Hypernative address in `guardian`.
-**That guardian pin is currently null and blocks coordinator preflight.** No
-approved Hypernative address has been established for this release. Supply its
-authoritative identity evidence and review the config change before any release;
-do not copy an arbitrary nonzero guardian from another contract. Guard compares
+The guardian pin is `0xf3a5AC78f47638C60117D9fA3dc7Be96625947aF`, approved by
+the owner on 2026-11-15. stake-dao/guardian `audit/ownership_config.json`
+identifies it as the Hypernative Response Wallet (auto-pause caller); it holds
+`GUARDIAN_ROLE` on the Ethereum ProtocolTimelock and is the live ExecutorGuard
+`guardian()`. Before release, configure and test a Hypernative response that
+calls `cancel(true)` on both modules: the pin alone does not trigger it. Guard compares
 both modules' live guardians to this pin and fails on any mismatch. Safe rotation
 requires a coordinated reviewed pin change, not automatic discovery.
 

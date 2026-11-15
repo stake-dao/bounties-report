@@ -1,5 +1,5 @@
 {
-  "guardian": null,
+  "guardian": "0xf3a5AC78f47638C60117D9fA3dc7Be96625947aF",
   "modules": {
     "voters-1": { "address": "0x7e281fFE24e60D70bcC04938d30c56Ba16db65B3", "codeHash": "0x4a36297b2c7887e6e925a87abaf88cff2d7735f83a4b609a3c2c1ba0804b2874" },
     "extra-1": { "address": "0x91f8Cc46373cD61AA7FDC607294EeAF90d30A27a", "codeHash": "0xd7e4986db02364b5c7047309e3e96e2f720d71b04418200947df55a613918f07" }
