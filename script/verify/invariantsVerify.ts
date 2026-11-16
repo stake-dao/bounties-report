@@ -28,6 +28,7 @@ import { getClient } from "../utils/getClients";
 import { parseCliArgs } from "./invariants/cli";
 import { loadArtifact, loadArchivedPairs } from "./invariants/artifact";
 import { resolveBaseline } from "./invariants/baseline";
+import { monthlyVotersGains } from "./invariants/monthlyPublication";
 import {
   checkPreservation,
   fetchClaimed,
@@ -209,7 +210,7 @@ async function main() {
         );
       }
       const { deltas: creditedDeltas, applied } = applyRestatementCredits(
-        positiveDeltas(artifact.pairs, deltaBaseline),
+        (spec.target === "voters" && spec.chainId === 1 ? await monthlyVotersGains(artifact.raw, timestamp, client, baseline.pinnedBlock) : undefined) ?? positiveDeltas(artifact.pairs, deltaBaseline),
         restatements,
         { target: spec.target, chainId: spec.chainId, epoch: timestamp },
         violations
