@@ -5,7 +5,7 @@ This is the release configuration for the signed module in
 It supersedes the PREPARER/64-account design. Nothing here authorizes deployment,
 signing, publication or schedule activation.
 
-* [Contract invariants and roles](https://github.com/stake-dao/contracts-monorepo/blob/feat/expiry-auto-ethereum/packages/shared/src/rewards-expiry/README.md): signed predecessor, 24-hour observation, proof bounds, atomic activation and emergency authority.
+* [Contract invariants and roles](https://github.com/stake-dao/contracts-monorepo/blob/feat/expiry-auto-ethereum/packages/shared/src/rewards-expiry/README.md): signed predecessor, 12-hour observation, proof bounds, atomic activation and emergency authority.
 * [Guard operating runbook](https://github.com/stake-dao/automation-guard/blob/feat/rewards-expiry-monthly-cycle/docs/REWARDS_EXPIRY.md): whole-period Treasury prerequisites in both pools, publication hold/drain, chunks, retries, adoption, incidents and release gates.
 
 ## Candidate pins, not live deployment evidence

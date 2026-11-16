@@ -1,8 +1,8 @@
 {
   "guardian": "0xf3a5AC78f47638C60117D9fA3dc7Be96625947aF",
   "modules": {
-    "voters-1": { "address": "0x7e281fFE24e60D70bcC04938d30c56Ba16db65B3", "codeHash": "0x4a36297b2c7887e6e925a87abaf88cff2d7735f83a4b609a3c2c1ba0804b2874" },
-    "extra-1": { "address": "0x91f8Cc46373cD61AA7FDC607294EeAF90d30A27a", "codeHash": "0xd7e4986db02364b5c7047309e3e96e2f720d71b04418200947df55a613918f07" }
+    "voters-1": { "address": "0x268BCCe1996dF633cE746E12732C3B9172772A63", "codeHash": "0x9e9a86c4beeda46d74c35db7989f827a37419e710f02afdf41ec67fb6b92be15" },
+    "extra-1": { "address": "0x132F9C0Dc8bb69Ef33C95e311599A54cb4DB63e3", "codeHash": "0x44834cd2fc6765f12057b3bd6e709d6b850d72039c5afd4b12a83d76e9cb52e2" }
   },
   "checkers": {
     "1": { "address": "0x532cFF5A3983D87d43cFB954259C0Bd72E0Aae9A", "codeHash": "0x7be16d32cb5a7a9bd9f35b9a23c366330822f1acce4f6cb844667667f0b07fd5" },
