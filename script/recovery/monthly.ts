@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { erc20Abi, getAddress, parseAbi, parseAbiItem, PublicClient, zeroHash } from "viem";
+import { getAddress, parseAbi, parseAbiItem, PublicClient, zeroHash } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
 import { assertExpiryLedger, expiryKey, Ledger, Publication, sixCalendarMonths, syncExpiryClaims, verifyExpiryParent } from "../shared/merkle/expiry";
 import { fetchClaimed } from "../verify/invariants/preservation";
@@ -65,10 +65,10 @@ export function appendPublication(input: Ledger, publication: Publication, vmRew
   return ledger;
 }
 
-export function monthlyReview(ledger: Ledger, cutoff: number, period: string, recipient: string = TREASURY_RECIPIENT, automatic = false, deficits: Record<string, bigint> = {}): Review {
+export function monthlyReview(ledger: Ledger, cutoff: number, period: string, recipient: string = TREASURY_RECIPIENT): Review {
   assertExpiryLedger(ledger);
   recoveryRecipient({ chainId: ledger.chainId, recipient });
-  const review: Review = {
+  return {
     chainId: ledger.chainId, distributor: ledger.distributor, recipient,
     sourceRoot: ledger.root, sourceFile: "source-merkle.json", cutoff, period,
     checkpoint: { block: String(ledger.checkpoint.block), hash: ledger.checkpoint.blockHash },
@@ -78,30 +78,6 @@ export function monthlyReview(ledger: Ledger, cutoff: number, period: string, re
       return maximum > 0n ? [{ account: pair.account, token: pair.token, claimed: pair.paid, maximum: maximum.toString() }] : [];
     }),
   };
-  if (automatic) {
-    // Cover every whole-root funding deficit before filling the chunk. Otherwise
-    // a deficit on a token scheduled in a later chunk would deadlock the backlog.
-    const selected = new Set<Review["rows"][number]>();
-    for (const [token, missing] of Object.entries(deficits)) {
-      let covered = 0n;
-      const candidates = review.rows.filter(row => row.token === token).sort((a, b) => BigInt(a.maximum) > BigInt(b.maximum) ? -1 : BigInt(a.maximum) < BigInt(b.maximum) ? 1 : 0);
-      for (const row of candidates) {
-        if (covered >= missing) break;
-        selected.add(row);
-        covered += BigInt(row.maximum);
-      }
-      assert(covered >= missing, "Funding deficit exceeds all eligible rewards for token");
-    }
-    assert(selected.size <= 256, "Funding reconciliation exceeds batch bounds; stop without reducing protected rights");
-    for (const row of review.rows) {
-      if (selected.size === 256) break;
-      selected.add(row);
-    }
-    review.execution = "module-v1";
-    review.remainingRows = review.rows.length - selected.size;
-    review.rows = review.rows.filter(row => selected.has(row));
-  }
-  return review;
 }
 
 /** Keep the unexpired credit ages after a confirmed recovery; never re-bootstrap reductions. */
@@ -191,7 +167,7 @@ export function rootFiles(extra: boolean, chainId: number) {
   return entries;
 }
 
-export async function prepareMonthly(seed: Review, client: PublicClient, at: number, archive: string, until?: bigint, recipient: string = TREASURY_RECIPIENT, automatic = false) {
+export async function prepareMonthly(seed: Review, client: PublicClient, at: number, archive: string, until?: bigint, recipient: string = TREASURY_RECIPIENT) {
   const window = monthlyPeriod(at);
   assert.equal(await client.getChainId(), seed.chainId, "RPC chain mismatch");
   let finalized = await client.getBlock({ blockTag: "finalized" });
@@ -201,7 +177,7 @@ export async function prepareMonthly(seed: Review, client: PublicClient, at: num
   }
   const completed = fs.existsSync(archive) ? fs.readdirSync(archive).filter(file => file.endsWith(".json")).map(file => read(path.join(archive, file))).filter(entry => until === undefined || BigInt(entry.receipt.block) <= until) : [];
   completed.sort((a, b) => Number(b.receipt.block) - Number(a.receipt.block));
-  if (!automatic && completed.some(entry => entry.review.period === window.period)) return { status: "noop", reason: "Monthly recovery already adopted", ...window };
+  if (completed.some(entry => entry.review.period === window.period)) return { status: "noop", reason: "Monthly recovery already adopted", ...window };
   const extra = seed.distributor === EXTRA;
   let ledger: Ledger;
   if (completed.length) {
@@ -284,7 +260,7 @@ export async function prepareMonthly(seed: Review, client: PublicClient, at: num
   }
   const active = await client.readContract({ address: getAddress(seed.distributor), abi: ABI, functionName: "root", blockNumber: finalized.number! });
   assert(!unresolvedHistory && ledger.root === active, "active publication history incomplete");
-  if (!automatic && extra && until === undefined && completed.some(entry => entry.recoveryRoot === active)) {
+  if (extra && until === undefined && completed.some(entry => entry.recoveryRoot === active)) {
     return { status: "waiting", reason: "Wait for an ordinary extra distribution after the previous recovery", ...window };
   }
   // A chain with no new rewards can legitimately retain its previous root.
@@ -321,16 +297,5 @@ export async function prepareMonthly(seed: Review, client: PublicClient, at: num
       assert(BigInt(pair.paid) <= BigInt(approved[pair.token] ?? "0"), "unaccounted historical Treasury claim; review the cutover before proposing");
     }
   }
-  const deficits: Record<string, bigint> = {};
-  if (automatic) {
-    const liabilities: Record<string, bigint> = {};
-    for (const pair of Object.values(ledger.pairs)) {
-      const due = BigInt(pair.activeAmount) - BigInt(pair.paid);
-      liabilities[pair.token] = (liabilities[pair.token] ?? 0n) + (due > 0n ? due : 0n);
-    }
-    const tokens = Object.keys(liabilities);
-    const balances = await client.multicall({ contracts: tokens.map(token => ({ address: getAddress(token), abi: erc20Abi, functionName: "balanceOf" as const, args: [getAddress(seed.distributor)] })), blockNumber: finalized.number!, allowFailure: false });
-    tokens.forEach((token, i) => { if (liabilities[token] > balances[i]) deficits[token] = liabilities[token] - balances[i]; });
-  }
-  return { ...window, ledger, review: monthlyReview(ledger, window.cutoff, window.period, recipient, automatic, deficits), source };
+  return { ...window, ledger, review: monthlyReview(ledger, window.cutoff, window.period, recipient), source };
 }

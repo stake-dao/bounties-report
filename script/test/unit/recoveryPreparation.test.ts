@@ -127,19 +127,6 @@ describe("reviewed recovery", () => {
       expect(adoptionFiles(input, verified, directory).get(pointer)).toBe(files.get(pointer));
       const extraPointer = path.join(directory, "recovery/treasury-claims/extra-1.json");
       expect(adoptionFiles(extraReview, verified, directory, toolkit).get(extraPointer)).toBe(extraFiles.get(extraPointer));
-      const chunkReview: Review = { ...extraReview, execution: "module-v1", sourceRoot: recovery.merkle.merkleRoot, rows: [{ account: A, token: T, claimed: "35", maximum: "7" }] };
-      const chunkClaims = claims();
-      chunkClaims.set(pairKey(TREASURY_RECIPIENT, T), 28n);
-      const chunk = refreshRecovery(chunkReview, recovery.merkle, chunkClaims);
-      const next = { ...verified, parent: recovery.merkle, prepared: { recovery: chunk } } as typeof verified;
-      const plan = adoptionFiles(chunkReview, next, directory, toolkit);
-      // Simulate toolkit push succeeding, then the audit-repo push failing.
-      for (const [file, contents] of plan) if (file.startsWith(toolkit)) put(file, JSON.parse(contents));
-      expect(adoptionFiles(chunkReview, next, directory, toolkit)).toEqual(plan);
-      for (const [file, contents] of plan) put(file, JSON.parse(contents));
-      expect(adoptionFiles(chunkReview, next, directory, toolkit)).toEqual(plan);
-      expect(JSON.parse(fs.readFileSync(extraPointer, "utf8")).pools["extra-1"].amounts[T]).toBe("35");
-      expect(JSON.parse(fs.readFileSync(path.join(toolkit, "data/distributions/100/merkle.json"), "utf8"))).toEqual(source);
       const unknown = generateMerkleTree({ [A]: { [T]: "100" }, [TREASURY_RECIPIENT]: { [T]: "1" } });
       expect(() => adoptionFiles(input, { ...verified, parent: unknown, prepared: { recovery: refreshRecovery({ ...input, sourceRoot: unknown.merkleRoot }, unknown, new Map([[pairKey(A, T), 35n]])) } } as typeof verified, directory)).toThrow("unaccounted Treasury");
     } finally { fs.rmSync(directory, { recursive: true, force: true }); }
@@ -228,6 +215,14 @@ describe("reviewed recovery", () => {
     for (const options of [{ root: ZERO }, { pending: 500n }]) {
       expect(await prepareOnchain(review, source, client(options), null)).toMatchObject({ status: "waiting" });
     }
+  });
+
+  it("never reinterprets module inputs as archived Safe recovery", async () => {
+    const retired = { ...review, execution: "module-v1" };
+    const report = { block: "20", blockHash: HASH, sourceRoot: source.merkleRoot, recoveryRoot: source.merkleRoot };
+    await expect(prepareOnchain(retired, source, client(), null)).rejects.toThrow("Module recovery inputs are retired");
+    await expect(verifyAdoption(retired, report, source, HASH, client())).rejects.toThrow("Module recovery inputs are retired");
+    await expect(verifyAdoption(review, { ...report, automatic: {} } as typeof report, source, HASH, client())).rejects.toThrow("Module recovery inputs are retired");
   });
 
   it("rejects a restored root, reorged review, changed checkpoint claims and redirected recipient", async () => {
@@ -343,7 +338,7 @@ describe("reviewed recovery", () => {
     await expect(prepareOnchain(review, source, client({ rejectCheck: true }), checker)).rejects.toThrow("claim changed");
   });
 
-  it("removes stale signable files and emits a redacted failure report if a rerun fails", async () => {
+  it.each([false, true])("blocks new preparation and removes stale signable files (monthly=%s)", async monthly => {
     const output = fs.mkdtempSync(path.join(os.tmpdir(), "recovery-test-"));
     const directory = path.join(output, "voters-1");
     fs.mkdirSync(directory);
@@ -354,15 +349,18 @@ describe("reviewed recovery", () => {
     const summary = path.join(output, "summary.md");
     vi.stubEnv("GITHUB_STEP_SUMMARY", summary);
     try {
-      await main("voters", output, false);
+      await main("voters", output, false, monthly);
       expect(process.exitCode).toBe(2);
       expect(fs.readdirSync(directory)).toEqual(["report.json"]);
       const report = fs.readFileSync(path.join(directory, "report.json"), "utf8");
-      expect(JSON.parse(report).status).toBe("blocked");
+      expect(JSON.parse(report)).toMatchObject({ status: "blocked", reason: expect.stringContaining("New recoveries are disabled") });
+      expect(rpc).not.toHaveBeenCalled();
       const published = fs.readFileSync(summary, "utf8");
       expect(published).toContain("Ethereum · Voters");
-      expect(published).toContain("Base · Voters");
-      expect(published).toContain("Arbitrum · Voters");
+      if (!monthly) {
+        expect(published).toContain("Base · Voters");
+        expect(published).toContain("Arbitrum · Voters");
+      }
       expect(report + published + JSON.stringify(log.mock.calls)).not.toContain("private-key");
     } finally {
       process.exitCode = previousExitCode;
