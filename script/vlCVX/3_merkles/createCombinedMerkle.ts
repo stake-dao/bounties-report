@@ -44,6 +44,7 @@ import { getClient } from "../../utils/getClients";
 import { readActiveVotersMerkle } from "../expiry/active";
 import expiryPolicies from "../expiry/policy.json";
 import { expiryKey, ExpiryPolicy, verifyExpiryParent, writeExpiryInput } from "../../shared/merkle/expiry";
+import { preparePublication, readJournal } from "../../recovery/publicationJournal";
 import { getAddress } from "viem";
 
 // Round current UTC time down to the nearest week for the current period
@@ -308,6 +309,19 @@ async function generateGlobalMerkleForChain(chainId: string) {
       distribution[treasury][token] = (amount > (claimed[i] as bigint) ? amount : claimed[i] as bigint).toString();
     });
     globalMerkle = generateMerkleTree(distribution);
+  }
+  const journal = chainId === "1" ? readJournal("voters-1") : undefined;
+  if (journal) {
+    const gains = Object.fromEntries(Object.entries(currentDistribution).map(([account, claim]) => [getAddress(account),
+      Object.fromEntries(Object.entries(claim.tokens).map(([token, amount]) => [getAddress(token), amount.toString()]))]));
+    const tokens = new Set([...Object.values(journal.ledger.pairs).map(pair => pair.token), ...Object.values(gains).flatMap(tokens => Object.keys(tokens))]);
+    const publication = await preparePublication(journal, gains, Object.fromEntries([...tokens].map(token => [token, "0"])), client, [`voters:${currentPeriodTimestamp}`]);
+    globalMerkle = publication.merkle;
+    const directory = path.join("bounties-reports", String(currentPeriodTimestamp), "vlCVX");
+    fs.mkdirSync(directory, { recursive: true });
+    // A candidate can refresh before submission; the Guard freezes its exact
+    // envelope in the CAS journal before signing, not at first generation.
+    fs.writeFileSync(path.join(directory, "vlcvx_publication.json"), JSON.stringify(publication, null, 2) + "\n");
   }
   if ([1, 8453, 42161].includes(numericChainId)) {
     const rootsDir = path.join("bounties-reports/expiry/roots", chainId);
