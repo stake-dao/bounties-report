@@ -4,12 +4,9 @@ import assert from "node:assert/strict";
 import { erc20Abi, formatUnits, getAddress, keccak256, parseAbiItem, PublicClient } from "viem";
 import { MerkleData } from "../interfaces/MerkleData";
 import { verifyExpiryParent } from "../shared/merkle/expiry";
-import { getClient } from "../utils/getClients";
 import { sendTelegramMessage } from "../utils/telegramUtils";
 import { fetchClaimed } from "../verify/invariants/preservation";
 import { ABI, EXTRA, OWNER, RECIPIENT, TREASURY_RECIPIENT, Review, pairKey, recoveryRecipient, refreshRecovery, safeBatch } from "./prepare";
-import { monthlyPeriod, prepareMonthly } from "./monthly";
-import { MODULE_ABI, transition } from "./transition";
 import configuration from "./config.json";
 
 type Checker = { address: string; codeHash: string } | null;
@@ -36,7 +33,8 @@ export function loadRoot(review: Review, root: string): MerkleData {
   throw new Error("Published root artifact unavailable; reconcile a new review");
 }
 
-export async function prepareOnchain(review: Review, source: MerkleData, client: PublicClient, checker: Checker, resolveRoot?: (root: string) => MerkleData, module?: Checker) {
+export async function prepareOnchain(review: Review, source: MerkleData, client: PublicClient, checker: Checker, resolveRoot?: (root: string) => MerkleData) {
+  assert(!("execution" in review), "Module recovery inputs are retired");
   assert.equal(source.merkleRoot, review.sourceRoot, "reviewed source root mismatch");
   const beneficiary = recoveryRecipient(review);
   let distribution = verifyExpiryParent(source);
@@ -123,24 +121,7 @@ export async function prepareOnchain(review: Review, source: MerkleData, client:
   assert.equal((await client.getBlock({ blockNumber: block.number! })).hash, block.hash, "snapshot reorged");
   const details = { ...context, recoveryRoot: recovery.merkle.merkleRoot, accounts: new Set(recovery.rows.map(row => row.account)).size, amounts, fundingOffsets, deficits: covered ? [] : deficits, recovery, ...(beneficiary === TREASURY_RECIPIENT ? { payouts: recovery.payouts } : {}) };
   if (!covered) return { ...details, status: "blocked", reason: "Funding deficits exceed newly recovered rewards; no Safe batch emitted" };
-  if (!recovery.rows.length && review.remainingRows) return { ...details, status: "waiting", reason: "Selected chunk was claimed; refresh finalized eligibility before declaring completion" };
   if (!recovery.rows.length) return { ...details, status: "noop", reason: "No reviewed old rewards remain unclaimed" };
-  if (review.execution === "module-v1") {
-    if (Object.keys(recovery.grossTotals).some(token => !source.claims[TREASURY_RECIPIENT]?.tokens[token])) {
-      return { ...details, status: "waiting", reason: "Wait for the ordinary validated publisher to seed missing Treasury leaves" };
-    }
-    if (!module) return { ...details, status: "blocked", reason: "Configure the reviewed Ethereum expiry module before execution" };
-    const moduleAt = { address: getAddress(module.address), abi: MODULE_ABI, blockNumber: block.number! };
-    const code = await client.getBytecode(moduleAt);
-    assert(code && keccak256(code) === module.codeHash, "expiry module runtime mismatch");
-    assert.equal(getAddress(await client.readContract({ ...moduleAt, functionName: "DISTRIBUTOR" })), address, "module distributor mismatch");
-    assert.equal(getAddress(await client.readContract({ ...moduleAt, functionName: "SAFE" })), OWNER, "module owner mismatch");
-    assert.equal(getAddress(await client.readContract({ ...moduleAt, functionName: "TREASURY" })), TREASURY_RECIPIENT, "module Treasury mismatch");
-    const nonce = await client.readContract({ ...moduleAt, functionName: "nonce" });
-    const automatic = transition(review, source, recovery, module.address, nonce);
-    await client.readContract({ ...moduleAt, functionName: "check", args: [automatic.payload] });
-    return { ...details, status: "awaiting-delay", reason: "Constrained root transition and direct Treasury claims; no monthly Safe signature", automatic };
-  }
   if (!checker) return { ...details, status: "blocked", reason: "Stateless checker deployment needs review; no Safe batch emitted" };
   const code = await client.getBytecode({ address: getAddress(checker.address), blockNumber: block.number! });
   assert(code && keccak256(code) === checker.codeHash, "checker runtime differs from reviewed code");
@@ -154,7 +135,7 @@ const poolNames: Record<string, string> = { "voters-1": "Ethereum · Voters", "v
 const recipientName = (result: any) => result.recipient === TREASURY_RECIPIENT ? "Treasury fee recipient" : result.recipient === RECIPIENT ? "5DAO" : "unavailable";
 export function notification(pool: string, result: any, runUrl: string): string[] {
   const ready = result.status === "awaiting-safe";
-  const status = result.status === "awaiting-delay" ? "Ready for delayed automatic recovery" : ready ? "Ready for Safe review" : result.status === "blocked" ? "Blocked — do not sign" : result.status === "noop" ? "Nothing to recover" : "Waiting for distribution";
+  const status = ready ? "Ready for Safe review" : result.status === "blocked" ? "Blocked — do not sign" : result.status === "noop" ? "Nothing to recover" : "Waiting for distribution";
   const counts = result.accounts === undefined ? "" : `\n${result.accounts} accounts · ${result.amounts?.length ?? 0} tokens · recipient ${recipientName(result)} (${result.recipient ?? "unavailable"})`;
   const funding = result.deficits?.length ? "\n⚠ Uncovered deficit — see report." : Object.values(result.fundingOffsets ?? {}).some(value => BigInt(value as string) > 0n) ? `\nDeficit deduction applies to ${recipientName(result)} only; see report.` : "";
   const action = ready ? "Nothing executed. Review and sign the atomic Safe batch." : escape(String(result.reason).slice(0, 300));
@@ -186,58 +167,13 @@ export function recoverySummary(pool: string, result: any): string {
 
 export async function main(scope = process.argv[2] ?? "all", output = process.argv[3] ?? "/tmp/rewards-recovery", notify = process.argv.includes("--notify"), monthly = process.argv.includes("--monthly")) {
   assert(["all", "voters", "extra"].includes(scope), "scope must be all, voters or extra");
-  let at = Math.floor(Date.now() / 1000);
-  if (monthly && process.env.RECOVERY_PERIOD) {
-    assert(/^\d{4}-(0[1-9]|1[0-2])$/.test(process.env.RECOVERY_PERIOD), "invalid monthly period");
-    const [year, month] = process.env.RECOVERY_PERIOD.split("-").map(Number);
-    const window = monthlyPeriod(Date.UTC(year, month, 0, 23) / 1000);
-    assert(window.cutoff <= at, "monthly window has not opened");
-    at = window.cutoff;
-  }
   fs.mkdirSync(output, { recursive: true });
   const results: any[] = [];
   for (const pool of configuration.pools.filter(p => (scope === "all" || p.name.startsWith(scope)) && (!monthly || p.name.endsWith("-1")))) {
     const directory = path.join(output, pool.name);
     fs.mkdirSync(directory, { recursive: true });
     for (const file of ["safe-batch.json", "recovery-merkle.json", "reductions.json", "review.json", "source-merkle.json", "ledger.json"]) fs.rmSync(path.join(directory, file), { force: true });
-    let result: any;
-    let review: Review | undefined;
-    try {
-      review = read(pool.review);
-      const archive = `bounties-reports/recovery/${pool.name}`;
-      const completed = fs.existsSync(archive) && fs.readdirSync(archive).filter(file => file.endsWith(".json")).map(file => read(path.join(archive, file))).find(entry =>
-        entry.review.sourceRoot === review!.sourceRoot && entry.review.checkpoint.hash === review!.checkpoint.hash);
-      if (monthly) {
-        const client = await getClient(review!.chainId);
-        const prepared = await prepareMonthly(review!, client, at, archive, undefined, TREASURY_RECIPIENT, true);
-        if (!("review" in prepared)) result = prepared;
-        else {
-          review = prepared.review;
-          save(path.join(directory, "review.json"), review);
-          save(path.join(directory, "source-merkle.json"), prepared.source);
-          save(path.join(directory, "ledger.json"), prepared.ledger);
-          const module = (configuration.modules as Record<string, Checker>)[pool.name];
-          result = await prepareOnchain(review, prepared.source, client, null, undefined, module);
-          result.period = review.period;
-        }
-      } else if (completed) {
-        result = { status: "noop", reason: "Reviewed round already adopted; new eligibility needs a new review", cutoff: review!.cutoff, recoveryRoot: completed.recoveryRoot };
-      } else {
-        assert.fail("Fixed reviews are reconciliation-only; new recovery uses the automatic Ethereum monthly ledger");
-      }
-      if (result.recovery) {
-        save(path.join(directory, "recovery-merkle.json"), result.recovery.merkle);
-        save(path.join(directory, "reductions.json"), result.recovery.rows);
-      }
-      if (result.batch) save(path.join(directory, "safe-batch.json"), result.batch);
-      delete result.recovery;
-      delete result.batch;
-    } catch (error) {
-      // RPC/HTTP exceptions can embed credential-bearing URLs. Keep them out of
-      // Actions logs and Telegram; the failing pool must be investigated locally.
-      const reason = error instanceof assert.AssertionError ? error.message.split("\n")[0] : "Check reviewed inputs and RPC state";
-      result = { status: "blocked", reason: `Preparation failed; no Safe batch emitted. ${reason}`, cutoff: review?.cutoff ?? 0 };
-    }
+    const result = { status: "blocked", reason: "New recoveries are disabled; only archived Safe executions may be adopted", cutoff: 0 };
     save(path.join(directory, "report.json"), result);
     results.push({ pool: pool.name, ...result });
     console.log(`${pool.name}: ${result.status} — ${result.reason}`);
