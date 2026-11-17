@@ -26,28 +26,6 @@
                 "id": 1,
                 "proposals": [
                     {
-                        "id": "0xa73cdb5ffe68e785b6fa8d92aa0d921bfc51f0595573e8f211f55d990d0b9a58",
-                        "start": "08-10-2026 02:00",
-                        "end": "13-10-2026 14:00"
-                    }
-                ],
-                "distributions": [
-                    {
-                        "step": 1,
-                        "date": "20-10-2026",
-                        "distributed": "12:01"
-                    },
-                    {
-                        "step": 2,
-                        "date": "27-10-2026",
-                        "distributed": "09:09"
-                    }
-                ]
-            },
-            {
-                "id": 2,
-                "proposals": [
-                    {
                         "id": "0x9051b69e723ad7d585faa0bd05cb0647138fd6715ef27ea689d7fcda46fdfbc8",
                         "start": "22-10-2026 02:00",
                         "end": "27-10-2026 15:00"
@@ -57,12 +35,34 @@
                     {
                         "step": 1,
                         "date": "03-11-2026",
-                        "distributed": "09:08"
+                        "distributed": "12:30"
                     },
                     {
                         "step": 2,
                         "date": "10-11-2026",
                         "distributed": "10:34"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "proposals": [
+                    {
+                        "id": "0xa96718e3cb14ee37922523a4212e984b5b973629fbd148990984e67b63652221",
+                        "start": "05-11-2026 02:01",
+                        "end": "10-11-2026 15:00"
+                    }
+                ],
+                "distributions": [
+                    {
+                        "step": 1,
+                        "date": "17-11-2026",
+                        "distributed": "12:31"
+                    },
+                    {
+                        "step": 2,
+                        "date": "24-11-2026",
+                        "distributed": ""
                     }
                 ]
             }
