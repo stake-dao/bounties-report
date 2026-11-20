@@ -28,6 +28,10 @@ on:
         required: false
         type: boolean
         default: false
+      epoch:
+        description: 'Pipeline epoch for delegator generation (default current week)'
+        required: false
+        type: string
 
 env:
   NODE_OPTIONS: --use-openssl-ca
@@ -101,6 +105,16 @@ jobs:
         if: inputs.step == 'merkle'
         run: git pull --rebase --autostash origin main
 
+      - name: Pin delegator generation epoch
+        if: inputs.type == 'delegators' && inputs.step == 'merkle'
+        env:
+          REQUESTED_EPOCH: ${{ inputs.epoch }}
+        run: |
+          current=$(( $(date +%s) / 604800 * 604800 ))
+          epoch="${REQUESTED_EPOCH:-$current}"
+          [[ "$epoch" == "$current" ]] || { echo 'Epoch rollover; restart pipeline'; exit 1; }
+          echo "EPOCH=$epoch" >> "$GITHUB_ENV"
+
       - name: Create merkle (delegators)
         if: inputs.type == 'delegators' && inputs.step == 'merkle'
         run: make -f automation/distribution.mk run-merkles PROTOCOL=vlCVX TYPE=delegators CI_SETUP_DONE=1
@@ -109,6 +123,12 @@ jobs:
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
           FORCE_MERKLE: ${{ inputs.force_merkle && 'true' || 'false' }}
+
+      - name: Snapshot delegator artifact before commit
+        if: inputs.type == 'delegators' && inputs.step == 'merkle'
+        env:
+          IDENTITY_KIND: vlcvx-delegators
+        run: pnpm tsx script/helpers/distributionIdentity.ts snapshot "$RUNNER_TEMP/distribution-snapshot.json"
 
       - name: Pin delegators evidence to IPFS
         if: inputs.type == 'delegators' && inputs.step == 'merkle'
@@ -128,6 +148,17 @@ jobs:
         uses: ./.github/actions/commit-and-push
         with:
           message: "chore: vlCVX delegators-merkle [${{ inputs.dispatch_id }}]"
+
+      - name: Export immutable delegator identity
+        if: inputs.type == 'delegators' && inputs.step == 'merkle'
+        run: pnpm tsx script/helpers/distributionIdentity.ts export "$RUNNER_TEMP/distribution-snapshot.json"
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.type == 'delegators' && inputs.step == 'merkle'
+        with:
+          name: job-result
+          path: /tmp/job_result.json
+          if-no-files-found: error
 
       - name: Check voters merkle state
         id: voters_merkle_state
