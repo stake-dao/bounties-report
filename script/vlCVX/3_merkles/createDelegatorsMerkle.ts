@@ -84,6 +84,14 @@ const WEEK = 604800;
 // Round current UTC time down to the nearest week to get the current period timestamp
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
+// A historical recovery must not build this week's root through last week's gate.
+const dispatchId = process.env.MAESTRO_DISPATCH_ID;
+if (dispatchId && !dispatchId.startsWith(`vlcvx-delegators:${currentPeriodTimestamp}:`)) {
+	throw new Error(
+		`vlCVX dispatch does not belong to the current reward epoch (${currentPeriodTimestamp})`,
+	);
+}
+
 // The directory to which we'll write the bounties reports for this period
 const reportsDir = path.join(
 	"bounties-reports",

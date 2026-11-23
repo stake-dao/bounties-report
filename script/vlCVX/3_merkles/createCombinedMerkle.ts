@@ -49,6 +49,12 @@ import { getAddress } from "viem";
 // Round current UTC time down to the nearest week for the current period
 const currentPeriodTimestamp = Math.floor(moment.utc().unix() / WEEK) * WEEK;
 
+// A historical recovery must not build this week's root through last week's gate.
+const dispatchId = process.env.MAESTRO_DISPATCH_ID;
+if (dispatchId && !dispatchId.startsWith(`votemarket-v2:${currentPeriodTimestamp}:`)) {
+  throw new Error(`vlCVX dispatch does not belong to the current reward epoch (${currentPeriodTimestamp})`);
+}
+
 const VOTERS_DISTRIBUTOR =
   "0x000000006feeE0b7a0564Cd5CeB283e10347C4Db" as const;
 const ZERO_ROOT = `0x${"0".repeat(64)}`;
