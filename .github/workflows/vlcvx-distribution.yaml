@@ -134,15 +134,21 @@ jobs:
         id: voters_merkle_state
         if: inputs.type == 'voters' && inputs.step == 'merkle'
         run: |
+          WEEK=604800
+          CURRENT_TIMESTAMP=$(date +%s)
+          PERIOD=$((CURRENT_TIMESTAMP / WEEK * WEEK))
+          # Validate before cache reuse or force regeneration can skip the generator guard.
+          if [ -n "$MAESTRO_DISPATCH_ID" ] && [[ "$MAESTRO_DISPATCH_ID" != "votemarket-v2:${PERIOD}:"* ]]; then
+            echo "Dispatch does not match current reward epoch ${PERIOD}." >&2
+            exit 1
+          fi
+
           if [ "$FORCE_UPDATE" = "true" ]; then
             echo "Forced voters merkle regeneration requested."
             echo "skip=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          WEEK=604800
-          CURRENT_TIMESTAMP=$(date +%s)
-          PERIOD=$((CURRENT_TIMESTAMP / WEEK * WEEK))
           MERKLE_FILES=(
             "bounties-reports/${PERIOD}/vlCVX/curve/merkle_data_non_delegators.json"
             "bounties-reports/${PERIOD}/vlCVX/fxn/merkle_data_non_delegators.json"
@@ -166,6 +172,7 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
         env:
+          MAESTRO_DISPATCH_ID: ${{ inputs.dispatch_id }}
           FORCE_UPDATE: ${{ inputs.force_merkle && 'true' || 'false' }}
 
       - name: Create merkle (voters)
