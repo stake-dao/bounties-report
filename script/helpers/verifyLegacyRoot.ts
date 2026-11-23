@@ -52,13 +52,30 @@ interface RootReader {
   }): Promise<unknown>;
 }
 
-// A legacy entry is retired once governance replaced its root out of band (e.g. an expiry
-// sweep): the distributor holds a nonzero root this entry never produced, and every
-// updateMerkleRoot reset the claim bitmap, so its proofs can never pay out again. This is
-// the BLOCK case of the publish gate. Entries without a root or distributor are not checked.
+export interface LegacyRetirement {
+  chainId: number;
+  token: string;
+  merkleContract: string;
+  retiredRoot: string;
+  replacementRoot: string;
+  transactionHash: string;
+}
+
+// Confirmed expiries of whole legacy trees, each tied to its recovery transaction. Reviewed
+// as a funds change: a listed tree leaves the carry-over and the V3 continuity check.
+const RETIREMENTS_PATH = path.join(__dirname, "..", "..", "data", "retired-legacy-merkles.json");
+let legacyRetirements: LegacyRetirement[] | undefined;
+const loadLegacyRetirements = (): LegacyRetirement[] =>
+  (legacyRetirements ??= JSON.parse(readFileSync(RETIREMENTS_PATH, "utf8")) as LegacyRetirement[]);
+
+// A legacy entry is retired only when it is a recorded expiry (same chain, token, distributor
+// and root as a registry record) AND the distributor still holds that record's replacement
+// root. An unrecorded mismatch is not proof of expiry, so it returns false and the publish
+// gate keeps blocking on it.
 export async function isRetiredLegacyEntry(
   client: RootReader,
   entry: LegacyMerkleEntry,
+  retirements: LegacyRetirement[] = loadLegacyRetirements(),
 ): Promise<boolean> {
   if (
     typeof entry.root !== "string" ||
@@ -68,6 +85,15 @@ export async function isRetiredLegacyEntry(
   ) {
     return false;
   }
+  const chainId = typeof entry.chainId === "number" ? entry.chainId : 1;
+  const record = retirements.find(
+    (r) =>
+      r.chainId === chainId &&
+      r.token.toLowerCase() === (entry.address as string).toLowerCase() &&
+      r.merkleContract.toLowerCase() === (entry.merkleContract as string).toLowerCase() &&
+      r.retiredRoot.toLowerCase() === (entry.root as string).toLowerCase(),
+  );
+  if (!record) return false;
   const onchain = await client.readContract({
     address: entry.merkleContract as `0x${string}`,
     abi: MERKLE_ABI,
@@ -77,7 +103,7 @@ export async function isRetiredLegacyEntry(
   if (typeof onchain !== "string" || !ROOT_PATTERN.test(onchain)) {
     throw new Error(`invalid on-chain root for ${entry.address}: ${String(onchain)}`);
   }
-  return classifyLegacyRootStatus({ source: entry.root, onchain }) === "BLOCK";
+  return onchain.toLowerCase() === record.replacementRoot.toLowerCase();
 }
 
 function emitOutput(key: string, value: string): void {

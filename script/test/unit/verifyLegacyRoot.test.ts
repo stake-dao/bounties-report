@@ -10,6 +10,8 @@ const SOURCE_ROOT =
   "0x1111111111111111111111111111111111111111111111111111111111111111";
 const OTHER_ROOT =
   "0x2222222222222222222222222222222222222222222222222222222222222222";
+const THIRD_ROOT =
+  "0x3333333333333333333333333333333333333333333333333333333333333333";
 
 describe("classifyLegacyRootStatus", () => {
   it("returns OK for a matching root", () => {
@@ -40,19 +42,48 @@ describe("isRetiredLegacyEntry", () => {
   const clientReturning = (onchain: string) => ({
     readContract: async () => onchain,
   });
-  const entry = { symbol: "sdBAL", address: TOKEN, root: SOURCE_ROOT, merkleContract: STASH };
+  const entry = { symbol: "sdBAL", chainId: 1, address: TOKEN, root: SOURCE_ROOT, merkleContract: STASH };
+  const registry = [
+    {
+      chainId: 1,
+      token: TOKEN.toLowerCase(),
+      merkleContract: STASH,
+      retiredRoot: SOURCE_ROOT,
+      replacementRoot: OTHER_ROOT,
+      transactionHash: "0x01",
+    },
+  ];
 
-  it("flags a root that governance replaced", async () => {
-    expect(await isRetiredLegacyEntry(clientReturning(OTHER_ROOT), entry)).toBe(true);
+  it("flags a recorded expiry whose replacement root is live", async () => {
+    expect(await isRetiredLegacyEntry(clientReturning(OTHER_ROOT), entry, registry)).toBe(true);
   });
 
-  it("keeps a live or frozen root", async () => {
-    expect(await isRetiredLegacyEntry(clientReturning(SOURCE_ROOT.toUpperCase().replace("0X", "0x")), entry)).toBe(false);
-    expect(await isRetiredLegacyEntry(clientReturning(ZERO_ROOT), entry)).toBe(false);
+  it("keeps an unrecorded root mismatch for the publish gate to block", async () => {
+    expect(await isRetiredLegacyEntry(clientReturning(OTHER_ROOT), entry, [])).toBe(false);
+    expect(
+      await isRetiredLegacyEntry(clientReturning(OTHER_ROOT), { ...entry, root: THIRD_ROOT }, registry),
+    ).toBe(false);
   });
 
-  it("keeps entries it cannot check and fails on a bad read", async () => {
-    expect(await isRetiredLegacyEntry(clientReturning(OTHER_ROOT), { ...entry, merkleContract: undefined })).toBe(false);
-    await expect(isRetiredLegacyEntry(clientReturning("0x"), entry)).rejects.toThrow("invalid on-chain root");
+  it("keeps a recorded tree once the chain holds another root", async () => {
+    expect(await isRetiredLegacyEntry(clientReturning(ZERO_ROOT), entry, registry)).toBe(false);
+    expect(await isRetiredLegacyEntry(clientReturning(THIRD_ROOT), entry, registry)).toBe(false);
+  });
+
+  it("fails on a bad read", async () => {
+    await expect(isRetiredLegacyEntry(clientReturning("0x"), entry, registry)).rejects.toThrow("invalid on-chain root");
+  });
+
+  it("records the Nov 19 sdBAL and sdPENDLE expiry", async () => {
+    const live = { readContract: async ({ args }: any) =>
+      args[0].toLowerCase() === TOKEN.toLowerCase()
+        ? "0x65cde1e33680f0dfbbc615613e5cf727c8bca2f6ccfbbc38d6cadc48a4066650"
+        : "0x17e0a56daba5c2085abb89144f8d9e9d7f9e3c67d4fce4b1a200ebdec0cd2d7e" };
+    for (const [address, root] of [
+      [TOKEN, "0xca4f979846d95ebbd96031b9d96042f016fae583ee91c05129185b466a7caea2"],
+      ["0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9", "0xa3cbf3833ff5916d7559e6d502521ebb4c81702689d01b00dd828a3b803b0416"],
+    ]) {
+      expect(await isRetiredLegacyEntry(live, { chainId: 1, address, root, merkleContract: STASH })).toBe(true);
+    }
   });
 });
