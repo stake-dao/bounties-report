@@ -35,6 +35,8 @@ import * as path from "path";
 import { keccak256, encodeAbiParameters, concat, getAddress } from "viem";
 import { WEEK, VLCVX_POOLED_DELEGATES } from "../../utils/constants";
 import { getClient } from "../../utils/getClients";
+import { monthlyVotersGains } from "../../verify/invariants/monthlyPublication";
+import { readJournal } from "../../recovery/publicationJournal";
 import {
   CheckResult,
   REPORTS_DIR,
@@ -176,7 +178,10 @@ async function main() {
   console.log(`\nvlCVX Thursday reconstruction — week ${timestamp}`);
 
   const merkle = readJSON(bp(timestamp, "vlCVX/vlcvx_merkle.json"));
-  const prev = findPreviousMerkle(timestamp);
+  const journal = readJournal("voters-1");
+  const client = await getClient(1);
+  const monthlyGains = await monthlyVotersGains(merkle, timestamp, client, await client.getBlockNumber());
+  const prev = journal ? { data: journal.merkle, foundAt: journal.ledger.checkpoint.block } : findPreviousMerkle(timestamp);
   if (!prev) throw new Error("no previous voters merkle found within 8 weeks — cannot compute week delta");
 
   const sections: boolean[] = [];
@@ -281,10 +286,12 @@ async function main() {
 
   // 4. reconstruction ----------------------------------------------------------
   const deltas = new Map<string, bigint>();
-  for (const [k, v] of curIdx) {
-    const d = v - (prevIdx.get(k) ?? 0n);
-    if (d !== 0n) deltas.set(k, d);
-  }
+  if (monthlyGains) {
+    for (const [account, tokens] of monthlyGains) for (const [token, value] of tokens) deltas.set(`${lc(account)}|${lc(token)}`, value);
+  } else for (const [k, v] of curIdx) {
+      const d = v - (prevIdx.get(k) ?? 0n);
+      if (d !== 0n) deltas.set(k, d);
+    }
   const mismatches: string[] = [];
   const union = new Set([...expected.keys(), ...deltas.keys()]);
   for (const k of union) {

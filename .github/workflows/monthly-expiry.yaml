@@ -1,0 +1,95 @@
+name: "Rewards: Two-phase publication journal"
+run-name: ${{ inputs.dispatch_id || 'Monthly expiry journal' }}
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        options: [reconcile, announce, cut, cancel, resume]
+        default: reconcile
+        required: true
+      pool:
+        type: choice
+        options: [voters-1, extra-1]
+        default: voters-1
+        required: true
+      period:
+        type: string
+        description: YYYY-MM, required for announce only
+        default: ''
+      dispatch_id:
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: monthly-publication-journal
+  cancel-in-progress: false
+jobs:
+  journal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
+        run: echo "Temporal tracking"
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+        if: inputs.pool == 'extra-1'
+        with:
+          repository: stake-dao/merkl-toolkit
+          ref: main
+          path: merkl-toolkit
+          token: ${{ secrets.RECOVERY_GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.33.0'
+      - run: pnpm install --frozen-lockfile
+      - name: Reconcile or prepare without signing
+        env:
+          ACTION: ${{ inputs.action }}
+          POOL: ${{ inputs.pool }}
+          PERIOD: ${{ inputs.period }}
+          ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
+          WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
+          TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
+        run: pnpm tsx script/recovery/monthlyPublication.ts "$ACTION" "$POOL" "$PERIOD"
+      - name: Persist canonical journal and proofs
+        env:
+          POOL: ${{ inputs.pool }}
+        run: |
+          set -euo pipefail
+          publish() {
+            local directory="$1"
+            shift
+            git -C "$directory" config user.name 'github-actions[bot]'
+            git -C "$directory" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            for path in "$@"; do
+              if [ -e "$directory/$path" ]; then git -C "$directory" add -- "$path"; fi
+            done
+            if git -C "$directory" diff --cached --quiet; then return; fi
+            git -C "$directory" commit -m "Reconcile monthly publication: $POOL"
+            # A racing writer requires replay; never rebase or force-push state.
+            git -C "$directory" push origin HEAD:main
+          }
+          if [ "$POOL" = extra-1 ]; then publish merkl-toolkit data/last_merkle.json; fi
+          publish . bounties-reports/monthly-expiry/ bounties-reports/expiry/roots/ bounties-reports/latest/vlCVX/vlcvx_merkle.json
+      - name: Write outcome
+        if: always()
+        env:
+          OUTCOME: ${{ job.status }}
+        run: |
+          if [ "$OUTCOME" = success ]; then status=executed; else status=error; fi
+          jq -n --arg status "$status" '{status:$status,reason:"Journal workflow finished; inspect journal for pending/finalized/cancelled state"}' > "$RUNNER_TEMP/job_result.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: job-result
+          path: ${{ runner.temp }}/job_result.json
