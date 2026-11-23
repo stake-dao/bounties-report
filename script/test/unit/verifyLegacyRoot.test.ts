@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { classifyLegacyRootStatus } from "../../helpers/verifyLegacyRoot";
+import {
+  classifyLegacyRootStatus,
+  isRetiredLegacyEntry,
+} from "../../helpers/verifyLegacyRoot";
 
 const ZERO_ROOT =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -28,5 +31,28 @@ describe("classifyLegacyRootStatus", () => {
     expect(
       classifyLegacyRootStatus({ source: SOURCE_ROOT, onchain: OTHER_ROOT }),
     ).toBe("BLOCK");
+  });
+});
+
+describe("isRetiredLegacyEntry", () => {
+  const TOKEN = "0xF24d8651578a55b0C119B9910759a351A3458895";
+  const STASH = "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4";
+  const clientReturning = (onchain: string) => ({
+    readContract: async () => onchain,
+  });
+  const entry = { symbol: "sdBAL", address: TOKEN, root: SOURCE_ROOT, merkleContract: STASH };
+
+  it("flags a root that governance replaced", async () => {
+    expect(await isRetiredLegacyEntry(clientReturning(OTHER_ROOT), entry)).toBe(true);
+  });
+
+  it("keeps a live or frozen root", async () => {
+    expect(await isRetiredLegacyEntry(clientReturning(SOURCE_ROOT.toUpperCase().replace("0X", "0x")), entry)).toBe(false);
+    expect(await isRetiredLegacyEntry(clientReturning(ZERO_ROOT), entry)).toBe(false);
+  });
+
+  it("keeps entries it cannot check and fails on a bad read", async () => {
+    expect(await isRetiredLegacyEntry(clientReturning(OTHER_ROOT), { ...entry, merkleContract: undefined })).toBe(false);
+    await expect(isRetiredLegacyEntry(clientReturning("0x"), entry)).rejects.toThrow("invalid on-chain root");
   });
 });

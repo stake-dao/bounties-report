@@ -43,6 +43,43 @@ export function classifyLegacyRootStatus(
   return "BLOCK";
 }
 
+interface RootReader {
+  readContract(args: {
+    address: `0x${string}`;
+    abi: typeof MERKLE_ABI;
+    functionName: "merkleRoot";
+    args: readonly [`0x${string}`];
+  }): Promise<unknown>;
+}
+
+// A legacy entry is retired once governance replaced its root out of band (e.g. an expiry
+// sweep): the distributor holds a nonzero root this entry never produced, and every
+// updateMerkleRoot reset the claim bitmap, so its proofs can never pay out again. This is
+// the BLOCK case of the publish gate. Entries without a root or distributor are not checked.
+export async function isRetiredLegacyEntry(
+  client: RootReader,
+  entry: LegacyMerkleEntry,
+): Promise<boolean> {
+  if (
+    typeof entry.root !== "string" ||
+    !ROOT_PATTERN.test(entry.root) ||
+    typeof entry.address !== "string" ||
+    typeof entry.merkleContract !== "string"
+  ) {
+    return false;
+  }
+  const onchain = await client.readContract({
+    address: entry.merkleContract as `0x${string}`,
+    abi: MERKLE_ABI,
+    functionName: "merkleRoot",
+    args: [entry.address as `0x${string}`],
+  });
+  if (typeof onchain !== "string" || !ROOT_PATTERN.test(onchain)) {
+    throw new Error(`invalid on-chain root for ${entry.address}: ${String(onchain)}`);
+  }
+  return classifyLegacyRootStatus({ source: entry.root, onchain }) === "BLOCK";
+}
+
 function emitOutput(key: string, value: string): void {
   const outputPath = process.env.GITHUB_OUTPUT;
   if (!outputPath) return;
