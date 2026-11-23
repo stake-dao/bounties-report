@@ -32,6 +32,7 @@ import { ethers } from "ethers";
 import { mainnet } from "../utils/chains";
 import { Merkle } from "../utils/types";
 import { getClient } from "../utils/getClients";
+import { isRetiredLegacyEntry } from "../helpers/verifyLegacyRoot";
 
 dotenv.config();
 
@@ -345,6 +346,12 @@ const main = async () => {
       }
     }
     if (!found) {
+      // A token whose root governance replaced (expiry sweep) can never be claimed again;
+      // carrying it forward would make verifyLegacyRoot block the whole legacy publish.
+      if (await isRetiredLegacyEntry(await getClient(lastMerkle.chainId || mainnet.id), lastMerkle)) {
+        console.error(`Dropping retired ${lastMerkle.symbol} ${lastMerkle.address}: root ${lastMerkle.root} replaced on-chain`);
+        continue;
+      }
       newMerkles.push(lastMerkle);
     }
   }

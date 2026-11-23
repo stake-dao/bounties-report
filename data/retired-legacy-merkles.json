@@ -1,0 +1,26 @@
+[
+  {
+    "symbol": "sdBAL",
+    "chainId": 1,
+    "token": "0xF24d8651578a55b0C119B9910759a351A3458895",
+    "merkleContract": "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4",
+    "retiredRoot": "0xca4f979846d95ebbd96031b9d96042f016fae583ee91c05129185b466a7caea2",
+    "replacementRoot": "0x65cde1e33680f0dfbbc615613e5cf727c8bca2f6ccfbbc38d6cadc48a4066650",
+    "transactionHash": "0x7e9d5539032dc288bb430e5e8021e9648e3082ee68c2f0ed84a87e45acf2a926",
+    "block": 26449513,
+    "recipient": "0xf930ebbd05ef8b25b1797b9b2109ddc9b0d43063",
+    "recovered": "4413979735318475350270"
+  },
+  {
+    "symbol": "sdPENDLE",
+    "chainId": 1,
+    "token": "0x5Ea630e00D6eE438d3deA1556A110359ACdc10A9",
+    "merkleContract": "0x03E34b085C52985F6a5D27243F20C84bDdc01Db4",
+    "retiredRoot": "0xa3cbf3833ff5916d7559e6d502521ebb4c81702689d01b00dd828a3b803b0416",
+    "replacementRoot": "0x17e0a56daba5c2085abb89144f8d9e9d7f9e3c67d4fce4b1a200ebdec0cd2d7e",
+    "transactionHash": "0x7e9d5539032dc288bb430e5e8021e9648e3082ee68c2f0ed84a87e45acf2a926",
+    "block": 26449513,
+    "recipient": "0xf930ebbd05ef8b25b1797b9b2109ddc9b0d43063",
+    "recovered": "807697952571548016727"
+  }
+]

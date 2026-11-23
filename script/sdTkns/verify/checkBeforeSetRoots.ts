@@ -11,6 +11,7 @@ import {
   NETWORK_TO_MERKLE,
 } from "../../utils/constants";
 import { getClient } from "../../utils/getClients";
+import { isRetiredLegacyEntry } from "../../helpers/verifyLegacyRoot";
 
 const WEEK = 604_800;
 const MAX_WEEKS_BACK = 8;
@@ -629,12 +630,25 @@ export async function collectClaimAwareContext(
   const previous = findPreviousMerkle(period);
   const currentByToken = new Map(merkle.map((entry) => [entryKey(entry), entry]));
   const tokens = new Map<string, ClaimedTokenWindow>();
+  const previousMerkle: MerkleEntry[] = [];
 
   for (const previousEntry of previous.merkle) {
     const key = entryKey(previousEntry);
     const symbol =
       typeof previousEntry.symbol === "string" ? previousEntry.symbol : "unknown";
     const currentEntry = currentByToken.get(key);
+    // A token may leave the tree only when governance replaced its root on-chain (confirmed
+    // expiry); the generator drops it on the same condition. Any other disappearance stays checked.
+    if (
+      !currentEntry &&
+      (await isRetiredLegacyEntry(
+        await clientForChain(resolveEntryChainId(undefined, previousEntry)),
+        previousEntry,
+      ))
+    ) {
+      continue;
+    }
+    previousMerkle.push(previousEntry);
     const previousAmounts = claimAmountsByAddress(previousEntry);
     const currentAmounts = claimAmountsByAddress(currentEntry);
     const rawDeficits = findClaimAwareContinuityViolations(
@@ -684,7 +698,7 @@ export async function collectClaimAwareContext(
 
   return {
     previousPeriod: previous.period,
-    previousMerkle: previous.merkle,
+    previousMerkle,
     tokens,
   };
 }
