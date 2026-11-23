@@ -47,7 +47,7 @@ export async function main() {
     const url = `https://gateway.pinata.cloud/ipfs/${pin.cid}`;
     const response = await fetch(url);
     assert(response.ok && Buffer.from(await response.arrayBuffer()).equals(bytes), "notice read-back mismatch");
-    await sendTelegramMessage(`Monthly expiry ${pool} · ${argument}\n${url}\nNo expiry cut before 24 hours after this alert. Claims and ordinary publications remain open.`, undefined, true);
+    await sendTelegramMessage(`Monthly expiry ${pool} · ${argument}\n${url}\nNo expiry cut before 24 hours after this alert. Claims and ordinary publications remain open.`, "HTML", true);
     state.announcement = { cid: pin.cid, alert: `${process.env.GITHUB_SERVER_URL ?? "https://github.com"}/${process.env.GITHUB_REPOSITORY ?? "stake-dao/bounties-report"}/actions/runs/${process.env.GITHUB_RUN_ID ?? "manual"}`, availableAt: Math.floor(Date.now() / 1000) };
   } else if (action === "cut") {
     assert(state.notice && state.announcement && !state.publication && !state.adopted && !state.cancelRequested, "cut not available");
@@ -97,7 +97,11 @@ export async function main() {
   const directory = `bounties-reports/monthly-expiry/roots/${pool}`;
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(path.join(directory, `${state.merkle.merkleRoot}.json`), json(state.merkle));
-  // Proofs are served only for the root verified at a finalized checkpoint.
+  // Commit the cut proofs together with the unsigned intent, before Guard can submit it.
+  if (action === "cut" && state.cut) {
+    fs.writeFileSync(path.join(directory, `${state.cut.merkle.merkleRoot}.json`), json(state.cut.merkle));
+  }
+  // Only move the latest pointer when the adopted root is active.
   const live = await client.readContract({ address, abi: ABI, functionName: "root" });
   if (pool === "voters-1") {
     const roots = "bounties-reports/expiry/roots/1";

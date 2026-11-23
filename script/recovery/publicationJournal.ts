@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { getAddress, parseAbi, PublicClient, zeroHash } from "viem";
@@ -41,7 +42,7 @@ export interface PublicationJournal {
   notice?: ExpiryNotice;
   announcement?: { cid: string; alert: string; availableAt: number };
   cut?: ExpiryCut;
-  adopted?: AdoptedCut;
+  adopted?: Pick<AdoptedCut, "id" | "reserve">;
   publication?: PublicationIntent;
   lastPublication?: PublicationIntent;
   submission?: { calldata: string };
@@ -66,16 +67,39 @@ export function readJournal(pool: Pool): PublicationJournal | undefined {
   const file = journalPath(pool);
   if (!fs.existsSync(file)) return;
   const state = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (state.cut?.snapshot !== undefined) {
+    const hash = state.cut.snapshot;
+    assert(typeof hash === "string" && /^[a-f0-9]{64}$/.test(hash), "invalid cut snapshot reference");
+    const bytes = fs.readFileSync(cutSnapshotFile(pool, hash));
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), hash, "cut snapshot changed");
+    const cut: ExpiryCut = JSON.parse(bytes.toString("utf8"));
+    assert.deepEqual(cut.merkle, state.cut.merkle, "journal cut differs from snapshot");
+    state.cut = cut;
+  }
   assertJournal(state);
   assert(state.pool === pool, "journal pool mismatch");
   return state;
 }
 
+const cutSnapshotFile = (pool: Pool, hash: string) => path.join(path.dirname(journalPath(pool)), "cuts", pool, `${hash}.json`);
+
 export function writeJournal(state: PublicationJournal) {
   assertJournal(state);
   const file = journalPath(state.pool);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(state, null, 2) + "\n");
+  // The Guard needs the exact cut tree, not the historical ledgers used to derive it.
+  // Publish the full frozen input in the same commit, without duplicating it in every CAS write.
+  let cut: { snapshot: string; merkle: MerkleData } | undefined;
+  if (state.cut) {
+    const bytes = Buffer.from(JSON.stringify(state.cut));
+    const snapshot = createHash("sha256").update(bytes).digest("hex");
+    const archived = cutSnapshotFile(state.pool, snapshot);
+    fs.mkdirSync(path.dirname(archived), { recursive: true });
+    if (fs.existsSync(archived)) assert(fs.readFileSync(archived).equals(bytes), "cut snapshot changed");
+    else fs.writeFileSync(archived, bytes, { flag: "wx" });
+    cut = { snapshot, merkle: state.cut.merkle };
+  }
+  fs.writeFileSync(file, JSON.stringify({ ...state, cut }, null, 2) + "\n");
 }
 
 /** Generation holds no remote lock. Its exact revision is compared-and-swapped

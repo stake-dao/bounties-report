@@ -61,7 +61,9 @@ export async function reconcilePublication(input: PublicationJournal, client: Pu
         const transaction = await client.getTransaction({ hash: log.transactionHash! });
         assert.equal(getAddress(transaction.to!), GUARD, "submission did not use the recorded guard route");
         assert.equal(getAddress(transaction.from), SIGNER, "submission signer differs");
-        assert.equal(transaction.input.toLowerCase(), state.submission.calldata.toLowerCase(), "submission differs from durable intent");
+        // Python journals bytes.hex(); JSON-RPC represents the same bytes with a 0x prefix.
+        const calldata = state.submission.calldata.toLowerCase().replace(/^0x/, "");
+        assert.equal(transaction.input.toLowerCase(), `0x${calldata}`, "submission differs from durable intent");
         const receipt = await client.getTransactionReceipt({ hash: log.transactionHash! });
         assert.equal(receipt.status, "success", "submission failed");
         state.submitted = { transaction: log.transactionHash!, block: Number(block.number), blockHash: block.hash!, validAt: "0", ipfsHash: candidate.ipfsHash };
@@ -84,8 +86,10 @@ export async function reconcilePublication(input: PublicationJournal, client: Pu
       if (candidate.kind === "cut") {
         assert(state.cut && !state.adopted, "cut not prepared");
         // Claims since preparation have already been consumed in canonical order.
-        state.adopted = adoptExpiryCut(state.cut, claims, at);
-        state.ledger = state.adopted.ledger;
+        const { id, reserve, ledger } = adoptExpiryCut(state.cut, claims, at);
+        state.adopted = { id, reserve };
+        state.ledger = ledger;
+        delete state.cut;
       } else {
         assert.equal(candidate.kind, state.adopted ? "settlement" : "ordinary", "publication phase mismatch");
         assert(candidate.sources.length && new Set(candidate.sources).size === candidate.sources.length && candidate.sources.every(id => !(state.creditedSources ?? []).includes(id)), "reward source already credited");

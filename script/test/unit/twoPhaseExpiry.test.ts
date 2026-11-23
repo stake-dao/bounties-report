@@ -1,6 +1,9 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PublicClient, zeroHash } from "viem";
-import { preparePublication, PublicationJournal } from "../../recovery/publicationJournal";
+import { journalPath, preparePublication, PublicationJournal, readJournal, writeJournal } from "../../recovery/publicationJournal";
 import { reconcilePublication } from "../../recovery/reconcilePublication";
 import { announceExpiry, adoptExpiryCut, assertExpiryCoverage, prepareExpiryCut, settleExpiryCut } from "../../recovery/twoPhase";
 import { appendPublication } from "../../recovery/monthly";
@@ -30,6 +33,25 @@ function fixture(distributor = VOTERS) {
 }
 
 describe("module-free monthly expiry", () => {
+  it("retains the exact cut across publisher restarts and rejects a changed frozen input", () => {
+    const { ledger, parent: merkle, notice, cut } = fixture();
+    const state: PublicationJournal = { version: 1, revision: 1, pool: "voters-1", ledger, merkle, notice, cut, history: [] };
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "expiry-journal-")), cwd = process.cwd();
+    try {
+      process.chdir(dir);
+      writeJournal(state);
+      const wire = JSON.parse(fs.readFileSync(journalPath(state.pool), "utf8"));
+      expect(wire.cut.merkle).toEqual(cut.merkle); // The independent signer reads this without loading snapshots.
+      expect(readJournal(state.pool)).toEqual(state);
+      const file = path.join(path.dirname(journalPath(state.pool)), "cuts", state.pool, `${wire.cut.snapshot}.json`);
+      fs.appendFileSync(file, " ");
+      expect(() => readJournal(state.pool)).toThrow("cut snapshot changed");
+    } finally {
+      process.chdir(cwd);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("cuts only announced credits, keeps protections and requires both notices", () => {
     const { parent, ledger, notice, cut } = fixture(EXTRA);
     expect(cut.merkle.claims[A].tokens[T].amount).toBe("70");
@@ -94,7 +116,7 @@ describe("module-free monthly expiry", () => {
     const cut = prepareExpiryCut(notice, ledger, parent, at + 86400);
     const state: PublicationJournal = { version: 1, pool: "voters-1", revision: 1, ledger, merkle: parent, cut, notice, history: [], cancelRequested: true,
       publication: { version: 1, pool: "voters-1", revision: 0, parent: parent.merkleRoot, kind: "cut", merkle: cut.merkle, gains: {}, sources: [], reserves: { [T]: "0", [U]: "0" }, checkpoint: ledger.checkpoint, ipfsHash: zeroHash },
-      submission: { calldata: "0x1234" }, execution: { action: "submit", calldata: "0x1234" } };
+      submission: { calldata: "1234" }, execution: { action: "submit", calldata: "1234" } };
     const log = (eventName: string, logIndex: number, args: object) => ({ eventName, blockNumber: 4n, blockHash: zeroHash, logIndex, transactionHash: zeroHash, removed: false, args });
     const logs = [
       log("PendingRootSet", 0, { newRoot: cut.merkle.merkleRoot, newIpfsHash: zeroHash }),
@@ -111,6 +133,7 @@ describe("module-free monthly expiry", () => {
       getTransaction: async () => ({ to: "0x067e4F59F6Bd026897D771Fa430CA261d7C35205", from: "0x2468Fd5868dA9219b50c8d57bB4edba4097Bd20A", input: "0x1234" }),
       getTransactionReceipt: async () => ({ status: "success" }),
     } as unknown as PublicClient;
+    await expect(reconcilePublication({ ...state, submission: { calldata: "0x1235" } }, client)).rejects.toThrow("differs from durable intent");
     const adopted = await reconcilePublication(state, client);
     expect(adopted.cancelRequested).toBe(true);
     expect(adopted.submitted).toBeUndefined();
