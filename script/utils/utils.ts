@@ -9,6 +9,7 @@ import {
   MERKLE_CREATION_BLOCK_BSC,
   MERKLE_CREATION_BLOCK_ETH,
   SDBAL_SPACE,
+  SDCRV_SPACE,
   SPECTRA_SPACE,
   getClient,
 } from "./constants";
@@ -26,6 +27,7 @@ import { bsc, mainnet } from "../utils/chains";
 import { createBlockchainExplorerUtils } from "./explorerUtils";
 import { processAllDelegators } from "./cacheUtils";
 import { getBlockNumberByTimestamp } from "./chainUtils";
+import { reconstructSdCrvAutoVote } from "./sdCrvAutoVote";
 import { getAvailableEndpoints } from "./rpcConfig";
 import {
   canComputeSdFxsVotingPower,
@@ -503,13 +505,12 @@ export const getChoicesBasedOnReport = (
 
 interface Voter {
   voter: string;
+  id?: string;
+  created?: number;
   choice: Record<string, number>;
   vp: number;
 }
 
-/**
- * Will fetch auto voter delegators at the snapshot block number and add them as voters
- */
 export const addVotersFromAutoVoter = async (
   space: string,
   proposal: any,
@@ -523,12 +524,18 @@ export const addVotersFromAutoVoter = async (
     return voters;
   }
 
-  const endBlock = await getBlockNumberByTimestamp(proposal.end, "before", mainnet.id);
-  if (!endBlock) {
-    throw new Error(
-      "Unable to resolve proposal end block for auto voter weights"
-    );
+  const expandedVoters = voters.filter(
+    (voter) => voter.voter.toLowerCase() !== AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
+  );
+  const snapshotVoters = new Set(voters.map((voter) => voter.voter.toLowerCase()));
+
+  if (space === SDCRV_SPACE) {
+    const contributions = await reconstructSdCrvAutoVote(proposal, autoVoter, snapshotVoters);
+    return expandedVoters.concat(contributions);
   }
+
+  const endBlock = await getBlockNumberByTimestamp(proposal.end, "before", mainnet.id);
+  if (!endBlock) throw new Error("Unable to resolve proposal end block for auto voter weights");
 
   // Get all delegators until proposal creation
   const delegators = await processAllDelegators(
@@ -583,9 +590,10 @@ export const addVotersFromAutoVoter = async (
     }
   }
 
-  const delegatorAddresses = Object.keys(votersVp);
+  // Score the full cohort first: delegation scores can depend on the other requested addresses.
+  const delegatorAddresses = Object.keys(votersVp).filter((voter) => !snapshotVoters.has(voter));
   if (delegatorAddresses.length === 0) {
-    return voters;
+    return expandedVoters;
   }
 
   const contracts = delegatorAddresses.map((delegatorAddress) => {
@@ -597,7 +605,7 @@ export const addVotersFromAutoVoter = async (
     };
   });
 
-  // The registrations must be read at the proposal end block — a bigint, as
+  // The historical registration block must be a bigint, as
   // viem silently ignores a JS number blockNumber and reads latest state,
   // missing registrations changed after the vote closed. Historical eth_call
   // needs archive state, which the latency-raced client may not serve, so
@@ -617,10 +625,7 @@ export const addVotersFromAutoVoter = async (
   for (const makeClient of clientFactories) {
     try {
       const client = await makeClient();
-      const attempt = await client.multicall({
-        contracts,
-        blockNumber: BigInt(endBlock),
-      });
+      const attempt = await client.multicall({ contracts, blockNumber: BigInt(endBlock) });
       if (attempt.every((r) => r.status === "success")) {
         results = attempt;
         break;
@@ -683,18 +688,14 @@ export const addVotersFromAutoVoter = async (
         Number(weight);
     }
 
-    voters.push({
-      voter: delegatorAddress.toLowerCase(),
+    expandedVoters.push({
+      voter: delegatorAddress,
       choice: choices,
-      vp: vp,
+      vp,
     });
   }
 
-  // Remove auto voter to not receive bounty rewards
-  return voters.filter(
-    (voter) =>
-      voter.voter.toLowerCase() !== AUTO_VOTER_DELEGATION_ADDRESS.toLowerCase()
-  );
+  return expandedVoters;
 };
 
 export const getDelegationVotingPower = async (

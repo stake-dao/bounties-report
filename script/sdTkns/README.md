@@ -26,6 +26,10 @@ Raw token rows can be added under `bounties-reports/{timestamp}/raw/{protocol}/`
 
 Shared merkle logic lives in `script/utils/merkle/` and `script/shared/merkle/`.
 
+## Attribution des votes automatiques sdCRV
+
+Un vote direct accepté exclut le portefeuille des primes du bot. Pour les autres portefeuilles, le générateur rapproche les préférences archivées jusqu’au vote du bot des poids signés pour chaque gauge. Si les données manquent ou que cette vérification ne détermine pas les parts individuelles, le calcul s’arrête. Le recalcul automatique couvre les scrutins créés à partir du 21 mai 2025, date retenue après le changement de formule de score sdCRV.
+
 ## Weekly Flow
 
 1. Fetch claimed rewards into `weekly-bounties/{timestamp}/...`.
