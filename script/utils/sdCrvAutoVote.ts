@@ -4,8 +4,8 @@ import type { PublicClient } from "viem";
 import { SDCRV_SPACE, SNAPSHOT_ENDPOINT, getClient } from "./constants";
 import { getBlockNumberByTimestamp } from "./chainUtils";
 import { getVoters, getSnapshotStrategyScores } from "./snapshot";
-import { getSdCrvAutoVoteDelegators, readSdCrvAutoVoteArchive, type SdCrvAutoRegistration } from "./sdCrvAutoVoteArchive";
-import { reconcileSdCrvAutoVote, type SdCrvAutoVoteCandidate } from "./sdCrvAutoVoteReconciliation";
+import { getSdCrvAutoVoteRegistrations, type SdCrvAutoRegistration } from "./sdCrvAutoVoteArchive";
+import { reconcileSdCrvAutoVote } from "./sdCrvAutoVoteReconciliation";
 import type { Proposal } from "./types";
 
 interface BotBallot {
@@ -104,15 +104,12 @@ export async function reconstructSdCrvAutoVote(
   }
   const strategies = await getScoringStrategies(proposal.id, ballot.id);
   const client = await getClient(1);
-  const timestamps = [...new Set([proposal.created, opened, accepted])];
-  const blocks = new Map(await Promise.all(timestamps.map(async time =>
-    [time, await blockAtOrBefore(client, time)] as const
-  )));
-  const toBlock = blocks.get(accepted)!;
-  const accounts = await getSdCrvAutoVoteDelegators(client, blocks.get(proposal.created)!, toBlock);
-  const addresses = accounts.map(account => account.voter);
-  const [archive, zeroPowerBallots] = await Promise.all([
-    readSdCrvAutoVoteArchive({ addresses, fromBlock: blocks.get(opened)!, toBlock }),
+  const [creationBlock, voteBlock] = await Promise.all([
+    blockAtOrBefore(client, proposal.created),
+    blockAtOrBefore(client, accepted),
+  ]);
+  const [accounts, zeroPowerBallots] = await Promise.all([
+    getSdCrvAutoVoteRegistrations(client, creationBlock, voteBlock),
     getVoters(proposal.id, "zero"),
   ]);
 
@@ -127,23 +124,17 @@ export async function reconstructSdCrvAutoVote(
     if (start >= 0 && end > start) gauges.set(label.slice(start + 3, end).toLowerCase(), i + 1);
   }
 
-  const candidates: SdCrvAutoVoteCandidate[] = [];
   const scoringProposal = { ...proposal, strategies };
   const limit = pLimit(3);
-  const rows = await Promise.all(accounts.map(account => limit(async () => {
-    const voter = account.voter.toLowerCase();
-    const history = archive.get(voter);
-    if (!history?.length) throw new Error(`Missing archived sdCRV registration for ${voter}`);
-    const variants = history.filter(state => !state.killed && state.user.toLowerCase() === voter)
-      .map(state => registrationWeights(state, gauges))
-      .filter(state => state.weightedChoices.some(([, weight]) => weight > 0));
-    if (!variants.length) return;
-    // A delegation strategy's scores depend on its input cohort. The producer
-    // scored each address separately, even when several users chose the same gauge.
+  const rows = await Promise.all(accounts.map(({ voter, registration }) => limit(async () => {
+    if (registration.killed || registration.user.toLowerCase() !== voter) return;
+    const weights = registrationWeights(registration, gauges);
+    if (!weights.weightedChoices.some(([, weight]) => weight > 0)) return;
+    // Delegation scores depend on the requested addresses. The bot scores each voter separately.
     const vp = await getIndividualVotingPower(scoringProposal, voter);
-    return { voter, vp, direct: directVoters.has(voter), ...variants[0], alternatives: variants.slice(1) };
+    return { voter, vp, direct: directVoters.has(voter), ...weights };
   })));
-  for (const row of rows) if (row) candidates.push(row);
+  const candidates = rows.filter(row => row !== undefined);
   const contributions = reconcileSdCrvAutoVote(ballot.choice, candidates);
   const eligible = new Set(accounts.filter(account => account.delegatedAtCreation).map(account => account.voter.toLowerCase()));
   if (contributions.some(row => !eligible.has(row.voter))) {
