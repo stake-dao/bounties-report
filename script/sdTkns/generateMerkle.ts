@@ -6,6 +6,7 @@ import {
   NETWORK_TO_MERKLE,
   NETWORK_TO_STASH,
   SDFXS_SPACE,
+  SDCRV_SPACE,
   SPACE_TO_NETWORK,
   SPACES,
   SPACES_IMAGE,
@@ -323,6 +324,7 @@ const main = async () => {
         }
         logData["TotalReported"][symbol] += totalAmount;
       } catch (error) {
+        if (space === SDCRV_SPACE) throw error;
         console.error(`Error creating merkle for raw token ${token} in space ${space}:`, error);
       }
     }

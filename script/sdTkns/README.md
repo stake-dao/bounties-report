@@ -26,6 +26,10 @@ Raw token rows can be added under `bounties-reports/{timestamp}/raw/{protocol}/`
 
 Shared merkle logic lives in `script/utils/merkle/` and `script/shared/merkle/`.
 
+## Attribution des votes automatiques sdCRV
+
+Un vote direct accepté exclut le portefeuille des primes du bot. Pour les autres portefeuilles, le générateur lit leurs préférences au dernier bloc Ethereum dont l’horodatage est inférieur ou égal à celui du bulletin Snapshot du bot. Il vérifie que leurs contributions reproduisent exactement les poids signés par gauge. Si ce contrôle échoue ou si l’attribution est ambiguë au bloc retenu, le calcul s’arrête. Le bot ne signe pas le bloc où il a lu chaque préférence. Un changement pendant la préparation du vote peut donc passer inaperçu si les totaux par gauge restent identiques. Le recalcul automatique couvre les scrutins créés à partir du 21 mai 2025, après le changement de formule de score sdCRV.
+
 ## Weekly Flow
 
 1. Fetch claimed rewards into `weekly-bounties/{timestamp}/...`.

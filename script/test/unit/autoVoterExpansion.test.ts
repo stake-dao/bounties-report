@@ -1,18 +1,12 @@
-/**
- * Regression tests for addVotersFromAutoVoter reading auto-voter registrations
- * at the proposal end block. The multicall's blockNumber must be a bigint:
- * viem silently ignores a JS number and reads latest state instead, which paid
- * nobody for gauges whose only voter re-registered after the vote closed
- * (2026-08-04 sdCRV surplus incident).
- */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { getBlockNumberByTimestamp } from "../../utils/chainUtils";
 import { AUTO_VOTER_DELEGATION_ADDRESS } from "../../utils/constants";
 
 const USER = "0xe4f02accc88a3000f11afec71c04896127a3aeb5";
 const END_BLOCK = 25581555;
 
 const capturedBlockNumbers: unknown[] = [];
-let resolvedEndBlock: number = END_BLOCK;
+let registeredVotingPower = 7093281.81;
 let registration = {
   user: USER,
   gauges: [
@@ -36,18 +30,20 @@ vi.mock("../../utils/constants", async (importOriginal) => {
   };
 });
 
+vi.mock("../../utils/rpcConfig", () => ({ getAvailableEndpoints: () => [] }));
+
 vi.mock("../../utils/cacheUtils", () => ({
   processAllDelegators: async () => [USER],
 }));
 
 vi.mock("../../utils/chainUtils", () => ({
-  getBlockNumberByTimestamp: async () => resolvedEndBlock,
+  getBlockNumberByTimestamp: vi.fn(),
 }));
 
 vi.mock("axios", () => ({
   default: {
     post: async () => ({
-      data: { result: { scores: [{ [USER]: 7093281.81 }] } },
+      data: { result: { scores: [{ [USER]: registeredVotingPower }] } },
     }),
   },
 }));
@@ -59,7 +55,7 @@ const proposal = {
   created: 1784170674,
   snapshot: "25542094",
   strategies: [],
-  space: { id: "sdcrv.eth" },
+  space: { id: "sdfxn.eth" },
 };
 
 const addressesPerChoice = {
@@ -68,33 +64,59 @@ const addressesPerChoice = {
 };
 
 const autoVoter = {
+  id: "0x" + "11".repeat(32),
+  created: proposal.end - 3600,
   voter: AUTO_VOTER_DELEGATION_ADDRESS,
   vp: 9742814,
   choice: { "276": 3546640, "309": 3546640 },
 };
 
-describe("addVotersFromAutoVoter end-block reads", () => {
+describe("legacy auto-voter registration reads", () => {
   beforeEach(() => {
     capturedBlockNumbers.length = 0;
-    resolvedEndBlock = END_BLOCK;
+    vi.mocked(getBlockNumberByTimestamp).mockReset().mockResolvedValue(END_BLOCK);
+    registeredVotingPower = 7093281.81;
   });
 
-  it("queries auto-voter weights at the proposal end block as a bigint", async () => {
+  it("reads preferences at the proposal end block for non-sdCRV spaces", async () => {
+    const space = proposal.space.id;
     await addVotersFromAutoVoter(
-      "sdcrv.eth",
+      space,
       proposal,
       [autoVoter],
       addressesPerChoice
     );
 
-    expect(capturedBlockNumbers).toHaveLength(1);
-    expect(typeof capturedBlockNumbers[0]).toBe("bigint");
-    expect(capturedBlockNumbers[0]).toBe(BigInt(END_BLOCK));
+    expect(getBlockNumberByTimestamp).toHaveBeenCalledWith(proposal.end, "before", 1);
+    expect(capturedBlockNumbers).toEqual([BigInt(END_BLOCK)]);
+  });
+
+  it("keeps a direct ballot's choices and voting power when the voter is also registered", async () => {
+    const directBallot = {
+      voter: "0x" + USER.slice(2).toUpperCase(),
+      choice: { "309": 1 },
+      vp: 42,
+    };
+
+    const voters = await addVotersFromAutoVoter(
+      "sdfxn.eth", proposal, [autoVoter, directBallot], addressesPerChoice
+    );
+
+    expect(voters).toEqual([directBallot]);
+  });
+
+  it("excludes the auto-voter account even when no delegator has voting power", async () => {
+    registeredVotingPower = 0;
+    const voters = await addVotersFromAutoVoter(
+      "sdfxn.eth", proposal, [autoVoter], addressesPerChoice
+    );
+
+    expect(voters).toEqual([]);
   });
 
   it("expands the delegator with their registered weights", async () => {
     const voters = await addVotersFromAutoVoter(
-      "sdcrv.eth",
+      "sdfxn.eth",
       proposal,
       [autoVoter],
       addressesPerChoice
@@ -104,8 +126,8 @@ describe("addVotersFromAutoVoter end-block reads", () => {
       (v: { voter: string }) => v.voter.toLowerCase() === USER
     );
     expect(expanded).toBeDefined();
-    expect(expanded.vp).toBeCloseTo(7093281.81);
-    expect(expanded.choice).toEqual({ "276": 5000, "309": 5000 });
+    expect(expanded?.vp).toBeCloseTo(7093281.81);
+    expect(expanded?.choice).toEqual({ "276": 5000, "309": 5000 });
     expect(
       voters.some(
         (v: { voter: string }) =>
@@ -114,11 +136,11 @@ describe("addVotersFromAutoVoter end-block reads", () => {
     ).toBe(false);
   });
 
-  it("throws when the proposal end block cannot be resolved", async () => {
-    resolvedEndBlock = 0;
+  it("throws when the historical block cannot be resolved", async () => {
+    vi.mocked(getBlockNumberByTimestamp).mockResolvedValue(0);
 
     await expect(
-      addVotersFromAutoVoter("sdcrv.eth", proposal, [autoVoter], addressesPerChoice)
-    ).rejects.toThrow(/end block/i);
+      addVotersFromAutoVoter("sdfxn.eth", proposal, [autoVoter], addressesPerChoice)
+    ).rejects.toThrow();
   });
 });

@@ -321,20 +321,10 @@ export const getLastClosedProposals = async (space: string, count: number): Prom
  * @param proposalId - Proposal ID
  * @returns Array of votes
  */
-export const getVoters = async (proposalId: string): Promise<any[]> => {
+export const getVoters = async (proposalId: string, power: "positive" | "zero" = "positive"): Promise<any[]> => {
   const QUERY_VOTES = gql`
-    query Proposal(
-      $proposal: String!
-      $orderBy: String
-      $orderDirection: OrderDirection
-      $created: Int
-    ) {
-      votes(
-        first: 1000
-        where: { proposal: $proposal, vp_gt: 0, created_lt: $created }
-        orderBy: $orderBy
-        orderDirection: $orderDirection
-      ) {
+    query ProposalVotes($where: VoteWhere!) {
+      votes(first: 1000, where: $where, orderBy: "created", orderDirection: desc) {
         id
         ipfs
         voter
@@ -346,31 +336,27 @@ export const getVoters = async (proposalId: string): Promise<any[]> => {
     }
   `;
 
-  let votes: any[] = [];
-  let run = true;
-  let created = null;
-
-  // Fetch all data
-  do {
-    let params: any = {
-      proposal: proposalId,
-      orderBy: "created",
-      orderDirection: "desc",
-    };
-
-    if (created) {
-      params["created"] = created;
+  const votes: any[] = [];
+  let created: number | undefined;
+  while (true) {
+    const result = await request(SNAPSHOT_ENDPOINT, QUERY_VOTES, {
+      where: { proposal: proposalId, ...(power === "zero" ? { vp: 0 } : { vp_gt: 0 }), created_lte: created },
+    });
+    const page = result.votes;
+    if (!Array.isArray(page)) throw new Error("Missing Snapshot votes page");
+    if (page.length < 1000) {
+      votes.push(...page);
+      break;
     }
-
-    const result = await request(SNAPSHOT_ENDPOINT, QUERY_VOTES, params);
-
-    if (result.votes?.length > 0) {
-      votes = votes.concat(result.votes);
-      created = result.votes[result.votes.length - 1].created;
-    } else {
-      run = false;
+    // One second can contain several direct votes. Read the entire boundary
+    // second on the next page instead of silently dropping the rest of it.
+    const boundary = page[page.length - 1].created;
+    if (!Number.isSafeInteger(boundary) || page[0].created === boundary) {
+      throw new Error("Cannot paginate an entire Snapshot votes page with the same timestamp");
     }
-  } while (run);
+    votes.push(...page.filter((vote: Vote) => vote.created > boundary));
+    created = boundary;
+  }
 
   return votes;
 };
@@ -418,6 +404,15 @@ const postScoresWithRetry = async <T = any>(
   }
   throw lastErr;
 };
+
+export async function getSnapshotStrategyScores(proposal: Proposal, addresses: string[], network: string) {
+  const { data } = await postScoresWithRetry<ScoreResponse>({
+    params: { network, snapshot: parseInt(proposal.snapshot), strategies: proposal.strategies,
+      space: proposal.space.id, addresses },
+  });
+  if (!Array.isArray(data?.result?.scores)) throw new Error("No scores returned from the API");
+  return data.result.scores;
+}
 
 /**
  * Get voting power for a list of addresses
@@ -476,23 +471,10 @@ export const getVotingPower = async (
 
   // Original single-request logic
   try {
-    const { data } = await postScoresWithRetry<ScoreResponse>({
-      params: {
-        network,
-        snapshot: parseInt(proposal.snapshot),
-        strategies: proposal.strategies,
-        space: proposal.space.id,
-        addresses,
-      },
-    });
-
-    if (!data?.result?.scores) {
-      throw new Error("No scores returned from the API");
-    }
-
+    const scores = await getSnapshotStrategyScores(proposal, addresses, network);
     const result: Record<string, number> = {};
 
-    for (const score of data.result.scores) {
+    for (const score of scores) {
       for (const [address, scoreValue] of Object.entries(score)) {
         const normalizedAddress = address.toLowerCase();
         if (!result[normalizedAddress]) {
