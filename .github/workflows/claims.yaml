@@ -81,14 +81,18 @@ jobs:
 
       - name: Generate claims
         run: |
+          if ! [[ "$PAST_WEEK" =~ ^[0-9]+$ ]]; then
+            echo "::error::past_week must be a non-negative integer: $PAST_WEEK"
+            exit 1
+          fi
           case "$PLATFORM" in
             # sdTkns
-            votemarket)            make -f automation/weekly-bounties.mk run-votemarket CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
-            votemarket-v2)         make -f automation/weekly-bounties.mk run-votemarket-v2 CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
-            spectra)               make -f automation/weekly-bounties.mk run-spectra CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
+            votemarket)            make -f automation/weekly-bounties.mk run-votemarket CI_SETUP_DONE=1 "PAST_WEEK=$PAST_WEEK" ;;
+            votemarket-v2)         make -f automation/weekly-bounties.mk run-votemarket-v2 CI_SETUP_DONE=1 "PAST_WEEK=$PAST_WEEK" ;;
+            spectra)               make -f automation/weekly-bounties.mk run-spectra CI_SETUP_DONE=1 "PAST_WEEK=$PAST_WEEK" ;;
             # vlCVX
-            convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
-            convex-votium)         make -f automation/weekly-bounties.mk run-convex-votium CI_SETUP_DONE=1 PAST_WEEK=$PAST_WEEK ;;
+            convex-votemarket-v2)  make -f automation/weekly-bounties.mk run-convex-votemarket-v2 CI_SETUP_DONE=1 "PAST_WEEK=$PAST_WEEK" ;;
+            convex-votium)         make -f automation/weekly-bounties.mk run-convex-votium CI_SETUP_DONE=1 "PAST_WEEK=$PAST_WEEK" ;;
           esac
         env:
           EXPLORER_KEY: ${{ secrets.ETHERSCAN_TOKEN }}

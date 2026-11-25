@@ -19,24 +19,24 @@ run-all: run-votemarket run-votemarket-v2 run-spectra
 # Individual protocol targets for mainnet
 run-votemarket: setup install-deps
 	@echo "Running Votemarket V1 bounty generation..."
-	@$(PNPM) tsx script/sdTkns/claims/generateVotemarket.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/claims/generateVotemarket.ts "$(PAST_WEEK)"
 
 run-votemarket-v2: setup install-deps
 	@echo "Running Votemarket V2 bounty generation..."
-	@$(PNPM) tsx script/sdTkns/claims/generateVotemarketV2.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/claims/generateVotemarketV2.ts "$(PAST_WEEK)"
 
 run-spectra: setup install-deps
 	@echo "Running Spectra bounty generation..."
-	@$(PNPM) tsx script/sdTkns/claims/generateSpectra.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/sdTkns/claims/generateSpectra.ts "$(PAST_WEEK)"
 
 # vlCVX targets
 run-convex-votemarket-v2: setup install-deps
 	@echo "Running vlCVX Votemarket V2 bounty generation..."
-	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarketV2.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotemarketV2.ts "$(PAST_WEEK)"
 
 run-convex-votium: setup install-deps
 	@echo "Running vlCVX Votium bounty generation..."
-	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotium.ts $(PAST_WEEK)
+	@$(PNPM) tsx script/vlCVX/claims/generateConvexVotium.ts "$(PAST_WEEK)"
 
 # Legacy targets for backward compatibility
 run-weekly: run-all
