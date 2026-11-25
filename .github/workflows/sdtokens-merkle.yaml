@@ -118,8 +118,9 @@ jobs:
 
       - name: "sdSpectra: publish to sdTkns latest"
         if: inputs.token == 'spectra' && (inputs.step == 'publish')
+        env:
+          PERIOD: ${{ steps.period.outputs.current }}
         run: |
-          PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/sdTkns"
 
           if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_8453.json" ]; then
@@ -131,8 +132,9 @@ jobs:
 
       - name: "sdFXS: publish to latest"
         if: inputs.token == 'sdfxs' && (inputs.step == 'publish')
+        env:
+          PERIOD: ${{ steps.period.outputs.current }}
         run: |
-          PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/sdTkns"
 
           if [ -f "bounties-reports/${PERIOD}/sdTkns/sdtkns_merkle_252.json" ]; then
@@ -145,15 +147,17 @@ jobs:
       - name: Verify legacy on-chain roots
         id: verify
         if: inputs.token == 'legacy' && inputs.step == 'publish'
-        run: pnpm tsx script/helpers/verifyLegacyRoot.ts --period ${{ steps.period.outputs.current }}
+        run: pnpm tsx script/helpers/verifyLegacyRoot.ts --period "$PERIOD"
         env:
+          PERIOD: ${{ steps.period.outputs.current }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       - name: "Legacy: publish to latest"
         if: inputs.token == 'legacy' && inputs.step == 'publish' && steps.verify.outputs.skip != 'true'
+        env:
+          PERIOD: ${{ steps.period.outputs.current }}
         run: |
-          PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/sdTkns"
 
           cp "bounties-reports/${PERIOD}/merkle.json" "bounties-reports/latest/merkle.json"
@@ -178,8 +182,9 @@ jobs:
 
       - name: Merge delegationsAPRs
         if: (inputs.token == 'spectra' || inputs.token == 'sdfxs') && (inputs.step == 'publish')
+        env:
+          PERIOD: ${{ steps.period.outputs.current }}
         run: |
-          PERIOD=${{ steps.period.outputs.current }}
           if [ -f "bounties-reports/${PERIOD}/delegationsAPRs.json" ]; then
             if [ -f "bounties-reports/latest/delegationsAPRs.json" ]; then
               jq -s '.[0] * .[1]' \

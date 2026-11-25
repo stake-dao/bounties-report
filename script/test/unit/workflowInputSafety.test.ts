@@ -5,35 +5,29 @@ import { describe, expect, it } from "vitest";
 const ROOT = path.resolve(__dirname, "../../..");
 
 /**
- * A `${{ ... }}` expression from a dispatch or PR context inside a `run:` block
- * is shell injection: GitHub substitutes it into the script before bash sees it.
- * Dispatch inputs are free text unless declared `type: choice`, and a `choice`
- * can be widened later, so the rule is absolute: pass them through `env:`.
+ * GitHub substitutes `${{ ... }}` into a `run:` script before bash sees it, so
+ * any expression there is a shell-injection surface: dispatch inputs are free
+ * text unless declared `type: choice`, and a choice can be widened later. The
+ * rule is therefore absolute — a `run:` scalar contains no expression at all;
+ * values reach the script through `env:`.
+ *
+ * Line-based on purpose (the repo has no YAML parser dependency). It handles
+ * block headers (`|`, `>`, `|2`, `>-`, with a trailing comment) and the key
+ * indentation of a list item; YAML anchors and flow mappings inside a step are
+ * not followed.
  */
-const UNSAFE = /\$\{\{\s*(?:inputs\.|github\.event\.inputs\.|github\.head_ref|github\.event\.pull_request\.)/;
-
-function yamlFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const full = path.join(dir, name);
-    if (statSync(full).isDirectory()) return yamlFiles(full);
-    return /\.ya?ml$/.test(name) ? [full] : [];
-  });
-}
-
-/** Every `run:` scalar body in a workflow or composite action. */
 export function runBlocks(source: string): string[] {
   const lines = source.split("\n");
   const blocks: string[] = [];
   for (let i = 0; i < lines.length; i++) {
-    const match = /^(\s*)(?:-\s+)?run:\s*(.*)$/.exec(lines[i]);
+    const match = /^(\s*(?:-\s+)?)(["']?run["']?):\s*(.*)$/.exec(lines[i]);
     if (!match) continue;
-    const indent = match[1].length;
-    const inline = match[2].trim();
-    // A job may be named `run:` (the key then holds a nested mapping, so the
-    // value is empty). Only a non-empty value is a shell step.
-    if (!inline) continue;
-    if (!/^[|>][+-]?$/.test(inline)) {
-      blocks.push(inline);
+    const keyIndent = match[1].length;
+    const raw = match[3].trim();
+    if (!raw) continue; // a job named `run:`, whose value is a nested mapping
+    const header = raw.split(/\s+#/)[0].trim();
+    if (!/^[|>][0-9+-]*$/.test(header)) {
+      blocks.push(raw);
       continue;
     }
     const body: string[] = [];
@@ -43,12 +37,20 @@ export function runBlocks(source: string): string[] {
         body.push(line);
         continue;
       }
-      if (line.length - line.trimStart().length <= indent) break;
+      if (line.length - line.trimStart().length <= keyIndent) break;
       body.push(line);
     }
     blocks.push(body.join("\n"));
   }
   return blocks;
+}
+
+function yamlFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = path.join(dir, name);
+    if (statSync(full).isDirectory()) return yamlFiles(full);
+    return /\.ya?ml$/.test(name) ? [full] : [];
+  });
 }
 
 const files = [
@@ -61,8 +63,8 @@ describe("workflow shell safety", () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
-  it.each(files)("%s keeps dispatch inputs out of run blocks", (file) => {
-    const offending = runBlocks(readFileSync(file, "utf8")).filter((block) => UNSAFE.test(block));
-    expect(offending, `${path.relative(ROOT, file)} interpolates a dispatch or PR value into a run block`).toEqual([]);
+  it.each(files)("%s keeps expressions out of run blocks", (file) => {
+    const offending = runBlocks(readFileSync(file, "utf8")).filter((block) => block.includes("${{"));
+    expect(offending, `${path.relative(ROOT, file)} interpolates an expression into a run block; pass it through env:`).toEqual([]);
   });
 });
