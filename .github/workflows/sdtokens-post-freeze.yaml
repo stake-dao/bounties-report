@@ -113,7 +113,9 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       - name: Export checked guard distribution
-        if: steps.existing.outputs.reuse != 'true'
+        # Always rebuild the artifact from the checked merkle/log and live balances.
+        # A committed file claiming verified=true must never skip this export and
+        # reach the submit job unchanged.
         env:
           STAGE: ${{ inputs.stage }}
           WEB3_ALCHEMY_API_KEY: ${{ secrets.WEB3_ALCHEMY_API_KEY }}
