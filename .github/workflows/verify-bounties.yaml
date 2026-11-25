@@ -39,14 +39,19 @@ jobs:
 
       - name: AI verify bounties report
         run: |
-          if [ -n "${{ inputs.epoch }}" ]; then
-            PERIOD="${{ inputs.epoch }}"
+          if [ -n "$EPOCH_INPUT" ]; then
+            if ! [[ "$EPOCH_INPUT" =~ ^[0-9]+$ ]]; then
+              echo "::error::epoch must be a unix timestamp: $EPOCH_INPUT"
+              exit 1
+            fi
+            PERIOD="$EPOCH_INPUT"
           else
             WEEK=604800
             PERIOD=$(( $(date +%s) / WEEK * WEEK ))
           fi
-          pnpm tsx script/verify/aiVerify.ts --timestamp $PERIOD --protocol bounties
+          pnpm tsx script/verify/aiVerify.ts --timestamp "$PERIOD" --protocol bounties
         env:
+          EPOCH_INPUT: ${{ inputs.epoch }}
           OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
           TEST_TELEGRAM_API_KEY: ${{ secrets.TEST_TELEGRAM_API_KEY }}
           TEST_TELEGRAM_CHAT_ID: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}

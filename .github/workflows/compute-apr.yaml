@@ -58,12 +58,14 @@ jobs:
           ROUTEMESH_API_KEY: ${{ secrets.ROUTEMESH_API_KEY }}
 
       - name: Copy APRs to latest
+        env:
+          PROTOCOL: ${{ inputs.protocol }}
         run: |
           PERIOD=${{ steps.period.outputs.current }}
-          mkdir -p "bounties-reports/latest/${{ inputs.protocol }}"
+          mkdir -p "bounties-reports/latest/$PROTOCOL"
 
-          if [ -f "bounties-reports/${PERIOD}/${{ inputs.protocol }}/APRs.json" ]; then
-            cp "bounties-reports/${PERIOD}/${{ inputs.protocol }}/APRs.json" "bounties-reports/latest/${{ inputs.protocol }}/APRs.json"
+          if [ -f "bounties-reports/${PERIOD}/$PROTOCOL/APRs.json" ]; then
+            cp "bounties-reports/${PERIOD}/$PROTOCOL/APRs.json" "bounties-reports/latest/$PROTOCOL/APRs.json"
           fi
 
       - name: Commit and push

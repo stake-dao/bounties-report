@@ -34,7 +34,9 @@ jobs:
           sudo update-ca-certificates
 
       - name: "dispatch_id:${{ inputs.dispatch_id || 'manual' }}"
-        run: echo "Dispatch ID - ${{ inputs.dispatch_id || 'manual' }}"
+        env:
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+        run: echo "Dispatch ID - ${DISPATCH_ID:-manual}"
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,24 +49,30 @@ jobs:
 
       - name: AI verify sdToken distribution
         run: |
-          case "${{ inputs.token }}" in
+          case "$TOKEN_INPUT" in
             sdfxs)   PROTOCOL=frax ;;
             spectra) PROTOCOL=spectra ;;
             *)
-              echo "❌ Unsupported token '${{ inputs.token }}': aiVerify.ts has no protocol mapping for it."
+              echo "❌ Unsupported token '$TOKEN_INPUT': aiVerify.ts has no protocol mapping for it."
               echo "   Supported: sdfxs, spectra. Extend script/verify/aiVerify.ts to add more."
               exit 1
               ;;
           esac
-          if [ -n "${{ inputs.epoch }}" ]; then
-            PERIOD="${{ inputs.epoch }}"
+          if [ -n "$EPOCH_INPUT" ]; then
+            if ! [[ "$EPOCH_INPUT" =~ ^[0-9]+$ ]]; then
+              echo "::error::epoch must be a unix timestamp: $EPOCH_INPUT"
+              exit 1
+            fi
+            PERIOD="$EPOCH_INPUT"
           else
             WEEK=604800
             PERIOD=$(( $(date +%s) / WEEK * WEEK ))
           fi
-          echo "Token=${{ inputs.token }} Protocol=$PROTOCOL Period=$PERIOD"
-          pnpm tsx script/verify/aiVerify.ts --timestamp $PERIOD --protocol $PROTOCOL
+          echo "Token=$TOKEN_INPUT Protocol=$PROTOCOL Period=$PERIOD"
+          pnpm tsx script/verify/aiVerify.ts --timestamp "$PERIOD" --protocol "$PROTOCOL"
         env:
+          TOKEN_INPUT: ${{ inputs.token }}
+          EPOCH_INPUT: ${{ inputs.epoch }}
           OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
           TEST_TELEGRAM_API_KEY: ${{ secrets.TEST_TELEGRAM_API_KEY }}
           TEST_TELEGRAM_CHAT_ID: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}

@@ -24,6 +24,8 @@ env:
 jobs:
   check-reports:
     runs-on: ubuntu-latest
+    env:
+      PROTOCOL: ${{ github.event.inputs.protocol || 'curve' }}
 
     steps:
       - name: Distrust compromised eMudhra chains
@@ -47,16 +49,8 @@ jobs:
       - name: Install node dependencies
         run: pnpm install
 
-      - name: Set protocol value
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "PROTOCOL=${{ github.event.inputs.protocol }}" >> $GITHUB_ENV
-          else
-            echo "PROTOCOL=curve" >> $GITHUB_ENV
-          fi
-
       - name: Run reportVerifier script
-        run: pnpm tsx script/repartition/sdTkns/reportVerifier.ts ${{ env.PROTOCOL }}
+        run: pnpm tsx script/repartition/sdTkns/reportVerifier.ts "$PROTOCOL"
         env:
           TELEGRAM_VERIF_API_KEY: ${{ secrets.TELEGRAM_VERIF_API_KEY }}
           TELEGRAM_VERIF_CHAT_ID: ${{ secrets.TELEGRAM_VERIF_CHAT_ID }}
