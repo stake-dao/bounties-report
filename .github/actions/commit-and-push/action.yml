@@ -10,6 +10,10 @@ runs:
   steps:
     - name: Commit and push
       shell: bash
+      env:
+        # Passed through env, never interpolated into the script: a dispatch
+        # input in a `run:` block is a shell injection (dispatch_id is free text).
+        MESSAGE: ${{ inputs.message }}
       run: |
         git pull --rebase --autostash origin main
         git add -A
@@ -17,7 +21,7 @@ runs:
           echo "No changes to commit, skipping"
           exit 0
         fi
-        git commit -m "${{ inputs.message }}"
+        git commit -m "$MESSAGE"
 
         # A rejected push throws away work the job already did (2026-08-13:
         # GitHub answered `remote: Internal Server Error` and the sdFXS merkle
