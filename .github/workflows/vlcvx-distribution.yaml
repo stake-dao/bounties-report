@@ -259,8 +259,8 @@ jobs:
         id: check_published
         env:
           TYPE: ${{ inputs.type }}
+          PERIOD: ${{ steps.period.outputs.current }}
         run: |
-          PERIOD=${{ steps.period.outputs.current }}
           SOURCE_DIR="bounties-reports/${PERIOD}/vlCVX"
           LATEST_DIR="bounties-reports/latest/vlCVX"
 
@@ -312,8 +312,9 @@ jobs:
 
       - name: Publish voters to latest
         if: inputs.type == 'voters' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
+        env:
+          PERIOD: ${{ steps.period.outputs.current }}
         run: |
-          PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlCVX"
 
           cp "bounties-reports/${PERIOD}/vlCVX/vlcvx_merkle.json" "bounties-reports/latest/vlCVX/vlcvx_merkle.json"
@@ -327,8 +328,9 @@ jobs:
 
       - name: Publish delegators to latest
         if: inputs.type == 'delegators' && inputs.step == 'publish' && steps.check_published.outputs.skip != 'true' && steps.verify.outputs.skip != 'true'
+        env:
+          PERIOD: ${{ steps.period.outputs.current }}
         run: |
-          PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/vlCVX"
           cp "bounties-reports/${PERIOD}/vlCVX/merkle_data_delegators.json" "bounties-reports/latest/vlCVX/vlcvx_merkle_delegators.json"
 

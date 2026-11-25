@@ -60,8 +60,8 @@ jobs:
       - name: Copy APRs to latest
         env:
           PROTOCOL: ${{ inputs.protocol }}
+          PERIOD: ${{ steps.period.outputs.current }}
         run: |
-          PERIOD=${{ steps.period.outputs.current }}
           mkdir -p "bounties-reports/latest/$PROTOCOL"
 
           if [ -f "bounties-reports/${PERIOD}/$PROTOCOL/APRs.json" ]; then
