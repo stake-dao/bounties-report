@@ -20,7 +20,10 @@ vi.mock("node:path", async (original) => {
 });
 vi.mock("viem", async (original) => ({
   ...await original<typeof import("viem")>(),
-  createPublicClient: () => ({ getBlockNumber: async () => BigInt(state.head) }),
+  createPublicClient: () => ({
+    getBlockNumber: async () => BigInt(state.head),
+    getBlock: async () => ({ timestamp: 200n }),
+  }),
 }));
 vi.mock("../../utils/explorerUtils", () => ({
   createBlockchainExplorerUtils: () => ({ getLogsByAddressAndTopics: state.logs }),
@@ -70,7 +73,7 @@ describe("delegator checkpoint integrity", () => {
     await cache.fetchAllDelegators("1", [DELEGATE]);
     expect(ranges).toContain(30_000_001);
     const rows = await parquetReadObjects({ file: await asyncBufferFromFile(file) });
-    expect(rows).toEqual([{ event: "EndBlock", user: "", spaceId: "", timestamp: 0n, blockNumber: 30_050_001n }]);
+    expect(rows).toEqual([{ event: "EndBlock", user: "", spaceId: "", timestamp: 200n, blockNumber: 30_050_001n }]);
   });
 
   it("includes an event when the checkpoint is exactly one block behind the head", async () => {
@@ -85,6 +88,34 @@ describe("delegator checkpoint integrity", () => {
     await cache.fetchAllDelegators("1", [DELEGATE]);
     expect(await cache.processAllDelegators("sdcrv.eth", 100, DELEGATE)).toEqual([USER]);
     expect(await cache.processAllDelegators("sdcrv.eth", 99, DELEGATE)).toEqual([]);
+  });
+
+  it("refuses a cache whose checkpoint predates the requested period", async () => {
+    const other = "0x3333333333333333333333333333333333333333";
+    const otherFile = path.join(state.root, "delegations", "1", `${other}.parquet`);
+    const writer = await ParquetWriter.openFile(schema, otherFile);
+    await writer.appendRow({ event: "Set", user: USER, spaceId: formatBytes32String("sdcrv.eth"), timestamp: 40, blockNumber: 10 });
+    await writer.appendRow({ event: "EndBlock", user: "", spaceId: "", timestamp: 50, blockNumber: 20 });
+    await writer.close();
+
+    await expect(cache.processAllDelegators("sdcrv.eth", 100, other)).rejects.toThrow(/Run the indexer/);
+    expect(await cache.processAllDelegators("sdcrv.eth", 50, other)).toEqual([USER]);
+  });
+
+  it("falls back to the newest event when the checkpoint carries no timestamp", async () => {
+    const other = "0x4444444444444444444444444444444444444444";
+    const later = "0x5555555555555555555555555555555555555555";
+    const otherFile = path.join(state.root, "delegations", "1", `${other}.parquet`);
+    const writer = await ParquetWriter.openFile(schema, otherFile);
+    await writer.appendRow({ event: "Set", user: USER, spaceId: formatBytes32String("sdcrv.eth"), timestamp: 50, blockNumber: 10 });
+    await writer.appendRow({ event: "Set", user: later, spaceId: formatBytes32String("sdcrv.eth"), timestamp: 150, blockNumber: 20 });
+    await writer.appendRow({ event: "EndBlock", user: "", spaceId: "", timestamp: 0, blockNumber: 20 });
+    await writer.close();
+
+    // The ts=150 event proves the scan reached past the request but is itself
+    // outside the period, so only USER is returned.
+    expect(await cache.processAllDelegators("sdcrv.eth", 100, other)).toEqual([USER]);
+    await expect(cache.processAllDelegators("sdcrv.eth", 160, other)).rejects.toThrow(/Run the indexer/);
   });
 
   it("rejects a missing Clear result even when the Set result is valid", async () => {

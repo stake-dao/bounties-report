@@ -54,6 +54,11 @@ export const fetchAllDelegators = async (
   });
 
   const endBlock = Number(await publicClient.getBlockNumber());
+  // Record the scanned block's timestamp in the checkpoint row: consumers prove
+  // the cache reaches the period they distribute from it.
+  const endBlockTimestamp = Number(
+    (await publicClient.getBlock({ blockNumber: BigInt(endBlock) })).timestamp
+  );
 
   for (const delegationAddress of delegationAddresses) {
     const newDelegators = await fetchDelegatorsForAddress(
@@ -85,7 +90,7 @@ export const fetchAllDelegators = async (
       event: "EndBlock",
       user: "",
       spaceId: "",
-      timestamp: 0,
+      timestamp: endBlockTimestamp,
       blockNumber: endBlock,
     });
 
@@ -93,6 +98,39 @@ export const fetchAllDelegators = async (
     await storeDelegatorsAsParquet(chainId, delegationAddress, delegators);
   }
 };
+
+/**
+ * A parquet cache carries an `EndBlock` checkpoint row, written after a scan
+ * completes; its timestamp is the scan's coverage. A cache that does not reach
+ * the requested period would silently renormalize the delegators split (the
+ * found delegators absorb the missing ones' share) without breaking any total,
+ * so consumers refuse it. Caches written before the checkpoint carried a
+ * timestamp fall back to the newest event's timestamp, which is a lower bound
+ * on coverage: enough to prove coverage when it is after the request.
+ */
+function assertCacheCovers(
+  delegators: DelegatorData[],
+  requested: number,
+  file: string
+): void {
+  const checkpoint = [...delegators].reverse().find((d) => d.event === "EndBlock");
+  const checkpointTs = checkpoint ? Number(checkpoint.timestamp) : 0;
+  const lastEventTs = delegators.reduce(
+    (max, d) => (d.event === "EndBlock" ? max : Math.max(max, Number(d.timestamp))),
+    0
+  );
+  const coverage = checkpointTs > 0 ? checkpointTs : lastEventTs;
+  if (coverage >= requested) return;
+  const iso = (ts: number) => new Date(ts * 1000).toISOString();
+  throw new Error(
+    `Delegation cache ${file} only covers ${iso(coverage)} (block ` +
+      `${checkpoint?.blockNumber ?? 0}, ` +
+      `${checkpointTs > 0 ? "scan checkpoint" : "newest event; no checkpoint timestamp yet"}` +
+      `), before the requested ${iso(requested)}. A missed delegation event ` +
+      `would silently renormalize the delegators split. Run the indexer ` +
+      `(make -f automation/indexer.mk get-delegators) and retry.`
+  );
+}
 
 export const processAllDelegators = async (
   space: string,
@@ -112,6 +150,7 @@ export const processAllDelegators = async (
 
   // Read the Parquet file and store its contents
   const delegators = await readParquetFile(existingFile);
+  assertCacheCovers(delegators, currentPeriodTimestamp, existingFile);
 
   // Filter by space and timestamp
   const filteredByTimestamp = delegators.filter(
