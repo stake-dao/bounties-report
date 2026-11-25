@@ -160,8 +160,11 @@ const main = async () => {
   const toFreeze: Record<string, string[]> = {};
   const toSet: Record<string, string[]> = {};
 
-  // Loop through each active sdToken Snapshot space.
-  for (const space of Object.keys(proposalIdPerSpace)) {
+  // Loop through each active sdToken Snapshot space. Iterating SPACES rather
+  // than the proposal map is what makes a missing proposal visible: a space
+  // with a report CSV but no matching vote would otherwise drop its whole week
+  // silently, because the scope checks only cover tokens that reach the log.
+  for (const space of SPACES) {
     // Skip sdFXS as it now uses Universal Merkle
     if (space === SDFXS_SPACE) {
       continue;
@@ -186,11 +189,18 @@ const main = async () => {
       continue;
     }
 
+    const proposalId = proposalIdPerSpace[space];
+    if (!proposalId) {
+      throw new Error(
+        `Space ${space} has a report CSV for period ${currentPeriodTimestamp} but no matching proposal; refusing to drop its distribution`
+      );
+    }
+
     const totalSDToken = Object.values(csvResult).reduce(
       (acc, amount) => acc + amount,
       0
     );
-    const ids = [proposalIdPerSpace[space]];
+    const ids = [proposalId];
 
     // Save using the token symbol as key
     logData["TotalReported"][SPACES_SYMBOL[space]] = totalSDToken;
@@ -275,56 +285,56 @@ const main = async () => {
     for (const [, data] of Object.entries(groupedDistributions)) {
       const { space, token, symbol, distributions, totalAmount } = data;
 
-      // Verify the space has an active proposal
+      // A raw-token distribution without a vote cannot be allocated. Failing
+      // here keeps the week's funds in the distributor instead of publishing a
+      // tree that silently omits them; the next run's funding check would
+      // otherwise fail a week later, after those users already lost the week.
       const proposalId = proposalIdPerSpace[space];
       if (!proposalId) {
-        console.warn(`No proposal ID found for space ${space}, skipping raw token distribution`);
-        continue;
-      }
-
-      try {
-        // Create merkle tree using the same voting rules as the space
-        // but distributing the raw token instead of the sdToken
-        const merkleStat = await createMultiMerkle(
-          [proposalId],
-          space,
-          lastMerkles,
-          distributions,
-          sdFXSWorkingData,
-          sdCakeWorkingData,
-          {},
-          token // Override token address to use raw token instead of sdToken
+        throw new Error(
+          `Raw token ${symbol} has a distribution for space ${space} but no matching proposal; refusing to drop it`
         );
-
-        // Update merkle metadata for raw token
-        merkleStat.merkle.address = token;
-        merkleStat.merkle.symbol = symbol;
-
-        newMerkles.push(merkleStat.merkle);
-
-        // Prepare freeze and set operations for the merkle contract
-        const network = SPACE_TO_NETWORK[space];
-        if (!toFreeze[network]) {
-          toFreeze[network] = [];
-        }
-        if (!toSet[network]) {
-          toSet[network] = [];
-        }
-
-        toFreeze[network].push(token);
-        toSet[network].push(merkleStat.merkle.root);
-
-        // Log the distribution for reporting
-        logData[`RawToken_${space}_${token}`] = totalAmount;
-
-        // Add to TotalReported for the weekly comparison
-        if (!logData["TotalReported"][symbol]) {
-          logData["TotalReported"][symbol] = 0;
-        }
-        logData["TotalReported"][symbol] += totalAmount;
-      } catch (error) {
-        console.error(`Error creating merkle for raw token ${token} in space ${space}:`, error);
       }
+
+      // Create merkle tree using the same voting rules as the space
+      // but distributing the raw token instead of the sdToken
+      const merkleStat = await createMultiMerkle(
+        [proposalId],
+        space,
+        lastMerkles,
+        distributions,
+        sdFXSWorkingData,
+        sdCakeWorkingData,
+        {},
+        token // Override token address to use raw token instead of sdToken
+      );
+
+      // Update merkle metadata for raw token
+      merkleStat.merkle.address = token;
+      merkleStat.merkle.symbol = symbol;
+
+      newMerkles.push(merkleStat.merkle);
+
+      // Prepare freeze and set operations for the merkle contract
+      const network = SPACE_TO_NETWORK[space];
+      if (!toFreeze[network]) {
+        toFreeze[network] = [];
+      }
+      if (!toSet[network]) {
+        toSet[network] = [];
+      }
+
+      toFreeze[network].push(token);
+      toSet[network].push(merkleStat.merkle.root);
+
+      // Log the distribution for reporting
+      logData[`RawToken_${space}_${token}`] = totalAmount;
+
+      // Add to TotalReported for the weekly comparison
+      if (!logData["TotalReported"][symbol]) {
+        logData["TotalReported"][symbol] = 0;
+      }
+      logData["TotalReported"][symbol] += totalAmount;
     }
   }
 
